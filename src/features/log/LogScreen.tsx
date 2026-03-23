@@ -4,11 +4,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, fontSize } from "@/src/utils/theme";
-import { getEntriesByDate, deleteEntry, type Food, type Entry } from "@/src/db/queries";
+import { getEntriesByDate, deleteEntry, getGoals, type Food, type Entry, type Goals } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import MealSection from "./MealSection";
+import DailyProgressBar from "./DailyProgressBar";
 
 interface EntryWithFood {
     entries: Entry;
@@ -22,6 +23,13 @@ export default function LogScreen() {
         lunch: [],
         dinner: [],
         snack: [],
+    });
+    const [dailyGoals, setDailyGoals] = useState<Goals>({
+        id: 1,
+        calories: 2000,
+        protein: 150,
+        carbs: 250,
+        fat: 70,
     });
 
     const loadEntries = useCallback(() => {
@@ -37,6 +45,9 @@ export default function LogScreen() {
             if (map[mt]) map[mt].push(row);
         }
         setGrouped(map);
+
+        const g = getGoals();
+        if (g) setDailyGoals(g);
     }, [selectedDate]);
 
     useFocusEffect(
@@ -64,6 +75,22 @@ export default function LogScreen() {
         day: "numeric",
     });
 
+    const allEntries = Object.values(grouped).flat();
+    const dailyTotals = allEntries.reduce(
+        (acc, row) => {
+            const qty = row.entries.quantity_grams;
+            const food = row.foods;
+            if (!food) return acc;
+            return {
+                calories: acc.calories + (food.calories_per_100g * qty) / 100,
+                protein: acc.protein + (food.protein_per_100g * qty) / 100,
+                carbs: acc.carbs + (food.carbs_per_100g * qty) / 100,
+                fat: acc.fat + (food.fat_per_100g * qty) / 100,
+            };
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    );
+
     return (
         <View style={styles.screen}>
             <ScrollView
@@ -71,6 +98,8 @@ export default function LogScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <Text style={styles.dateLabel}>{dateLabel}</Text>
+
+                <DailyProgressBar totals={dailyTotals} goals={dailyGoals} />
 
                 {MEAL_TYPES.map((meal) => (
                     <MealSection
