@@ -7,6 +7,9 @@ export const foods = sqliteTable("foods", {
     protein_per_100g: real("protein_per_100g").notNull().default(0),
     carbs_per_100g: real("carbs_per_100g").notNull().default(0),
     fat_per_100g: real("fat_per_100g").notNull().default(0),
+    barcode: text("barcode"),
+    openfoodfacts_id: text("openfoodfacts_id"),
+    source: text("source").notNull().default("manual"),
 });
 
 export const entries = sqliteTable("entries", {
