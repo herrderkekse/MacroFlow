@@ -17,6 +17,7 @@ import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import MealSection from "./MealSection";
+import EntryModal from "./EntryModal";
 import DateSelectorBar from "./DateSelectorBar";
 import DailyProgressBar from "./DailyProgressBar";
 
@@ -71,11 +72,13 @@ function DayPage({
     goals,
     onAdd,
     onDelete,
+    onEdit,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
     onAdd: (mt: MealType) => void;
     onDelete: (id: number) => void;
+    onEdit: (row: EntryWithFood) => void;
 }) {
     return (
         <View style={styles.dayPage}>
@@ -94,6 +97,7 @@ function DayPage({
                         items={grouped[meal.key]}
                         onAdd={() => onAdd(meal.key)}
                         onDeleteEntry={onDelete}
+                        onEdit={onEdit}
                     />
                 ))}
             </ScrollView>
@@ -135,6 +139,8 @@ export default function LogScreen() {
         carbs: 250,
         fat: 70,
     });
+
+    const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
 
     function loadAllDays(center: Date) {
         setGrouped(loadGrouped(center));
@@ -182,6 +188,10 @@ export default function LogScreen() {
         loadAllDays(selectedDate);
     }
 
+    function handleEdit(row: EntryWithFood) {
+        setEditingEntry(row);
+    }
+
     function navigateToAdd(mealType?: MealType) {
         router.push({
             pathname: "/log/add",
@@ -213,20 +223,33 @@ export default function LogScreen() {
                     goals={dailyGoals}
                     onAdd={navigateToAdd}
                     onDelete={handleDelete}
+                    onEdit={handleEdit}
                 />
                 <DayPage
                     grouped={grouped}
                     goals={dailyGoals}
                     onAdd={navigateToAdd}
                     onDelete={handleDelete}
+                    onEdit={handleEdit}
                 />
                 <DayPage
                     grouped={nextGrouped}
                     goals={dailyGoals}
                     onAdd={navigateToAdd}
                     onDelete={handleDelete}
+                    onEdit={handleEdit}
                 />
             </ScrollView>
+
+            <EntryModal
+                food={editingEntry?.foods ?? null}
+                entry={editingEntry?.entries ?? null}
+                onClose={() => setEditingEntry(null)}
+                onSaved={() => {
+                    setEditingEntry(null);
+                    loadAllDays(selectedDate);
+                }}
+            />
 
             {/* Floating add button */}
             <Pressable
