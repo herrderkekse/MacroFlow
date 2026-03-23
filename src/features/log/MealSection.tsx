@@ -17,6 +17,7 @@ interface MealSectionProps {
     items: EntryWithFood[];
     onAdd: () => void;
     onDeleteEntry: (id: number) => void;
+    onEdit?: (row: EntryWithFood) => void;
 }
 
 export default function MealSection({
@@ -25,6 +26,7 @@ export default function MealSection({
     items,
     onAdd,
     onDeleteEntry,
+    onEdit,
 }: MealSectionProps) {
     const totalCals = items.reduce((sum, row) => {
         const cals = row.foods?.calories_per_100g ?? 0;
@@ -68,7 +70,12 @@ export default function MealSection({
                         : 0;
 
                     return (
-                        <View key={row.entries.id} style={styles.entryRow}>
+                        <Pressable
+                            key={row.entries.id}
+                            style={styles.entryRow}
+                            onPress={() => onEdit?.(row)}
+                            android_ripple={{ color: '#00000004' }}
+                        >
                             <View style={styles.entryInfo}>
                                 <Text style={styles.entryName} numberOfLines={1}>
                                     {food?.name ?? "Unknown food"}
@@ -87,7 +94,7 @@ export default function MealSection({
                                     color={colors.textTertiary}
                                 />
                             </Pressable>
-                        </View>
+                        </Pressable>
                     );
                 })
             )}
