@@ -1,4 +1,4 @@
-import { eq, and, gte, lt, like } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { db } from "./index";
 import { foods, entries, goals } from "./schema";
 
@@ -41,17 +41,21 @@ export function addEntry(entry: NewEntry): Entry {
     return db.insert(entries).values(entry).returning().get();
 }
 
+export function formatDateKey(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
 export function getEntriesByDate(date: Date) {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+    const key = formatDateKey(date);
 
     return db
         .select()
         .from(entries)
         .leftJoin(foods, eq(entries.food_id, foods.id))
-        .where(and(gte(entries.timestamp, start.getTime()), lt(entries.timestamp, end.getTime())))
+        .where(eq(entries.date, key))
         .orderBy(entries.timestamp)
         .all();
 }

@@ -11,11 +11,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import { addEntry, type Food } from "@/src/db/queries";
+import { addEntry, formatDateKey, type Food } from "@/src/db/queries";
+import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
+import { timestamp } from "drizzle-orm/gel-core";
 
 interface EntryModalProps {
     food: Food | null;
@@ -30,6 +32,7 @@ export default function EntryModal({
     onClose,
     onSaved,
 }: EntryModalProps) {
+    const selectedDate = useAppStore((s) => s.selectedDate);
     const [quantity, setQuantity] = useState("100");
     const [mealType, setMealType] = useState<MealType>(
         defaultMealType ?? "breakfast",
@@ -55,12 +58,14 @@ export default function EntryModal({
             food_id: food.id,
             quantity_grams: qty,
             timestamp: Date.now(),
+            date: formatDateKey(selectedDate),
             meal_type: mealType,
         });
         logger.info("[DB] Added entry", {
             foodId: food.id,
             quantity: qty,
-            mealType,
+            date: formatDateKey(selectedDate),
+            mealType: mealType
         });
         setQuantity("100");
         onSaved();

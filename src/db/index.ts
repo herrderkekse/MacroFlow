@@ -26,6 +26,7 @@ export function initDB() {
       food_id INTEGER REFERENCES foods(id),
       quantity_grams REAL NOT NULL,
       timestamp INTEGER NOT NULL,
+      date TEXT NOT NULL DEFAULT '',
       meal_type TEXT NOT NULL
     );
 
@@ -45,8 +46,16 @@ export function initDB() {
     "ALTER TABLE foods ADD COLUMN barcode TEXT",
     "ALTER TABLE foods ADD COLUMN openfoodfacts_id TEXT",
     "ALTER TABLE foods ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'",
+    "ALTER TABLE entries ADD COLUMN date TEXT NOT NULL DEFAULT ''",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }
   }
+
+  // Backfill date column for existing entries that have no date set
+  expoDb.execSync(`
+    UPDATE entries
+    SET date = strftime('%Y-%m-%d', timestamp / 1000, 'unixepoch', 'localtime')
+    WHERE date = '';
+  `);
 }
