@@ -8,14 +8,17 @@ const expoDb = openDatabaseSync(DB_NAME);
 export const db = drizzle(expoDb, { schema });
 
 export function initDB() {
-    expoDb.execSync(`
+  expoDb.execSync(`
     CREATE TABLE IF NOT EXISTS foods (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       calories_per_100g REAL NOT NULL DEFAULT 0,
       protein_per_100g REAL NOT NULL DEFAULT 0,
       carbs_per_100g REAL NOT NULL DEFAULT 0,
-      fat_per_100g REAL NOT NULL DEFAULT 0
+      fat_per_100g REAL NOT NULL DEFAULT 0,
+      barcode TEXT,
+      openfoodfacts_id TEXT,
+      source TEXT NOT NULL DEFAULT 'manual'
     );
 
     CREATE TABLE IF NOT EXISTS entries (
@@ -36,4 +39,14 @@ export function initDB() {
 
     INSERT OR IGNORE INTO goals (id) VALUES (1);
   `);
+
+  // Migrate existing DBs: add new columns if missing
+  const migrations = [
+    "ALTER TABLE foods ADD COLUMN barcode TEXT",
+    "ALTER TABLE foods ADD COLUMN openfoodfacts_id TEXT",
+    "ALTER TABLE foods ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'",
+  ];
+  for (const sql of migrations) {
+    try { expoDb.execSync(sql); } catch { /* column already exists */ }
+  }
 }
