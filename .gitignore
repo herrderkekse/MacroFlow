@@ -1,24 +1,50 @@
-# macOS
-.DS_Store
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Node
+
+# internal instructions
+SPECS.md
+
+# VS Code
+.vscode/
+
+# dependencies
 node_modules/
 
 # Expo
 .expo/
-.expo-shared/
-
-# Build outputs
 dist/
-build/
+web-build/
+expo-env.d.ts
 
-# Log files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# Local development overrides
-.env
+# Metro
+.metro-health-check*
 
-# Ignore internal planning docs
-SPECS.md
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# generated native folders
+/ios
+/android
