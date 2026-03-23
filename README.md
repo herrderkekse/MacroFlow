@@ -1,50 +1,83 @@
-# Welcome to your Expo app 👋
+# MacroFlow
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+MacroFlow is a nutrition logging app built with Expo, React Native, and Expo Router. It provides lightweight food logging, recipe creation, barcode lookup (OpenFoodFacts), and import/export backup utilities.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Log food entries with per-food units and serving sizes
+- Create and edit recipes and log them as grouped entries
+- Barcode lookup via OpenFoodFacts integration
+- Import / Export JSON backups
+- Simple tabbed UI using Expo Router
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- React Native (Expo)
+- Expo Router
+- SQLite (via expo-sqlite) for local storage
+- TypeScript
+- Zustand for lightweight state
 
-   ```bash
-   npx expo start
-   ```
+## Requirements
 
-In the output, you'll find options to open the app in a
+- Node.js (>=16)
+- npm or yarn
+- Expo CLI (optional: using `npx expo` avoids global install)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Getting Started
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Clone the repo and install dependencies:
 
 ```bash
-npm run reset-project
+git clone <repo-url>
+cd MacroFlow
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Run the app (Expo):
 
-## Learn more
+```bash
+npx expo start
+# or
+npm run start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Platform-specific:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run android    # open on Android emulator/device
+npm run ios        # open on iOS simulator/device
+npm run web        # run web build (not actively supported)
+```
 
-## Join the community
+Other useful scripts:
 
-Join our community of developers creating universal apps.
+- `npm run reset-project` — resets project assets (script at `scripts/reset-project.js`)
+- `npm run lint` — runs ESLint
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Project Structure (high level)
+
+- `app/` — Expo Router entrypoints and screens
+- `src/` — main source code
+  - `features/` — feature-based screens and components (log, recipes, settings)
+  - `db/` — database schema and queries
+  - `services/` — external integrations (OpenFoodFacts, import/export)
+  - `store/` — app state hooks
+  - `utils/` — helpers and theme utilities
+
+## Credits & Licensing
+
+- OpenFoodFacts: This project uses food product data and images from OpenFoodFacts. The OpenFoodFacts database is made available under the Open Database License (ODbL) v1.0. When using data or images from OpenFoodFacts, please acknowledge the source. Suggested attribution text:
+
+   "Contains data from OpenFoodFacts (https://openfoodfacts.org) made available under the Open Database License (ODbL) v1.0."
+
+   More information:
+
+   - OpenFoodFacts: https://openfoodfacts.org
+   - ODbL v1.0 license: https://opendatacommons.org/licenses/odbl/1.0/
+
+- Third-party libraries and tools: see `package.json` for dependency list and their individual licenses.
+
+## License
+
+This project is released under the terms of the repository license. See the `LICENSE` file in the project root.
