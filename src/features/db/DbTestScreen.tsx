@@ -26,6 +26,7 @@ export default function DbTestScreen() {
                 quantity_grams: 50,
                 timestamp: Date.now(),
                 meal_type: "breakfast",
+                date: new Date().toISOString().split("T")[0],
             });
             log(`Added entry id=${entry.id}`);
 

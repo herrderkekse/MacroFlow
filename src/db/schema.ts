@@ -17,6 +17,7 @@ export const entries = sqliteTable("entries", {
     food_id: integer("food_id").references(() => foods.id),
     quantity_grams: real("quantity_grams").notNull(),
     timestamp: integer("timestamp").notNull(),
+    date: text("date").notNull(),
     meal_type: text("meal_type").notNull(),
 });
 
