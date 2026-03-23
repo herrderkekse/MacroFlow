@@ -1,12 +1,16 @@
 import { eq, like } from "drizzle-orm";
 import { db } from "./index";
-import { foods, entries, goals } from "./schema";
+import { foods, entries, goals, recipes, recipeItems } from "./schema";
 
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
 export type Goals = typeof goals.$inferSelect;
+export type Recipe = typeof recipes.$inferSelect;
+export type NewRecipe = typeof recipes.$inferInsert;
+export type RecipeItem = typeof recipeItems.$inferSelect;
+export type NewRecipeItem = typeof recipeItems.$inferInsert;
 
 // ── Food CRUD ──────────────────────────────────────────────
 
@@ -76,4 +80,80 @@ export function getGoals(): Goals | undefined {
 
 export function setGoals(values: Partial<Omit<Goals, "id">>) {
     db.update(goals).set(values).where(eq(goals.id, 1)).run();
+}
+
+// ── Recipe CRUD ────────────────────────────────────────────
+
+export function addRecipe(name: string): Recipe {
+    return db.insert(recipes).values({ name }).returning().get();
+}
+
+export function updateRecipe(id: number, name: string) {
+    db.update(recipes).set({ name }).where(eq(recipes.id, id)).run();
+}
+
+export function deleteRecipe(id: number) {
+    db.delete(recipeItems).where(eq(recipeItems.recipe_id, id)).run();
+    db.delete(recipes).where(eq(recipes.id, id)).run();
+}
+
+export function getAllRecipes(): Recipe[] {
+    return db.select().from(recipes).all();
+}
+
+export function searchRecipesByName(query: string): Recipe[] {
+    return db
+        .select()
+        .from(recipes)
+        .where(like(recipes.name, `%${query}%`))
+        .limit(30)
+        .all();
+}
+
+export function getRecipeItems(recipeId: number) {
+    return db
+        .select()
+        .from(recipeItems)
+        .leftJoin(foods, eq(recipeItems.food_id, foods.id))
+        .where(eq(recipeItems.recipe_id, recipeId))
+        .all();
+}
+
+export function addRecipeItem(item: NewRecipeItem): RecipeItem {
+    return db.insert(recipeItems).values(item).returning().get();
+}
+
+export function updateRecipeItem(id: number, values: Partial<NewRecipeItem>) {
+    db.update(recipeItems).set(values).where(eq(recipeItems.id, id)).run();
+}
+
+export function deleteRecipeItem(id: number) {
+    db.delete(recipeItems).where(eq(recipeItems.id, id)).run();
+}
+
+export function getRecipeById(id: number): Recipe | undefined {
+    return db.select().from(recipes).where(eq(recipes.id, id)).get();
+}
+
+export function logRecipeToMeal(
+    recipeId: number,
+    mealType: string,
+    date: string,
+    group: string,
+) {
+    const items = getRecipeItems(recipeId);
+    const ts = Date.now();
+    for (const row of items) {
+        db.insert(entries)
+            .values({
+                food_id: row.recipe_items.food_id,
+                quantity_grams: row.recipe_items.quantity_grams,
+                timestamp: ts,
+                date,
+                meal_type: mealType,
+                recipe_id: recipeId,
+                recipe_log_group: group,
+            })
+            .run();
+    }
 }

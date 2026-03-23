@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 const icons = {
     index: 'home',
     log: 'create',
+    recipes: 'book',
     history: 'time',
     settings: 'settings'
 };

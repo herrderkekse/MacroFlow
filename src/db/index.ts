@@ -27,7 +27,9 @@ export function initDB() {
       quantity_grams REAL NOT NULL,
       timestamp INTEGER NOT NULL,
       date TEXT NOT NULL DEFAULT '',
-      meal_type TEXT NOT NULL
+      meal_type TEXT NOT NULL,
+      recipe_id INTEGER,
+      recipe_log_group TEXT
     );
 
     CREATE TABLE IF NOT EXISTS goals (
@@ -36,6 +38,18 @@ export function initDB() {
       protein REAL NOT NULL DEFAULT 150,
       carbs REAL NOT NULL DEFAULT 250,
       fat REAL NOT NULL DEFAULT 70
+    );
+
+    CREATE TABLE IF NOT EXISTS recipes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS recipe_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipe_id INTEGER NOT NULL REFERENCES recipes(id),
+      food_id INTEGER NOT NULL REFERENCES foods(id),
+      quantity_grams REAL NOT NULL
     );
 
     INSERT OR IGNORE INTO goals (id) VALUES (1);
@@ -47,6 +61,8 @@ export function initDB() {
     "ALTER TABLE foods ADD COLUMN openfoodfacts_id TEXT",
     "ALTER TABLE foods ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'",
     "ALTER TABLE entries ADD COLUMN date TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE entries ADD COLUMN recipe_id INTEGER",
+    "ALTER TABLE entries ADD COLUMN recipe_log_group TEXT",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }

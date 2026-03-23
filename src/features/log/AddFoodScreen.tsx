@@ -16,7 +16,9 @@ import {
     searchFoodsByName,
     getFoodByOpenfoodfactsId,
     addFood,
+    searchRecipesByName,
     type Food,
+    type Recipe,
 } from "@/src/db/queries";
 import {
     searchProducts,
@@ -29,6 +31,7 @@ import FoodListItem from "./FoodListItem";
 import ManualFoodForm from "./ManualFoodForm";
 import BarcodeScannerView from "./BarcodeScannerView";
 import EntryModal from "./EntryModal";
+import RecipeLogModal from "./RecipeLogModal";
 
 export default function AddFoodScreen() {
     const { mealType } = useLocalSearchParams<{ mealType?: string }>();
@@ -43,8 +46,18 @@ export default function AddFoodScreen() {
 
     // ── Modal / selection state ────────────────────────────
     const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [showManualForm, setShowManualForm] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
+
+    // ── Recipe search ──────────────────────────────────────
+    const [recipeResults, setRecipeResults] = useState<Recipe[]>([]);
+
+    useEffect(() => {
+        if (query.trim().length < 2) { setRecipeResults([]); return; }
+        const t = setTimeout(() => setRecipeResults(searchRecipesByName(query.trim())), 200);
+        return () => clearTimeout(t);
+    }, [query]);
 
     // ── Local search (debounced, search-as-you-type) ──────
     useEffect(() => {
@@ -217,6 +230,24 @@ export default function AddFoodScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
+                {/* Recipe results */}
+                {showLocalSection && recipeResults.length > 0 && (
+                    <>
+                        <Text style={styles.sectionLabel}>RECIPES</Text>
+                        {recipeResults.map((r) => (
+                            <Pressable
+                                key={r.id}
+                                style={styles.recipeRow}
+                                onPress={() => setSelectedRecipe(r)}
+                            >
+                                <Ionicons name="book-outline" size={18} color={colors.primary} />
+                                <Text style={styles.recipeRowName} numberOfLines={1}>{r.name}</Text>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                            </Pressable>
+                        ))}
+                    </>
+                )}
+
                 {/* Local results */}
                 {showLocalSection && (
                     <>
@@ -349,6 +380,16 @@ export default function AddFoodScreen() {
                 onClose={() => setSelectedFood(null)}
                 onSaved={handleEntrySaved}
             />
+
+            <RecipeLogModal
+                recipe={selectedRecipe}
+                defaultMealType={mealType as MealType | undefined}
+                onClose={() => setSelectedRecipe(null)}
+                onSaved={() => {
+                    setSelectedRecipe(null);
+                    router.back();
+                }}
+            />
         </View>
     );
 }
@@ -419,5 +460,20 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginTop: spacing.md,
         maxWidth: 220,
+    },
+    recipeRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+    },
+    recipeRowName: {
+        flex: 1,
+        fontSize: fontSize.sm,
+        fontWeight: "500",
+        color: colors.text,
     },
 });
