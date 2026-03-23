@@ -22,6 +22,8 @@ import {
 } from "@/src/db/queries";
 import {
     searchProducts,
+    guessUnit,
+    parseServingSize,
     type OFFProduct,
 } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
@@ -125,6 +127,8 @@ export default function AddFoodScreen() {
             fat_per_100g: product.nutriments?.fat_100g ?? 0,
             openfoodfacts_id: product.code,
             source: "openfoodfacts",
+            default_unit: guessUnit(product),
+            serving_size: parseServingSize(product),
         });
         logger.info("[DB] Created food from OFF search", {
             id: food.id,

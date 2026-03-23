@@ -138,6 +138,7 @@ export default function LogScreen() {
         protein: 150,
         carbs: 250,
         fat: 70,
+        unit_system: "metric",
     });
 
     const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
@@ -147,7 +148,13 @@ export default function LogScreen() {
         setPrevGrouped(loadGrouped(getDateShifted(center, -1)));
         setNextGrouped(loadGrouped(getDateShifted(center, +1)));
         const g = getGoals();
-        if (g) setDailyGoals(g);
+        if (g) {
+            setDailyGoals(g);
+            // Sync unit system from DB into store
+            if (g.unit_system === "metric" || g.unit_system === "imperial") {
+                useAppStore.getState().setUnitSystem(g.unit_system as "metric" | "imperial");
+            }
+        }
     }
 
     useFocusEffect(

@@ -12,6 +12,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
 import { addFood, type Food } from "@/src/db/queries";
+import { useAppStore } from "@/src/store/useAppStore";
+import { type FoodUnit, unitLabel, unitsForSystem } from "@/src/utils/units";
 import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
@@ -27,11 +29,13 @@ export default function ManualFoodForm({
     onClose,
     onFoodCreated,
 }: ManualFoodFormProps) {
+    const unitSystem = useAppStore((s) => s.unitSystem);
     const [name, setName] = useState("");
     const [calories, setCalories] = useState("");
     const [protein, setProtein] = useState("");
     const [carbs, setCarbs] = useState("");
     const [fat, setFat] = useState("");
+    const [defaultUnit, setDefaultUnit] = useState<FoodUnit>("g");
 
     function handleSave() {
         const trimmedName = name.trim();
@@ -44,6 +48,7 @@ export default function ManualFoodForm({
             carbs_per_100g: parseFloat(carbs) || 0,
             fat_per_100g: parseFloat(fat) || 0,
             source: "manual",
+            default_unit: defaultUnit,
         });
         logger.info("[DB] Created food manually", { id: food.id, name: food.name });
         resetForm();
@@ -56,6 +61,7 @@ export default function ManualFoodForm({
         setProtein("");
         setCarbs("");
         setFat("");
+        setDefaultUnit("g");
     }
 
     function handleClose() {
@@ -99,12 +105,40 @@ export default function ManualFoodForm({
                     />
 
                     <Text style={styles.sectionLabel}>
+                        Default unit
+                    </Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.unitRow}
+                    >
+                        {unitsForSystem(unitSystem).map((u) => (
+                            <Pressable
+                                key={u}
+                                onPress={() => setDefaultUnit(u)}
+                                style={[
+                                    styles.unitChip,
+                                    defaultUnit === u && styles.unitChipActive,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.unitChipText,
+                                        defaultUnit === u && styles.unitChipTextActive,
+                                    ]}
+                                >
+                                    {unitLabel(u)}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </ScrollView>
+
+                    <Text style={styles.sectionLabel}>
                         Nutrition per 100 g
                     </Text>
 
                     <View style={styles.row}>
                         <Input
-                            label="Calories"
                             placeholder="0"
                             suffix="kcal"
                             value={calories}
@@ -184,6 +218,31 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         marginBottom: spacing.md,
         marginTop: spacing.sm,
+    },
+    unitRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    unitChip: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    unitChipActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    unitChipText: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+    },
+    unitChipTextActive: {
+        color: colors.primary,
+        fontWeight: "600",
     },
     row: {
         flexDirection: "row",

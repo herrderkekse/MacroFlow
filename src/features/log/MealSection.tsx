@@ -5,6 +5,7 @@ import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
 import type { Food, Entry } from "@/src/db/queries";
 import { getRecipeById } from "@/src/db/queries";
 import type { MealType } from "@/src/types";
+import { type FoodUnit, fromGrams, formatQuantity } from "@/src/utils/units";
 
 interface EntryWithFood {
     entries: Entry;
@@ -139,6 +140,8 @@ function EntryRow({
 }) {
     const food = row.foods;
     const qty = row.entries.quantity_grams;
+    const entryUnit = (row.entries.quantity_unit ?? "g") as FoodUnit;
+    const displayQty = fromGrams(qty, entryUnit);
     const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
 
     return (
@@ -152,7 +155,7 @@ function EntryRow({
                     {food?.name ?? "Unknown food"}
                 </Text>
                 <Text style={styles.entryDetail}>
-                    {qty}g · {cals} cal
+                    {formatQuantity(Math.round(displayQty * 10) / 10, entryUnit)} · {cals} cal
                 </Text>
             </View>
             <Pressable onPress={() => onDeleteEntry(row.entries.id)} hitSlop={8}>

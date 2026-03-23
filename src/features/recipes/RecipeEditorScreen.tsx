@@ -29,11 +29,12 @@ import {
     type Recipe,
     type RecipeItem,
 } from "@/src/db/queries";
-import { searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
+import { searchProducts, guessUnit, parseServingSize, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
+import { type FoodUnit, toGrams, fromGrams, unitLabel } from "@/src/utils/units";
 
 interface ItemWithFood {
     recipeItem: RecipeItem;
@@ -64,11 +65,14 @@ export default function RecipeEditorScreen() {
         if (editingItemId == null) return;
         const q = parseFloat(editingQty) || 0;
         if (q > 0) {
-            updateRecipeItem(editingItemId, { quantity_grams: q });
+            const item = items.find((i) => i.recipeItem.id === editingItemId);
+            const itemUnit = (item?.recipeItem.quantity_unit ?? "g") as FoodUnit;
+            const grams = toGrams(q, itemUnit);
+            updateRecipeItem(editingItemId, { quantity_grams: grams });
             setItems((prev) =>
                 prev.map((i) =>
                     i.recipeItem.id === editingItemId
-                        ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: q } }
+                        ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: grams } }
                         : i,
                 ),
             );
@@ -155,6 +159,8 @@ export default function RecipeEditorScreen() {
             fat_per_100g: nu.fat_100g ?? 0,
             openfoodfacts_id: product.code,
             source: "openfoodfacts",
+            default_unit: guessUnit(product),
+            serving_size: parseServingSize(product),
         });
         addItemForFood(food);
     }
@@ -162,35 +168,43 @@ export default function RecipeEditorScreen() {
     function addItemForFood(food: Food) {
         saveCurrentEdit();
         const rid = ensureRecipe();
-        const ri = addRecipeItem({ recipe_id: rid, food_id: food.id, quantity_grams: 100 });
+        const foodUnit = (food.default_unit ?? "g") as FoodUnit;
+        const servingSize = food.serving_size ?? 100;
+        const qtyGrams = toGrams(servingSize, foodUnit);
+        const ri = addRecipeItem({ recipe_id: rid, food_id: food.id, quantity_grams: qtyGrams, quantity_unit: foodUnit });
         setItems((prev) => [...prev, { recipeItem: ri, food }]);
         setFoodQuery("");
         setLocalResults([]);
         setOffResults([]);
         // Auto-open the quantity editor for the new item
         setEditingItemId(ri.id);
-        setEditingQty("100");
+        setEditingQty(String(servingSize));
     }
 
     // ── Item editing ──────────────────────────────────────
     function handleSaveItemQty(itemId: number) {
         const q = parseFloat(editingQty) || 0;
         if (q <= 0) return;
-        updateRecipeItem(itemId, { quantity_grams: q });
+        const item = items.find((i) => i.recipeItem.id === itemId);
+        const itemUnit = (item?.recipeItem.quantity_unit ?? "g") as FoodUnit;
+        const grams = toGrams(q, itemUnit);
+        updateRecipeItem(itemId, { quantity_grams: grams });
         setItems((prev) =>
             prev.map((i) =>
                 i.recipeItem.id === itemId
-                    ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: q } }
+                    ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: grams } }
                     : i,
             ),
         );
         setEditingItemId(null);
     }
 
-    function startEditingItem(itemId: number, currentQty: number) {
+    function startEditingItem(itemId: number, currentQtyGrams: number) {
         saveCurrentEdit();
+        const item = items.find((i) => i.recipeItem.id === itemId);
+        const itemUnit = (item?.recipeItem.quantity_unit ?? "g") as FoodUnit;
         setEditingItemId(itemId);
-        setEditingQty(String(currentQty));
+        setEditingQty(String(Math.round(fromGrams(currentQtyGrams, itemUnit) * 10) / 10));
     }
 
     function handleDeleteItem(itemId: number) {
@@ -235,6 +249,8 @@ export default function RecipeEditorScreen() {
                 {/* Items */}
                 {items.map(({ recipeItem, food }) => {
                     const isEditingThis = editingItemId === recipeItem.id;
+                    const itemUnit = (recipeItem.quantity_unit ?? "g") as FoodUnit;
+                    const displayQty = Math.round(fromGrams(recipeItem.quantity_grams, itemUnit) * 10) / 10;
                     const cals = food
                         ? Math.round((food.calories_per_100g * recipeItem.quantity_grams) / 100)
                         : 0;
@@ -259,14 +275,14 @@ export default function RecipeEditorScreen() {
                                             onSubmitEditing={() => handleSaveItemQty(recipeItem.id)}
                                             onBlur={() => handleSaveItemQty(recipeItem.id)}
                                         />
-                                        <Text style={styles.itemDetail}>g</Text>
+                                        <Text style={styles.itemDetail}>{unitLabel(itemUnit)}</Text>
                                         <Pressable onPress={() => handleSaveItemQty(recipeItem.id)} hitSlop={8}>
                                             <Ionicons name="checkmark-circle" size={22} color={colors.success} />
                                         </Pressable>
                                     </View>
                                 ) : (
                                     <Text style={styles.itemDetail}>
-                                        {recipeItem.quantity_grams}g · {cals} cal
+                                        {displayQty} {unitLabel(itemUnit)} · {cals} cal
                                     </Text>
                                 )}
                             </Pressable>

@@ -148,6 +148,7 @@ export function logRecipeToMeal(
             .values({
                 food_id: row.recipe_items.food_id,
                 quantity_grams: row.recipe_items.quantity_grams,
+                quantity_unit: row.recipe_items.quantity_unit ?? "g",
                 timestamp: ts,
                 date,
                 meal_type: mealType,

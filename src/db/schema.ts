@@ -10,12 +10,15 @@ export const foods = sqliteTable("foods", {
     barcode: text("barcode"),
     openfoodfacts_id: text("openfoodfacts_id"),
     source: text("source").notNull().default("manual"),
+    default_unit: text("default_unit").notNull().default("g"),
+    serving_size: real("serving_size").notNull().default(100),
 });
 
 export const entries = sqliteTable("entries", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     food_id: integer("food_id").references(() => foods.id),
     quantity_grams: real("quantity_grams").notNull(),
+    quantity_unit: text("quantity_unit").notNull().default("g"),
     timestamp: integer("timestamp").notNull(),
     date: text("date").notNull(),
     meal_type: text("meal_type").notNull(),
@@ -29,6 +32,7 @@ export const goals = sqliteTable("goals", {
     protein: real("protein").notNull().default(150),
     carbs: real("carbs").notNull().default(250),
     fat: real("fat").notNull().default(70),
+    unit_system: text("unit_system").notNull().default("metric"),
 });
 
 export const recipes = sqliteTable("recipes", {
@@ -41,4 +45,5 @@ export const recipeItems = sqliteTable("recipe_items", {
     recipe_id: integer("recipe_id").notNull().references(() => recipes.id),
     food_id: integer("food_id").notNull().references(() => foods.id),
     quantity_grams: real("quantity_grams").notNull(),
+    quantity_unit: text("quantity_unit").notNull().default("g"),
 });
