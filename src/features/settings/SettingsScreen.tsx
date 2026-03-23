@@ -13,6 +13,7 @@ import { useAppStore } from "@/src/store/useAppStore";
 import type { UnitSystem } from "@/src/types";
 import Input from "@/src/components/Input";
 import Button from "@/src/components/Button";
+import { exportData, importData } from "@/src/services/importExport";
 
 const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
     { key: "metric", label: "Metric (g, ml)" },
@@ -65,6 +66,57 @@ export default function SettingsScreen() {
     function handleUnitChange(system: UnitSystem) {
         setUnitSystem(system);
         setGoals({ unit_system: system });
+    }
+
+    // ── Import / Export ─────────────────────────────────
+    const [exporting, setExporting] = useState(false);
+    const [importing, setImporting] = useState(false);
+
+    async function handleExport() {
+        try {
+            setExporting(true);
+            await exportData();
+        } catch (e: any) {
+            Alert.alert("Export failed", e.message ?? "Unknown error");
+        } finally {
+            setExporting(false);
+        }
+    }
+
+    function handleImportConfirm() {
+        Alert.alert(
+            "Import Data",
+            "This will replace ALL current data with the contents of the backup file. This cannot be undone.\n\nContinue?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Import", style: "destructive", onPress: handleImport },
+            ],
+        );
+    }
+
+    async function handleImport() {
+        try {
+            setImporting(true);
+            const { inserted } = await importData();
+            // Reload goals into local state after import
+            const g = getGoals();
+            if (g) {
+                setCalories(String(g.calories));
+                setProtein(String(g.protein));
+                setCarbs(String(g.carbs));
+                setFat(String(g.fat));
+                if (g.unit_system === "metric" || g.unit_system === "imperial") {
+                    setUnitSystem(g.unit_system as UnitSystem);
+                }
+            }
+            Alert.alert("Import complete", `${inserted} records restored.`);
+        } catch (e: any) {
+            if (e.message !== "cancelled") {
+                Alert.alert("Import failed", e.message ?? "Unknown error");
+            }
+        } finally {
+            setImporting(false);
+        }
     }
 
     // Compute macro percentages
@@ -202,6 +254,28 @@ export default function SettingsScreen() {
             )}
 
             <Button title="Save Goals" onPress={handleSave} style={styles.saveBtn} />
+
+            {/* ── Import / Export ──────────────────────────── */}
+            <Text style={styles.sectionLabel}>DATA</Text>
+            <Text style={styles.subLabel}>
+                Export a full backup of your foods, entries, recipes and goals, or import a previously exported file.
+            </Text>
+            <View style={styles.row}>
+                <Button
+                    title="Export Data"
+                    variant="outline"
+                    onPress={handleExport}
+                    loading={exporting}
+                    style={{ flex: 1 }}
+                />
+                <Button
+                    title="Import Data"
+                    variant="outline"
+                    onPress={handleImportConfirm}
+                    loading={importing}
+                    style={{ flex: 1 }}
+                />
+            </View>
         </ScrollView>
     );
 }
