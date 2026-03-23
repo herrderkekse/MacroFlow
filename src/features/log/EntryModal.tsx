@@ -14,10 +14,10 @@ import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
 import { addEntry, updateEntry, formatDateKey, type Food, type Entry } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
+import { type FoodUnit, toGrams, fromGrams, unitLabel, unitsForSystem } from "@/src/utils/units";
 import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { timestamp } from "drizzle-orm/gel-core";
 
 interface EntryModalProps {
     food: Food | null;
@@ -35,60 +35,75 @@ export default function EntryModal({
     onSaved,
 }: EntryModalProps) {
     const selectedDate = useAppStore((s) => s.selectedDate);
+    const unitSystem = useAppStore((s) => s.unitSystem);
     const [quantity, setQuantity] = useState("100");
+    const [unit, setUnit] = useState<FoodUnit>("g");
     const [mealType, setMealType] = useState<MealType>(
         defaultMealType ?? "breakfast",
     );
 
-    // initialize when editing an existing entry
+    // initialize when food or entry changes
     React.useEffect(() => {
         if (entry) {
-            setQuantity(String(entry.quantity_grams));
+            const entryUnit = (entry.quantity_unit ?? "g") as FoodUnit;
+            setUnit(entryUnit);
+            setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
             setMealType(entry.meal_type as MealType);
+        } else if (food) {
+            const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
+            setUnit(defaultUnit);
+            setQuantity(String(food.serving_size ?? 100));
+            setMealType(defaultMealType ?? "breakfast");
         } else {
             setQuantity("100");
+            setUnit("g");
             setMealType(defaultMealType ?? "breakfast");
         }
-    }, [entry, defaultMealType]);
+    }, [entry, food, defaultMealType]);
 
     const qty = parseFloat(quantity) || 0;
+    const qtyGrams = toGrams(qty, unit);
 
     const calculated = useMemo(() => {
         if (!food) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
-        const factor = qty / 100;
+        const factor = qtyGrams / 100;
         return {
             calories: food.calories_per_100g * factor,
             protein: food.protein_per_100g * factor,
             carbs: food.carbs_per_100g * factor,
             fat: food.fat_per_100g * factor,
         };
-    }, [food, qty]);
+    }, [food, qtyGrams]);
 
     function handleSave() {
         if (!food || qty <= 0) return;
 
         if (entry) {
             updateEntry(entry.id, {
-                quantity_grams: qty,
+                quantity_grams: qtyGrams,
+                quantity_unit: unit,
                 meal_type: mealType,
             });
             logger.info("[DB] Updated entry", {
                 id: entry.id,
                 foodId: food.id,
-                quantity: qty,
+                quantity: qtyGrams,
+                unit,
                 mealType: mealType,
             });
         } else {
             addEntry({
                 food_id: food.id,
-                quantity_grams: qty,
+                quantity_grams: qtyGrams,
+                quantity_unit: unit,
                 timestamp: Date.now(),
                 date: formatDateKey(selectedDate),
                 meal_type: mealType,
             });
             logger.info("[DB] Added entry", {
                 foodId: food.id,
-                quantity: qty,
+                quantity: qtyGrams,
+                unit,
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
             });
@@ -102,6 +117,8 @@ export default function EntryModal({
         setQuantity("100");
         onClose();
     }
+
+    const unitOptions = unitsForSystem(unitSystem);
 
     return (
         <Modal
@@ -143,9 +160,37 @@ export default function EntryModal({
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="decimal-pad"
-                        suffix="g"
+                        suffix={unitLabel(unit)}
                         containerStyle={styles.quantityInput}
                     />
+
+                    {/* Unit picker */}
+                    <Text style={styles.sectionLabel}>Unit</Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.unitRow}
+                    >
+                        {unitOptions.map((u) => (
+                            <Pressable
+                                key={u}
+                                onPress={() => setUnit(u)}
+                                style={[
+                                    styles.unitChip,
+                                    unit === u && styles.unitChipActive,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.unitChipText,
+                                        unit === u && styles.unitChipTextActive,
+                                    ]}
+                                >
+                                    {unitLabel(u)}
+                                </Text>
+                            </Pressable>
+                        ))}
+                    </ScrollView>
 
                     {/* Live calculation */}
                     <View style={styles.calcCard}>
@@ -258,6 +303,31 @@ const styles = StyleSheet.create({
         marginTop: spacing.xs,
     },
     quantityInput: { marginTop: spacing.lg },
+    unitRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        paddingBottom: spacing.sm,
+    },
+    unitChip: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    unitChipActive: {
+        backgroundColor: colors.primaryLight,
+        borderColor: colors.primary,
+    },
+    unitChipText: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+    },
+    unitChipTextActive: {
+        color: colors.primary,
+        fontWeight: "600",
+    },
     calcCard: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,

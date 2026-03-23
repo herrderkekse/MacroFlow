@@ -18,13 +18,16 @@ export function initDB() {
       fat_per_100g REAL NOT NULL DEFAULT 0,
       barcode TEXT,
       openfoodfacts_id TEXT,
-      source TEXT NOT NULL DEFAULT 'manual'
+      source TEXT NOT NULL DEFAULT 'manual',
+      default_unit TEXT NOT NULL DEFAULT 'g',
+      serving_size REAL NOT NULL DEFAULT 100
     );
 
     CREATE TABLE IF NOT EXISTS entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       food_id INTEGER REFERENCES foods(id),
       quantity_grams REAL NOT NULL,
+      quantity_unit TEXT NOT NULL DEFAULT 'g',
       timestamp INTEGER NOT NULL,
       date TEXT NOT NULL DEFAULT '',
       meal_type TEXT NOT NULL,
@@ -37,7 +40,8 @@ export function initDB() {
       calories REAL NOT NULL DEFAULT 2000,
       protein REAL NOT NULL DEFAULT 150,
       carbs REAL NOT NULL DEFAULT 250,
-      fat REAL NOT NULL DEFAULT 70
+      fat REAL NOT NULL DEFAULT 70,
+      unit_system TEXT NOT NULL DEFAULT 'metric'
     );
 
     CREATE TABLE IF NOT EXISTS recipes (
@@ -49,7 +53,8 @@ export function initDB() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       recipe_id INTEGER NOT NULL REFERENCES recipes(id),
       food_id INTEGER NOT NULL REFERENCES foods(id),
-      quantity_grams REAL NOT NULL
+      quantity_grams REAL NOT NULL,
+      quantity_unit TEXT NOT NULL DEFAULT 'g'
     );
 
     INSERT OR IGNORE INTO goals (id) VALUES (1);
@@ -63,6 +68,11 @@ export function initDB() {
     "ALTER TABLE entries ADD COLUMN date TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE entries ADD COLUMN recipe_id INTEGER",
     "ALTER TABLE entries ADD COLUMN recipe_log_group TEXT",
+    "ALTER TABLE foods ADD COLUMN default_unit TEXT NOT NULL DEFAULT 'g'",
+    "ALTER TABLE foods ADD COLUMN serving_size REAL NOT NULL DEFAULT 100",
+    "ALTER TABLE entries ADD COLUMN quantity_unit TEXT NOT NULL DEFAULT 'g'",
+    "ALTER TABLE goals ADD COLUMN unit_system TEXT NOT NULL DEFAULT 'metric'",
+    "ALTER TABLE recipe_items ADD COLUMN quantity_unit TEXT NOT NULL DEFAULT 'g'",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }

@@ -17,6 +17,7 @@ import {
 } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
+import { type FoodUnit, fromGrams, formatQuantity } from "@/src/utils/units";
 import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 
@@ -84,13 +85,15 @@ export default function RecipeLogModal({
                 {items.map((row) => {
                     const food = row.foods;
                     const qty = row.recipe_items.quantity_grams;
+                    const itemUnit = (row.recipe_items.quantity_unit ?? "g") as FoodUnit;
+                    const displayQty = fromGrams(qty, itemUnit);
                     const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
                     return (
                         <View key={row.recipe_items.id} style={styles.itemRow}>
                             <Text style={styles.itemName} numberOfLines={1}>
                                 {food?.name ?? "Unknown"}
                             </Text>
-                            <Text style={styles.itemDetail}>{qty}g · {cals} cal</Text>
+                            <Text style={styles.itemDetail}>{formatQuantity(Math.round(displayQty * 10) / 10, itemUnit)} · {cals} cal</Text>
                         </View>
                     );
                 })}
