@@ -19,6 +19,8 @@ export const entries = sqliteTable("entries", {
     timestamp: integer("timestamp").notNull(),
     date: text("date").notNull(),
     meal_type: text("meal_type").notNull(),
+    recipe_id: integer("recipe_id"),
+    recipe_log_group: text("recipe_log_group"),
 });
 
 export const goals = sqliteTable("goals", {
@@ -27,4 +29,16 @@ export const goals = sqliteTable("goals", {
     protein: real("protein").notNull().default(150),
     carbs: real("carbs").notNull().default(250),
     fat: real("fat").notNull().default(70),
+});
+
+export const recipes = sqliteTable("recipes", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+});
+
+export const recipeItems = sqliteTable("recipe_items", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    recipe_id: integer("recipe_id").notNull().references(() => recipes.id),
+    food_id: integer("food_id").notNull().references(() => foods.id),
+    quantity_grams: real("quantity_grams").notNull(),
 });
