@@ -30,6 +30,7 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BarcodeScannerView from "./BarcodeScannerView";
 import EntryModal from "./EntryModal";
 import FoodListItem from "./FoodListItem";
@@ -39,6 +40,7 @@ import RecipeLogModal from "./RecipeLogModal";
 export default function AddFoodScreen() {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
     const { mealType } = useLocalSearchParams<{ mealType?: string }>();
 
     // ── Search state ───────────────────────────────────────
@@ -173,7 +175,7 @@ export default function AddFoodScreen() {
     const showLocalSection = query.trim().length >= 2;
 
     return (
-        <View style={styles.screen}>
+        <View style={[styles.screen, { paddingTop: insets.top }]}>
             {/* Search bar */}
             <View style={styles.searchRow}>
                 <Ionicons

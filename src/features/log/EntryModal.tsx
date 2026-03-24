@@ -19,6 +19,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface EntryModalProps {
     food: Food | null;
@@ -36,7 +37,8 @@ export default function EntryModal({
     onSaved,
 }: EntryModalProps) {
     const colors = useThemeColors();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [quantity, setQuantity] = useState("100");
@@ -287,7 +289,7 @@ const macroStyles = StyleSheet.create({
     macroLabel: { fontSize: fontSize.xs },
 });
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, insetsTop = 0) {
     return StyleSheet.create({
         flex: { flex: 1, backgroundColor: colors.background },
         header: {
@@ -295,8 +297,7 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             justifyContent: "space-between",
             paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
-            paddingBottom: spacing.md,
+            paddingVertical: spacing.md,
             backgroundColor: colors.surface,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
