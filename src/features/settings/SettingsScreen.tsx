@@ -15,6 +15,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
     { key: "metric", label: "Metric (g, ml)" },
@@ -30,6 +31,7 @@ const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string; icon: string }[]
 export default function SettingsScreen() {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
 
     const unitSystem = useAppStore((s) => s.unitSystem);
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
@@ -140,7 +142,7 @@ export default function SettingsScreen() {
     return (
         <ScrollView
             style={styles.screen}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
             keyboardShouldPersistTaps="handled"
         >
             <Text style={styles.heading}>Settings</Text>

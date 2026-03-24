@@ -1,1 +1,1 @@
-export { default } from "@/src/features/home/HomeScreen";
+export { default } from "@/src/features/log/LogScreen";

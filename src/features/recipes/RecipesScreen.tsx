@@ -21,10 +21,12 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RecipesScreen() {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [query, setQuery] = useState("");
 
@@ -64,7 +66,8 @@ export default function RecipesScreen() {
     }
 
     return (
-        <View style={styles.screen}>
+        <View style={[styles.screen, { paddingTop: insets.top }]}>
+            <Text style={styles.heading}>Recipes</Text>
             <View style={styles.searchRow}>
                 <Ionicons name="search" size={18} color={colors.textTertiary} />
                 <TextInput
@@ -119,6 +122,14 @@ export default function RecipesScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
+        heading: {
+            fontSize: fontSize.xl,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: spacing.lg,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+        },
         searchRow: {
             flexDirection: "row",
             alignItems: "center",
