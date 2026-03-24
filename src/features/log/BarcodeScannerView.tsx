@@ -309,6 +309,7 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             justifyContent: "center",
             padding: spacing.xl,
+            backgroundColor: colors.background,
         },
         statusText: {
             fontSize: fontSize.md,
