@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addEntry, formatDateKey, updateEntry, type Entry, type Food } from "@/src/db/queries";
+import { addEntry, formatDateKey, getLoggedRecipeGroups, updateEntry, type Entry, type Food, type LoggedRecipeGroup } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
@@ -46,6 +46,8 @@ export default function EntryModal({
     const [mealType, setMealType] = useState<MealType>(
         defaultMealType ?? "breakfast",
     );
+    const [recipeGroups, setRecipeGroups] = useState<LoggedRecipeGroup[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<LoggedRecipeGroup | null>(null);
 
     // initialize when food or entry changes
     React.useEffect(() => {
@@ -54,6 +56,13 @@ export default function EntryModal({
             setUnit(entryUnit);
             setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
             setMealType(entry.meal_type as MealType);
+            if (entry.recipe_id && entry.recipe_log_group) {
+                const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
+                const match = groups.find((g) => g.recipeLogGroup === entry.recipe_log_group);
+                setSelectedGroup(match ?? null);
+            } else {
+                setSelectedGroup(null);
+            }
         } else if (food) {
             const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
             setUnit(defaultUnit);
@@ -65,6 +74,18 @@ export default function EntryModal({
             setMealType(defaultMealType ?? "breakfast");
         }
     }, [entry, food, defaultMealType]);
+
+    // Fetch recipe groups logged to the selected meal + date
+    React.useEffect(() => {
+        if (!food) { setRecipeGroups([]); setSelectedGroup(null); return; }
+        const dateKey = formatDateKey(selectedDate);
+        const groups = getLoggedRecipeGroups(dateKey, mealType);
+        setRecipeGroups(groups);
+        // Keep selection if it still exists in the new meal, otherwise clear
+        setSelectedGroup((prev) =>
+            prev && groups.some((g) => g.recipeLogGroup === prev.recipeLogGroup) ? prev : null,
+        );
+    }, [food, mealType, selectedDate]);
 
     const qty = parseFloat(quantity) || 0;
     const qtyGrams = toGrams(qty, unit);
@@ -88,6 +109,8 @@ export default function EntryModal({
                 quantity_grams: qtyGrams,
                 quantity_unit: unit,
                 meal_type: mealType,
+                recipe_id: selectedGroup?.recipeId ?? null,
+                recipe_log_group: selectedGroup?.recipeLogGroup ?? null,
             });
             logger.info("[DB] Updated entry", {
                 id: entry.id,
@@ -95,6 +118,7 @@ export default function EntryModal({
                 quantity: qtyGrams,
                 unit,
                 mealType: mealType,
+                recipeGroup: selectedGroup?.recipeLogGroup,
             });
         } else {
             addEntry({
@@ -104,6 +128,8 @@ export default function EntryModal({
                 timestamp: Date.now(),
                 date: formatDateKey(selectedDate),
                 meal_type: mealType,
+                recipe_id: selectedGroup?.recipeId,
+                recipe_log_group: selectedGroup?.recipeLogGroup,
             });
             logger.info("[DB] Added entry", {
                 foodId: food.id,
@@ -111,6 +137,7 @@ export default function EntryModal({
                 unit,
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
+                recipeGroup: selectedGroup?.recipeLogGroup,
             });
         }
 
@@ -249,6 +276,35 @@ export default function EntryModal({
                             </Pressable>
                         ))}
                     </View>
+
+                    {/* Recipe group picker */}
+                    {recipeGroups.length > 0 && (
+                        <>
+                            <Text style={styles.sectionLabel}>Add to Recipe</Text>
+                            {recipeGroups.map((g) => {
+                                const isSelected = selectedGroup?.recipeLogGroup === g.recipeLogGroup;
+                                return (
+                                    <Pressable
+                                        key={g.recipeLogGroup}
+                                        onPress={() => setSelectedGroup(isSelected ? null : g)}
+                                        style={[styles.recipeGroupRow, isSelected && styles.recipeGroupRowActive]}
+                                    >
+                                        <Ionicons
+                                            name={isSelected ? "checkmark-circle" : "book-outline"}
+                                            size={18}
+                                            color={isSelected ? colors.primary : colors.textSecondary}
+                                        />
+                                        <Text
+                                            style={[styles.recipeGroupName, isSelected && styles.recipeGroupNameActive]}
+                                            numberOfLines={1}
+                                        >
+                                            {g.recipeName}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </>
+                    )}
 
                     <Button
                         title="Save Entry"
@@ -392,6 +448,31 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
             color: colors.textSecondary,
         },
         mealChipTextActive: { color: colors.primary },
+        recipeGroupRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: spacing.xs,
+        },
+        recipeGroupRowActive: {
+            borderColor: colors.primary,
+            backgroundColor: colors.primaryLight,
+        },
+        recipeGroupName: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            color: colors.text,
+        },
+        recipeGroupNameActive: {
+            fontWeight: "600",
+            color: colors.primary,
+        },
         saveButton: { marginTop: spacing.lg },
     });
 }
