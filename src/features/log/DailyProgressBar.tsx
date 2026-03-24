@@ -118,6 +118,7 @@ export default function DailyProgressBar({
 
     const calRatio =
         goals.calories > 0 ? Math.min(totals.calories / goals.calories, 1) : 0;
+    const isOverCalories = goals.calories > 0 && totals.calories > goals.calories;
 
     function toggle() {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -128,7 +129,7 @@ export default function DailyProgressBar({
         <Pressable style={styles.container} onPress={toggle}>
             {/* Calorie bar – always visible */}
             <View style={styles.headerRow}>
-                <Text style={styles.calorieText}>
+                <Text style={[styles.calorieText, isOverCalories && styles.calorieTextOver]}>
                     {Math.round(totals.calories)}{" "}
                     <Text style={styles.goalText}>
                         / {Math.round(goals.calories)} kcal
@@ -203,6 +204,9 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.md,
             fontWeight: "600",
             color: colors.text,
+        },
+        calorieTextOver: {
+            color: colors.danger,
         },
         goalText: {
             fontWeight: "400",
