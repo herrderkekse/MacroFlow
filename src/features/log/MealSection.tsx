@@ -1,5 +1,5 @@
 import type { Entry, Food } from "@/src/db/queries";
-import { getRecipeById } from "@/src/db/queries";
+import { getRecipeById, getRecipeItems } from "@/src/db/queries";
 import type { MealType } from "@/src/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
@@ -196,6 +196,19 @@ function RecipeGroupRow({
         return sum + (food.calories_per_100g * row.entries.quantity_grams) / 100;
     }, 0);
 
+    const isModified = useMemo(() => {
+        const templateItems = getRecipeItems(group.recipeId);
+        if (templateItems.length !== group.rows.length) return true;
+        const templateMap = new Map(
+            templateItems.map((t) => [t.recipe_items.food_id, t.recipe_items.quantity_grams]),
+        );
+        for (const row of group.rows) {
+            const templateQty = templateMap.get(row.entries.food_id!);
+            if (templateQty === undefined || templateQty !== row.entries.quantity_grams) return true;
+        }
+        return false;
+    }, [group.recipeId, group.rows]);
+
     return (
         <View style={styles.recipeGroup}>
             <Pressable
@@ -207,7 +220,12 @@ function RecipeGroupRow({
                     size={16}
                     color={colors.textSecondary}
                 />
-                <Ionicons name="book-outline" size={16} color={colors.primary} style={{ marginLeft: 4 }} />
+                <Ionicons
+                    name={isModified ? "create-outline" : "book-outline"}
+                    size={16}
+                    color={isModified ? colors.textSecondary : colors.primary}
+                    style={{ marginLeft: 4 }}
+                />
                 <Text style={styles.recipeName} numberOfLines={1}>
                     {group.recipeName}
                 </Text>
