@@ -1,6 +1,7 @@
-import { eq, like } from "drizzle-orm";
+import { eq, like, sql } from "drizzle-orm";
+import logger from "../utils/logger";
 import { db } from "./index";
-import { foods, entries, goals, recipes, recipeItems } from "./schema";
+import { entries, foods, goals, recipeItems, recipes } from "./schema";
 
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
@@ -133,6 +134,48 @@ export function deleteRecipeItem(id: number) {
 
 export function getRecipeById(id: number): Recipe | undefined {
     return db.select().from(recipes).where(eq(recipes.id, id)).get();
+}
+
+export function getStreak(): number {
+
+    const MINIMAL_STREAK = 3;
+
+    const rows = db
+        .selectDistinct({ date: entries.date })
+        .from(entries)
+        .where(sql`${entries.date} <= ${formatDateKey(new Date())}`)
+        .orderBy(sql`${entries.date} DESC`)
+        .all();
+    if (rows.length === 0) {
+        logger.info("[DB] No entries found, streak is 0.");
+        return 0;
+    }
+
+    const toDateStr = (d: Date) => formatDateKey(d);
+    const todayStr = toDateStr(new Date());
+    const yesterdayStr = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+    const last = rows[0].date;
+    console.log("last entry date until today:", last, "today:", todayStr, "yesterday:", yesterdayStr);
+    if (last !== todayStr) {
+        console.log("Last entry is not from today, streak reset to 0.");
+        return 0;
+    }
+
+    let streak = 1;
+    for (let i = 1; i < rows.length; i++) {
+        const curr = new Date(rows[i - 1].date + "T00:00:00");
+        const prev = new Date(rows[i].date + "T00:00:00");
+        const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+        console.log(`Comparing ${toDateStr(prev)} and ${toDateStr(curr)}. Diff in days:`, diff);
+        if (Math.round(diff) === 1) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+    logger.info(`[DB] Calculated streak: ${streak} (from ${rows.length} days of data)`);
+    return streak >= MINIMAL_STREAK ? streak : 0;
 }
 
 export function logRecipeToMeal(

@@ -1,6 +1,9 @@
+import { getStreak } from "@/src/db/queries";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from "expo-router";
+import { Tabs, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 const icons: Record<string, string> = {
     index: 'create',
@@ -10,6 +13,31 @@ const icons: Record<string, string> = {
 
 export default function TabsLayout() {
     const colors = useThemeColors();
+    const [streak, setStreak] = useState(0);
+
+    const styles = StyleSheet.create({
+        iconContainer: {
+            position: 'relative',
+        },
+        streakBadge: {
+            position: 'absolute',
+            top: -4,
+            right: -14,
+            flexDirection: 'row',
+            alignItems: 'center',
+        },
+        streakText: {
+            fontSize: 14,
+            fontWeight: '700',
+            color: colors.textSecondary,
+        },
+    });
+
+    useFocusEffect(
+        useCallback(() => {
+            setStreak(getStreak());
+        }, [])
+    );
 
     return (
         <Tabs
@@ -20,6 +48,16 @@ export default function TabsLayout() {
                 tabBarInactiveTintColor: colors.textSecondary,
                 tabBarIcon: ({ color, size }: { color: string; size: number }) => {
                     const name = icons[route.name] ?? 'help';
+                    if (route.name === 'index' && streak > 0) {
+                        return (
+                            <View style={styles.iconContainer}>
+                                <Ionicons name={name as any} size={size} color={color} />
+                                <View style={styles.streakBadge}>
+                                    <Text style={styles.streakText}>🔥{streak}</Text>
+                                </View>
+                            </View>
+                        );
+                    }
                     return <Ionicons name={name as any} size={size} color={color} />;
                 },
             })}
