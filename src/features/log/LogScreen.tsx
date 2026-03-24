@@ -17,6 +17,7 @@ import {
     type NativeScrollEvent,
     type NativeSyntheticEvent,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DailyProgressBar from "./DailyProgressBar";
 import DateSelectorBar from "./DateSelectorBar";
 import EntryModal from "./EntryModal";
@@ -109,6 +110,7 @@ function DayPage({
 export default function LogScreen() {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
     const selectedDate = useAppStore((s) => s.selectedDate);
     const setSelectedDate = useAppStore((s) => s.setSelectedDate);
     const dateRef = useRef(selectedDate);
@@ -210,7 +212,7 @@ export default function LogScreen() {
     }
 
     return (
-        <View style={styles.screen}>
+        <View style={[styles.screen, { paddingTop: insets.top }]}>
             <View style={styles.dateSelectorWrapper}>
                 <DateSelectorBar
                     date={selectedDate}
