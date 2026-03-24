@@ -18,6 +18,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ManualFoodFormProps {
     visible: boolean;
@@ -31,7 +32,8 @@ export default function ManualFoodForm({
     onFoodCreated,
 }: ManualFoodFormProps) {
     const colors = useThemeColors();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [name, setName] = useState("");
     const [calories, setCalories] = useState("");
@@ -193,7 +195,7 @@ export default function ManualFoodForm({
     );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, insetsTop = 0) {
     return StyleSheet.create({
         flex: { flex: 1, backgroundColor: colors.background },
         header: {
@@ -201,8 +203,7 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             justifyContent: "space-between",
             paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
-            paddingBottom: spacing.md,
+            paddingVertical: spacing.md,
             backgroundColor: colors.surface,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
