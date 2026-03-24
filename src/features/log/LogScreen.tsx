@@ -211,12 +211,31 @@ export default function LogScreen() {
         });
     }
 
+    function handleDateChange(newDate: Date) {
+        const diff = Math.round(
+            (newDate.getTime() - dateRef.current.getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (diff === 1 || diff === -1) {
+            isSettling.current = true;
+            carouselRef.current?.scrollTo({
+                x: diff === 1 ? 2 * SCREEN_WIDTH : 0,
+                animated: true,
+            });
+            setTimeout(() => {
+                loadAllDays(newDate);
+                setSelectedDate(newDate);
+            }, 350);
+        } else {
+            setSelectedDate(newDate);
+        }
+    }
+
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
             <View style={styles.dateSelectorWrapper}>
                 <DateSelectorBar
                     date={selectedDate}
-                    onDateChange={setSelectedDate}
+                    onDateChange={handleDateChange}
                 />
             </View>
 
