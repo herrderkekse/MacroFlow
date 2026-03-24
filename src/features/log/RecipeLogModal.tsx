@@ -72,6 +72,7 @@ export default function RecipeLogModal({
             presentationStyle="pageSheet"
             onRequestClose={onClose}
         >
+            <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Add Recipe</Text>
                 <Pressable onPress={onClose} hitSlop={8}>
@@ -120,6 +121,7 @@ export default function RecipeLogModal({
 
                 <Button title="Add to Log" onPress={handleSave} style={styles.saveBtn} />
             </ScrollView>
+            </View>
         </Modal>
     );
 }
@@ -142,7 +144,8 @@ function createStyles(colors: ThemeColors) {
             fontWeight: "700",
             color: colors.text,
         },
-        content: { padding: spacing.lg },
+        container: { flex: 1, backgroundColor: colors.background },
+        content: { padding: spacing.lg, backgroundColor: colors.background },
         recipeName: {
             fontSize: fontSize.xl,
             fontWeight: "700",
