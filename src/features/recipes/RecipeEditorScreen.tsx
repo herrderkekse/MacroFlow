@@ -10,11 +10,11 @@ import {
     getRecipeItems,
     searchFoodsByName,
     updateRecipe,
-    updateRecipeItem,
     type Food,
     type RecipeItem
 } from "@/src/db/queries";
 import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
+import RecipeItemModal from "@/src/features/recipes/RecipeItemModal";
 import { guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -56,29 +56,8 @@ export default function RecipeEditorScreen() {
     const [hasSearchedOFF, setHasSearchedOFF] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
 
-    // editing item quantity inline
-    const [editingItemId, setEditingItemId] = useState<number | null>(null);
-    const [editingQty, setEditingQty] = useState("");
-
-    // Flush any in-progress quantity edit to DB + state
-    function saveCurrentEdit() {
-        if (editingItemId == null) return;
-        const q = parseFloat(editingQty) || 0;
-        if (q > 0) {
-            const item = items.find((i) => i.recipeItem.id === editingItemId);
-            const itemUnit = (item?.recipeItem.quantity_unit ?? "g") as FoodUnit;
-            const grams = toGrams(q, itemUnit);
-            updateRecipeItem(editingItemId, { quantity_grams: grams });
-            setItems((prev) =>
-                prev.map((i) =>
-                    i.recipeItem.id === editingItemId
-                        ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: grams } }
-                        : i,
-                ),
-            );
-        }
-        setEditingItemId(null);
-    }
+    // modal for editing an ingredient's quantity + unit
+    const [editingItem, setEditingItem] = useState<ItemWithFood | null>(null);
 
     // ── Load existing recipe ──────────────────────────────
     useEffect(() => {
@@ -166,45 +145,30 @@ export default function RecipeEditorScreen() {
     }
 
     function addItemForFood(food: Food) {
-        saveCurrentEdit();
         const rid = ensureRecipe();
         const foodUnit = (food.default_unit ?? "g") as FoodUnit;
         const servingSize = food.serving_size ?? 100;
         const qtyGrams = toGrams(servingSize, foodUnit);
         const ri = addRecipeItem({ recipe_id: rid, food_id: food.id, quantity_grams: qtyGrams, quantity_unit: foodUnit });
-        setItems((prev) => [...prev, { recipeItem: ri, food }]);
+        const newEntry: ItemWithFood = { recipeItem: ri, food };
+        setItems((prev) => [...prev, newEntry]);
         setFoodQuery("");
         setLocalResults([]);
         setOffResults([]);
-        // Auto-open the quantity editor for the new item
-        setEditingItemId(ri.id);
-        setEditingQty(String(servingSize));
+        // Auto-open the modal editor for the new item
+        setEditingItem(newEntry);
     }
 
     // ── Item editing ──────────────────────────────────────
-    function handleSaveItemQty(itemId: number) {
-        const q = parseFloat(editingQty) || 0;
-        if (q <= 0) return;
-        const item = items.find((i) => i.recipeItem.id === itemId);
-        const itemUnit = (item?.recipeItem.quantity_unit ?? "g") as FoodUnit;
-        const grams = toGrams(q, itemUnit);
-        updateRecipeItem(itemId, { quantity_grams: grams });
+    function handleModalSaved(itemId: number, quantityGrams: number, unit: FoodUnit) {
         setItems((prev) =>
             prev.map((i) =>
                 i.recipeItem.id === itemId
-                    ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: grams } }
+                    ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: quantityGrams, quantity_unit: unit } }
                     : i,
             ),
         );
-        setEditingItemId(null);
-    }
-
-    function startEditingItem(itemId: number, currentQtyGrams: number) {
-        saveCurrentEdit();
-        const item = items.find((i) => i.recipeItem.id === itemId);
-        const itemUnit = (item?.recipeItem.quantity_unit ?? "g") as FoodUnit;
-        setEditingItemId(itemId);
-        setEditingQty(String(Math.round(fromGrams(currentQtyGrams, itemUnit) * 10) / 10));
+        setEditingItem(null);
     }
 
     function handleDeleteItem(itemId: number) {
@@ -214,7 +178,6 @@ export default function RecipeEditorScreen() {
 
     // ── Save & back ───────────────────────────────────────
     function handleDone() {
-        saveCurrentEdit();
         if (name.trim()) {
             ensureRecipe();
         }
@@ -247,8 +210,8 @@ export default function RecipeEditorScreen() {
                 </Text>
 
                 {/* Items */}
-                {items.map(({ recipeItem, food }) => {
-                    const isEditingThis = editingItemId === recipeItem.id;
+                {items.map((itemWithFood) => {
+                    const { recipeItem, food } = itemWithFood;
                     const itemUnit = (recipeItem.quantity_unit ?? "g") as FoodUnit;
                     const displayQty = Math.round(fromGrams(recipeItem.quantity_grams, itemUnit) * 10) / 10;
                     const cals = food
@@ -258,33 +221,14 @@ export default function RecipeEditorScreen() {
                         <View key={recipeItem.id} style={styles.itemRow}>
                             <Pressable
                                 style={styles.itemInfo}
-                                onPress={() => startEditingItem(recipeItem.id, recipeItem.quantity_grams)}
+                                onPress={() => setEditingItem(itemWithFood)}
                             >
                                 <Text style={styles.itemName} numberOfLines={1}>
                                     {food?.name ?? "Unknown"}
                                 </Text>
-                                {isEditingThis ? (
-                                    <View style={styles.qtyEditRow}>
-                                        <TextInput
-                                            style={styles.qtyInput}
-                                            value={editingQty}
-                                            onChangeText={setEditingQty}
-                                            keyboardType="decimal-pad"
-                                            autoFocus
-                                            selectTextOnFocus
-                                            onSubmitEditing={() => handleSaveItemQty(recipeItem.id)}
-                                            onBlur={() => handleSaveItemQty(recipeItem.id)}
-                                        />
-                                        <Text style={styles.itemDetail}>{unitLabel(itemUnit)}</Text>
-                                        <Pressable onPress={() => handleSaveItemQty(recipeItem.id)} hitSlop={8}>
-                                            <Ionicons name="checkmark-circle" size={22} color={colors.success} />
-                                        </Pressable>
-                                    </View>
-                                ) : (
-                                    <Text style={styles.itemDetail}>
-                                        {displayQty} {unitLabel(itemUnit)} · {cals} cal
-                                    </Text>
-                                )}
+                                <Text style={styles.itemDetail}>
+                                    {displayQty} {unitLabel(itemUnit)} · {cals} cal
+                                </Text>
                             </Pressable>
                             <Pressable onPress={() => handleDeleteItem(recipeItem.id)} hitSlop={8}>
                                 <Ionicons name="close-circle-outline" size={20} color={colors.textTertiary} />
@@ -363,6 +307,13 @@ export default function RecipeEditorScreen() {
 
                 <Button title="Done" onPress={handleDone} style={styles.doneBtn} />
 
+                <RecipeItemModal
+                    item={editingItem?.recipeItem ?? null}
+                    food={editingItem?.food ?? null}
+                    onClose={() => setEditingItem(null)}
+                    onSaved={handleModalSaved}
+                />
+
                 <BarcodeScannerView
                     visible={showScanner}
                     onClose={() => setShowScanner(false)}
@@ -395,16 +346,7 @@ function createStyles(colors: ThemeColors) {
         itemInfo: { flex: 1, marginRight: spacing.sm },
         itemName: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
         itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-        qtyEditRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 4 },
-        qtyInput: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.primary,
-            minWidth: 50,
-            paddingVertical: 2,
-            paddingHorizontal: 4,
-        },
+
         sectionLabel: {
             fontSize: fontSize.sm,
             fontWeight: "600",
