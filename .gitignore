@@ -3,6 +3,7 @@
 
 # internal instructions
 SPECS.md
+.github/copilot-instructions.md
 
 # VS Code
 .vscode/
