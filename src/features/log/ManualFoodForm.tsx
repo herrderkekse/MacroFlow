@@ -144,6 +144,7 @@ export default function ManualFoodForm({
 
                     <View style={styles.row}>
                         <Input
+                            label="Calories"
                             placeholder="0"
                             suffix="kcal"
                             value={calories}
