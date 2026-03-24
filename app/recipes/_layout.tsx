@@ -1,5 +1,17 @@
+import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Stack } from "expo-router";
 
 export default function RecipesLayout() {
-    return <Stack />;
+    const colors = useThemeColors();
+    return (
+        <Stack
+            screenOptions={{
+                headerStyle: { backgroundColor: colors.surface },
+                headerTintColor: colors.text,
+                headerShadowVisible: false,
+            }}
+        >
+            <Stack.Screen name="edit" options={{ title: "Edit Recipe" }} />
+        </Stack>
+    );
 }

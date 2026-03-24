@@ -1,40 +1,38 @@
-import React, { useState, useEffect, useCallback } from "react";
+import Button from "@/src/components/Button";
+import Input from "@/src/components/Input";
 import {
-    View,
-    Text,
-    TextInput,
-    FlatList,
+    addFood,
+    addRecipe,
+    addRecipeItem,
+    deleteRecipeItem,
+    getFoodByOpenfoodfactsId,
+    getRecipeById,
+    getRecipeItems,
+    searchFoodsByName,
+    updateRecipe,
+    updateRecipeItem,
+    type Food,
+    type RecipeItem
+} from "@/src/db/queries";
+import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
+import { guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
+import logger from "@/src/utils/logger";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { fromGrams, toGrams, unitLabel, type FoodUnit } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+    Alert,
+    Keyboard,
     Pressable,
     ScrollView,
     StyleSheet,
-    Keyboard,
-    ActivityIndicator,
-    Alert,
+    Text,
+    TextInput,
+    View
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import {
-    addRecipe,
-    updateRecipe,
-    getRecipeById,
-    getRecipeItems,
-    addRecipeItem,
-    updateRecipeItem,
-    deleteRecipeItem,
-    searchFoodsByName,
-    getFoodByOpenfoodfactsId,
-    addFood,
-    type Food,
-    type Recipe,
-    type RecipeItem,
-} from "@/src/db/queries";
-import { searchProducts, guessUnit, parseServingSize, type OFFProduct } from "@/src/services/openfoodfacts";
-import logger from "@/src/utils/logger";
-import Button from "@/src/components/Button";
-import Input from "@/src/components/Input";
-import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
-import { type FoodUnit, toGrams, fromGrams, unitLabel } from "@/src/utils/units";
 
 interface ItemWithFood {
     recipeItem: RecipeItem;
@@ -42,6 +40,8 @@ interface ItemWithFood {
 }
 
 export default function RecipeEditorScreen() {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
     const isEditing = !!recipeId;
 
@@ -374,72 +374,74 @@ export default function RecipeEditorScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: spacing.lg, paddingBottom: 100 },
-    nameInput: { marginBottom: spacing.md },
-    summary: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-        marginBottom: spacing.md,
-    },
-    itemRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginBottom: spacing.xs,
-    },
-    itemInfo: { flex: 1, marginRight: spacing.sm },
-    itemName: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
-    itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-    qtyEditRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 4 },
-    qtyInput: {
-        fontSize: fontSize.sm,
-        color: colors.text,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.primary,
-        minWidth: 50,
-        paddingVertical: 2,
-        paddingHorizontal: 4,
-    },
-    sectionLabel: {
-        fontSize: fontSize.sm,
-        fontWeight: "600",
-        color: colors.text,
-        marginTop: spacing.lg,
-        marginBottom: spacing.sm,
-    },
-    searchRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.md,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        gap: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginBottom: spacing.sm,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: fontSize.md,
-        color: colors.text,
-        padding: 0,
-    },
-    resultRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    resultName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
-    resultDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
-    offBtn: { marginTop: spacing.sm },
-    doneBtn: { marginTop: spacing.lg },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        screen: { flex: 1, backgroundColor: colors.background },
+        content: { padding: spacing.lg, paddingBottom: 100 },
+        nameInput: { marginBottom: spacing.md },
+        summary: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            marginBottom: spacing.md,
+        },
+        itemRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            marginBottom: spacing.xs,
+        },
+        itemInfo: { flex: 1, marginRight: spacing.sm },
+        itemName: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
+        itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        qtyEditRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 4 },
+        qtyInput: {
+            fontSize: fontSize.sm,
+            color: colors.text,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.primary,
+            minWidth: 50,
+            paddingVertical: 2,
+            paddingHorizontal: 4,
+        },
+        sectionLabel: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.text,
+            marginTop: spacing.lg,
+            marginBottom: spacing.sm,
+        },
+        searchRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            gap: spacing.sm,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: spacing.sm,
+        },
+        searchInput: {
+            flex: 1,
+            fontSize: fontSize.md,
+            color: colors.text,
+            padding: 0,
+        },
+        resultRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        resultName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
+        resultDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
+        offBtn: { marginTop: spacing.sm },
+        doneBtn: { marginTop: spacing.lg },
+    });
+}

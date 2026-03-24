@@ -1,11 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import type { Food, Entry } from "@/src/db/queries";
+import type { Entry, Food } from "@/src/db/queries";
 import { getRecipeById } from "@/src/db/queries";
 import type { MealType } from "@/src/types";
-import { type FoodUnit, fromGrams, formatQuantity } from "@/src/utils/units";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { type FoodUnit, formatQuantity, fromGrams } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface EntryWithFood {
     entries: Entry;
@@ -67,6 +68,8 @@ export default function MealSection({
     onDeleteEntry,
     onEdit,
 }: MealSectionProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const totalCals = items.reduce((sum, row) => {
         const cals = row.foods?.calories_per_100g ?? 0;
         const qty = row.entries.quantity_grams;
@@ -138,6 +141,8 @@ function EntryRow({
     onEdit?: (row: EntryWithFood) => void;
     onDeleteEntry: (id: number) => void;
 }) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const food = row.foods;
     const qty = row.entries.quantity_grams;
     const entryUnit = (row.entries.quantity_unit ?? "g") as FoodUnit;
@@ -178,6 +183,8 @@ function RecipeGroupRow({
     onEdit?: (row: EntryWithFood) => void;
     onDeleteEntry: (id: number) => void;
 }) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [expanded, setExpanded] = useState(false);
 
     const totalCals = group.rows.reduce((sum, row) => {
@@ -227,76 +234,78 @@ function RecipeGroupRow({
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.md,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: spacing.sm,
-    },
-    headerLeft: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-    },
-    title: {
-        fontSize: fontSize.md,
-        fontWeight: "600",
-        color: colors.text,
-    },
-    totalCals: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-    empty: {
-        fontSize: fontSize.sm,
-        color: colors.textTertiary,
-        fontStyle: "italic",
-        paddingVertical: spacing.xs,
-    },
-    entryRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: spacing.sm,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: colors.border,
-    },
-    entryInfo: { flex: 1, marginRight: spacing.sm },
-    entryName: {
-        fontSize: fontSize.sm,
-        fontWeight: "500",
-        color: colors.text,
-    },
-    entryDetail: {
-        fontSize: fontSize.xs,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    recipeGroup: {
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: colors.border,
-    },
-    recipeHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: spacing.sm,
-        gap: spacing.xs,
-    },
-    recipeName: {
-        flex: 1,
-        fontSize: fontSize.sm,
-        fontWeight: "600",
-        color: colors.primary,
-    },
-    recipeDetail: {
-        fontSize: fontSize.xs,
-        color: colors.textSecondary,
-        marginRight: spacing.sm,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        container: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+        },
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: spacing.sm,
+        },
+        headerLeft: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+        },
+        title: {
+            fontSize: fontSize.md,
+            fontWeight: "600",
+            color: colors.text,
+        },
+        totalCals: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        empty: {
+            fontSize: fontSize.sm,
+            color: colors.textTertiary,
+            fontStyle: "italic",
+            paddingVertical: spacing.xs,
+        },
+        entryRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: spacing.sm,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+        },
+        entryInfo: { flex: 1, marginRight: spacing.sm },
+        entryName: {
+            fontSize: fontSize.sm,
+            fontWeight: "500",
+            color: colors.text,
+        },
+        entryDetail: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+            marginTop: 2,
+        },
+        recipeGroup: {
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+        },
+        recipeHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: spacing.sm,
+            gap: spacing.xs,
+        },
+        recipeName: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.primary,
+        },
+        recipeDetail: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+            marginRight: spacing.sm,
+        },
+    });
+}

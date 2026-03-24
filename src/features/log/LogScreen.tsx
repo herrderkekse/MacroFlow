@@ -1,25 +1,26 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-    View,
-    ScrollView,
-    StyleSheet,
-    Pressable,
-    Dimensions,
-    type NativeSyntheticEvent,
-    type NativeScrollEvent,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
-import { colors, spacing } from "@/src/utils/theme";
-import { getEntriesByDate, deleteEntry, getGoals, type Food, type Entry, type Goals } from "@/src/db/queries";
+import { deleteEntry, getEntriesByDate, getGoals, type Entry, type Food, type Goals } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
-import MealSection from "./MealSection";
-import EntryModal from "./EntryModal";
-import DateSelectorBar from "./DateSelectorBar";
+import { spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+    Dimensions,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+    type NativeScrollEvent,
+    type NativeSyntheticEvent,
+} from "react-native";
 import DailyProgressBar from "./DailyProgressBar";
+import DateSelectorBar from "./DateSelectorBar";
+import EntryModal from "./EntryModal";
+import MealSection from "./MealSection";
 
 interface EntryWithFood {
     entries: Entry;
@@ -106,6 +107,8 @@ function DayPage({
 }
 
 export default function LogScreen() {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const setSelectedDate = useAppStore((s) => s.setSelectedDate);
     const dateRef = useRef(selectedDate);
@@ -273,26 +276,31 @@ export default function LogScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    dateSelectorWrapper: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
-    carousel: { flex: 1 },
     dayPage: { width: SCREEN_WIDTH },
     content: { padding: spacing.md, paddingBottom: 100 },
-    fab: {
-        position: "absolute",
-        bottom: 24,
-        right: 24,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-        elevation: 4,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
-    fabPressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
 });
+
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        screen: { flex: 1, backgroundColor: colors.background },
+        dateSelectorWrapper: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
+        carousel: { flex: 1 },
+        fab: {
+            position: "absolute",
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: colors.primary,
+            alignItems: "center",
+            justifyContent: "center",
+            elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+        },
+        fabPressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
+    });
+}

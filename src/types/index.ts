@@ -2,6 +2,8 @@ export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 export type FoodSource = "manual" | "openfoodfacts";
 
+export type AppearanceMode = "light" | "dark" | "system";
+
 export type { FoodUnit, UnitSystem } from "@/src/utils/units";
 
 export const MEAL_TYPES: { key: MealType; label: string; icon: string }[] = [

@@ -1,13 +1,14 @@
-import React from "react";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import React, { useMemo } from "react";
 import {
-    View,
+    StyleSheet,
     Text,
     TextInput,
-    StyleSheet,
+    View,
     type TextInputProps,
     type ViewStyle,
 } from "react-native";
-import { colors, borderRadius, spacing, fontSize } from "@/src/utils/theme";
 
 interface InputProps extends TextInputProps {
     label?: string;
@@ -22,6 +23,9 @@ export default function Input({
     style,
     ...rest
 }: InputProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     return (
         <View style={containerStyle}>
             {label && <Text style={styles.label}>{label}</Text>}
@@ -37,34 +41,36 @@ export default function Input({
     );
 }
 
-const styles = StyleSheet.create({
-    label: {
-        fontSize: fontSize.sm,
-        fontWeight: "500",
-        color: colors.textSecondary,
-        marginBottom: spacing.xs,
-    },
-    row: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: borderRadius.md,
-    },
-    input: {
-        flex: 1,
-        paddingVertical: spacing.sm + 2,
-        paddingHorizontal: spacing.md,
-        fontSize: fontSize.md,
-        color: colors.text,
-    },
-    inputWithSuffix: {
-        paddingRight: spacing.xs,
-    },
-    suffix: {
-        paddingRight: spacing.md,
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        label: {
+            fontSize: fontSize.sm,
+            fontWeight: "500",
+            color: colors.textSecondary,
+            marginBottom: spacing.xs,
+        },
+        row: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: borderRadius.md,
+        },
+        input: {
+            flex: 1,
+            paddingVertical: spacing.sm + 2,
+            paddingHorizontal: spacing.md,
+            fontSize: fontSize.md,
+            color: colors.text,
+        },
+        inputWithSuffix: {
+            paddingRight: spacing.xs,
+        },
+        suffix: {
+            paddingRight: spacing.md,
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+    });
+}

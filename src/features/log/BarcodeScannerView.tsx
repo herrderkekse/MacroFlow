@@ -1,24 +1,25 @@
-import React, { useState } from "react";
+import Button from "@/src/components/Button";
 import {
-    View,
-    Text,
-    Modal,
-    StyleSheet,
-    Pressable,
-    ActivityIndicator,
-} from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import {
+    addFood,
     getFoodByBarcode,
     getFoodByOpenfoodfactsId,
-    addFood,
     type Food,
 } from "@/src/db/queries";
 import { getProductByBarcode } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
-import Button from "@/src/components/Button";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { Ionicons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import React, { useState } from "react";
+import {
+    ActivityIndicator,
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 interface BarcodeScannerViewProps {
     visible: boolean;
@@ -39,6 +40,8 @@ export default function BarcodeScannerView({
     onFoodFound,
     onNotFound,
 }: BarcodeScannerViewProps) {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [permission, requestPermission] = useCameraPermissions();
     const [state, setState] = useState<ScanState>({ status: "scanning" });
 
@@ -263,60 +266,62 @@ export default function BarcodeScannerView({
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
-        backgroundColor: colors.surface,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    headerTitle: {
-        fontSize: fontSize.lg,
-        fontWeight: "700",
-        color: colors.text,
-    },
-    camera: { flex: 1 },
-    overlay: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.3)",
-    },
-    scanFrame: {
-        width: 250,
-        height: 150,
-        borderWidth: 2,
-        borderColor: "#fff",
-        borderRadius: borderRadius.md,
-    },
-    hint: {
-        color: "#fff",
-        fontSize: fontSize.sm,
-        marginTop: spacing.md,
-    },
-    center: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: spacing.xl,
-    },
-    statusText: {
-        fontSize: fontSize.md,
-        color: colors.textSecondary,
-        textAlign: "center",
-        marginTop: spacing.md,
-    },
-    permText: {
-        fontSize: fontSize.md,
-        color: colors.textSecondary,
-        textAlign: "center",
-        marginTop: spacing.md,
-        paddingHorizontal: spacing.xl,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        container: { flex: 1, backgroundColor: colors.background },
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+            backgroundColor: colors.surface,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        headerTitle: {
+            fontSize: fontSize.lg,
+            fontWeight: "700",
+            color: colors.text,
+        },
+        camera: { flex: 1 },
+        overlay: {
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.3)",
+        },
+        scanFrame: {
+            width: 250,
+            height: 150,
+            borderWidth: 2,
+            borderColor: "#fff",
+            borderRadius: borderRadius.md,
+        },
+        hint: {
+            color: "#fff",
+            fontSize: fontSize.sm,
+            marginTop: spacing.md,
+        },
+        center: {
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: spacing.xl,
+        },
+        statusText: {
+            fontSize: fontSize.md,
+            color: colors.textSecondary,
+            textAlign: "center",
+            marginTop: spacing.md,
+        },
+        permText: {
+            fontSize: fontSize.md,
+            color: colors.textSecondary,
+            textAlign: "center",
+            marginTop: spacing.md,
+            paddingHorizontal: spacing.xl,
+        },
+    });
+}

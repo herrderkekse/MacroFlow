@@ -1,13 +1,14 @@
-import React from "react";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import React, { useMemo } from "react";
 import {
-    Pressable,
-    Text,
-    StyleSheet,
     ActivityIndicator,
-    type ViewStyle,
+    Pressable,
+    StyleSheet,
+    Text,
     type TextStyle,
+    type ViewStyle,
 } from "react-native";
-import { colors, borderRadius, spacing, fontSize } from "@/src/utils/theme";
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
 
@@ -32,6 +33,9 @@ export default function Button({
     style,
     textStyle,
 }: ButtonProps) {
+    const colors = useThemeColors();
+    const variantStyles = useMemo(() => getVariantStyles(colors), [colors]);
+    const variantTextStyles = useMemo(() => getVariantTextStyles(colors), [colors]);
     const isDisabled = disabled || loading;
 
     return (
@@ -84,20 +88,24 @@ const styles = StyleSheet.create({
     text: { fontSize: fontSize.md, fontWeight: "600" },
 });
 
-const variantStyles: Record<ButtonVariant, ViewStyle> = {
-    primary: { backgroundColor: colors.primary },
-    secondary: { backgroundColor: colors.primaryLight },
-    outline: {
-        backgroundColor: "transparent",
-        borderWidth: 1.5,
-        borderColor: colors.border,
-    },
-    ghost: { backgroundColor: "transparent" },
-};
+function getVariantStyles(colors: ThemeColors): Record<ButtonVariant, ViewStyle> {
+    return {
+        primary: { backgroundColor: colors.primary },
+        secondary: { backgroundColor: colors.primaryLight },
+        outline: {
+            backgroundColor: "transparent",
+            borderWidth: 1.5,
+            borderColor: colors.border,
+        },
+        ghost: { backgroundColor: "transparent" },
+    };
+}
 
-const variantTextStyles: Record<ButtonVariant, TextStyle> = {
-    primary: { color: "#FFFFFF" },
-    secondary: { color: colors.primary },
-    outline: { color: colors.text },
-    ghost: { color: colors.primary },
-};
+function getVariantTextStyles(colors: ThemeColors): Record<ButtonVariant, TextStyle> {
+    return {
+        primary: { color: "#FFFFFF" },
+        secondary: { color: colors.primary },
+        outline: { color: colors.text },
+        ghost: { color: colors.primary },
+    };
+}

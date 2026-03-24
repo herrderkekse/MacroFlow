@@ -1,22 +1,23 @@
-import React, { useState } from "react";
-import {
-    View,
-    Text,
-    Modal,
-    ScrollView,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    StyleSheet,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import { addFood, type Food } from "@/src/db/queries";
-import { useAppStore } from "@/src/store/useAppStore";
-import { type FoodUnit, unitLabel, unitsForSystem } from "@/src/utils/units";
-import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
+import { addFood, type Food } from "@/src/db/queries";
+import { useAppStore } from "@/src/store/useAppStore";
+import logger from "@/src/utils/logger";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { type FoodUnit, unitLabel, unitsForSystem } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 interface ManualFoodFormProps {
     visible: boolean;
@@ -29,6 +30,8 @@ export default function ManualFoodForm({
     onClose,
     onFoodCreated,
 }: ManualFoodFormProps) {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [name, setName] = useState("");
     const [calories, setCalories] = useState("");
@@ -190,65 +193,67 @@ export default function ManualFoodForm({
     );
 }
 
-const styles = StyleSheet.create({
-    flex: { flex: 1, backgroundColor: colors.background },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
-        backgroundColor: colors.surface,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    headerTitle: {
-        fontSize: fontSize.lg,
-        fontWeight: "700",
-        color: colors.text,
-    },
-    content: {
-        padding: spacing.lg,
-    },
-    field: { marginBottom: spacing.md },
-    sectionLabel: {
-        fontSize: fontSize.sm,
-        fontWeight: "600",
-        color: colors.textSecondary,
-        marginBottom: spacing.md,
-        marginTop: spacing.sm,
-    },
-    unitRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-        marginBottom: spacing.md,
-    },
-    unitChip: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.sm,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    unitChipActive: {
-        backgroundColor: colors.primaryLight,
-        borderColor: colors.primary,
-    },
-    unitChipText: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-    unitChipTextActive: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
-    row: {
-        flexDirection: "row",
-        gap: spacing.md,
-        marginBottom: spacing.md,
-    },
-    halfField: { flex: 1 },
-    saveButton: { marginTop: spacing.md },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        flex: { flex: 1, backgroundColor: colors.background },
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+            backgroundColor: colors.surface,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        headerTitle: {
+            fontSize: fontSize.lg,
+            fontWeight: "700",
+            color: colors.text,
+        },
+        content: {
+            padding: spacing.lg,
+        },
+        field: { marginBottom: spacing.md },
+        sectionLabel: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.textSecondary,
+            marginBottom: spacing.md,
+            marginTop: spacing.sm,
+        },
+        unitRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginBottom: spacing.md,
+        },
+        unitChip: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        unitChipActive: {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.primary,
+        },
+        unitChipText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        unitChipTextActive: {
+            color: colors.primary,
+            fontWeight: "600",
+        },
+        row: {
+            flexDirection: "row",
+            gap: spacing.md,
+            marginBottom: spacing.md,
+        },
+        halfField: { flex: 1 },
+        saveButton: { marginTop: spacing.md },
+    });
+}

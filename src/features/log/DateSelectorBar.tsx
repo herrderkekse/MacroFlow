@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
 import CalendarPicker from "@/src/components/CalendarPicker";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface DateSelectorBarProps {
     date: Date;
@@ -21,6 +22,8 @@ export default function DateSelectorBar({
     date,
     onDateChange,
 }: DateSelectorBarProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [calendarVisible, setCalendarVisible] = useState(false);
 
     function shiftDay(delta: number) {
@@ -94,31 +97,33 @@ export default function DateSelectorBar({
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        marginBottom: spacing.md,
-    },
-    arrow: {
-        padding: spacing.xs,
-    },
-    dateButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.xs,
-    },
-    dateText: {
-        fontSize: fontSize.md,
-        fontWeight: "600",
-        color: colors.text,
-    },
-    calendarIcon: {
-        marginLeft: 2,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        container: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.sm,
+            marginBottom: spacing.md,
+        },
+        arrow: {
+            padding: spacing.xs,
+        },
+        dateButton: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+        },
+        dateText: {
+            fontSize: fontSize.md,
+            fontWeight: "600",
+            color: colors.text,
+        },
+        calendarIcon: {
+            marginLeft: 2,
+        },
+    });
+}

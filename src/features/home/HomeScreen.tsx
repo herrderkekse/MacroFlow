@@ -1,11 +1,13 @@
+import { useThemeColors } from '@/src/utils/ThemeProvider';
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
+    const colors = useThemeColors();
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>MacroFlow</Text>
-            <Text style={styles.subtitle}>Home — implement dashboard here</Text>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <Text style={[styles.title, { color: colors.text }]}>MacroFlow</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Home — implement dashboard here</Text>
         </View>
     );
 }
@@ -24,6 +26,5 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 14,
-        color: '#666',
     },
 });

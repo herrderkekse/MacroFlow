@@ -1,7 +1,8 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
+import React, { useMemo } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface FoodListItemProps {
     name: string;
@@ -22,6 +23,8 @@ export default function FoodListItem({
     badge,
     onPress,
 }: FoodListItemProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     return (
         <Pressable
             onPress={onPress}
@@ -67,54 +70,56 @@ function MacroPill({
     color: string;
 }) {
     return (
-        <Text style={[styles.macroPill, { color }]}>
+        <Text style={{ fontSize: fontSize.xs, fontWeight: "500", color }}>
             {label}: {value.toFixed(1)}g
         </Text>
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    pressed: { backgroundColor: colors.primaryLight },
-    top: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: spacing.xs,
-    },
-    name: {
-        flex: 1,
-        fontSize: fontSize.md,
-        fontWeight: "600",
-        color: colors.text,
-        marginRight: spacing.sm,
-    },
-    calories: {
-        fontSize: fontSize.sm,
-        fontWeight: "500",
-        color: colors.calories,
-    },
-    macros: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.md,
-    },
-    macroPill: { fontSize: fontSize.xs, fontWeight: "500" },
-    badge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 3,
-        marginLeft: "auto",
-    },
-    badgeText: {
-        fontSize: fontSize.xs,
-        color: colors.textTertiary,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        container: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            marginBottom: spacing.sm,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        pressed: { backgroundColor: colors.primaryLight },
+        top: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: spacing.xs,
+        },
+        name: {
+            flex: 1,
+            fontSize: fontSize.md,
+            fontWeight: "600",
+            color: colors.text,
+            marginRight: spacing.sm,
+        },
+        calories: {
+            fontSize: fontSize.sm,
+            fontWeight: "500",
+            color: colors.calories,
+        },
+        macros: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.md,
+        },
+        macroPill: { fontSize: fontSize.xs, fontWeight: "500" },
+        badge: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 3,
+            marginLeft: "auto",
+        },
+        badgeText: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
+        },
+    });
+}

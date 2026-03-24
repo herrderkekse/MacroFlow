@@ -1,28 +1,40 @@
-import React, { useEffect, useState } from "react";
-import {
-    View,
-    Text,
-    ScrollView,
-    Pressable,
-    StyleSheet,
-    Alert,
-} from "react-native";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import { getGoals, setGoals, type Goals } from "@/src/db/queries";
-import { useAppStore } from "@/src/store/useAppStore";
-import type { UnitSystem } from "@/src/types";
-import Input from "@/src/components/Input";
 import Button from "@/src/components/Button";
+import Input from "@/src/components/Input";
+import { getGoals, setGoals } from "@/src/db/queries";
 import { exportData, importData } from "@/src/services/importExport";
+import { useAppStore } from "@/src/store/useAppStore";
+import type { AppearanceMode, UnitSystem } from "@/src/types";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+    Alert,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
     { key: "metric", label: "Metric (g, ml)" },
     { key: "imperial", label: "Imperial (oz, cup)" },
 ];
 
+const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string; icon: string }[] = [
+    { key: "system", label: "System", icon: "📱" },
+    { key: "light", label: "Light", icon: "☀️" },
+    { key: "dark", label: "Dark", icon: "🌙" },
+];
+
 export default function SettingsScreen() {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const unitSystem = useAppStore((s) => s.unitSystem);
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
+    const appearanceMode = useAppStore((s) => s.appearanceMode);
+    const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
 
     const [calories, setCalories] = useState("2000");
     const [protein, setProtein] = useState("150");
@@ -133,6 +145,30 @@ export default function SettingsScreen() {
         >
             <Text style={styles.heading}>Settings</Text>
 
+            {/* ── Appearance ──────────────────────────────── */}
+            <Text style={styles.sectionLabel}>APPEARANCE</Text>
+            <View style={styles.chipRow}>
+                {APPEARANCE_OPTIONS.map((opt) => (
+                    <Pressable
+                        key={opt.key}
+                        style={[
+                            styles.chip,
+                            appearanceMode === opt.key && styles.chipActive,
+                        ]}
+                        onPress={() => setAppearanceMode(opt.key)}
+                    >
+                        <Text
+                            style={[
+                                styles.chipText,
+                                appearanceMode === opt.key && styles.chipTextActive,
+                            ]}
+                        >
+                            {opt.icon} {opt.label}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
+
             {/* ── Unit System ─────────────────────────────── */}
             <Text style={styles.sectionLabel}>PREFERRED UNITS</Text>
             <View style={styles.chipRow}>
@@ -237,14 +273,17 @@ export default function SettingsScreen() {
                         <LegendDot
                             color={colors.protein}
                             label={`Protein ${Math.round((pCal / macroTotal) * 100)}%`}
+                            textColor={colors.textSecondary}
                         />
                         <LegendDot
                             color={colors.carbs}
                             label={`Carbs ${Math.round((cCal / macroTotal) * 100)}%`}
+                            textColor={colors.textSecondary}
                         />
                         <LegendDot
                             color={colors.fat}
                             label={`Fat ${Math.round((fCal / macroTotal) * 100)}%`}
+                            textColor={colors.textSecondary}
                         />
                     </View>
                     <Text style={styles.breakdownSub}>
@@ -280,104 +319,109 @@ export default function SettingsScreen() {
     );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ color, label, textColor }: { color: string; label: string; textColor: string }) {
     return (
-        <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: color }]} />
-            <Text style={styles.legendText}>{label}</Text>
+        <View style={legendStyles.legendItem}>
+            <View style={[legendStyles.dot, { backgroundColor: color }]} />
+            <Text style={[legendStyles.legendText, { color: textColor }]}>{label}</Text>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    content: { padding: spacing.lg, paddingBottom: 100 },
-    heading: {
-        fontSize: fontSize.xl,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: spacing.lg,
-    },
-    sectionLabel: {
-        fontSize: fontSize.xs,
-        fontWeight: "600",
-        color: colors.textSecondary,
-        letterSpacing: 0.5,
-        marginBottom: spacing.sm,
-        marginTop: spacing.md,
-    },
-    subLabel: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-        marginBottom: spacing.md,
-    },
-    chipRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-        marginBottom: spacing.md,
-    },
-    chip: {
-        flex: 1,
-        paddingVertical: spacing.sm + 2,
-        borderRadius: borderRadius.md,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-        alignItems: "center",
-    },
-    chipActive: {
-        backgroundColor: colors.primaryLight,
-        borderColor: colors.primary,
-    },
-    chipText: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-    chipTextActive: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
-    field: { marginBottom: spacing.md },
-    row: {
-        flexDirection: "row",
-        gap: spacing.sm,
-        marginBottom: spacing.md,
-    },
-    thirdField: { flex: 1 },
-    breakdownCard: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    breakdownTitle: {
-        fontSize: fontSize.sm,
-        fontWeight: "600",
-        color: colors.text,
-        marginBottom: spacing.sm,
-    },
-    barContainer: {
-        flexDirection: "row",
-        height: 10,
-        borderRadius: 4,
-        overflow: "hidden",
-        marginBottom: spacing.sm,
-    },
-    barSegment: { height: 10 },
-    legendRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: spacing.xs,
-    },
+const legendStyles = StyleSheet.create({
     legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
     dot: { width: 8, height: 8, borderRadius: 4 },
-    legendText: { fontSize: fontSize.xs, color: colors.textSecondary },
-    breakdownSub: {
-        fontSize: fontSize.xs,
-        color: colors.textTertiary,
-        textAlign: "center",
-    },
-    saveBtn: { marginTop: spacing.sm },
+    legendText: { fontSize: fontSize.xs },
 });
+
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        screen: { flex: 1, backgroundColor: colors.background },
+        content: { padding: spacing.lg, paddingBottom: 100 },
+        heading: {
+            fontSize: fontSize.xl,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: spacing.lg,
+        },
+        sectionLabel: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+            color: colors.textSecondary,
+            letterSpacing: 0.5,
+            marginBottom: spacing.sm,
+            marginTop: spacing.md,
+        },
+        subLabel: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            marginBottom: spacing.md,
+        },
+        chipRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginBottom: spacing.md,
+        },
+        chip: {
+            flex: 1,
+            paddingVertical: spacing.sm + 2,
+            borderRadius: borderRadius.md,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: "center",
+        },
+        chipActive: {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.primary,
+        },
+        chipText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        chipTextActive: {
+            color: colors.primary,
+            fontWeight: "600",
+        },
+        field: { marginBottom: spacing.md },
+        row: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginBottom: spacing.md,
+        },
+        thirdField: { flex: 1 },
+        breakdownCard: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        breakdownTitle: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.text,
+            marginBottom: spacing.sm,
+        },
+        barContainer: {
+            flexDirection: "row",
+            height: 10,
+            borderRadius: 4,
+            overflow: "hidden",
+            marginBottom: spacing.sm,
+        },
+        barSegment: { height: 10 },
+        legendRow: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: spacing.xs,
+        },
+        breakdownSub: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
+            textAlign: "center",
+        },
+        saveBtn: { marginTop: spacing.sm },
+    });
+}

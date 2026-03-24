@@ -1,25 +1,26 @@
-import React, { useState } from "react";
+import Button from "@/src/components/Button";
 import {
-    View,
-    Text,
-    Modal,
-    Pressable,
-    StyleSheet,
-    ScrollView,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import {
-    logRecipeToMeal,
     formatDateKey,
     getRecipeItems,
+    logRecipeToMeal,
     type Recipe,
 } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
-import { type FoodUnit, fromGrams, formatQuantity } from "@/src/utils/units";
 import logger from "@/src/utils/logger";
-import Button from "@/src/components/Button";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { type FoodUnit, formatQuantity, fromGrams } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 interface RecipeLogModalProps {
     recipe: Recipe | null;
@@ -34,6 +35,8 @@ export default function RecipeLogModal({
     onClose,
     onSaved,
 }: RecipeLogModalProps) {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const [mealType, setMealType] = useState<MealType>(defaultMealType ?? "breakfast");
 
@@ -121,77 +124,79 @@ export default function RecipeLogModal({
     );
 }
 
-const styles = StyleSheet.create({
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
-        backgroundColor: colors.surface,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    headerTitle: {
-        fontSize: fontSize.lg,
-        fontWeight: "700",
-        color: colors.text,
-    },
-    content: { padding: spacing.lg },
-    recipeName: {
-        fontSize: fontSize.xl,
-        fontWeight: "700",
-        color: colors.text,
-        marginBottom: spacing.xs,
-    },
-    summary: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-        marginBottom: spacing.md,
-    },
-    itemRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    itemName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
-    itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
-    sectionLabel: {
-        fontSize: fontSize.sm,
-        fontWeight: "600",
-        color: colors.text,
-        marginTop: spacing.lg,
-        marginBottom: spacing.sm,
-    },
-    mealRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: spacing.sm,
-        marginBottom: spacing.lg,
-    },
-    mealChip: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.sm,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    mealChipActive: {
-        backgroundColor: colors.primaryLight,
-        borderColor: colors.primary,
-    },
-    mealChipText: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-    mealChipTextActive: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
-    saveBtn: { marginTop: spacing.md },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+            backgroundColor: colors.surface,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        headerTitle: {
+            fontSize: fontSize.lg,
+            fontWeight: "700",
+            color: colors.text,
+        },
+        content: { padding: spacing.lg },
+        recipeName: {
+            fontSize: fontSize.xl,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: spacing.xs,
+        },
+        summary: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            marginBottom: spacing.md,
+        },
+        itemRow: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingVertical: spacing.sm,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        itemName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
+        itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
+        sectionLabel: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.text,
+            marginTop: spacing.lg,
+            marginBottom: spacing.sm,
+        },
+        mealRow: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: spacing.sm,
+            marginBottom: spacing.lg,
+        },
+        mealChip: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        mealChipActive: {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.primary,
+        },
+        mealChipText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        mealChipTextActive: {
+            color: colors.primary,
+            fontWeight: "600",
+        },
+        saveBtn: { marginTop: spacing.md },
+    });
+}
