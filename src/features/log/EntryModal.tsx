@@ -1,23 +1,24 @@
-import React, { useState, useMemo } from "react";
-import {
-    View,
-    Text,
-    Modal,
-    Pressable,
-    StyleSheet,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import { addEntry, updateEntry, formatDateKey, type Food, type Entry } from "@/src/db/queries";
-import { useAppStore } from "@/src/store/useAppStore";
-import { MEAL_TYPES, type MealType } from "@/src/types";
-import { type FoodUnit, toGrams, fromGrams, unitLabel, unitsForSystem } from "@/src/utils/units";
-import logger from "@/src/utils/logger";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
+import { addEntry, formatDateKey, updateEntry, type Entry, type Food } from "@/src/db/queries";
+import { useAppStore } from "@/src/store/useAppStore";
+import { MEAL_TYPES, type MealType } from "@/src/types";
+import logger from "@/src/utils/logger";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo, useState } from "react";
+import {
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 interface EntryModalProps {
     food: Food | null;
@@ -34,6 +35,8 @@ export default function EntryModal({
     onClose,
     onSaved,
 }: EntryModalProps) {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [quantity, setQuantity] = useState("100");
@@ -202,16 +205,19 @@ export default function EntryModal({
                                 label="Protein"
                                 value={calculated.protein}
                                 color={colors.protein}
+                                textColor={colors.textSecondary}
                             />
                             <MacroLabel
                                 label="Carbs"
                                 value={calculated.carbs}
                                 color={colors.carbs}
+                                textColor={colors.textSecondary}
                             />
                             <MacroLabel
                                 label="Fat"
                                 value={calculated.fat}
                                 color={colors.fat}
+                                textColor={colors.textSecondary}
                             />
                         </View>
                     </View>
@@ -258,126 +264,133 @@ function MacroLabel({
     label,
     value,
     color,
+    textColor,
 }: {
     label: string;
     value: number;
     color: string;
+    textColor: string;
 }) {
     return (
-        <View style={styles.macroItem}>
-            <Text style={[styles.macroValue, { color }]}>
+        <View style={macroStyles.macroItem}>
+            <Text style={[macroStyles.macroValue, { color }]}>
                 {value.toFixed(1)}g
             </Text>
-            <Text style={styles.macroLabel}>{label}</Text>
+            <Text style={[macroStyles.macroLabel, { color: textColor }]}>{label}</Text>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    flex: { flex: 1, backgroundColor: colors.background },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
-        backgroundColor: colors.surface,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    headerTitle: {
-        fontSize: fontSize.lg,
-        fontWeight: "700",
-        color: colors.text,
-    },
-    content: { padding: spacing.lg },
-    foodName: {
-        fontSize: fontSize.xl,
-        fontWeight: "700",
-        color: colors.text,
-    },
-    per100: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-        marginTop: spacing.xs,
-    },
-    quantityInput: { marginTop: spacing.lg },
-    unitRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-        paddingBottom: spacing.sm,
-    },
-    unitChip: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.sm,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    unitChipActive: {
-        backgroundColor: colors.primaryLight,
-        borderColor: colors.primary,
-    },
-    unitChipText: {
-        fontSize: fontSize.sm,
-        color: colors.textSecondary,
-    },
-    unitChipTextActive: {
-        color: colors.primary,
-        fontWeight: "600",
-    },
-    calcCard: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginTop: spacing.md,
-        alignItems: "center",
-    },
-    calcCalories: {
-        fontSize: fontSize.xl,
-        fontWeight: "700",
-        color: colors.calories,
-        marginBottom: spacing.sm,
-    },
-    calcMacros: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-        width: "100%",
-    },
+const macroStyles = StyleSheet.create({
     macroItem: { alignItems: "center" },
     macroValue: { fontSize: fontSize.md, fontWeight: "600" },
-    macroLabel: { fontSize: fontSize.xs, color: colors.textSecondary },
-    sectionLabel: {
-        fontSize: fontSize.sm,
-        fontWeight: "600",
-        color: colors.textSecondary,
-        marginTop: spacing.lg,
-        marginBottom: spacing.sm,
-    },
-    mealRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-    },
-    mealChip: {
-        flex: 1,
-        paddingVertical: spacing.sm,
-        alignItems: "center",
-        borderRadius: borderRadius.sm,
-        borderWidth: 1.5,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-    },
-    mealChipActive: {
-        borderColor: colors.primary,
-        backgroundColor: colors.primaryLight,
-    },
-    mealChipText: {
-        fontSize: fontSize.xs,
-        fontWeight: "600",
-        color: colors.textSecondary,
-    },
-    mealChipTextActive: { color: colors.primary },
-    saveButton: { marginTop: spacing.lg },
+    macroLabel: { fontSize: fontSize.xs },
 });
+
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        flex: { flex: 1, backgroundColor: colors.background },
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+            backgroundColor: colors.surface,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: colors.border,
+        },
+        headerTitle: {
+            fontSize: fontSize.lg,
+            fontWeight: "700",
+            color: colors.text,
+        },
+        content: { padding: spacing.lg },
+        foodName: {
+            fontSize: fontSize.xl,
+            fontWeight: "700",
+            color: colors.text,
+        },
+        per100: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            marginTop: spacing.xs,
+        },
+        quantityInput: { marginTop: spacing.lg },
+        unitRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            paddingBottom: spacing.sm,
+        },
+        unitChip: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        unitChipActive: {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.primary,
+        },
+        unitChipText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        unitChipTextActive: {
+            color: colors.primary,
+            fontWeight: "600",
+        },
+        calcCard: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            marginTop: spacing.md,
+            alignItems: "center",
+        },
+        calcCalories: {
+            fontSize: fontSize.xl,
+            fontWeight: "700",
+            color: colors.calories,
+            marginBottom: spacing.sm,
+        },
+        calcMacros: {
+            flexDirection: "row",
+            justifyContent: "space-around",
+            width: "100%",
+        },
+        sectionLabel: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.textSecondary,
+            marginTop: spacing.lg,
+            marginBottom: spacing.sm,
+        },
+        mealRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+        },
+        mealChip: {
+            flex: 1,
+            paddingVertical: spacing.sm,
+            alignItems: "center",
+            borderRadius: borderRadius.sm,
+            borderWidth: 1.5,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+        },
+        mealChipActive: {
+            borderColor: colors.primary,
+            backgroundColor: colors.primaryLight,
+        },
+        mealChipText: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+            color: colors.textSecondary,
+        },
+        mealChipTextActive: { color: colors.primary },
+        saveButton: { marginTop: spacing.lg },
+    });
+}

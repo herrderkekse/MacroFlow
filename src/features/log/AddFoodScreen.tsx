@@ -1,41 +1,44 @@
-import React, { useState, useEffect, useCallback } from "react";
+import Button from "@/src/components/Button";
 import {
-    View,
-    Text,
-    TextInput,
-    ScrollView,
-    StyleSheet,
-    ActivityIndicator,
-    Pressable,
-    Keyboard,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import {
-    searchFoodsByName,
-    getFoodByOpenfoodfactsId,
     addFood,
+    getFoodByOpenfoodfactsId,
+    searchFoodsByName,
     searchRecipesByName,
     type Food,
     type Recipe,
 } from "@/src/db/queries";
 import {
-    searchProducts,
     guessUnit,
     parseServingSize,
+    searchProducts,
     type OFFProduct,
 } from "@/src/services/openfoodfacts";
-import logger from "@/src/utils/logger";
 import type { MealType } from "@/src/types";
-import Button from "@/src/components/Button";
-import FoodListItem from "./FoodListItem";
-import ManualFoodForm from "./ManualFoodForm";
+import logger from "@/src/utils/logger";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    Keyboard,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+} from "react-native";
 import BarcodeScannerView from "./BarcodeScannerView";
 import EntryModal from "./EntryModal";
+import FoodListItem from "./FoodListItem";
+import ManualFoodForm from "./ManualFoodForm";
 import RecipeLogModal from "./RecipeLogModal";
 
 export default function AddFoodScreen() {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { mealType } = useLocalSearchParams<{ mealType?: string }>();
 
     // ── Search state ───────────────────────────────────────
@@ -398,86 +401,90 @@ export default function AddFoodScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    searchRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: colors.surface,
-        marginHorizontal: spacing.md,
-        marginTop: spacing.md,
-        paddingHorizontal: spacing.md,
-        borderRadius: borderRadius.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        gap: spacing.sm,
-    },
-    searchInput: {
-        flex: 1,
-        paddingVertical: spacing.sm + 2,
-        fontSize: fontSize.md,
-        color: colors.text,
-    },
-    actionRow: {
-        flexDirection: "row",
-        gap: spacing.sm,
-        paddingHorizontal: spacing.md,
-        marginTop: spacing.md,
-    },
-    actionButton: { flex: 1 },
-    results: { padding: spacing.md, paddingBottom: 40 },
-    sectionLabel: {
-        fontSize: fontSize.xs,
-        fontWeight: "700",
-        color: colors.textTertiary,
-        letterSpacing: 1,
-        marginBottom: spacing.sm,
-    },
-    emptyText: {
-        fontSize: fontSize.sm,
-        color: colors.textTertiary,
-        fontStyle: "italic",
-        marginBottom: spacing.md,
-    },
-    errorBox: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: "#FEF2F2",
-        borderRadius: borderRadius.sm,
-        padding: spacing.sm,
-        marginBottom: spacing.sm,
-    },
-    errorText: {
-        flex: 1,
-        fontSize: fontSize.sm,
-        color: colors.danger,
-    },
-    placeholder: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingVertical: 80,
-    },
-    placeholderText: {
-        fontSize: fontSize.sm,
-        color: colors.textTertiary,
-        textAlign: "center",
-        marginTop: spacing.md,
-        maxWidth: 220,
-    },
-    recipeRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-    },
-    recipeRowName: {
-        flex: 1,
-        fontSize: fontSize.sm,
-        fontWeight: "500",
-        color: colors.text,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        screen: { flex: 1, backgroundColor: colors.background },
+        searchRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.surface,
+            marginHorizontal: spacing.md,
+            marginTop: spacing.md,
+            paddingHorizontal: spacing.md,
+            borderRadius: borderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: spacing.sm,
+        },
+        searchInput: {
+            flex: 1,
+            paddingVertical: spacing.sm + 2,
+            fontSize: fontSize.md,
+            color: colors.text,
+        },
+        actionRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginTop: spacing.md,
+        },
+        actionButton: { flex: 1 },
+        results: { padding: spacing.md, paddingBottom: 40 },
+        sectionLabel: {
+            fontSize: fontSize.xs,
+            fontWeight: "700",
+            color: colors.textTertiary,
+            letterSpacing: 1,
+            marginBottom: spacing.sm,
+        },
+        emptyText: {
+            fontSize: fontSize.sm,
+            color: colors.textTertiary,
+            fontStyle: "italic",
+            marginBottom: spacing.md,
+        },
+        errorBox: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.sm,
+            padding: spacing.sm,
+            marginBottom: spacing.sm,
+            borderWidth: 1,
+            borderColor: colors.danger,
+        },
+        errorText: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            color: colors.danger,
+        },
+        placeholder: {
+            alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: 80,
+        },
+        placeholderText: {
+            fontSize: fontSize.sm,
+            color: colors.textTertiary,
+            textAlign: "center",
+            marginTop: spacing.md,
+            maxWidth: 220,
+        },
+        recipeRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            marginBottom: spacing.sm,
+        },
+        recipeRowName: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            fontWeight: "500",
+            color: colors.text,
+        },
+    });
+}

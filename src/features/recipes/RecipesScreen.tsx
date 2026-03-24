@@ -1,27 +1,30 @@
-import React, { useCallback, useState } from "react";
 import {
-    View,
-    Text,
-    FlatList,
-    TextInput,
-    Pressable,
-    StyleSheet,
-    Alert,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router, type Href } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import {
-    getAllRecipes,
-    searchRecipesByName,
     deleteRecipe,
+    getAllRecipes,
     getRecipeItems,
+    searchRecipesByName,
     type Recipe,
 } from "@/src/db/queries";
 import logger from "@/src/utils/logger";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router, type Href } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+} from "react-native";
 
 export default function RecipesScreen() {
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [query, setQuery] = useState("");
 
@@ -113,59 +116,61 @@ export default function RecipesScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    screen: { flex: 1, backgroundColor: colors.background },
-    searchRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        margin: spacing.md,
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.md,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        gap: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: fontSize.md,
-        color: colors.text,
-        padding: 0,
-    },
-    list: { paddingHorizontal: spacing.md, paddingBottom: 100 },
-    empty: {
-        textAlign: "center",
-        color: colors.textTertiary,
-        marginTop: spacing.xl,
-        fontSize: fontSize.sm,
-    },
-    card: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    cardInfo: { flex: 1, marginRight: spacing.sm },
-    cardName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
-    cardSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-    fab: {
-        position: "absolute",
-        bottom: 24,
-        right: 24,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-        elevation: 4,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-    },
-    fabPressed: { opacity: 0.85 },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        screen: { flex: 1, backgroundColor: colors.background },
+        searchRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            margin: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            gap: spacing.sm,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        searchInput: {
+            flex: 1,
+            fontSize: fontSize.md,
+            color: colors.text,
+            padding: 0,
+        },
+        list: { paddingHorizontal: spacing.md, paddingBottom: 100 },
+        empty: {
+            textAlign: "center",
+            color: colors.textTertiary,
+            marginTop: spacing.xl,
+            fontSize: fontSize.sm,
+        },
+        card: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.sm,
+            flexDirection: "row",
+            alignItems: "center",
+        },
+        cardInfo: { flex: 1, marginRight: spacing.sm },
+        cardName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
+        cardSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        fab: {
+            position: "absolute",
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: colors.primary,
+            alignItems: "center",
+            justifyContent: "center",
+            elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+        },
+        fabPressed: { opacity: 0.85 },
+    });
+}

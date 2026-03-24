@@ -1,4 +1,4 @@
-export const colors = {
+export const lightColors = {
     background: "#F9FAFB",
     surface: "#FFFFFF",
     primary: "#2563EB",
@@ -15,6 +15,29 @@ export const colors = {
     carbs: "#F59E0B",
     fat: "#EF4444",
 } as const;
+
+export const darkColors = {
+    background: "#111827",
+    surface: "#1F2937",
+    primary: "#3B82F6",
+    primaryLight: "#1E3A5F",
+    text: "#F9FAFB",
+    textSecondary: "#9CA3AF",
+    textTertiary: "#6B7280",
+    border: "#374151",
+    danger: "#EF4444",
+    success: "#10B981",
+    // Macro colours
+    calories: "#10B981",
+    protein: "#60A5FA",
+    carbs: "#FBBF24",
+    fat: "#F87171",
+} as const;
+
+export type ThemeColors = { [K in keyof typeof lightColors]: string };
+
+/** @deprecated Use useThemeColors() hook instead */
+export const colors = lightColors;
 
 export const spacing = {
     xs: 4,

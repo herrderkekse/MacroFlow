@@ -1,16 +1,17 @@
-import React, { useState } from "react";
+import type { Goals } from "@/src/db/queries";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo, useState } from "react";
 import {
-    View,
-    Text,
-    Pressable,
-    StyleSheet,
     LayoutAnimation,
     Platform,
+    Pressable,
+    StyleSheet,
+    Text,
     UIManager,
+    View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
-import type { Goals } from "@/src/db/queries";
 
 if (
     Platform.OS === "android" &&
@@ -37,29 +38,32 @@ function ProgressRow({
     goal,
     color,
     unit,
+    colors,
 }: {
     label: string;
     current: number;
     goal: number;
     color: string;
     unit: string;
+    colors: ThemeColors;
 }) {
     const ratio = goal > 0 ? Math.min(current / goal, 1) : 0;
+    const rs = useMemo(() => createRowStyles(colors), [colors]);
 
     return (
-        <View style={rowStyles.container}>
-            <View style={rowStyles.labelRow}>
-                <Text style={[rowStyles.label, { color }]}>{label}</Text>
-                <Text style={rowStyles.values}>
+        <View style={rs.container}>
+            <View style={rs.labelRow}>
+                <Text style={[rs.label, { color }]}>{label}</Text>
+                <Text style={rs.values}>
                     {Math.round(current)}{" "}
-                    <Text style={rowStyles.separator}>/</Text>{" "}
+                    <Text style={rs.separator}>/</Text>{" "}
                     {Math.round(goal)} {unit}
                 </Text>
             </View>
-            <View style={rowStyles.track}>
+            <View style={rs.track}>
                 <View
                     style={[
-                        rowStyles.fill,
+                        rs.fill,
                         {
                             backgroundColor: color,
                             width: `${ratio * 100}%`,
@@ -71,41 +75,45 @@ function ProgressRow({
     );
 }
 
-const rowStyles = StyleSheet.create({
-    container: { marginTop: spacing.sm },
-    labelRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 4,
-    },
-    label: {
-        fontSize: fontSize.xs,
-        fontWeight: "600",
-    },
-    values: {
-        fontSize: fontSize.xs,
-        color: colors.textSecondary,
-    },
-    separator: {
-        color: colors.textTertiary,
-    },
-    track: {
-        height: 6,
-        backgroundColor: colors.border,
-        borderRadius: 3,
-        overflow: "hidden",
-    },
-    fill: {
-        height: 6,
-        borderRadius: 3,
-    },
-});
+function createRowStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        container: { marginTop: spacing.sm },
+        labelRow: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 4,
+        },
+        label: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+        },
+        values: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+        },
+        separator: {
+            color: colors.textTertiary,
+        },
+        track: {
+            height: 6,
+            backgroundColor: colors.border,
+            borderRadius: 3,
+            overflow: "hidden",
+        },
+        fill: {
+            height: 6,
+            borderRadius: 3,
+        },
+    });
+}
 
 export default function DailyProgressBar({
     totals,
     goals,
 }: DailyProgressBarProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [expanded, setExpanded] = useState(false);
 
     const calRatio =
@@ -153,6 +161,7 @@ export default function DailyProgressBar({
                         goal={goals.protein}
                         color={colors.protein}
                         unit="g"
+                        colors={colors}
                     />
                     <ProgressRow
                         label="Carbs"
@@ -160,6 +169,7 @@ export default function DailyProgressBar({
                         goal={goals.carbs}
                         color={colors.carbs}
                         unit="g"
+                        colors={colors}
                     />
                     <ProgressRow
                         label="Fat"
@@ -167,6 +177,7 @@ export default function DailyProgressBar({
                         goal={goals.fat}
                         color={colors.fat}
                         unit="g"
+                        colors={colors}
                     />
                 </View>
             )}
@@ -174,39 +185,41 @@ export default function DailyProgressBar({
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.md,
-    },
-    headerRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: spacing.sm,
-    },
-    calorieText: {
-        fontSize: fontSize.md,
-        fontWeight: "600",
-        color: colors.text,
-    },
-    goalText: {
-        fontWeight: "400",
-        color: colors.textSecondary,
-    },
-    track: {
-        height: 8,
-        backgroundColor: colors.border,
-        borderRadius: 4,
-        overflow: "hidden",
-    },
-    fill: {
-        height: 8,
-        borderRadius: 4,
-    },
-    macros: {
-        marginTop: spacing.xs,
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        container: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+        },
+        headerRow: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: spacing.sm,
+        },
+        calorieText: {
+            fontSize: fontSize.md,
+            fontWeight: "600",
+            color: colors.text,
+        },
+        goalText: {
+            fontWeight: "400",
+            color: colors.textSecondary,
+        },
+        track: {
+            height: 8,
+            backgroundColor: colors.border,
+            borderRadius: 4,
+            overflow: "hidden",
+        },
+        fill: {
+            height: 8,
+            borderRadius: 4,
+        },
+        macros: {
+            marginTop: spacing.xs,
+        },
+    });
+}

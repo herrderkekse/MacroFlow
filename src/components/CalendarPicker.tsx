@@ -1,13 +1,14 @@
-import React, { useState, useMemo } from "react";
-import {
-    View,
-    Text,
-    Pressable,
-    Modal,
-    StyleSheet,
-} from "react-native";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, borderRadius, fontSize } from "@/src/utils/theme";
+import React, { useMemo, useState } from "react";
+import {
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
@@ -50,6 +51,8 @@ export default function CalendarPicker({
     onSelect,
     onClose,
 }: CalendarPickerProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
     const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
 
@@ -199,74 +202,76 @@ export default function CalendarPicker({
 
 const CELL_SIZE = 40;
 
-const styles = StyleSheet.create({
-    backdrop: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.35)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    card: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        width: CELL_SIZE * 7 + spacing.md * 2,
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: spacing.sm,
-    },
-    monthTitle: {
-        fontSize: fontSize.lg,
-        fontWeight: "600",
-        color: colors.text,
-    },
-    row: {
-        flexDirection: "row",
-    },
-    cell: {
-        width: CELL_SIZE,
-        height: CELL_SIZE,
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: CELL_SIZE / 2,
-    },
-    dayLabel: {
-        fontSize: fontSize.xs,
-        fontWeight: "500",
-        color: colors.textTertiary,
-    },
-    dayText: {
-        fontSize: fontSize.sm,
-        color: colors.text,
-    },
-    todayText: {
-        color: colors.primary,
-        fontWeight: "700",
-    },
-    selectedCell: {
-        backgroundColor: colors.primary,
-    },
-    selectedText: {
-        color: "#fff",
-        fontWeight: "700",
-    },
-    todayButton: {
-        alignSelf: "center",
-        marginTop: spacing.sm,
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.md,
-    },
-    todayButtonText: {
-        fontSize: fontSize.sm,
-        color: colors.primary,
-        fontWeight: "600",
-    },
-});
+function createStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        backdrop: {
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            justifyContent: "center",
+            alignItems: "center",
+        },
+        card: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            width: CELL_SIZE * 7 + spacing.md * 2,
+            elevation: 8,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+        },
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: spacing.sm,
+        },
+        monthTitle: {
+            fontSize: fontSize.lg,
+            fontWeight: "600",
+            color: colors.text,
+        },
+        row: {
+            flexDirection: "row",
+        },
+        cell: {
+            width: CELL_SIZE,
+            height: CELL_SIZE,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: CELL_SIZE / 2,
+        },
+        dayLabel: {
+            fontSize: fontSize.xs,
+            fontWeight: "500",
+            color: colors.textTertiary,
+        },
+        dayText: {
+            fontSize: fontSize.sm,
+            color: colors.text,
+        },
+        todayText: {
+            color: colors.primary,
+            fontWeight: "700",
+        },
+        selectedCell: {
+            backgroundColor: colors.primary,
+        },
+        selectedText: {
+            color: "#fff",
+            fontWeight: "700",
+        },
+        todayButton: {
+            alignSelf: "center",
+            marginTop: spacing.sm,
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.md,
+        },
+        todayButtonText: {
+            fontSize: fontSize.sm,
+            color: colors.primary,
+            fontWeight: "600",
+        },
+    });
+}
