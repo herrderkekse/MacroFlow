@@ -1,4 +1,4 @@
-import { eq, like, sql } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import logger from "../utils/logger";
 import { db } from "./index";
 import { entries, foods, goals, recipeItems, recipes } from "./schema";
@@ -176,6 +176,41 @@ export function getStreak(): number {
     }
     logger.info(`[DB] Calculated streak: ${streak} (from ${rows.length} days of data)`);
     return streak >= MINIMAL_STREAK ? streak : 0;
+}
+
+export interface LoggedRecipeGroup {
+    recipeId: number;
+    recipeName: string;
+    recipeLogGroup: string;
+}
+
+export function getLoggedRecipeGroups(date: string, mealType: string): LoggedRecipeGroup[] {
+    const rows = db
+        .selectDistinct({
+            recipeId: entries.recipe_id,
+            recipeLogGroup: entries.recipe_log_group,
+        })
+        .from(entries)
+        .where(
+            and(
+                eq(entries.date, date),
+                eq(entries.meal_type, mealType),
+                sql`${entries.recipe_log_group} IS NOT NULL`,
+            ),
+        )
+        .all();
+
+    const result: LoggedRecipeGroup[] = [];
+    for (const row of rows) {
+        if (!row.recipeId || !row.recipeLogGroup) continue;
+        const recipe = getRecipeById(row.recipeId);
+        result.push({
+            recipeId: row.recipeId,
+            recipeName: recipe?.name ?? "Recipe",
+            recipeLogGroup: row.recipeLogGroup,
+        });
+    }
+    return result;
 }
 
 export function logRecipeToMeal(
