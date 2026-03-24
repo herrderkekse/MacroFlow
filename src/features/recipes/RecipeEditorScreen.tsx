@@ -1,3 +1,4 @@
+import BottomSheet, { type BottomSheetRef } from "@/src/components/BottomSheet";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import {
@@ -22,7 +23,7 @@ import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { fromGrams, toGrams, unitLabel, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Keyboard,
@@ -31,6 +32,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
+    useWindowDimensions,
     View
 } from "react-native";
 
@@ -39,10 +41,15 @@ interface ItemWithFood {
     food: Food | null;
 }
 
+const SHEET_COLLAPSED = 160;
+
 export default function RecipeEditorScreen() {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
+    const { height: screenHeight } = useWindowDimensions();
+    const sheetRef = useRef<BottomSheetRef>(null);
+    const snapPoints = useMemo(() => [SHEET_COLLAPSED, Math.round(screenHeight * 0.8)], [screenHeight]);
     const isEditing = !!recipeId;
 
     const [name, setName] = useState("");
@@ -58,6 +65,15 @@ export default function RecipeEditorScreen() {
 
     // modal for editing an ingredient's quantity + unit
     const [editingItem, setEditingItem] = useState<ItemWithFood | null>(null);
+
+    // bottom-sheet helpers
+    const handleSearchFocus = useCallback(() => {
+        sheetRef.current?.snapTo(1);
+    }, []);
+
+    const handleSheetSnapChange = useCallback((index: number) => {
+        if (index === 0) Keyboard.dismiss();
+    }, []);
 
     // ── Load existing recipe ──────────────────────────────
     useEffect(() => {
@@ -155,7 +171,8 @@ export default function RecipeEditorScreen() {
         setFoodQuery("");
         setLocalResults([]);
         setOffResults([]);
-        // Auto-open the modal editor for the new item
+        // Collapse the bottom sheet and open the modal editor
+        sheetRef.current?.snapTo(0);
         setEditingItem(newEntry);
     }
 
@@ -237,25 +254,33 @@ export default function RecipeEditorScreen() {
                     );
                 })}
 
-                {/* Add food search */}
-                <Text style={styles.sectionLabel}>Add ingredient</Text>
-                <View style={styles.searchRow}>
-                    <Ionicons name="search" size={18} color={colors.textTertiary} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search foods…"
-                        placeholderTextColor={colors.textTertiary}
-                        value={foodQuery}
-                        onChangeText={setFoodQuery}
-                    />
-                    {foodQuery.length > 0 && (
-                        <Pressable onPress={() => setFoodQuery("")} hitSlop={8}>
-                            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-                        </Pressable>
-                    )}
-                </View>
+                <Button title="Done" onPress={handleDone} style={styles.doneBtn} />
+            </ScrollView>
 
-                <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.sm }}>
+            {/* ── Add-ingredient bottom sheet ────────────── */}
+            <BottomSheet
+                ref={sheetRef}
+                snapPoints={snapPoints}
+                onSnapChange={handleSheetSnapChange}
+            >
+                <View style={styles.sheetHeader}>
+                    <Text style={styles.sheetLabel}>Add ingredient</Text>
+                    <View style={styles.searchRow}>
+                        <Ionicons name="search" size={18} color={colors.textTertiary} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search foods…"
+                            placeholderTextColor={colors.textTertiary}
+                            value={foodQuery}
+                            onChangeText={setFoodQuery}
+                            onFocus={handleSearchFocus}
+                        />
+                        {foodQuery.length > 0 && (
+                            <Pressable onPress={() => setFoodQuery("")} hitSlop={8}>
+                                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+                            </Pressable>
+                        )}
+                    </View>
                     <Button
                         title="Scan Barcode"
                         variant="outline"
@@ -264,63 +289,66 @@ export default function RecipeEditorScreen() {
                     />
                 </View>
 
-                {/* Local results */}
-                {localResults.map((food) => (
-                    <Pressable
-                        key={food.id}
-                        style={styles.resultRow}
-                        onPress={() => handleSelectLocal(food)}
-                    >
-                        <Text style={styles.resultName} numberOfLines={1}>{food.name}</Text>
-                        <Text style={styles.resultDetail}>
-                            {Math.round(food.calories_per_100g)} cal/100g
-                        </Text>
-                    </Pressable>
-                ))}
+                <ScrollView
+                    style={styles.sheetScroll}
+                    contentContainerStyle={styles.sheetScrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled
+                >
+                    {foodQuery.trim().length >= 2 && !hasSearchedOFF && (
+                        <Button
+                            title={isSearchingOFF ? "Searching…" : "Search OpenFoodFacts"}
+                            onPress={handleSearchOFF}
+                            variant="outline"
+                            loading={isSearchingOFF}
+                            style={styles.offBtn}
+                        />
+                    )}
 
-                {/* OFF search button */}
-                {foodQuery.trim().length >= 2 && !hasSearchedOFF && (
-                    <Button
-                        title={isSearchingOFF ? "Searching…" : "Search OpenFoodFacts"}
-                        onPress={handleSearchOFF}
-                        variant="outline"
-                        loading={isSearchingOFF}
-                        style={styles.offBtn}
-                    />
-                )}
+                    {localResults.map((food) => (
+                        <Pressable
+                            key={food.id}
+                            style={styles.resultRow}
+                            onPress={() => handleSelectLocal(food)}
+                        >
+                            <Text style={styles.resultName} numberOfLines={1}>{food.name}</Text>
+                            <Text style={styles.resultDetail}>
+                                {Math.round(food.calories_per_100g)} cal/100g
+                            </Text>
+                        </Pressable>
+                    ))}
 
-                {offResults.map((p) => (
-                    <Pressable
-                        key={p.code}
-                        style={styles.resultRow}
-                        onPress={() => handleSelectOFF(p)}
-                    >
-                        <Text style={styles.resultName} numberOfLines={1}>
-                            {p.product_name || "Unknown"}{" "}
-                            <Ionicons name="globe-outline" size={12} color={colors.textTertiary} />
-                        </Text>
-                        <Text style={styles.resultDetail}>
-                            {Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0)} cal/100g
-                        </Text>
-                    </Pressable>
-                ))}
+                    {offResults.map((p) => (
+                        <Pressable
+                            key={p.code}
+                            style={styles.resultRow}
+                            onPress={() => handleSelectOFF(p)}
+                        >
+                            <Text style={styles.resultName} numberOfLines={1}>
+                                {p.product_name || "Unknown"}{" "}
+                                <Ionicons name="globe-outline" size={12} color={colors.textTertiary} />
+                            </Text>
+                            <Text style={styles.resultDetail}>
+                                {Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0)} cal/100g
+                            </Text>
+                        </Pressable>
+                    ))}
+                </ScrollView>
+            </BottomSheet>
 
-                <Button title="Done" onPress={handleDone} style={styles.doneBtn} />
+            <RecipeItemModal
+                item={editingItem?.recipeItem ?? null}
+                food={editingItem?.food ?? null}
+                onClose={() => setEditingItem(null)}
+                onSaved={handleModalSaved}
+            />
 
-                <RecipeItemModal
-                    item={editingItem?.recipeItem ?? null}
-                    food={editingItem?.food ?? null}
-                    onClose={() => setEditingItem(null)}
-                    onSaved={handleModalSaved}
-                />
-
-                <BarcodeScannerView
-                    visible={showScanner}
-                    onClose={() => setShowScanner(false)}
-                    onFoodFound={handleBarcodeFound}
-                    onNotFound={handleBarcodeNotFound}
-                />
-            </ScrollView>
+            <BarcodeScannerView
+                visible={showScanner}
+                onClose={() => setShowScanner(false)}
+                onFoodFound={handleBarcodeFound}
+                onNotFound={handleBarcodeNotFound}
+            />
         </View>
     );
 }
@@ -328,7 +356,7 @@ export default function RecipeEditorScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 100 },
+        content: { padding: spacing.lg, paddingBottom: SHEET_COLLAPSED + spacing.lg },
         nameInput: { marginBottom: spacing.md },
         summary: {
             fontSize: fontSize.sm,
@@ -347,12 +375,20 @@ function createStyles(colors: ThemeColors) {
         itemName: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
         itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
 
-        sectionLabel: {
+        sheetHeader: {
+            paddingHorizontal: spacing.lg,
+        },
+        sheetLabel: {
             fontSize: fontSize.sm,
             fontWeight: "600",
             color: colors.text,
-            marginTop: spacing.lg,
             marginBottom: spacing.sm,
+        },
+        sheetScroll: {
+            flex: 1,
+        },
+        sheetScrollContent: {
+            paddingBottom: spacing.lg,
         },
         searchRow: {
             flexDirection: "row",
@@ -377,13 +413,13 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             justifyContent: "space-between",
             paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: spacing.lg,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
         },
         resultName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
         resultDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
-        offBtn: { marginTop: spacing.sm },
+        offBtn: { marginTop: spacing.sm, marginHorizontal: spacing.lg },
         doneBtn: { marginTop: spacing.lg },
     });
 }
