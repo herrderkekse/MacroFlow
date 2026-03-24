@@ -33,10 +33,21 @@ export default function DateSelectorBar({
     }
 
     const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const isToday = isSameDay(date, today);
+    const isYesterday = isSameDay(date, yesterday);
+    const isTomorrow = isSameDay(date, tomorrow);
 
     const label = isToday
         ? "Today"
+        : isYesterday
+        ? "Yesterday"
+        : isTomorrow
+        ? "Tomorrow"
         : date.toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
