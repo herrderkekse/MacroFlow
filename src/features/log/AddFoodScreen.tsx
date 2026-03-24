@@ -374,6 +374,7 @@ export default function AddFoodScreen() {
                 visible={showManualForm}
                 onClose={() => setShowManualForm(false)}
                 onFoodCreated={handleFoodCreated}
+                initialName={query.trim()}
             />
 
             <BarcodeScannerView

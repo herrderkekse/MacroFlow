@@ -7,7 +7,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { type FoodUnit, unitLabel, unitsForSystem } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -24,18 +24,26 @@ interface ManualFoodFormProps {
     visible: boolean;
     onClose: () => void;
     onFoodCreated: (food: Food) => void;
+    initialName?: string;
 }
 
 export default function ManualFoodForm({
     visible,
     onClose,
     onFoodCreated,
+    initialName,
 }: ManualFoodFormProps) {
     const colors = useThemeColors();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [name, setName] = useState("");
+
+    useEffect(() => {
+        if (visible && initialName) {
+            setName(initialName);
+        }
+    }, [visible, initialName]);
     const [calories, setCalories] = useState("");
     const [protein, setProtein] = useState("");
     const [carbs, setCarbs] = useState("");
