@@ -136,10 +136,12 @@ function EntryRow({
     row,
     onEdit,
     onDeleteEntry,
+    isChild = false,
 }: {
     row: EntryWithFood;
     onEdit?: (row: EntryWithFood) => void;
     onDeleteEntry: (id: number) => void;
+    isChild?: boolean;
 }) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -151,10 +153,11 @@ function EntryRow({
 
     return (
         <Pressable
-            style={styles.entryRow}
+            style={[styles.entryRow, isChild && styles.childEntryRow]}
             onPress={() => onEdit?.(row)}
             android_ripple={{ color: "#00000004" }}
         >
+            {isChild && <View style={styles.childConnector} />}
             <View style={styles.entryInfo}>
                 <Text style={styles.entryName} numberOfLines={1}>
                     {food?.name ?? "Unknown food"}
@@ -221,15 +224,19 @@ function RecipeGroupRow({
                 </Pressable>
             </Pressable>
 
-            {expanded &&
-                group.rows.map((row) => (
-                    <EntryRow
-                        key={row.entries.id}
-                        row={row}
-                        onEdit={onEdit}
-                        onDeleteEntry={onDeleteEntry}
-                    />
-                ))}
+            {expanded && (
+                <View style={styles.childContainer}>
+                    {group.rows.map((row) => (
+                        <EntryRow
+                            key={row.entries.id}
+                            row={row}
+                            onEdit={onEdit}
+                            onDeleteEntry={onDeleteEntry}
+                            isChild
+                        />
+                    ))}
+                </View>
+            )}
         </View>
     );
 }
@@ -289,6 +296,21 @@ function createStyles(colors: ThemeColors) {
         recipeGroup: {
             borderTopWidth: StyleSheet.hairlineWidth,
             borderTopColor: colors.border,
+        },
+        childContainer: {
+            borderLeftWidth: 2,
+            borderLeftColor: colors.primary + "40",
+            marginLeft: spacing.sm,
+        },
+        childEntryRow: {
+            paddingLeft: spacing.sm,
+        },
+        childConnector: {
+            width: 8,
+            height: StyleSheet.hairlineWidth,
+            backgroundColor: colors.primary + "40",
+            marginRight: spacing.xs,
+            alignSelf: "center",
         },
         recipeHeader: {
             flexDirection: "row",
