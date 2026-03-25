@@ -104,6 +104,12 @@ const en = {
         noRecipeItems: "No recipe items",
         editRecipePortion: "Edit Recipe Portion",
         portionMultiplier: "Portion multiplier",
+        moveCopyTitle: "Move / Copy",
+        selectDate: "Select Date",
+        selectMeal: "Select Meal",
+        keepMeal: "Keep original meal",
+        move: "Move",
+        copy: "Copy",
     },
     recipes: {
         title: "Templates",

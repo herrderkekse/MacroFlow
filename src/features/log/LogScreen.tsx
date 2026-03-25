@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { deleteEntry, deleteRecipeLog, getEntriesByDate, getGoals, updateRecipeLogPortion, type Entry, type Food, type Goals } from "@/src/db/queries";
+import { copyEntriesToDate, deleteEntry, deleteRecipeLog, formatDateKey, getEntriesByDate, getGoals, moveEntriesToDate, updateRecipeLogPortion, type Entry, type Food, type Goals } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
@@ -27,6 +27,7 @@ import DailyProgressBar from "./DailyProgressBar";
 import DateSelectorBar from "./DateSelectorBar";
 import EntryModal from "./EntryModal";
 import MealSection, { type RecipeGroup } from "./MealSection";
+import MoveCopyModal from "./MoveCopyModal";
 
 interface EntryWithFood {
     entries: Entry;
@@ -82,6 +83,10 @@ function DayPage({
     onEdit,
     onEditRecipeGroup,
     onDeleteRecipeLog,
+    selectionMode,
+    selectedEntryIds,
+    onToggleEntries,
+    onActivateSelection,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
@@ -90,6 +95,10 @@ function DayPage({
     onEdit: (row: EntryWithFood) => void;
     onEditRecipeGroup: (group: RecipeGroup, multiplier: number) => void;
     onDeleteRecipeLog: (recipeLogId: number) => void;
+    selectionMode?: boolean;
+    selectedEntryIds?: Set<number>;
+    onToggleEntries?: (entryIds: number[]) => void;
+    onActivateSelection?: (entryId: number) => void;
 }) {
     return (
         <View style={styles.dayPage}>
@@ -111,6 +120,10 @@ function DayPage({
                         onEdit={onEdit}
                         onEditRecipeGroup={onEditRecipeGroup}
                         onDeleteRecipeLog={onDeleteRecipeLog}
+                        selectionMode={selectionMode}
+                        selectedEntryIds={selectedEntryIds}
+                        onToggleEntries={onToggleEntries}
+                        onActivateSelection={onActivateSelection}
                     />
                 ))}
             </ScrollView>
@@ -166,6 +179,10 @@ export default function LogScreen() {
     } | null>(null);
     const [portionInput, setPortionInput] = useState("1");
 
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedEntryIds, setSelectedEntryIds] = useState<Set<number>>(new Set());
+    const [moveModalVisible, setMoveModalVisible] = useState(false);
+
     function loadAllDays(center: Date) {
         setGrouped(loadGrouped(center));
         setPrevGrouped(loadGrouped(getDateShifted(center, -1)));
@@ -183,6 +200,10 @@ export default function LogScreen() {
     useFocusEffect(
         useCallback(() => {
             loadAllDays(selectedDate);
+            return () => {
+                setSelectionMode(false);
+                setSelectedEntryIds(new Set());
+            };
         }, [selectedDate]),
     );
 
@@ -256,7 +277,69 @@ export default function LogScreen() {
         });
     }
 
+    function exitSelectionMode() {
+        setSelectionMode(false);
+        setSelectedEntryIds(new Set());
+    }
+
+    function handleToggleEntries(entryIds: number[]) {
+        setSelectedEntryIds((prev) => {
+            const next = new Set(prev);
+            const allSelected = entryIds.every((id) => next.has(id));
+            if (allSelected) {
+                entryIds.forEach((id) => next.delete(id));
+            } else {
+                entryIds.forEach((id) => next.add(id));
+            }
+            if (next.size === 0) setSelectionMode(false);
+            return next;
+        });
+    }
+
+    function handleActivateSelection(entryId: number) {
+        setSelectionMode(true);
+        setSelectedEntryIds(new Set([entryId]));
+    }
+
+    function handleMoveCopy(targetDate: Date, targetMealType: string | null, action: "move" | "copy") {
+        const allEntries = Object.values(grouped).flat();
+        const recipeLogEntryMap = new Map<number, number[]>();
+        for (const row of allEntries) {
+            const rlId = row.entries.recipe_log_id;
+            if (rlId) {
+                const list = recipeLogEntryMap.get(rlId) ?? [];
+                list.push(row.entries.id);
+                recipeLogEntryMap.set(rlId, list);
+            }
+        }
+        const fullySelectedRecipeLogIds: number[] = [];
+        const standaloneEntryIds: number[] = [];
+        for (const [rlId, entryIds] of recipeLogEntryMap) {
+            const allSel = entryIds.every((id) => selectedEntryIds.has(id));
+            if (allSel) {
+                fullySelectedRecipeLogIds.push(rlId);
+            } else {
+                entryIds.filter((id) => selectedEntryIds.has(id)).forEach((id) => standaloneEntryIds.push(id));
+            }
+        }
+        for (const row of allEntries) {
+            if (!row.entries.recipe_log_id && selectedEntryIds.has(row.entries.id)) {
+                standaloneEntryIds.push(row.entries.id);
+            }
+        }
+        const dateKey = formatDateKey(targetDate);
+        if (action === "move") {
+            moveEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
+        } else {
+            copyEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
+        }
+        exitSelectionMode();
+        setMoveModalVisible(false);
+        loadAllDays(selectedDate);
+    }
+
     function handleDateChange(newDate: Date) {
+        exitSelectionMode();
         const diff = Math.round(
             (newDate.getTime() - dateRef.current.getTime()) / (1000 * 60 * 60 * 24),
         );
@@ -293,6 +376,7 @@ export default function LogScreen() {
                 onMomentumScrollEnd={handleScrollEnd}
                 contentOffset={{ x: SCREEN_WIDTH, y: 0 }}
                 style={styles.carousel}
+                scrollEnabled={!selectionMode}
             >
                 <DayPage
                     grouped={prevGrouped}
@@ -311,6 +395,10 @@ export default function LogScreen() {
                     onEdit={handleEdit}
                     onEditRecipeGroup={handleEditRecipeGroup}
                     onDeleteRecipeLog={handleDeleteRecipeLog}
+                    selectionMode={selectionMode}
+                    selectedEntryIds={selectedEntryIds}
+                    onToggleEntries={handleToggleEntries}
+                    onActivateSelection={handleActivateSelection}
                 />
                 <DayPage
                     grouped={nextGrouped}
@@ -333,15 +421,18 @@ export default function LogScreen() {
                 }}
             />
 
-            {/* Floating add button */}
+            {/* Floating action button */}
             <Pressable
                 style={({ pressed }) => [
                     styles.fab,
                     pressed && styles.fabPressed,
                 ]}
-                onPress={() => navigateToAdd()}
+                onPress={() => {
+                    if (selectionMode) setMoveModalVisible(true);
+                    else navigateToAdd();
+                }}
             >
-                <Ionicons name="add" size={28} color="#fff" />
+                <Ionicons name={selectionMode ? "move-outline" : "add"} size={28} color="#fff" />
             </Pressable>
 
             {/* Recipe portion edit modal */}
@@ -390,6 +481,13 @@ export default function LogScreen() {
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            <MoveCopyModal
+                visible={moveModalVisible}
+                onClose={() => setMoveModalVisible(false)}
+                onConfirm={handleMoveCopy}
+                initialDate={selectedDate}
+            />
         </View>
     );
 }

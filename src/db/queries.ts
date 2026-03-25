@@ -307,3 +307,95 @@ export function deleteRecipeLog(recipeLogId: number) {
     db.delete(entries).where(eq(entries.recipe_log_id, recipeLogId)).run();
     db.delete(recipeLogs).where(eq(recipeLogs.id, recipeLogId)).run();
 }
+
+// ── Move / Copy entries ────────────────────────────────────
+
+export function moveEntriesToDate(
+    standaloneEntryIds: number[],
+    recipeLogIds: number[],
+    targetDate: string,
+    targetMealType: string | null,
+) {
+    for (const rlId of recipeLogIds) {
+        db.update(recipeLogs)
+            .set({
+                date: targetDate,
+                ...(targetMealType ? { meal_type: targetMealType } : {}),
+            })
+            .where(eq(recipeLogs.id, rlId))
+            .run();
+        db.update(entries)
+            .set({
+                date: targetDate,
+                ...(targetMealType ? { meal_type: targetMealType } : {}),
+            })
+            .where(eq(entries.recipe_log_id, rlId))
+            .run();
+    }
+    for (const entryId of standaloneEntryIds) {
+        db.update(entries)
+            .set({
+                date: targetDate,
+                ...(targetMealType ? { meal_type: targetMealType } : {}),
+                recipe_log_id: null,
+            })
+            .where(eq(entries.id, entryId))
+            .run();
+    }
+}
+
+export function copyEntriesToDate(
+    standaloneEntryIds: number[],
+    recipeLogIds: number[],
+    targetDate: string,
+    targetMealType: string | null,
+) {
+    const ts = Date.now();
+    for (const rlId of recipeLogIds) {
+        const rl = getRecipeLogById(rlId);
+        if (!rl) continue;
+        const newRl = db
+            .insert(recipeLogs)
+            .values({
+                recipe_id: rl.recipe_id,
+                date: targetDate,
+                meal_type: targetMealType ?? rl.meal_type,
+                portion: rl.portion,
+                timestamp: ts,
+            })
+            .returning()
+            .get();
+        const rlEntries = db
+            .select()
+            .from(entries)
+            .where(eq(entries.recipe_log_id, rlId))
+            .all();
+        for (const entry of rlEntries) {
+            db.insert(entries)
+                .values({
+                    food_id: entry.food_id,
+                    quantity_grams: entry.quantity_grams,
+                    quantity_unit: entry.quantity_unit,
+                    timestamp: ts,
+                    date: targetDate,
+                    meal_type: targetMealType ?? entry.meal_type,
+                    recipe_log_id: newRl.id,
+                })
+                .run();
+        }
+    }
+    for (const entryId of standaloneEntryIds) {
+        const entry = db.select().from(entries).where(eq(entries.id, entryId)).get();
+        if (!entry) continue;
+        db.insert(entries)
+            .values({
+                food_id: entry.food_id,
+                quantity_grams: entry.quantity_grams,
+                quantity_unit: entry.quantity_unit,
+                timestamp: ts,
+                date: targetDate,
+                meal_type: targetMealType ?? entry.meal_type,
+            })
+            .run();
+    }
+}
