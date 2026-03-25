@@ -195,6 +195,7 @@ function EntryRow({
     onToggleSelection,
     onActivateSelection,
     allMealSelected,
+    allGroupSelected,
 }: {
     row: EntryWithFood;
     onEdit?: (row: EntryWithFood) => void;
@@ -205,6 +206,7 @@ function EntryRow({
     onToggleSelection?: () => void;
     onActivateSelection?: () => void;
     allMealSelected?: boolean;
+    allGroupSelected?: boolean;
 }) {
     const { t } = useTranslation();
     const colors = useThemeColors();
@@ -220,7 +222,7 @@ function EntryRow({
             style={[
                 styles.entryRow,
                 isChild && styles.childEntryRow,
-                selectionMode && isSelected && !isChild && !allMealSelected && styles.selectedEntry,
+                selectionMode && isSelected && !allMealSelected && !allGroupSelected && styles.selectedEntry,
             ]}
             onPress={() => {
                 if (selectionMode) onToggleSelection?.();
@@ -387,6 +389,8 @@ function RecipeGroupRow({
                             isSelected={selectedEntryIds?.has(row.entries.id)}
                             onToggleSelection={() => onToggleEntries?.([row.entries.id])}
                             onActivateSelection={() => onActivateSelection?.(row.entries.id)}
+                            allMealSelected={allMealSelected}
+                            allGroupSelected={allGroupSelected}
                         />
                     ))}
                 </View>
