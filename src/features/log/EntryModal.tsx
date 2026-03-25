@@ -49,43 +49,59 @@ export default function EntryModal({
     const [recipeGroups, setRecipeGroups] = useState<LoggedRecipeGroup[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<LoggedRecipeGroup | null>(null);
 
-    // initialize when food or entry changes
+    // Initialize form fields and fetch recipe groups whenever the entry/food/meal/date changes.
+    // Keeping this in a single effect avoids a race where a second effect would overwrite
+    // the selectedGroup that was just restored from the entry.
     React.useEffect(() => {
+        if (!food) {
+            setRecipeGroups([]);
+            setSelectedGroup(null);
+            return;
+        }
+
         if (entry) {
             const entryUnit = (entry.quantity_unit ?? "g") as FoodUnit;
             setUnit(entryUnit);
             setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
             setMealType(entry.meal_type as MealType);
+
+            // Load groups from the entry's own date/meal so the recipe
+            // association is always preserved when opening Edit Entry.
+            const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
+            setRecipeGroups(groups);
             if (entry.recipe_id && entry.recipe_log_group) {
-                const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
                 const match = groups.find((g) => g.recipeLogGroup === entry.recipe_log_group);
                 setSelectedGroup(match ?? null);
             } else {
                 setSelectedGroup(null);
             }
-        } else if (food) {
+        } else {
             const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
             setUnit(defaultUnit);
             setQuantity(String(food.serving_size ?? 100));
-            setMealType(defaultMealType ?? "breakfast");
-        } else {
-            setQuantity("100");
-            setUnit("g");
-            setMealType(defaultMealType ?? "breakfast");
-        }
-    }, [entry, food, defaultMealType]);
+            const meal = defaultMealType ?? "breakfast";
+            setMealType(meal);
 
-    // Fetch recipe groups logged to the selected meal + date
+            const dateKey = formatDateKey(selectedDate);
+            const groups = getLoggedRecipeGroups(dateKey, meal);
+            setRecipeGroups(groups);
+            setSelectedGroup(null);
+        }
+    }, [entry, food, defaultMealType, selectedDate]);
+
+    // Re-fetch recipe groups whenever the user switches the meal picker so the
+    // "Add to Recipe" list stays in sync. For edit mode the date comes from the
+    // entry itself; for add mode it comes from the store's selectedDate.
+    // Clear the selection when the new meal no longer contains the previous group.
     React.useEffect(() => {
-        if (!food) { setRecipeGroups([]); setSelectedGroup(null); return; }
-        const dateKey = formatDateKey(selectedDate);
+        if (!food) return;
+        const dateKey = entry ? entry.date : formatDateKey(selectedDate);
         const groups = getLoggedRecipeGroups(dateKey, mealType);
         setRecipeGroups(groups);
-        // Keep selection if it still exists in the new meal, otherwise clear
         setSelectedGroup((prev) =>
             prev && groups.some((g) => g.recipeLogGroup === prev.recipeLogGroup) ? prev : null,
         );
-    }, [food, mealType, selectedDate]);
+    }, [mealType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const qty = parseFloat(quantity) || 0;
     const qtyGrams = toGrams(qty, unit);
