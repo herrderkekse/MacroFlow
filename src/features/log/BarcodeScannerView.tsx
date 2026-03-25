@@ -12,6 +12,7 @@ import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
     Modal,
@@ -42,6 +43,7 @@ export default function BarcodeScannerView({
 }: BarcodeScannerViewProps) {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const [permission, requestPermission] = useCameraPermissions();
     const [state, setState] = useState<ScanState>({ status: "scanning" });
 
@@ -102,7 +104,7 @@ export default function BarcodeScannerView({
         } catch {
             setState({
                 status: "error",
-                message: "Network error — check your connection",
+                message: t("log.barcodeNetworkError"),
             });
         }
     }
@@ -143,15 +145,15 @@ export default function BarcodeScannerView({
                         color={colors.textTertiary}
                     />
                     <Text style={styles.permText}>
-                        Camera permission is needed to scan barcodes
+                        {t("log.barcodePermission")}
                     </Text>
                     <Button
-                        title="Grant Permission"
+                        title={t("log.barcodeGrantPermission")}
                         onPress={requestPermission}
                         style={{ marginTop: spacing.md }}
                     />
                     <Button
-                        title="Cancel"
+                        title={t("common.cancel")}
                         variant="ghost"
                         onPress={resetAndClose}
                         style={{ marginTop: spacing.sm }}
@@ -168,7 +170,7 @@ export default function BarcodeScannerView({
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Scan Barcode</Text>
+                    <Text style={styles.headerTitle}>{t("log.barcodeTitle")}</Text>
                     <Pressable onPress={resetAndClose} hitSlop={8}>
                         <Ionicons
                             name="close"
@@ -195,7 +197,7 @@ export default function BarcodeScannerView({
                         <View style={styles.overlay}>
                             <View style={styles.scanFrame} />
                             <Text style={styles.hint}>
-                                Point camera at a barcode
+                                {t("log.barcodeHint")}
                             </Text>
                         </View>
                     </CameraView>
@@ -209,7 +211,7 @@ export default function BarcodeScannerView({
                             color={colors.primary}
                         />
                         <Text style={styles.statusText}>
-                            Looking up product…
+                            {t("log.barcodeLookingUp")}
                         </Text>
                     </View>
                 )}
@@ -223,15 +225,15 @@ export default function BarcodeScannerView({
                             color={colors.textTertiary}
                         />
                         <Text style={styles.statusText}>
-                            Product not found for barcode {state.barcode}
+                            {t("log.barcodeProductNotFound", { barcode: state.barcode })}
                         </Text>
                         <Button
-                            title="Scan Again"
+                            title={t("log.barcodeScanAgain")}
                             onPress={handleRetry}
                             style={{ marginTop: spacing.md }}
                         />
                         <Button
-                            title="Create Manually"
+                            title={t("log.barcodeCreateManually")}
                             variant="outline"
                             onPress={handleCreateManually}
                             style={{ marginTop: spacing.sm }}
@@ -249,12 +251,12 @@ export default function BarcodeScannerView({
                         />
                         <Text style={styles.statusText}>{state.message}</Text>
                         <Button
-                            title="Scan Again"
+                            title={t("log.barcodeScanAgain")}
                             onPress={handleRetry}
                             style={{ marginTop: spacing.md }}
                         />
                         <Button
-                            title="Cancel"
+                            title={t("common.cancel")}
                             variant="ghost"
                             onPress={resetAndClose}
                             style={{ marginTop: spacing.sm }}

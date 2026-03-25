@@ -19,6 +19,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 interface ManualFoodFormProps {
     visible: boolean;
@@ -33,6 +34,7 @@ export default function ManualFoodForm({
     onFoodCreated,
     initialName,
 }: ManualFoodFormProps) {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
@@ -94,7 +96,7 @@ export default function ManualFoodForm({
                 style={styles.flex}
             >
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Create New Food</Text>
+                    <Text style={styles.headerTitle}>{t("log.createNewFood")}</Text>
                     <Pressable onPress={handleClose} hitSlop={8}>
                         <Ionicons
                             name="close"
@@ -109,8 +111,8 @@ export default function ManualFoodForm({
                     keyboardShouldPersistTaps="handled"
                 >
                     <Input
-                        label="Food Name"
-                        placeholder="e.g., Chicken Breast"
+                        label={t("log.foodName")}
+                        placeholder={t("log.foodNamePlaceholder")}
                         value={name}
                         onChangeText={setName}
                         autoFocus
@@ -118,7 +120,7 @@ export default function ManualFoodForm({
                     />
 
                     <Text style={styles.sectionLabel}>
-                        Default unit
+                        {t("log.defaultUnit")}
                     </Text>
                     <ScrollView
                         horizontal
@@ -147,23 +149,23 @@ export default function ManualFoodForm({
                     </ScrollView>
 
                     <Text style={styles.sectionLabel}>
-                        Nutrition per 100 g
+                        {t("log.nutritionPer100g")}
                     </Text>
 
                     <View style={styles.row}>
                         <Input
-                            label="Calories"
+                            label={t("settings.calories")}
                             placeholder="0"
-                            suffix="kcal"
+                            suffix={t("common.kcal")}
                             value={calories}
                             onChangeText={setCalories}
                             keyboardType="decimal-pad"
                             containerStyle={styles.halfField}
                         />
                         <Input
-                            label="Protein"
+                            label={t("settings.protein")}
                             placeholder="0"
-                            suffix="g"
+                            suffix={t("common.g")}
                             value={protein}
                             onChangeText={setProtein}
                             keyboardType="decimal-pad"
@@ -173,18 +175,18 @@ export default function ManualFoodForm({
 
                     <View style={styles.row}>
                         <Input
-                            label="Carbs"
+                            label={t("settings.carbs")}
                             placeholder="0"
-                            suffix="g"
+                            suffix={t("common.g")}
                             value={carbs}
                             onChangeText={setCarbs}
                             keyboardType="decimal-pad"
                             containerStyle={styles.halfField}
                         />
                         <Input
-                            label="Fat"
+                            label={t("settings.fat")}
                             placeholder="0"
-                            suffix="g"
+                            suffix={t("common.g")}
                             value={fat}
                             onChangeText={setFat}
                             keyboardType="decimal-pad"
@@ -193,7 +195,7 @@ export default function ManualFoodForm({
                     </View>
 
                     <Button
-                        title="Create Food"
+                        title={t("log.createFood")}
                         onPress={handleSave}
                         disabled={!name.trim()}
                         style={styles.saveButton}

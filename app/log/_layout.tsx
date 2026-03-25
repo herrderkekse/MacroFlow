@@ -1,8 +1,11 @@
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Stack } from "expo-router";
+import { useTranslation } from "react-i18next";
+
 
 export default function LogLayout() {
     const colors = useThemeColors();
+    const { t } = useTranslation();
     return (
         <Stack
             screenOptions={{
@@ -11,7 +14,7 @@ export default function LogLayout() {
                 headerShadowVisible: false,
             }}
         >
-            <Stack.Screen name="add" options={{ title: "Add Food" }} />
+            <Stack.Screen name="add" options={{ title: t("log.addFoodTitle") }} />
         </Stack>
     );
 }

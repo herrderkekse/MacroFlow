@@ -1,12 +1,29 @@
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { initDB } from "../src/db";
+import { getGoals } from "../src/db/queries";
+import "../src/i18n";
+import i18n from "../src/i18n";
+import { useAppStore } from "../src/store/useAppStore";
+import type { Language } from "../src/types";
 import { ThemeProvider, useThemeColors } from "../src/utils/ThemeProvider";
+import { useEffect } from "react";
 
 initDB();
 
 function InnerLayout() {
   const colors = useThemeColors();
+  const setLanguage = useAppStore((s) => s.setLanguage);
+
+  useEffect(() => {
+    const goals = getGoals();
+    if (goals?.language) {
+      const lang = goals.language as Language;
+      setLanguage(lang);
+      i18n.changeLanguage(lang);
+    }
+  }, []);
+
   return (
     <Stack
       screenOptions={{

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const icons: Record<string, string> = {
     index: 'create',
@@ -12,6 +13,7 @@ const icons: Record<string, string> = {
 };
 
 export default function TabsLayout() {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const [streak, setStreak] = useState(0);
 
@@ -62,9 +64,9 @@ export default function TabsLayout() {
                 },
             })}
         >
-            <Tabs.Screen name="recipes" options={{ title: "Templates", tabBarLabel: "Templates" }} />
-            <Tabs.Screen name="index" options={{ title: "Logs", tabBarLabel: "Logs" }} />
-            <Tabs.Screen name="settings" options={{ title: "Settings", tabBarLabel: "Settings" }} />
+            <Tabs.Screen name="recipes" options={{ title: t("nav.templates"), tabBarLabel: t("nav.templates") }} />
+            <Tabs.Screen name="index" options={{ title: t("nav.logs"), tabBarLabel: t("nav.logs") }} />
+            <Tabs.Screen name="settings" options={{ title: t("nav.settings"), tabBarLabel: t("nav.settings") }} />
         </Tabs>
     );
 }

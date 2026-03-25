@@ -26,6 +26,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 type FilterType = "all" | "recipes" | "foods";
 
@@ -34,6 +35,7 @@ type TemplateItem =
     | { kind: "recipe"; data: Recipe };
 
 export default function RecipesScreen() {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
@@ -63,10 +65,10 @@ export default function RecipesScreen() {
     useFocusEffect(useCallback(() => { load(); }, [query, filter]));
 
     function handleDeleteRecipe(recipe: Recipe) {
-        Alert.alert("Delete recipe", `Remove "${recipe.name}"?`, [
-            { text: "Cancel", style: "cancel" },
+        Alert.alert(t("recipes.deleteRecipe"), t("recipes.removeRecipe", { name: recipe.name }), [
+            { text: t("common.cancel"), style: "cancel" },
             {
-                text: "Delete",
+                text: t("common.delete"),
                 style: "destructive",
                 onPress: () => {
                     deleteRecipe(recipe.id);
@@ -79,12 +81,12 @@ export default function RecipesScreen() {
 
     function handleDeleteFood(food: Food) {
         Alert.alert(
-            "Delete food",
-            `Remove "${food.name}"? This will also remove it from recipes and log entries.`,
+            t("recipes.deleteFood"),
+            t("recipes.removeFoodWarning", { name: food.name }),
             [
-                { text: "Cancel", style: "cancel" },
+                { text: t("common.cancel"), style: "cancel" },
                 {
-                    text: "Delete",
+                    text: t("common.delete"),
                     style: "destructive",
                     onPress: () => {
                         deleteFood(food.id);
@@ -98,7 +100,7 @@ export default function RecipesScreen() {
 
     function recipeSummary(recipeId: number) {
         const recipeItemsList = getRecipeItems(recipeId);
-        if (recipeItemsList.length === 0) return "No items";
+        if (recipeItemsList.length === 0) return t("recipes.noItems");
         const totalCals = recipeItemsList.reduce((sum, row) => {
             const food = row.foods;
             if (!food) return sum;
@@ -108,7 +110,7 @@ export default function RecipesScreen() {
     }
 
     function foodSummary(food: Food) {
-        return `${Math.round(food.calories_per_100g)} cal/100g`;
+        return t("recipes.calPer100g", { cal: Math.round(food.calories_per_100g) });
     }
 
     function toggleFilter(type: "recipes" | "foods") {
@@ -154,12 +156,12 @@ export default function RecipesScreen() {
 
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
-            <Text style={styles.heading}>Templates</Text>
+            <Text style={styles.heading}>{t("recipes.title")}</Text>
             <View style={styles.searchRow}>
                 <Ionicons name="search" size={18} color={colors.textTertiary} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search templates…"
+                    placeholder={t("recipes.searchPlaceholder")}
                     placeholderTextColor={colors.textTertiary}
                     value={query}
                     onChangeText={setQuery}
@@ -175,7 +177,7 @@ export default function RecipesScreen() {
                 onPress={() => setFilterExpanded((prev) => !prev)}
                 style={styles.filterHeader}
             >
-                <Text style={styles.filterLabel}>Filter</Text>
+                <Text style={styles.filterLabel}>{t("recipes.filter")}</Text>
                 <Ionicons
                     name={filterExpanded ? "chevron-up" : "chevron-down"}
                     size={18}
@@ -195,7 +197,7 @@ export default function RecipesScreen() {
                             style={{ marginRight: spacing.xs }}
                         />
                         <Text style={[styles.filterButtonText, filter === "recipes" && styles.filterButtonTextActive]}>
-                            Recipes
+                            {t("recipes.filterRecipes")}
                         </Text>
                     </Pressable>
                     <Pressable
@@ -209,7 +211,7 @@ export default function RecipesScreen() {
                             style={{ marginRight: spacing.xs }}
                         />
                         <Text style={[styles.filterButtonText, filter === "foods" && styles.filterButtonTextActive]}>
-                            Foods
+                            {t("recipes.filterFoods")}
                         </Text>
                     </Pressable>
                 </View>
@@ -223,7 +225,7 @@ export default function RecipesScreen() {
                 contentContainerStyle={styles.list}
                 ListEmptyComponent={
                     <Text style={styles.empty}>
-                        {query ? "No matching templates" : "No templates yet — tap + to create a recipe"}
+                        {query ? t("recipes.noMatchingTemplates") : t("recipes.noTemplatesYet")}
                     </Text>
                 }
                 renderItem={renderItem}

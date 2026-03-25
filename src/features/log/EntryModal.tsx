@@ -20,6 +20,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 interface EntryModalProps {
     food: Food | null;
@@ -38,6 +39,7 @@ export default function EntryModal({
 }: EntryModalProps) {
     const colors = useThemeColors();
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const unitSystem = useAppStore((s) => s.unitSystem);
@@ -186,7 +188,7 @@ export default function EntryModal({
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{entry ? "Edit Entry" : "Add to Log"}</Text>
+                    <Text style={styles.headerTitle}>{entry ? t("log.editEntry") : t("log.addToLog")}</Text>
                     <Pressable onPress={handleClose} hitSlop={8}>
                         <Ionicons
                             name="close"
@@ -203,13 +205,12 @@ export default function EntryModal({
                     {/* Food info */}
                     <Text style={styles.foodName}>{food?.name}</Text>
                     <Text style={styles.per100}>
-                        per 100 g: {Math.round(food?.calories_per_100g ?? 0)}{" "}
-                        cal
+                        {t("log.per100g", { calories: Math.round(food?.calories_per_100g ?? 0) })}
                     </Text>
 
                     {/* Quantity */}
                     <Input
-                        label="Quantity"
+                        label={t("log.quantity")}
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="decimal-pad"
@@ -218,7 +219,7 @@ export default function EntryModal({
                     />
 
                     {/* Unit picker */}
-                    <Text style={styles.sectionLabel}>Unit</Text>
+                    <Text style={styles.sectionLabel}>{t("log.unit")}</Text>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
@@ -273,7 +274,7 @@ export default function EntryModal({
                     </View>
 
                     {/* Meal type picker */}
-                    <Text style={styles.sectionLabel}>Meal</Text>
+                    <Text style={styles.sectionLabel}>{t("log.meal")}</Text>
                     <View style={styles.mealRow}>
                         {MEAL_TYPES.map((m) => (
                             <Pressable
@@ -292,7 +293,7 @@ export default function EntryModal({
                                         styles.mealChipTextActive,
                                     ]}
                                 >
-                                    {m.label}
+                                    {t(`meal.${m.key}`)}
                                 </Text>
                             </Pressable>
                         ))}
@@ -300,8 +301,8 @@ export default function EntryModal({
 
                     {/* Recipe group picker */}
                     {recipeGroups.length > 0 && (
-                        <>
-                            <Text style={styles.sectionLabel}>Add to Recipe</Text>
+                        <>            
+                            <Text style={styles.sectionLabel}>{t("log.addToRecipe")}</Text>
                             {recipeGroups.map((g) => {
                                 const isSelected = selectedGroup?.recipeLogId === g.recipeLogId;
                                 return (

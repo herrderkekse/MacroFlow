@@ -1,12 +1,14 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import { getGoals, setGoals } from "@/src/db/queries";
+import { SUPPORTED_LANGUAGES } from "@/src/i18n";
 import { exportData, importData } from "@/src/services/importExport";
 import { useAppStore } from "@/src/store/useAppStore";
-import type { AppearanceMode, UnitSystem } from "@/src/types";
+import type { AppearanceMode, Language, UnitSystem } from "@/src/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Alert,
     Pressable,
@@ -17,18 +19,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
-    { key: "metric", label: "Metric (g, ml)" },
-    { key: "imperial", label: "Imperial (oz, cup)" },
-];
-
-const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string; icon: string }[] = [
-    { key: "system", label: "System", icon: "📱" },
-    { key: "light", label: "Light", icon: "☀️" },
-    { key: "dark", label: "Dark", icon: "🌙" },
-];
+const LANGUAGE_LABELS: Record<Language, string> = {
+    en: "English",
+    de: "Deutsch",
+};
 
 export default function SettingsScreen() {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
@@ -37,6 +34,19 @@ export default function SettingsScreen() {
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
     const appearanceMode = useAppStore((s) => s.appearanceMode);
     const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
+    const language = useAppStore((s) => s.language);
+    const setLanguage = useAppStore((s) => s.setLanguage);
+
+    const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
+        { key: "metric", label: t("settings.unitsMetric") },
+        { key: "imperial", label: t("settings.unitsImperial") },
+    ];
+
+    const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string }[] = [
+        { key: "system", label: t("settings.appearanceSystem") },
+        { key: "light", label: t("settings.appearanceLight") },
+        { key: "dark", label: t("settings.appearanceDark") },
+    ];
 
     const [calories, setCalories] = useState("2000");
     const [protein, setProtein] = useState("150");
@@ -63,7 +73,7 @@ export default function SettingsScreen() {
         const f = parseFloat(fat) || 0;
 
         if (cal <= 0) {
-            Alert.alert("Invalid", "Calories must be greater than 0");
+            Alert.alert(t("settings.invalid"), t("settings.caloriesMustBeGreater"));
             return;
         }
 
@@ -74,12 +84,17 @@ export default function SettingsScreen() {
             fat: f,
             unit_system: unitSystem,
         });
-        Alert.alert("Saved", "Your goals have been updated.");
+        Alert.alert(t("settings.saved"), t("settings.goalsUpdated"));
     }
 
     function handleUnitChange(system: UnitSystem) {
         setUnitSystem(system);
         setGoals({ unit_system: system });
+    }
+
+    function handleLanguageChange(lang: Language) {
+        setLanguage(lang);
+        setGoals({ language: lang });
     }
 
     // ── Import / Export ─────────────────────────────────
@@ -91,7 +106,7 @@ export default function SettingsScreen() {
             setExporting(true);
             await exportData();
         } catch (e: any) {
-            Alert.alert("Export failed", e.message ?? "Unknown error");
+            Alert.alert(t("settings.exportFailed"), e.message ?? "Unknown error");
         } finally {
             setExporting(false);
         }
@@ -99,11 +114,11 @@ export default function SettingsScreen() {
 
     function handleImportConfirm() {
         Alert.alert(
-            "Import Data",
-            "This will replace ALL current data with the contents of the backup file. This cannot be undone.\n\nContinue?",
+            t("settings.importTitle"),
+            t("settings.importWarning"),
             [
-                { text: "Cancel", style: "cancel" },
-                { text: "Import", style: "destructive", onPress: handleImport },
+                { text: t("common.cancel"), style: "cancel" },
+                { text: t("settings.importData"), style: "destructive", onPress: handleImport },
             ],
         );
     }
@@ -123,10 +138,13 @@ export default function SettingsScreen() {
                     setUnitSystem(g.unit_system as UnitSystem);
                 }
             }
-            Alert.alert("Import complete", `${inserted} records restored.`);
+            Alert.alert(
+                t("settings.importComplete"),
+                t("settings.recordsRestored_other", { count: inserted }),
+            );
         } catch (e: any) {
             if (e.message !== "cancelled") {
-                Alert.alert("Import failed", e.message ?? "Unknown error");
+                Alert.alert(t("settings.importFailed"), e.message ?? "Unknown error");
             }
         } finally {
             setImporting(false);
@@ -145,10 +163,26 @@ export default function SettingsScreen() {
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
             keyboardShouldPersistTaps="handled"
         >
-            <Text style={styles.heading}>Settings</Text>
+            <Text style={styles.heading}>{t("settings.title")}</Text>
+
+            {/* ── Language ────────────────────────────────── */}
+            <Text style={styles.sectionLabel}>{t("settings.language")}</Text>
+            <View style={styles.chipRow}>
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                    <Pressable
+                        key={lang}
+                        style={[styles.chip, language === lang && styles.chipActive]}
+                        onPress={() => handleLanguageChange(lang)}
+                    >
+                        <Text style={[styles.chipText, language === lang && styles.chipTextActive]}>
+                            {LANGUAGE_LABELS[lang]}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
 
             {/* ── Appearance ──────────────────────────────── */}
-            <Text style={styles.sectionLabel}>APPEARANCE</Text>
+            <Text style={styles.sectionLabel}>{t("settings.appearance")}</Text>
             <View style={styles.chipRow}>
                 {APPEARANCE_OPTIONS.map((opt) => (
                     <Pressable
@@ -165,14 +199,14 @@ export default function SettingsScreen() {
                                 appearanceMode === opt.key && styles.chipTextActive,
                             ]}
                         >
-                            {opt.icon} {opt.label}
-                        </Text>
+                        {opt.label}
+                    </Text>
                     </Pressable>
                 ))}
             </View>
 
             {/* ── Unit System ─────────────────────────────── */}
-            <Text style={styles.sectionLabel}>PREFERRED UNITS</Text>
+            <Text style={styles.sectionLabel}>{t("settings.units")}</Text>
             <View style={styles.chipRow}>
                 {UNIT_OPTIONS.map((opt) => (
                     <Pressable
@@ -196,41 +230,41 @@ export default function SettingsScreen() {
             </View>
 
             {/* ── Calorie Goal ────────────────────────────── */}
-            <Text style={styles.sectionLabel}>DAILY GOALS</Text>
+            <Text style={styles.sectionLabel}>{t("settings.dailyGoals")}</Text>
 
             <Input
-                label="Calories"
+                label={t("settings.calories")}
                 value={calories}
                 onChangeText={setCalories}
                 keyboardType="decimal-pad"
-                suffix="kcal"
+                suffix={t("common.kcal")}
                 containerStyle={styles.field}
             />
 
             {/* ── Macro Goals ─────────────────────────────── */}
             <View style={styles.row}>
                 <Input
-                    label="Protein"
+                    label={t("settings.protein")}
                     value={protein}
                     onChangeText={setProtein}
                     keyboardType="decimal-pad"
-                    suffix="g"
+                    suffix={t("common.g")}
                     containerStyle={styles.thirdField}
                 />
                 <Input
-                    label="Carbs"
+                    label={t("settings.carbs")}
                     value={carbs}
                     onChangeText={setCarbs}
                     keyboardType="decimal-pad"
-                    suffix="g"
+                    suffix={t("common.g")}
                     containerStyle={styles.thirdField}
                 />
                 <Input
-                    label="Fat"
+                    label={t("settings.fat")}
                     value={fat}
                     onChangeText={setFat}
                     keyboardType="decimal-pad"
-                    suffix="g"
+                    suffix={t("common.g")}
                     containerStyle={styles.thirdField}
                 />
             </View>
@@ -238,7 +272,7 @@ export default function SettingsScreen() {
             {/* Macro breakdown preview */}
             {macroTotal > 0 && (
                 <View style={styles.breakdownCard}>
-                    <Text style={styles.breakdownTitle}>Macro Breakdown</Text>
+                    <Text style={styles.breakdownTitle}>{t("settings.macroBreakdown")}</Text>
                     <View style={styles.barContainer}>
                         <View
                             style={[
@@ -272,43 +306,41 @@ export default function SettingsScreen() {
                     <View style={styles.legendRow}>
                         <LegendDot
                             color={colors.protein}
-                            label={`Protein ${Math.round((pCal / macroTotal) * 100)}%`}
+                            label={`${t("settings.protein")} ${Math.round((pCal / macroTotal) * 100)}%`}
                             textColor={colors.textSecondary}
                         />
                         <LegendDot
                             color={colors.carbs}
-                            label={`Carbs ${Math.round((cCal / macroTotal) * 100)}%`}
+                            label={`${t("settings.carbs")} ${Math.round((cCal / macroTotal) * 100)}%`}
                             textColor={colors.textSecondary}
                         />
                         <LegendDot
                             color={colors.fat}
-                            label={`Fat ${Math.round((fCal / macroTotal) * 100)}%`}
+                            label={`${t("settings.fat")} ${Math.round((fCal / macroTotal) * 100)}%`}
                             textColor={colors.textSecondary}
                         />
                     </View>
                     <Text style={styles.breakdownSub}>
-                        {Math.round(macroTotal)} kcal from macros
+                        {t("settings.macroKcal", { kcal: Math.round(macroTotal) })}
                     </Text>
                 </View>
             )}
 
-            <Button title="Save Goals" onPress={handleSave} style={styles.saveBtn} />
+            <Button title={t("settings.saveGoals")} onPress={handleSave} style={styles.saveBtn} />
 
             {/* ── Import / Export ──────────────────────────── */}
-            <Text style={styles.sectionLabel}>DATA</Text>
-            <Text style={styles.subLabel}>
-                Export a full backup of your foods, entries, recipes and goals, or import a previously exported file.
-            </Text>
+            <Text style={styles.sectionLabel}>{t("settings.data")}</Text>
+            <Text style={styles.subLabel}>{t("settings.dataDescription")}</Text>
             <View style={styles.row}>
                 <Button
-                    title="Export Data"
+                    title={t("settings.exportData")}
                     variant="outline"
                     onPress={handleExport}
                     loading={exporting}
                     style={{ flex: 1 }}
                 />
                 <Button
-                    title="Import Data"
+                    title={t("settings.importData")}
                     variant="outline"
                     onPress={handleImportConfirm}
                     loading={importing}

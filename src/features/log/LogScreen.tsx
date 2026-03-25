@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Dimensions,
     Modal,
@@ -119,6 +120,7 @@ function DayPage({
 
 export default function LogScreen() {
     const colors = useThemeColors();
+    const { t } = useTranslation();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
     const selectedDate = useAppStore((s) => s.selectedDate);
@@ -154,6 +156,7 @@ export default function LogScreen() {
         carbs: 250,
         fat: 70,
         unit_system: "metric",
+        language: "en",
     });
 
     const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
@@ -351,7 +354,7 @@ export default function LogScreen() {
                 <Pressable style={styles.overlay} onPress={() => setEditingRecipeGroup(null)}>
                     <Pressable style={styles.portionModal} onPress={() => { }}>
                         <Text style={styles.portionModalTitle}>
-                            Adjust Portions
+                            {t("log.adjustPortions")}
                         </Text>
                         <Text style={styles.portionModalSubtitle}>
                             {editingRecipeGroup?.group.recipeName}
@@ -383,7 +386,7 @@ export default function LogScreen() {
                                 <Ionicons name="add" size={20} color={colors.primary} />
                             </Pressable>
                         </View>
-                        <Button title="Save" onPress={handleSavePortionMultiplier} />
+                        <Button title={t("common.save")} onPress={handleSavePortionMultiplier} />
                     </Pressable>
                 </Pressable>
             </Modal>
