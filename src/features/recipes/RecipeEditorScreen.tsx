@@ -240,7 +240,7 @@ export default function RecipeEditorScreen() {
                 </Text>
 
                 {/* Items */}
-                {items.map((itemWithFood) => {
+                {items.slice().reverse().map((itemWithFood) => {
                     const { recipeItem, food } = itemWithFood;
                     const itemUnit = (recipeItem.quantity_unit ?? "g") as FoodUnit;
                     const displayQty = Math.round(fromGrams(recipeItem.quantity_grams, itemUnit) * 10) / 10;
