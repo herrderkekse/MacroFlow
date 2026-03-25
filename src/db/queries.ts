@@ -42,6 +42,24 @@ export function getFoodByOpenfoodfactsId(offId: string): Food | undefined {
         .get();
 }
 
+export function getAllFoods(): Food[] {
+    return db.select().from(foods).all();
+}
+
+export function getFoodById(id: number): Food | undefined {
+    return db.select().from(foods).where(eq(foods.id, id)).get();
+}
+
+export function updateFood(id: number, values: Partial<NewFood>) {
+    db.update(foods).set(values).where(eq(foods.id, id)).run();
+}
+
+export function deleteFood(id: number) {
+    db.delete(recipeItems).where(eq(recipeItems.food_id, id)).run();
+    db.delete(entries).where(eq(entries.food_id, id)).run();
+    db.delete(foods).where(eq(foods.id, id)).run();
+}
+
 // ── Entry CRUD ─────────────────────────────────────────────
 
 export function addEntry(entry: NewEntry): Entry {
