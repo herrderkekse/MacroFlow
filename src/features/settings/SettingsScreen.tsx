@@ -208,8 +208,6 @@ export default function SettingsScreen() {
             />
 
             {/* ── Macro Goals ─────────────────────────────── */}
-            <Text style={styles.subLabel}>Macronutrient targets (grams)</Text>
-
             <View style={styles.row}>
                 <Input
                     label="Protein"
