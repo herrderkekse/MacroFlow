@@ -261,26 +261,25 @@ export function updateRecipeLogPortion(
     const recipeLog = getRecipeLogById(recipeLogId);
     if (!recipeLog) return;
 
+    const oldMultiplier = recipeLog.portion;
+    if (oldMultiplier === 0) return;
+    const ratio = newMultiplier / oldMultiplier;
+
     db.update(recipeLogs)
         .set({ portion: newMultiplier })
         .where(eq(recipeLogs.id, recipeLogId))
         .run();
 
-    const templateItems = getRecipeItems(recipeLog.recipe_id);
-    const templateMap = new Map(
-        templateItems.map((t) => [t.recipe_items.food_id, t.recipe_items.quantity_grams]),
-    );
-
+    // Scale ALL entries (native + external) by the ratio so every
+    // ingredient in the group stays proportional.
     const groupEntries = db
         .select()
         .from(entries)
         .where(eq(entries.recipe_log_id, recipeLogId))
         .all();
     for (const entry of groupEntries) {
-        const baseQty = templateMap.get(entry.food_id!);
-        if (baseQty === undefined) continue;
         db.update(entries)
-            .set({ quantity_grams: baseQty * newMultiplier })
+            .set({ quantity_grams: entry.quantity_grams * ratio })
             .where(eq(entries.id, entry.id))
             .run();
     }
