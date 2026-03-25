@@ -466,7 +466,9 @@ function createStyles(colors: ThemeColors) {
         },
         selectedGroup: {
             borderWidth: 1.5,
+            borderTopWidth: 1.5,
             borderColor: colors.primary,
+            borderTopColor: colors.primary,
             borderRadius: borderRadius.sm,
             marginVertical: 2,
             paddingHorizontal: spacing.xs,
