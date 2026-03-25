@@ -6,8 +6,8 @@ import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { type FoodUnit, formatQuantity, fromGrams } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface EntryWithFood {
     entries: Entry;
@@ -453,7 +453,9 @@ function createStyles(colors: ThemeColors) {
         },
         selectedEntry: {
             borderWidth: 1.5,
+            borderTopWidth: 1.5,
             borderColor: colors.primary,
+            borderTopColor: colors.primary,
             borderRadius: borderRadius.sm,
             marginVertical: 2,
             zIndex: 1,
