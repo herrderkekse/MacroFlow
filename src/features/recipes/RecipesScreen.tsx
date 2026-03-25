@@ -1,8 +1,12 @@
 import {
+    deleteFood,
     deleteRecipe,
+    getAllFoods,
     getAllRecipes,
     getRecipeItems,
+    searchFoodsByName,
     searchRecipesByName,
+    type Food,
     type Recipe,
 } from "@/src/db/queries";
 import logger from "@/src/utils/logger";
@@ -23,23 +27,42 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+type FilterType = "all" | "recipes" | "foods";
+
+type TemplateItem =
+    | { kind: "food"; data: Food }
+    | { kind: "recipe"; data: Recipe };
+
 export default function RecipesScreen() {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
-    const [recipes, setRecipes] = useState<Recipe[]>([]);
+    const [items, setItems] = useState<TemplateItem[]>([]);
     const [query, setQuery] = useState("");
+    const [filter, setFilter] = useState<FilterType>("all");
+    const [filterExpanded, setFilterExpanded] = useState(false);
 
     function load() {
-        const list = query.trim().length >= 2
-            ? searchRecipesByName(query.trim())
-            : getAllRecipes();
-        setRecipes(list);
+        const q = query.trim();
+        const hasQuery = q.length >= 2;
+        const result: TemplateItem[] = [];
+
+        if (filter !== "foods") {
+            const recipeList = hasQuery ? searchRecipesByName(q) : getAllRecipes();
+            for (const r of recipeList) result.push({ kind: "recipe", data: r });
+        }
+        if (filter !== "recipes") {
+            const foodList = hasQuery ? searchFoodsByName(q) : getAllFoods();
+            for (const f of foodList) result.push({ kind: "food", data: f });
+        }
+
+        result.sort((a, b) => a.data.name.localeCompare(b.data.name));
+        setItems(result);
     }
 
-    useFocusEffect(useCallback(() => { load(); }, [query]));
+    useFocusEffect(useCallback(() => { load(); }, [query, filter]));
 
-    function handleDelete(recipe: Recipe) {
+    function handleDeleteRecipe(recipe: Recipe) {
         Alert.alert("Delete recipe", `Remove "${recipe.name}"?`, [
             { text: "Cancel", style: "cancel" },
             {
@@ -54,25 +77,89 @@ export default function RecipesScreen() {
         ]);
     }
 
-    function summaryText(recipeId: number) {
-        const items = getRecipeItems(recipeId);
-        if (items.length === 0) return "No items";
-        const totalCals = items.reduce((sum, row) => {
+    function handleDeleteFood(food: Food) {
+        Alert.alert(
+            "Delete food",
+            `Remove "${food.name}"? This will also remove it from recipes and log entries.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        deleteFood(food.id);
+                        logger.info("[DB] Deleted food", { id: food.id });
+                        load();
+                    },
+                },
+            ],
+        );
+    }
+
+    function recipeSummary(recipeId: number) {
+        const recipeItemsList = getRecipeItems(recipeId);
+        if (recipeItemsList.length === 0) return "No items";
+        const totalCals = recipeItemsList.reduce((sum, row) => {
             const food = row.foods;
             if (!food) return sum;
             return sum + (food.calories_per_100g * row.recipe_items.quantity_grams) / 100;
         }, 0);
-        return `${items.length} item${items.length > 1 ? "s" : ""} · ${Math.round(totalCals)} cal`;
+        return `${recipeItemsList.length} item${recipeItemsList.length > 1 ? "s" : ""} · ${Math.round(totalCals)} cal`;
+    }
+
+    function foodSummary(food: Food) {
+        return `${Math.round(food.calories_per_100g)} cal/100g`;
+    }
+
+    function toggleFilter(type: "recipes" | "foods") {
+        setFilter((prev) => (prev === type ? "all" : type));
+    }
+
+    function renderItem({ item }: { item: TemplateItem }) {
+        if (item.kind === "recipe") {
+            const recipe = item.data as Recipe;
+            return (
+                <Pressable
+                    style={styles.card}
+                    onPress={() => router.push({ pathname: "/recipes/edit", params: { recipeId: String(recipe.id) } } as unknown as Href)}
+                >
+                    <Ionicons name="book-outline" size={22} color={colors.primary} style={styles.cardIcon} />
+                    <View style={styles.cardInfo}>
+                        <Text style={styles.cardName} numberOfLines={1}>{recipe.name}</Text>
+                        <Text style={styles.cardSub}>{recipeSummary(recipe.id)}</Text>
+                    </View>
+                    <Pressable onPress={() => handleDeleteRecipe(recipe)} hitSlop={8}>
+                        <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                    </Pressable>
+                </Pressable>
+            );
+        }
+        const food = item.data as Food;
+        return (
+            <Pressable
+                style={styles.card}
+                onPress={() => router.push({ pathname: "/recipes/food-edit", params: { foodId: String(food.id) } } as unknown as Href)}
+            >
+                <Ionicons name="nutrition-outline" size={22} color={colors.success} style={styles.cardIcon} />
+                <View style={styles.cardInfo}>
+                    <Text style={styles.cardName} numberOfLines={1}>{food.name}</Text>
+                    <Text style={styles.cardSub}>{foodSummary(food)}</Text>
+                </View>
+                <Pressable onPress={() => handleDeleteFood(food)} hitSlop={8}>
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                </Pressable>
+            </Pressable>
+        );
     }
 
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
-            <Text style={styles.heading}>Recipes</Text>
+            <Text style={styles.heading}>Templates</Text>
             <View style={styles.searchRow}>
                 <Ionicons name="search" size={18} color={colors.textTertiary} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search recipes…"
+                    placeholder="Search templates…"
                     placeholderTextColor={colors.textTertiary}
                     value={query}
                     onChangeText={setQuery}
@@ -84,29 +171,62 @@ export default function RecipesScreen() {
                 )}
             </View>
 
+            <Pressable
+                onPress={() => setFilterExpanded((prev) => !prev)}
+                style={styles.filterHeader}
+            >
+                <Text style={styles.filterLabel}>Filter</Text>
+                <Ionicons
+                    name={filterExpanded ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={colors.textSecondary}
+                />
+            </Pressable>
+            {filterExpanded && (
+                <View style={styles.filterRow}>
+                    <Pressable
+                        style={[styles.filterButton, filter === "recipes" && styles.filterButtonActive]}
+                        onPress={() => toggleFilter("recipes")}
+                    >
+                        <Ionicons
+                            name="book-outline"
+                            size={16}
+                            color={filter === "recipes" ? colors.primary : colors.textSecondary}
+                            style={{ marginRight: spacing.xs }}
+                        />
+                        <Text style={[styles.filterButtonText, filter === "recipes" && styles.filterButtonTextActive]}>
+                            Recipes
+                        </Text>
+                    </Pressable>
+                    <Pressable
+                        style={[styles.filterButton, filter === "foods" && styles.filterButtonActive]}
+                        onPress={() => toggleFilter("foods")}
+                    >
+                        <Ionicons
+                            name="nutrition-outline"
+                            size={16}
+                            color={filter === "foods" ? colors.primary : colors.textSecondary}
+                            style={{ marginRight: spacing.xs }}
+                        />
+                        <Text style={[styles.filterButtonText, filter === "foods" && styles.filterButtonTextActive]}>
+                            Foods
+                        </Text>
+                    </Pressable>
+                </View>
+            )}
+
             <FlatList
-                data={recipes}
-                keyExtractor={(r) => String(r.id)}
+                data={items}
+                keyExtractor={(item) =>
+                    item.kind === "recipe" ? `recipe-${item.data.id}` : `food-${item.data.id}`
+                }
                 contentContainerStyle={styles.list}
                 ListEmptyComponent={
                     <Text style={styles.empty}>
-                        {query ? "No matching recipes" : "No recipes yet — tap + to create one"}
+                        {query ? "No matching templates" : "No templates yet — tap + to create a recipe"}
                     </Text>
                 }
-                renderItem={({ item }) => (
-                    <Pressable
-                        style={styles.card}
-                        onPress={() => router.push({ pathname: "/recipes/edit", params: { recipeId: String(item.id) } } as unknown as Href)}
-                    >
-                        <View style={styles.cardInfo}>
-                            <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                            <Text style={styles.cardSub}>{summaryText(item.id)}</Text>
-                        </View>
-                        <Pressable onPress={() => handleDelete(item)} hitSlop={8}>
-                            <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                        </Pressable>
-                    </Pressable>
-                )}
+                renderItem={renderItem}
             />
 
             <Pressable
@@ -133,7 +253,8 @@ function createStyles(colors: ThemeColors) {
         searchRow: {
             flexDirection: "row",
             alignItems: "center",
-            margin: spacing.md,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.xs,
             backgroundColor: colors.surface,
             borderRadius: borderRadius.md,
             paddingHorizontal: spacing.md,
@@ -147,6 +268,49 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.md,
             color: colors.text,
             padding: 0,
+        },
+        filterHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginHorizontal: spacing.md,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+        },
+        filterLabel: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.textSecondary,
+        },
+        filterRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginHorizontal: spacing.md,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+        },
+        filterButton: {
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.sm,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+        },
+        filterButtonActive: {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.primary,
+        },
+        filterButtonText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        filterButtonTextActive: {
+            color: colors.primary,
+            fontWeight: "600",
         },
         list: { paddingHorizontal: spacing.md, paddingBottom: 100 },
         empty: {
@@ -163,6 +327,7 @@ function createStyles(colors: ThemeColors) {
             flexDirection: "row",
             alignItems: "center",
         },
+        cardIcon: { marginRight: spacing.sm },
         cardInfo: { flex: 1, marginRight: spacing.sm },
         cardName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
         cardSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },

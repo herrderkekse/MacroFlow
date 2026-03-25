@@ -7,7 +7,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 const icons: Record<string, string> = {
     index: 'create',
-    recipes: 'book',
+    recipes: 'library',
     settings: 'settings'
 };
 
@@ -62,7 +62,7 @@ export default function TabsLayout() {
                 },
             })}
         >
-            <Tabs.Screen name="recipes" options={{ title: "Recipes", tabBarLabel: "Recipes" }} />
+            <Tabs.Screen name="recipes" options={{ title: "Templates", tabBarLabel: "Templates" }} />
             <Tabs.Screen name="index" options={{ title: "Logs", tabBarLabel: "Logs" }} />
             <Tabs.Screen name="settings" options={{ title: "Settings", tabBarLabel: "Settings" }} />
         </Tabs>

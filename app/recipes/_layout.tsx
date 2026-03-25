@@ -12,6 +12,7 @@ export default function RecipesLayout() {
             }}
         >
             <Stack.Screen name="edit" options={{ title: "Edit Recipe" }} />
+            <Stack.Screen name="food-edit" options={{ title: "Edit Food" }} />
         </Stack>
     );
 }
