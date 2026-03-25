@@ -1,5 +1,5 @@
 import type { Entry, Food } from "@/src/db/queries";
-import { getRecipeById, getRecipeItems } from "@/src/db/queries";
+import { getRecipeById, getRecipeItems, getRecipeLogById } from "@/src/db/queries";
 import type { MealType } from "@/src/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
@@ -21,38 +21,46 @@ interface MealSectionProps {
     onAdd: () => void;
     onDeleteEntry: (id: number) => void;
     onEdit?: (row: EntryWithFood) => void;
+    onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
+    onDeleteRecipeLog?: (recipeLogId: number) => void;
 }
 
-interface RecipeGroup {
-    group: string;
+export interface RecipeGroup {
+    recipeLogId: number;
     recipeId: number;
     recipeName: string;
+    portion: number;
     rows: EntryWithFood[];
 }
 
 function groupEntries(items: EntryWithFood[]) {
     const standalone: EntryWithFood[] = [];
-    const recipeMap = new Map<string, EntryWithFood[]>();
+    const recipeMap = new Map<number, EntryWithFood[]>();
 
     for (const item of items) {
-        const g = item.entries.recipe_log_group;
-        if (g) {
-            const list = recipeMap.get(g) ?? [];
+        const rlId = item.entries.recipe_log_id;
+        if (rlId) {
+            const list = recipeMap.get(rlId) ?? [];
             list.push(item);
-            recipeMap.set(g, list);
+            recipeMap.set(rlId, list);
         } else {
             standalone.push(item);
         }
     }
 
     const recipeGroups: RecipeGroup[] = [];
-    for (const [group, rows] of recipeMap) {
-        const recipeId = rows[0].entries.recipe_id!;
-        const recipe = getRecipeById(recipeId);
+    for (const [recipeLogId, rows] of recipeMap) {
+        const recipeLog = getRecipeLogById(recipeLogId);
+        if (!recipeLog) {
+            standalone.push(...rows);
+            continue;
+        }
+        const recipe = getRecipeById(recipeLog.recipe_id);
         recipeGroups.push({
-            group,
-            recipeId,
+            recipeLogId,
+            recipeId: recipeLog.recipe_id,
             recipeName: recipe?.name ?? "Recipe",
+            portion: recipeLog.portion,
             rows,
         });
     }
@@ -67,6 +75,8 @@ export default function MealSection({
     onAdd,
     onDeleteEntry,
     onEdit,
+    onEditRecipeGroup,
+    onDeleteRecipeLog,
 }: MealSectionProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -110,10 +120,12 @@ export default function MealSection({
                     {/* Recipe groups */}
                     {recipeGroups.map((rg) => (
                         <RecipeGroupRow
-                            key={rg.group}
+                            key={rg.recipeLogId}
                             group={rg}
                             onEdit={onEdit}
                             onDeleteEntry={onDeleteEntry}
+                            onEditRecipeGroup={onEditRecipeGroup}
+                            onDeleteRecipeLog={onDeleteRecipeLog}
                         />
                     ))}
 
@@ -181,10 +193,14 @@ function RecipeGroupRow({
     group,
     onEdit,
     onDeleteEntry,
+    onEditRecipeGroup,
+    onDeleteRecipeLog,
 }: {
     group: RecipeGroup;
     onEdit?: (row: EntryWithFood) => void;
     onDeleteEntry: (id: number) => void;
+    onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
+    onDeleteRecipeLog?: (recipeLogId: number) => void;
 }) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -196,6 +212,8 @@ function RecipeGroupRow({
         return sum + (food.calories_per_100g * row.entries.quantity_grams) / 100;
     }, 0);
 
+    const multiplier = group.portion;
+
     const isModified = useMemo(() => {
         const templateItems = getRecipeItems(group.recipeId);
         if (templateItems.length !== group.rows.length) return true;
@@ -204,10 +222,16 @@ function RecipeGroupRow({
         );
         for (const row of group.rows) {
             const templateQty = templateMap.get(row.entries.food_id!);
-            if (templateQty === undefined || templateQty !== row.entries.quantity_grams) return true;
+            if (templateQty === undefined) return true;
+            const expected = templateQty * multiplier;
+            if (Math.abs(row.entries.quantity_grams - expected) > 0.01) return true;
         }
         return false;
-    }, [group.recipeId, group.rows]);
+    }, [group.recipeId, group.rows, multiplier]);
+
+    const displayName = multiplier !== 1
+        ? `${multiplier}x ${group.recipeName}`
+        : group.recipeName;
 
     return (
         <View style={styles.recipeGroup}>
@@ -227,15 +251,22 @@ function RecipeGroupRow({
                     style={{ marginLeft: 4 }}
                 />
                 <Text style={styles.recipeName} numberOfLines={1}>
-                    {group.recipeName}
+                    {displayName}
                 </Text>
                 <Text style={styles.recipeDetail}>
                     {group.rows.length} items · {Math.round(totalCals)} cal
                 </Text>
+                {onEditRecipeGroup && (
+                    <Pressable
+                        onPress={() => onEditRecipeGroup(group, multiplier)}
+                        hitSlop={8}
+                        style={{ marginRight: spacing.xs }}
+                    >
+                        <Ionicons name="resize-outline" size={18} color={colors.primary} />
+                    </Pressable>
+                )}
                 <Pressable
-                    onPress={() => {
-                        for (const row of group.rows) onDeleteEntry(row.entries.id);
-                    }}
+                    onPress={() => onDeleteRecipeLog?.(group.recipeLogId)}
                     hitSlop={8}
                 >
                     <Ionicons name="close-circle-outline" size={20} color={colors.textTertiary} />

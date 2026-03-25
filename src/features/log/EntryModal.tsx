@@ -69,8 +69,8 @@ export default function EntryModal({
             // association is always preserved when opening Edit Entry.
             const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
             setRecipeGroups(groups);
-            if (entry.recipe_id && entry.recipe_log_group) {
-                const match = groups.find((g) => g.recipeLogGroup === entry.recipe_log_group);
+            if (entry.recipe_log_id) {
+                const match = groups.find((g) => g.recipeLogId === entry.recipe_log_id);
                 setSelectedGroup(match ?? null);
             } else {
                 setSelectedGroup(null);
@@ -99,7 +99,7 @@ export default function EntryModal({
         const groups = getLoggedRecipeGroups(dateKey, mealType);
         setRecipeGroups(groups);
         setSelectedGroup((prev) =>
-            prev && groups.some((g) => g.recipeLogGroup === prev.recipeLogGroup) ? prev : null,
+            prev && groups.some((g) => g.recipeLogId === prev.recipeLogId) ? prev : null,
         );
     }, [mealType]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -125,8 +125,7 @@ export default function EntryModal({
                 quantity_grams: qtyGrams,
                 quantity_unit: unit,
                 meal_type: mealType,
-                recipe_id: selectedGroup?.recipeId ?? null,
-                recipe_log_group: selectedGroup?.recipeLogGroup ?? null,
+                recipe_log_id: selectedGroup?.recipeLogId ?? null,
             });
             logger.info("[DB] Updated entry", {
                 id: entry.id,
@@ -134,7 +133,7 @@ export default function EntryModal({
                 quantity: qtyGrams,
                 unit,
                 mealType: mealType,
-                recipeGroup: selectedGroup?.recipeLogGroup,
+                recipeLogId: selectedGroup?.recipeLogId,
             });
         } else {
             addEntry({
@@ -144,8 +143,7 @@ export default function EntryModal({
                 timestamp: Date.now(),
                 date: formatDateKey(selectedDate),
                 meal_type: mealType,
-                recipe_id: selectedGroup?.recipeId,
-                recipe_log_group: selectedGroup?.recipeLogGroup,
+                recipe_log_id: selectedGroup?.recipeLogId,
             });
             logger.info("[DB] Added entry", {
                 foodId: food.id,
@@ -153,7 +151,7 @@ export default function EntryModal({
                 unit,
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
-                recipeGroup: selectedGroup?.recipeLogGroup,
+                recipeLogId: selectedGroup?.recipeLogId,
             });
         }
 
@@ -298,10 +296,10 @@ export default function EntryModal({
                         <>
                             <Text style={styles.sectionLabel}>Add to Recipe</Text>
                             {recipeGroups.map((g) => {
-                                const isSelected = selectedGroup?.recipeLogGroup === g.recipeLogGroup;
+                                const isSelected = selectedGroup?.recipeLogId === g.recipeLogId;
                                 return (
                                     <Pressable
-                                        key={g.recipeLogGroup}
+                                        key={g.recipeLogId}
                                         onPress={() => setSelectedGroup(isSelected ? null : g)}
                                         style={[styles.recipeGroupRow, isSelected && styles.recipeGroupRowActive]}
                                     >

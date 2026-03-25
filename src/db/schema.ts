@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const foods = sqliteTable("foods", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -14,6 +14,15 @@ export const foods = sqliteTable("foods", {
     serving_size: real("serving_size").notNull().default(100),
 });
 
+export const recipeLogs = sqliteTable("recipe_logs", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    recipe_id: integer("recipe_id").notNull().references(() => recipes.id),
+    date: text("date").notNull(),
+    meal_type: text("meal_type").notNull(),
+    portion: real("portion").notNull().default(1),
+    timestamp: integer("timestamp").notNull(),
+});
+
 export const entries = sqliteTable("entries", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     food_id: integer("food_id").references(() => foods.id),
@@ -22,8 +31,7 @@ export const entries = sqliteTable("entries", {
     timestamp: integer("timestamp").notNull(),
     date: text("date").notNull(),
     meal_type: text("meal_type").notNull(),
-    recipe_id: integer("recipe_id"),
-    recipe_log_group: text("recipe_log_group"),
+    recipe_log_id: integer("recipe_log_id").references(() => recipeLogs.id),
 });
 
 export const goals = sqliteTable("goals", {

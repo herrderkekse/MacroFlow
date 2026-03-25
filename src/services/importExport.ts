@@ -2,7 +2,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import { db } from "@/src/db";
-import { foods, entries, goals, recipes, recipeItems } from "@/src/db/schema";
+import { foods, entries, goals, recipes, recipeItems, recipeLogs } from "@/src/db/schema";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -14,6 +14,7 @@ interface ExportPayload {
     goals: (typeof goals.$inferSelect)[];
     recipes: (typeof recipes.$inferSelect)[];
     recipeItems: (typeof recipeItems.$inferSelect)[];
+    recipeLogs?: (typeof recipeLogs.$inferSelect)[];
 }
 
 // ── Export ──────────────────────────────────────────────────
@@ -27,6 +28,7 @@ export async function exportData(): Promise<void> {
         goals: db.select().from(goals).all(),
         recipes: db.select().from(recipes).all(),
         recipeItems: db.select().from(recipeItems).all(),
+        recipeLogs: db.select().from(recipeLogs).all(),
     };
 
     const json = JSON.stringify(payload, null, 2);
@@ -63,8 +65,9 @@ export async function importData(): Promise<{ inserted: number }> {
     // Wrap everything in a transaction so partial imports don't corrupt the DB
     db.transaction((tx) => {
         // Clear existing data (order matters for FK constraints)
-        tx.delete(recipeItems).run();
         tx.delete(entries).run();
+        tx.delete(recipeLogs).run();
+        tx.delete(recipeItems).run();
         tx.delete(recipes).run();
         tx.delete(foods).run();
 
@@ -79,6 +82,12 @@ export async function importData(): Promise<{ inserted: number }> {
         for (const row of data.recipeItems) {
             tx.insert(recipeItems).values(row).run();
             inserted++;
+        }
+        if (data.recipeLogs) {
+            for (const row of data.recipeLogs) {
+                tx.insert(recipeLogs).values(row).run();
+                inserted++;
+            }
         }
         for (const row of data.entries) {
             tx.insert(entries).values(row).run();
@@ -110,5 +119,9 @@ function validate(data: unknown): asserts data is ExportPayload {
         if (!Array.isArray(d[key])) {
             throw new Error(`Invalid backup file: missing "${key}" array.`);
         }
+    }
+    // recipeLogs is optional for backwards compat with older exports
+    if (d.recipeLogs !== undefined && !Array.isArray(d.recipeLogs)) {
+        throw new Error(`Invalid backup file: "recipeLogs" must be an array.`);
     }
 }
