@@ -87,6 +87,7 @@ function DayPage({
     selectedEntryIds,
     onToggleEntries,
     onActivateSelection,
+    onActivateSelectionMultiple,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
@@ -99,6 +100,7 @@ function DayPage({
     selectedEntryIds?: Set<number>;
     onToggleEntries?: (entryIds: number[]) => void;
     onActivateSelection?: (entryId: number) => void;
+    onActivateSelectionMultiple?: (entryIds: number[]) => void;
 }) {
     return (
         <View style={styles.dayPage}>
@@ -124,6 +126,7 @@ function DayPage({
                         selectedEntryIds={selectedEntryIds}
                         onToggleEntries={onToggleEntries}
                         onActivateSelection={onActivateSelection}
+                        onActivateSelectionMultiple={onActivateSelectionMultiple}
                     />
                 ))}
             </ScrollView>
@@ -301,6 +304,11 @@ export default function LogScreen() {
         setSelectedEntryIds(new Set([entryId]));
     }
 
+    function handleActivateSelectionMultiple(entryIds: number[]) {
+        setSelectionMode(true);
+        setSelectedEntryIds(new Set(entryIds));
+    }
+
     function handleMoveCopy(targetDate: Date, targetMealType: string | null, action: "move" | "copy") {
         const allEntries = Object.values(grouped).flat();
         const recipeLogEntryMap = new Map<number, number[]>();
@@ -335,7 +343,7 @@ export default function LogScreen() {
         }
         exitSelectionMode();
         setMoveModalVisible(false);
-        loadAllDays(selectedDate);
+        setSelectedDate(targetDate);
     }
 
     function handleDateChange(newDate: Date) {
@@ -399,6 +407,7 @@ export default function LogScreen() {
                     selectedEntryIds={selectedEntryIds}
                     onToggleEntries={handleToggleEntries}
                     onActivateSelection={handleActivateSelection}
+                    onActivateSelectionMultiple={handleActivateSelectionMultiple}
                 />
                 <DayPage
                     grouped={nextGrouped}

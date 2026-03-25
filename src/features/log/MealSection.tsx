@@ -28,6 +28,7 @@ interface MealSectionProps {
     selectedEntryIds?: Set<number>;
     onToggleEntries?: (entryIds: number[]) => void;
     onActivateSelection?: (entryId: number) => void;
+    onActivateSelectionMultiple?: (entryIds: number[]) => void;
 }
 
 export interface RecipeGroup {
@@ -86,6 +87,7 @@ export default function MealSection({
     selectedEntryIds,
     onToggleEntries,
     onActivateSelection,
+    onActivateSelectionMultiple,
 }: MealSectionProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
@@ -97,11 +99,27 @@ export default function MealSection({
     }, 0);
 
     const { standalone, recipeGroups } = groupEntries(items);
-    const allMealSelected = selectionMode && items.length > 0 && items.every(e => selectedEntryIds?.has(e.entries.id));
+    const allMealEntryIds = items.map(e => e.entries.id);
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+            <Pressable
+                style={styles.header}
+                onPress={() => {
+                    if (selectionMode && items.length > 0) {
+                        onToggleEntries?.(allMealEntryIds);
+                    } else if (!selectionMode) {
+                        onAdd();
+                    }
+                }}
+                onLongPress={() => {
+                    if (selectionMode && items.length > 0) {
+                        onToggleEntries?.(allMealEntryIds);
+                    } else if (!selectionMode && items.length > 0) {
+                        onActivateSelectionMultiple?.(allMealEntryIds);
+                    }
+                }}
+            >
                 <View style={styles.headerLeft}>
                     <Ionicons
                         name={icon as never}
@@ -115,24 +133,14 @@ export default function MealSection({
                         </Text>
                     )}
                 </View>
-                {selectionMode ? (
-                    <Pressable onPress={() => onToggleEntries?.(items.map(e => e.entries.id))} hitSlop={8}>
-                        <Ionicons
-                            name={allMealSelected ? "checkbox" : "square-outline"}
-                            size={24}
-                            color={allMealSelected ? colors.primary : colors.textSecondary}
-                        />
-                    </Pressable>
-                ) : (
-                    <Pressable onPress={onAdd} hitSlop={8}>
-                        <Ionicons
-                            name="add-circle-outline"
-                            size={24}
-                            color={colors.primary}
-                        />
-                    </Pressable>
+                {!selectionMode && (
+                    <Ionicons
+                        name="add-circle-outline"
+                        size={24}
+                        color={colors.primary}
+                    />
                 )}
-            </View>
+            </Pressable>
 
             {items.length === 0 ? (
                 <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
@@ -151,6 +159,7 @@ export default function MealSection({
                             selectedEntryIds={selectedEntryIds}
                             onToggleEntries={onToggleEntries}
                             onActivateSelection={onActivateSelection}
+                            onActivateSelectionMultiple={onActivateSelectionMultiple}
                         />
                     ))}
 
@@ -203,7 +212,11 @@ function EntryRow({
 
     return (
         <Pressable
-            style={[styles.entryRow, isChild && styles.childEntryRow, selectionMode && isSelected && styles.selectedRow]}
+            style={[
+                styles.entryRow,
+                isChild && styles.childEntryRow,
+                selectionMode && isSelected && !isChild && styles.selectedEntry,
+            ]}
             onPress={() => {
                 if (selectionMode) onToggleSelection?.();
                 else onEdit?.(row);
@@ -214,14 +227,6 @@ function EntryRow({
             }}
             android_ripple={{ color: "#00000004" }}
         >
-            {selectionMode && (
-                <Ionicons
-                    name={isSelected ? "checkbox" : "square-outline"}
-                    size={20}
-                    color={isSelected ? colors.primary : colors.textSecondary}
-                    style={{ marginRight: spacing.sm }}
-                />
-            )}
             {isChild && <View style={styles.childConnector} />}
             <View style={styles.entryInfo}>
                 <Text style={styles.entryName} numberOfLines={1}>
@@ -254,6 +259,7 @@ function RecipeGroupRow({
     selectedEntryIds,
     onToggleEntries,
     onActivateSelection,
+    onActivateSelectionMultiple,
 }: {
     group: RecipeGroup;
     onEdit?: (row: EntryWithFood) => void;
@@ -264,6 +270,7 @@ function RecipeGroupRow({
     selectedEntryIds?: Set<number>;
     onToggleEntries?: (entryIds: number[]) => void;
     onActivateSelection?: (entryId: number) => void;
+    onActivateSelectionMultiple?: (entryIds: number[]) => void;
 }) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -298,13 +305,18 @@ function RecipeGroupRow({
         ? `${multiplier}x ${group.recipeName}`
         : group.recipeName;
 
+    const allGroupEntryIds = group.rows.map(r => r.entries.id);
+
     return (
-        <View style={styles.recipeGroup}>
+        <View style={[
+            styles.recipeGroup,
+            allGroupSelected && styles.selectedGroup,
+        ]}>
             <Pressable
-                style={[styles.recipeHeader, selectionMode && allGroupSelected && styles.selectedRow]}
+                style={styles.recipeHeader}
                 onPress={() => {
                     if (selectionMode) {
-                        onToggleEntries?.(group.rows.map(r => r.entries.id));
+                        onToggleEntries?.(allGroupEntryIds);
                     } else {
                         setExpanded(!expanded);
                     }
@@ -312,6 +324,8 @@ function RecipeGroupRow({
                 onLongPress={() => {
                     if (selectionMode) {
                         setExpanded(!expanded);
+                    } else {
+                        onActivateSelectionMultiple?.(allGroupEntryIds);
                     }
                 }}
             >
@@ -332,13 +346,7 @@ function RecipeGroupRow({
                 <Text style={styles.recipeDetail}>
                     {group.rows.length} items · {Math.round(totalCals)} cal
                 </Text>
-                {selectionMode ? (
-                    <Ionicons
-                        name={allGroupSelected ? "checkbox" : "square-outline"}
-                        size={20}
-                        color={allGroupSelected ? colors.primary : colors.textSecondary}
-                    />
-                ) : (
+                {!selectionMode && (
                     <>
                         {onEditRecipeGroup && (
                             <Pressable
@@ -360,7 +368,7 @@ function RecipeGroupRow({
             </Pressable>
 
             {expanded && (
-                <View style={styles.childContainer}>
+                <View style={[styles.childContainer, allGroupSelected && styles.selectedChildContainer]}>
                     {group.rows.map((row) => (
                         <EntryRow
                             key={row.entries.id}
@@ -436,9 +444,21 @@ function createStyles(colors: ThemeColors) {
             borderTopWidth: StyleSheet.hairlineWidth,
             borderTopColor: colors.border,
         },
-        selectedRow: {
-            backgroundColor: colors.primary + "15",
+        selectedEntry: {
+            borderWidth: 1.5,
+            borderColor: colors.primary,
             borderRadius: borderRadius.sm,
+            marginVertical: 2,
+        },
+        selectedGroup: {
+            borderWidth: 1.5,
+            borderColor: colors.primary,
+            borderRadius: borderRadius.sm,
+            marginVertical: 2,
+            paddingHorizontal: spacing.xs,
+        },
+        selectedChildContainer: {
+            borderLeftColor: colors.primary,
         },
         childContainer: {
             borderLeftWidth: 2,
