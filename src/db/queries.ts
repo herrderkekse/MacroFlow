@@ -1,7 +1,7 @@
 import { and, eq, like, sql } from "drizzle-orm";
 import logger from "../utils/logger";
 import { db } from "./index";
-import { entries, foods, goals, recipeItems, recipes } from "./schema";
+import { entries, foods, goals, recipeItems, recipeLogs, recipes } from "./schema";
 
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
@@ -12,6 +12,8 @@ export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type RecipeItem = typeof recipeItems.$inferSelect;
 export type NewRecipeItem = typeof recipeItems.$inferInsert;
+export type RecipeLog = typeof recipeLogs.$inferSelect;
+export type NewRecipeLog = typeof recipeLogs.$inferInsert;
 
 // ── Food CRUD ──────────────────────────────────────────────
 
@@ -179,60 +181,111 @@ export function getStreak(): number {
 }
 
 export interface LoggedRecipeGroup {
+    recipeLogId: number;
     recipeId: number;
     recipeName: string;
-    recipeLogGroup: string;
+    portion: number;
 }
 
 export function getLoggedRecipeGroups(date: string, mealType: string): LoggedRecipeGroup[] {
     const rows = db
-        .selectDistinct({
-            recipeId: entries.recipe_id,
-            recipeLogGroup: entries.recipe_log_group,
+        .select({
+            recipeLogId: recipeLogs.id,
+            recipeId: recipeLogs.recipe_id,
+            portion: recipeLogs.portion,
         })
-        .from(entries)
+        .from(recipeLogs)
         .where(
             and(
-                eq(entries.date, date),
-                eq(entries.meal_type, mealType),
-                sql`${entries.recipe_log_group} IS NOT NULL`,
+                eq(recipeLogs.date, date),
+                eq(recipeLogs.meal_type, mealType),
             ),
         )
         .all();
 
-    const result: LoggedRecipeGroup[] = [];
-    for (const row of rows) {
-        if (!row.recipeId || !row.recipeLogGroup) continue;
+    return rows.map((row) => {
         const recipe = getRecipeById(row.recipeId);
-        result.push({
+        return {
+            recipeLogId: row.recipeLogId,
             recipeId: row.recipeId,
             recipeName: recipe?.name ?? "Recipe",
-            recipeLogGroup: row.recipeLogGroup,
-        });
-    }
-    return result;
+            portion: row.portion,
+        };
+    });
+}
+
+export function getRecipeLogById(id: number): RecipeLog | undefined {
+    return db.select().from(recipeLogs).where(eq(recipeLogs.id, id)).get();
 }
 
 export function logRecipeToMeal(
     recipeId: number,
     mealType: string,
     date: string,
-    group: string,
-) {
+    portionMultiplier = 1,
+): number {
+    const recipeLog = db
+        .insert(recipeLogs)
+        .values({
+            recipe_id: recipeId,
+            date,
+            meal_type: mealType,
+            portion: portionMultiplier,
+            timestamp: Date.now(),
+        })
+        .returning()
+        .get();
+
     const items = getRecipeItems(recipeId);
     const ts = Date.now();
     for (const row of items) {
         db.insert(entries)
             .values({
                 food_id: row.recipe_items.food_id,
-                quantity_grams: row.recipe_items.quantity_grams,
+                quantity_grams: row.recipe_items.quantity_grams * portionMultiplier,
                 quantity_unit: row.recipe_items.quantity_unit ?? "g",
                 timestamp: ts,
                 date,
                 meal_type: mealType,
-                recipe_id: recipeId,
-                recipe_log_group: group,
+                recipe_log_id: recipeLog.id,
             })
             .run();
     }
+    return recipeLog.id;
+}
+
+export function updateRecipeLogPortion(
+    recipeLogId: number,
+    newMultiplier: number,
+) {
+    const recipeLog = getRecipeLogById(recipeLogId);
+    if (!recipeLog) return;
+
+    const oldMultiplier = recipeLog.portion;
+    if (oldMultiplier === 0) return;
+    const ratio = newMultiplier / oldMultiplier;
+
+    db.update(recipeLogs)
+        .set({ portion: newMultiplier })
+        .where(eq(recipeLogs.id, recipeLogId))
+        .run();
+
+    // Scale ALL entries (native + external) by the ratio so every
+    // ingredient in the group stays proportional.
+    const groupEntries = db
+        .select()
+        .from(entries)
+        .where(eq(entries.recipe_log_id, recipeLogId))
+        .all();
+    for (const entry of groupEntries) {
+        db.update(entries)
+            .set({ quantity_grams: entry.quantity_grams * ratio })
+            .where(eq(entries.id, entry.id))
+            .run();
+    }
+}
+
+export function deleteRecipeLog(recipeLogId: number) {
+    db.delete(entries).where(eq(entries.recipe_log_id, recipeLogId)).run();
+    db.delete(recipeLogs).where(eq(recipeLogs.id, recipeLogId)).run();
 }

@@ -48,6 +48,7 @@ export default function EntryModal({
     );
     const [recipeGroups, setRecipeGroups] = useState<LoggedRecipeGroup[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<LoggedRecipeGroup | null>(null);
+    const [portionMode, setPortionMode] = useState<"per-portion" | "total">("per-portion");
 
     // Initialize form fields and fetch recipe groups whenever the entry/food/meal/date changes.
     // Keeping this in a single effect avoids a race where a second effect would overwrite
@@ -69,8 +70,8 @@ export default function EntryModal({
             // association is always preserved when opening Edit Entry.
             const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
             setRecipeGroups(groups);
-            if (entry.recipe_id && entry.recipe_log_group) {
-                const match = groups.find((g) => g.recipeLogGroup === entry.recipe_log_group);
+            if (entry.recipe_log_id) {
+                const match = groups.find((g) => g.recipeLogId === entry.recipe_log_id);
                 setSelectedGroup(match ?? null);
             } else {
                 setSelectedGroup(null);
@@ -99,7 +100,7 @@ export default function EntryModal({
         const groups = getLoggedRecipeGroups(dateKey, mealType);
         setRecipeGroups(groups);
         setSelectedGroup((prev) =>
-            prev && groups.some((g) => g.recipeLogGroup === prev.recipeLogGroup) ? prev : null,
+            prev && groups.some((g) => g.recipeLogId === prev.recipeLogId) ? prev : null,
         );
     }, [mealType]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -117,6 +118,12 @@ export default function EntryModal({
         };
     }, [food, qtyGrams]);
 
+    // When adding to a recipe group with a non-1 multiplier and
+    // "per-portion" mode, scale the quantity by the group portion.
+    const shouldApplyPortion =
+        !entry && selectedGroup && selectedGroup.portion !== 1 && portionMode === "per-portion";
+    const finalQtyGrams = shouldApplyPortion ? qtyGrams * selectedGroup.portion : qtyGrams;
+
     function handleSave() {
         if (!food || qty <= 0) return;
 
@@ -125,8 +132,7 @@ export default function EntryModal({
                 quantity_grams: qtyGrams,
                 quantity_unit: unit,
                 meal_type: mealType,
-                recipe_id: selectedGroup?.recipeId ?? null,
-                recipe_log_group: selectedGroup?.recipeLogGroup ?? null,
+                recipe_log_id: selectedGroup?.recipeLogId ?? null,
             });
             logger.info("[DB] Updated entry", {
                 id: entry.id,
@@ -134,26 +140,25 @@ export default function EntryModal({
                 quantity: qtyGrams,
                 unit,
                 mealType: mealType,
-                recipeGroup: selectedGroup?.recipeLogGroup,
+                recipeLogId: selectedGroup?.recipeLogId,
             });
         } else {
             addEntry({
                 food_id: food.id,
-                quantity_grams: qtyGrams,
+                quantity_grams: finalQtyGrams,
                 quantity_unit: unit,
                 timestamp: Date.now(),
                 date: formatDateKey(selectedDate),
                 meal_type: mealType,
-                recipe_id: selectedGroup?.recipeId,
-                recipe_log_group: selectedGroup?.recipeLogGroup,
+                recipe_log_id: selectedGroup?.recipeLogId,
             });
             logger.info("[DB] Added entry", {
                 foodId: food.id,
-                quantity: qtyGrams,
+                quantity: finalQtyGrams,
                 unit,
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
-                recipeGroup: selectedGroup?.recipeLogGroup,
+                recipeLogId: selectedGroup?.recipeLogId,
             });
         }
 
@@ -298,11 +303,14 @@ export default function EntryModal({
                         <>
                             <Text style={styles.sectionLabel}>Add to Recipe</Text>
                             {recipeGroups.map((g) => {
-                                const isSelected = selectedGroup?.recipeLogGroup === g.recipeLogGroup;
+                                const isSelected = selectedGroup?.recipeLogId === g.recipeLogId;
                                 return (
                                     <Pressable
-                                        key={g.recipeLogGroup}
-                                        onPress={() => setSelectedGroup(isSelected ? null : g)}
+                                        key={g.recipeLogId}
+                                        onPress={() => {
+                                            setSelectedGroup(isSelected ? null : g);
+                                            setPortionMode("per-portion");
+                                        }}
                                         style={[styles.recipeGroupRow, isSelected && styles.recipeGroupRowActive]}
                                     >
                                         <Ionicons
@@ -314,11 +322,41 @@ export default function EntryModal({
                                             style={[styles.recipeGroupName, isSelected && styles.recipeGroupNameActive]}
                                             numberOfLines={1}
                                         >
-                                            {g.recipeName}
+                                            {g.recipeName}{g.portion !== 1 ? ` (${g.portion}x)` : ""}
                                         </Text>
                                     </Pressable>
                                 );
                             })}
+                        </>
+                    )}
+
+                    {/* Portion mode toggle — shown when adding to a recipe group with multiplier ≠ 1 */}
+                    {!entry && selectedGroup && selectedGroup.portion !== 1 && (
+                        <>
+                            <Text style={styles.sectionLabel}>Amount is</Text>
+                            <View style={styles.mealRow}>
+                                <Pressable
+                                    onPress={() => setPortionMode("per-portion")}
+                                    style={[styles.mealChip, portionMode === "per-portion" && styles.mealChipActive]}
+                                >
+                                    <Text style={[styles.mealChipText, portionMode === "per-portion" && styles.mealChipTextActive]}>
+                                        Per Portion
+                                    </Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={() => setPortionMode("total")}
+                                    style={[styles.mealChip, portionMode === "total" && styles.mealChipActive]}
+                                >
+                                    <Text style={[styles.mealChipText, portionMode === "total" && styles.mealChipTextActive]}>
+                                        Total
+                                    </Text>
+                                </Pressable>
+                            </View>
+                            <Text style={styles.portionHint}>
+                                {portionMode === "per-portion"
+                                    ? `Saved as ${Math.round(finalQtyGrams)}g (${qty} × ${selectedGroup.portion})`
+                                    : `Saved as ${Math.round(qtyGrams)}g (no multiplier applied)`}
+                            </Text>
                         </>
                     )}
 
@@ -488,6 +526,11 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
         recipeGroupNameActive: {
             fontWeight: "600",
             color: colors.primary,
+        },
+        portionHint: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+            marginTop: spacing.xs,
         },
         saveButton: { marginTop: spacing.lg },
     });
