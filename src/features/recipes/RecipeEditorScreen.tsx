@@ -62,6 +62,7 @@ export default function RecipeEditorScreen() {
     const [offResults, setOffResults] = useState<OFFProduct[]>([]);
     const [isSearchingOFF, setIsSearchingOFF] = useState(false);
     const [hasSearchedOFF, setHasSearchedOFF] = useState(false);
+    const [offError, setOffError] = useState<string | null>(null);
     const [showScanner, setShowScanner] = useState(false);
     const [showManualForm, setShowManualForm] = useState(false);
 
@@ -112,17 +113,22 @@ export default function RecipeEditorScreen() {
 
     useEffect(() => {
         setOffResults([]);
+        setOffError(null);
         setHasSearchedOFF(false);
     }, [foodQuery]);
 
     const handleSearchOFF = useCallback(async () => {
         if (foodQuery.trim().length < 2) return;
         setIsSearchingOFF(true);
+        setOffError(null);
         try {
             const results = await searchProducts(foodQuery.trim());
             setOffResults(results);
             setHasSearchedOFF(true);
-        } catch { /* ignore */ } finally {
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Search failed";
+            setOffError(msg);
+        } finally {
             setIsSearchingOFF(false);
         }
     }, [foodQuery]);
@@ -312,7 +318,7 @@ export default function RecipeEditorScreen() {
                     keyboardShouldPersistTaps="handled"
                     nestedScrollEnabled
                 >
-                    {foodQuery.trim().length >= 2 && !hasSearchedOFF && (
+                    {foodQuery.trim().length >= 2 && !hasSearchedOFF && !offError && (
                         <Button
                             title={isSearchingOFF ? "Searching…" : "Search OpenFoodFacts"}
                             onPress={handleSearchOFF}
@@ -320,6 +326,18 @@ export default function RecipeEditorScreen() {
                             loading={isSearchingOFF}
                             style={styles.offBtn}
                         />
+                    )}
+
+                    {offError && (
+                        <View style={styles.errorBox}>
+                            <Text style={styles.errorText}>{offError}</Text>
+                            <Button
+                                title="Retry"
+                                variant="ghost"
+                                onPress={handleSearchOFF}
+                                textStyle={{ fontSize: fontSize.sm }}
+                            />
+                        </View>
                     )}
 
                     {localResults.map((food) => (
@@ -449,6 +467,23 @@ function createStyles(colors: ThemeColors) {
         },
         actionBtn: { flex: 1 },
         offBtn: { marginTop: spacing.sm, marginHorizontal: spacing.lg },
+        errorBox: {
+            flexDirection: "row" as const,
+            alignItems: "center" as const,
+            justifyContent: "space-between" as const,
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.sm,
+            padding: spacing.sm,
+            marginTop: spacing.sm,
+            marginHorizontal: spacing.lg,
+            borderWidth: 1,
+            borderColor: colors.danger,
+        },
+        errorText: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            color: colors.danger,
+        },
         doneBtn: { marginTop: spacing.lg },
     });
 }
