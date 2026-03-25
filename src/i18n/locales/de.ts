@@ -103,6 +103,12 @@ const de = {
         noRecipeItems: "Keine Rezeptzutaten",
         editRecipePortion: "Rezeptportion bearbeiten",
         portionMultiplier: "Portionsmultiplikator",
+        moveCopyTitle: "Verschieben / Kopieren",
+        selectDate: "Datum wählen",
+        selectMeal: "Mahlzeit wählen",
+        keepMeal: "Mahlzeit beibehalten",
+        move: "Verschieben",
+        copy: "Kopieren",
     },
     recipes: {
         title: "Vorlagen",
