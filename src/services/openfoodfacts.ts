@@ -107,7 +107,11 @@ export async function searchProducts(
 
     if (!res.ok) {
         logger.error("[API] Search failed", { status: res.status });
-        throw new Error("Search request failed");
+        throw new Error(
+            res.status === 503
+                ? "OpenFoodFacts is temporarily unavailable — try again later"
+                : `Search failed (HTTP ${res.status})`,
+        );
     }
 
     const data: OFFSearchResponse = await res.json();
