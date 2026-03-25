@@ -100,9 +100,10 @@ export default function MealSection({
 
     const { standalone, recipeGroups } = groupEntries(items);
     const allMealEntryIds = items.map(e => e.entries.id);
+    const allMealSelected = selectionMode && items.length > 0 && items.every(e => selectedEntryIds?.has(e.entries.id));
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, allMealSelected && styles.selectedMeal]}>
             <Pressable
                 style={styles.header}
                 onPress={() => {
@@ -160,6 +161,7 @@ export default function MealSection({
                             onToggleEntries={onToggleEntries}
                             onActivateSelection={onActivateSelection}
                             onActivateSelectionMultiple={onActivateSelectionMultiple}
+                            allMealSelected={allMealSelected}
                         />
                     ))}
 
@@ -174,6 +176,7 @@ export default function MealSection({
                             isSelected={selectedEntryIds?.has(row.entries.id)}
                             onToggleSelection={() => onToggleEntries?.([row.entries.id])}
                             onActivateSelection={() => onActivateSelection?.(row.entries.id)}
+                            allMealSelected={allMealSelected}
                         />
                     ))}
                 </>
@@ -191,6 +194,7 @@ function EntryRow({
     isSelected,
     onToggleSelection,
     onActivateSelection,
+    allMealSelected,
 }: {
     row: EntryWithFood;
     onEdit?: (row: EntryWithFood) => void;
@@ -200,6 +204,7 @@ function EntryRow({
     isSelected?: boolean;
     onToggleSelection?: () => void;
     onActivateSelection?: () => void;
+    allMealSelected?: boolean;
 }) {
     const { t } = useTranslation();
     const colors = useThemeColors();
@@ -215,7 +220,7 @@ function EntryRow({
             style={[
                 styles.entryRow,
                 isChild && styles.childEntryRow,
-                selectionMode && isSelected && !isChild && styles.selectedEntry,
+                selectionMode && isSelected && !isChild && !allMealSelected && styles.selectedEntry,
             ]}
             onPress={() => {
                 if (selectionMode) onToggleSelection?.();
@@ -260,6 +265,7 @@ function RecipeGroupRow({
     onToggleEntries,
     onActivateSelection,
     onActivateSelectionMultiple,
+    allMealSelected,
 }: {
     group: RecipeGroup;
     onEdit?: (row: EntryWithFood) => void;
@@ -271,6 +277,7 @@ function RecipeGroupRow({
     onToggleEntries?: (entryIds: number[]) => void;
     onActivateSelection?: (entryId: number) => void;
     onActivateSelectionMultiple?: (entryIds: number[]) => void;
+    allMealSelected?: boolean;
 }) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -310,7 +317,7 @@ function RecipeGroupRow({
     return (
         <View style={[
             styles.recipeGroup,
-            allGroupSelected && styles.selectedGroup,
+            allGroupSelected && !allMealSelected && styles.selectedGroup,
         ]}>
             <Pressable
                 style={styles.recipeHeader}
@@ -449,6 +456,7 @@ function createStyles(colors: ThemeColors) {
             borderColor: colors.primary,
             borderRadius: borderRadius.sm,
             marginVertical: 2,
+            zIndex: 1,
         },
         selectedGroup: {
             borderWidth: 1.5,
@@ -456,6 +464,11 @@ function createStyles(colors: ThemeColors) {
             borderRadius: borderRadius.sm,
             marginVertical: 2,
             paddingHorizontal: spacing.xs,
+            zIndex: 1,
+        },
+        selectedMeal: {
+            borderWidth: 1.5,
+            borderColor: colors.primary,
         },
         selectedChildContainer: {
             borderLeftColor: colors.primary,

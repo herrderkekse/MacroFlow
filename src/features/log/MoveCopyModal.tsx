@@ -43,11 +43,29 @@ export default function MoveCopyModal({
         });
     }
 
-    const dateLabel = targetDate.toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-    });
+    function getDateLabel(date: Date) {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const isSameDay = (a: Date, b: Date) =>
+            a.getFullYear() === b.getFullYear() &&
+            a.getMonth() === b.getMonth() &&
+            a.getDate() === b.getDate();
+
+        if (isSameDay(date, today)) return t("log.today");
+        if (isSameDay(date, tomorrow)) return t("log.tomorrow");
+        if (isSameDay(date, yesterday)) return t("log.yesterday");
+        return date.toLocaleDateString(undefined, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+        });
+    }
+
+    const dateLabel = getDateLabel(targetDate);
 
     return (
         <>
