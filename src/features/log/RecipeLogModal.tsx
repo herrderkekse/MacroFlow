@@ -22,6 +22,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 interface RecipeLogModalProps {
     recipe: Recipe | null;
@@ -36,6 +37,7 @@ export default function RecipeLogModal({
     onClose,
     onSaved,
 }: RecipeLogModalProps) {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const selectedDate = useAppStore((s) => s.selectedDate);
@@ -82,7 +84,7 @@ export default function RecipeLogModal({
         >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Add Recipe</Text>
+                    <Text style={styles.headerTitle}>{t("recipes.addRecipe")}</Text>
                     <Pressable onPress={onClose} hitSlop={8}>
                         <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </Pressable>
@@ -95,7 +97,7 @@ export default function RecipeLogModal({
                     </Text>
 
                     {/* Portion multiplier */}
-                    <Text style={styles.sectionLabel}>Portions</Text>
+                    <Text style={styles.sectionLabel}>{t("recipes.portions")}</Text>
                     <View style={styles.portionRow}>
                         <Pressable
                             onPress={() => {
@@ -133,14 +135,14 @@ export default function RecipeLogModal({
                         return (
                             <View key={row.recipe_items.id} style={styles.itemRow}>
                                 <Text style={styles.itemName} numberOfLines={1}>
-                                    {food?.name ?? "Unknown"}
+                                    {food?.name ?? t("common.unknown")}
                                 </Text>
                                 <Text style={styles.itemDetail}>{formatQuantity(Math.round(displayQty * 10) / 10, itemUnit)} · {cals} cal</Text>
                             </View>
                         );
                     })}
 
-                    <Text style={styles.sectionLabel}>Meal</Text>
+                    <Text style={styles.sectionLabel}>{t("log.meal")}</Text>
                     <View style={styles.mealRow}>
                         {MEAL_TYPES.map((m) => (
                             <Pressable
@@ -151,13 +153,13 @@ export default function RecipeLogModal({
                                 <Text
                                     style={[styles.mealChipText, mealType === m.key && styles.mealChipTextActive]}
                                 >
-                                    {m.label}
+                                    {t(`meal.${m.key}`)}
                                 </Text>
                             </Pressable>
                         ))}
                     </View>
 
-                    <Button title="Add to Log" onPress={handleSave} style={styles.saveBtn} />
+                    <Button title={t("log.addToLog")} onPress={handleSave} style={styles.saveBtn} />
                 </ScrollView>
             </View>
         </Modal>

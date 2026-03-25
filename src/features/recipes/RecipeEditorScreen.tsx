@@ -36,6 +36,7 @@ import {
     useWindowDimensions,
     View
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 interface ItemWithFood {
     recipeItem: RecipeItem;
@@ -45,6 +46,7 @@ interface ItemWithFood {
 const SHEET_COLLAPSED = 160;
 
 export default function RecipeEditorScreen() {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
@@ -150,7 +152,7 @@ export default function RecipeEditorScreen() {
 
     function handleBarcodeNotFound() {
         setShowScanner(false);
-        Alert.alert("Not found", "Product not found for barcode");
+        Alert.alert(t("recipes.notFound"), t("recipes.productNotFound"));
     }
 
     function handleSelectOFF(product: OFFProduct) {
@@ -227,8 +229,8 @@ export default function RecipeEditorScreen() {
             >
                 {/* Recipe name */}
                 <Input
-                    label="Recipe name"
-                    placeholder="e.g. Morning Smoothie"
+                    label={t("recipes.recipeName")}
+                    placeholder={t("recipes.recipeNamePlaceholder")}
                     value={name}
                     onChangeText={setName}
                     containerStyle={styles.nameInput}
@@ -267,7 +269,7 @@ export default function RecipeEditorScreen() {
                     );
                 })}
 
-                <Button title="Done" onPress={handleDone} style={styles.doneBtn} />
+                <Button title={t("common.done")} onPress={handleDone} style={styles.doneBtn} />
             </ScrollView>
 
             {/* ── Add-ingredient bottom sheet ────────────── */}
@@ -277,12 +279,12 @@ export default function RecipeEditorScreen() {
                 onSnapChange={handleSheetSnapChange}
             >
                 <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetLabel}>Add ingredient</Text>
+                    <Text style={styles.sheetLabel}>{t("recipes.addIngredient")}</Text>
                     <View style={styles.searchRow}>
                         <Ionicons name="search" size={18} color={colors.textTertiary} />
                         <TextInput
                             style={styles.searchInput}
-                            placeholder="Search foods…"
+                            placeholder={t("recipes.searchFoods")}
                             placeholderTextColor={colors.textTertiary}
                             value={foodQuery}
                             onChangeText={setFoodQuery}
@@ -296,14 +298,14 @@ export default function RecipeEditorScreen() {
                     </View>
                     <View style={styles.actionRow}>
                         <Button
-                            title="Scan Barcode"
+                            title={t("log.scanBarcode")}
                             variant="outline"
                             icon={<Ionicons name="barcode-outline" size={18} color={colors.text} />}
                             onPress={() => setShowScanner(true)}
                             style={styles.actionBtn}
                         />
                         <Button
-                            title="Create New"
+                            title={t("log.createNew")}
                             variant="outline"
                             icon={<Ionicons name="add-circle-outline" size={18} color={colors.text} />}
                             onPress={() => setShowManualForm(true)}
@@ -320,7 +322,7 @@ export default function RecipeEditorScreen() {
                 >
                     {foodQuery.trim().length >= 2 && !hasSearchedOFF && !offError && (
                         <Button
-                            title={isSearchingOFF ? "Searching…" : "Search OpenFoodFacts"}
+                            title={isSearchingOFF ? t("recipes.searching") : t("recipes.searchOpenFoodFacts")}
                             onPress={handleSearchOFF}
                             variant="outline"
                             loading={isSearchingOFF}

@@ -17,9 +17,11 @@ import {
     Text,
     View
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 export default function FoodEditorScreen() {
     const { foodId } = useLocalSearchParams<{ foodId: string }>();
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const unitSystem = useAppStore((s) => s.unitSystem);
@@ -69,14 +71,14 @@ export default function FoodEditorScreen() {
                 keyboardShouldPersistTaps="handled"
             >
                 <Input
-                    label="Food Name"
-                    placeholder="e.g., Chicken Breast"
+                    label={t("log.foodName")}
+                    placeholder={t("log.foodNamePlaceholder")}
                     value={name}
                     onChangeText={setName}
                     containerStyle={styles.field}
                 />
 
-                <Text style={styles.sectionLabel}>Default unit</Text>
+                <Text style={styles.sectionLabel}>{t("log.defaultUnit")}</Text>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -103,22 +105,22 @@ export default function FoodEditorScreen() {
                     ))}
                 </ScrollView>
 
-                <Text style={styles.sectionLabel}>Nutrition per 100 g</Text>
+                <Text style={styles.sectionLabel}>{t("log.nutritionPer100g")}</Text>
 
                 <View style={styles.row}>
                     <Input
-                        label="Calories"
+                        label={t("settings.calories")}
                         placeholder="0"
-                        suffix="kcal"
+                        suffix={t("common.kcal")}
                         value={calories}
                         onChangeText={setCalories}
                         keyboardType="decimal-pad"
                         containerStyle={styles.halfField}
                     />
                     <Input
-                        label="Protein"
+                        label={t("settings.protein")}
                         placeholder="0"
-                        suffix="g"
+                        suffix={t("common.g")}
                         value={protein}
                         onChangeText={setProtein}
                         keyboardType="decimal-pad"
@@ -128,19 +130,17 @@ export default function FoodEditorScreen() {
 
                 <View style={styles.row}>
                     <Input
-                        label="Carbs"
+                        label={t("settings.carbs")}
                         placeholder="0"
-                        suffix="g"
-                        value={carbs}
+                        suffix={t("common.g")}
                         onChangeText={setCarbs}
                         keyboardType="decimal-pad"
                         containerStyle={styles.halfField}
                     />
                     <Input
-                        label="Fat"
+                        label={t("settings.fat")}
                         placeholder="0"
-                        suffix="g"
-                        value={fat}
+                        suffix={t("common.g")}
                         onChangeText={setFat}
                         keyboardType="decimal-pad"
                         containerStyle={styles.halfField}
@@ -148,7 +148,7 @@ export default function FoodEditorScreen() {
                 </View>
 
                 <Button
-                    title="Save"
+                    title={t("common.save")}
                     onPress={handleSave}
                     disabled={!name.trim()}
                     style={styles.saveButton}

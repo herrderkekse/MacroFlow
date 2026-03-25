@@ -20,6 +20,7 @@ import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
     Keyboard,
@@ -38,6 +39,7 @@ import ManualFoodForm from "./ManualFoodForm";
 import RecipeLogModal from "./RecipeLogModal";
 
 export default function AddFoodScreen() {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
@@ -185,7 +187,7 @@ export default function AddFoodScreen() {
                 />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search foods…"
+                    placeholder={t("log.searchPlaceholder")}
                     placeholderTextColor={colors.textTertiary}
                     value={query}
                     onChangeText={setQuery}
@@ -206,7 +208,7 @@ export default function AddFoodScreen() {
             {/* Action buttons */}
             <View style={styles.actionRow}>
                 <Button
-                    title="Scan Barcode"
+                    title={t("log.scanBarcode")}
                     variant="outline"
                     icon={
                         <Ionicons
@@ -219,7 +221,7 @@ export default function AddFoodScreen() {
                     style={styles.actionButton}
                 />
                 <Button
-                    title="Create New"
+                    title={t("log.createNew")}
                     variant="outline"
                     icon={
                         <Ionicons
@@ -242,7 +244,7 @@ export default function AddFoodScreen() {
                 {/* Recipe results */}
                 {showLocalSection && recipeResults.length > 0 && (
                     <>
-                        <Text style={styles.sectionLabel}>RECIPES</Text>
+                        <Text style={styles.sectionLabel}>{t("log.sectionRecipes")}</Text>
                         {recipeResults.map((r) => (
                             <Pressable
                                 key={r.id}
@@ -261,11 +263,11 @@ export default function AddFoodScreen() {
                 {showLocalSection && (
                     <>
                         <Text style={styles.sectionLabel}>
-                            ON YOUR DEVICE
+                            {t("log.sectionOnDevice")}
                         </Text>
                         {localResults.length === 0 ? (
                             <Text style={styles.emptyText}>
-                                No local results
+                                {t("log.noLocalResults")}
                             </Text>
                         ) : (
                             localResults.map((food) => (
@@ -287,12 +289,12 @@ export default function AddFoodScreen() {
                 {showLocalSection && (
                     <>
                         <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>
-                            OPENFOODFACTS
+                            {t("log.sectionOpenFoodFacts")}
                         </Text>
 
                         {!hasSearchedOFF && !isSearchingOFF && (
                             <Button
-                                title="Search Online"
+                                title={t("log.searchOnline")}
                                 variant="secondary"
                                 icon={
                                     <Ionicons
@@ -362,8 +364,7 @@ export default function AddFoodScreen() {
                             color={colors.border}
                         />
                         <Text style={styles.placeholderText}>
-                            Search for a food, scan a barcode, or create a
-                            new one
+                            {t("log.searchPrompt")}
                         </Text>
                     </View>
                 )}

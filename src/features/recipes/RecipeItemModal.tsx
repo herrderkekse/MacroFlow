@@ -17,6 +17,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 
 interface RecipeItemModalProps {
     item: RecipeItem | null;
@@ -31,6 +32,7 @@ export default function RecipeItemModal({
     onClose,
     onSaved,
 }: RecipeItemModalProps) {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const unitSystem = useAppStore((s) => s.unitSystem);
@@ -83,7 +85,7 @@ export default function RecipeItemModal({
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Edit Ingredient</Text>
+                    <Text style={styles.headerTitle}>{t("recipes.editIngredient")}</Text>
                     <Pressable onPress={onClose} hitSlop={8}>
                         <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </Pressable>
@@ -96,12 +98,12 @@ export default function RecipeItemModal({
                     {/* Food info */}
                     <Text style={styles.foodName}>{food?.name}</Text>
                     <Text style={styles.per100}>
-                        per 100 g: {Math.round(food?.calories_per_100g ?? 0)} cal
+                        {t("log.per100g", { calories: Math.round(food?.calories_per_100g ?? 0) })}
                     </Text>
 
                     {/* Quantity */}
                     <Input
-                        label="Quantity"
+                        label={t("log.quantity")}
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="decimal-pad"
@@ -110,7 +112,7 @@ export default function RecipeItemModal({
                     />
 
                     {/* Unit picker */}
-                    <Text style={styles.sectionLabel}>Unit</Text>
+                    <Text style={styles.sectionLabel}>{t("log.unit")}</Text>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
@@ -165,7 +167,7 @@ export default function RecipeItemModal({
                     </View>
 
                     <Button
-                        title="Save"
+                        title={t("common.save")}
                         onPress={handleSave}
                         disabled={qty <= 0}
                         style={styles.saveButton}

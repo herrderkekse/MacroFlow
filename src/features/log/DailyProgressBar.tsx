@@ -3,6 +3,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     LayoutAnimation,
     Platform,
@@ -114,6 +115,7 @@ export default function DailyProgressBar({
 }: DailyProgressBarProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
 
     const calRatio =
@@ -157,7 +159,7 @@ export default function DailyProgressBar({
             {expanded && (
                 <View style={styles.macros}>
                     <ProgressRow
-                        label="Protein"
+                        label={t("settings.protein")}
                         current={totals.protein}
                         goal={goals.protein}
                         color={colors.protein}
@@ -165,7 +167,7 @@ export default function DailyProgressBar({
                         colors={colors}
                     />
                     <ProgressRow
-                        label="Carbs"
+                        label={t("settings.carbs")}
                         current={totals.carbs}
                         goal={goals.carbs}
                         color={colors.carbs}
@@ -173,7 +175,7 @@ export default function DailyProgressBar({
                         colors={colors}
                     />
                     <ProgressRow
-                        label="Fat"
+                        label={t("settings.fat")}
                         current={totals.fat}
                         goal={goals.fat}
                         color={colors.fat}

@@ -7,6 +7,7 @@ import { type FoodUnit, formatQuantity, fromGrams } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 interface EntryWithFood {
     entries: Entry;
@@ -78,6 +79,7 @@ export default function MealSection({
     onEditRecipeGroup,
     onDeleteRecipeLog,
 }: MealSectionProps) {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const totalCals = items.reduce((sum, row) => {
@@ -114,7 +116,7 @@ export default function MealSection({
             </View>
 
             {items.length === 0 ? (
-                <Text style={styles.empty}>No foods logged yet</Text>
+                <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
             ) : (
                 <>
                     {/* Recipe groups */}
@@ -155,6 +157,7 @@ function EntryRow({
     onDeleteEntry: (id: number) => void;
     isChild?: boolean;
 }) {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const food = row.foods;
@@ -172,7 +175,7 @@ function EntryRow({
             {isChild && <View style={styles.childConnector} />}
             <View style={styles.entryInfo}>
                 <Text style={styles.entryName} numberOfLines={1}>
-                    {food?.name ?? "Unknown food"}
+                    {food?.name ?? t("log.unknownFood")}
                 </Text>
                 <Text style={styles.entryDetail}>
                     {formatQuantity(Math.round(displayQty * 10) / 10, entryUnit)} · {cals} cal
