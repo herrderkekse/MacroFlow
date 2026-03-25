@@ -15,6 +15,7 @@ import {
     type RecipeItem
 } from "@/src/db/queries";
 import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
+import ManualFoodForm from "@/src/features/log/ManualFoodForm";
 import RecipeItemModal from "@/src/features/recipes/RecipeItemModal";
 import { guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
@@ -62,6 +63,7 @@ export default function RecipeEditorScreen() {
     const [isSearchingOFF, setIsSearchingOFF] = useState(false);
     const [hasSearchedOFF, setHasSearchedOFF] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
+    const [showManualForm, setShowManualForm] = useState(false);
 
     // modal for editing an ingredient's quantity + unit
     const [editingItem, setEditingItem] = useState<ItemWithFood | null>(null);
@@ -128,6 +130,11 @@ export default function RecipeEditorScreen() {
     function handleSelectLocal(food: Food) {
         Keyboard.dismiss();
         addItemForFood(food);
+    }
+
+    function handleManualFoodCreated(food: Food) {
+        setShowManualForm(false);
+        setTimeout(() => addItemForFood(food), 300);
     }
 
     function handleBarcodeFound(food: Food) {
@@ -281,12 +288,22 @@ export default function RecipeEditorScreen() {
                             </Pressable>
                         )}
                     </View>
-                    <Button
-                        title="Scan Barcode"
-                        variant="outline"
-                        icon={<Ionicons name="barcode-outline" size={18} color={colors.text} />}
-                        onPress={() => setShowScanner(true)}
-                    />
+                    <View style={styles.actionRow}>
+                        <Button
+                            title="Scan Barcode"
+                            variant="outline"
+                            icon={<Ionicons name="barcode-outline" size={18} color={colors.text} />}
+                            onPress={() => setShowScanner(true)}
+                            style={styles.actionBtn}
+                        />
+                        <Button
+                            title="Create New"
+                            variant="outline"
+                            icon={<Ionicons name="add-circle-outline" size={18} color={colors.text} />}
+                            onPress={() => setShowManualForm(true)}
+                            style={styles.actionBtn}
+                        />
+                    </View>
                 </View>
 
                 <ScrollView
@@ -341,6 +358,13 @@ export default function RecipeEditorScreen() {
                 food={editingItem?.food ?? null}
                 onClose={() => setEditingItem(null)}
                 onSaved={handleModalSaved}
+            />
+
+            <ManualFoodForm
+                visible={showManualForm}
+                onClose={() => setShowManualForm(false)}
+                onFoodCreated={handleManualFoodCreated}
+                initialName={foodQuery}
             />
 
             <BarcodeScannerView
@@ -419,6 +443,11 @@ function createStyles(colors: ThemeColors) {
         },
         resultName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
         resultDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
+        actionRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+        },
+        actionBtn: { flex: 1 },
         offBtn: { marginTop: spacing.sm, marginHorizontal: spacing.lg },
         doneBtn: { marginTop: spacing.lg },
     });
