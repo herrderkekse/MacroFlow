@@ -5,13 +5,17 @@ const sharp = require("sharp");
 /* ========================= CONFIGURATION ========================= */
 
 const CONFIG = {
+    // Output size (px). Keep large so platform tooling can scale down safely.
     size: 1024,
     faviconSize: 512,
 
     outputDir: "./assets/images",
 
-    // Positions (relative to center)
-    center: { x: 512, y: 512 },
+    // Base design coordinates (for a base canvas of 1024). These will be
+    // automatically scaled to the requested `size` and clamped to fit the
+    // Android adaptive-icon safe area so nothing gets masked/cut off.
+    _baseSize: 1024,
+    _baseCenter: { x: 512, y: 512 },
 
     nodes: {
         center: { dx: 0, dy: 0, r: 120 },
@@ -44,7 +48,59 @@ const CONFIG = {
 
     strokeWidth: 28,
     highlightOpacity: 0.18,
+    // Debug: draw the Android adaptive-icon safe circle in generated images
+    debugSafeCircle: false,
 };
+
+// Compute derived, scaled geometry so artwork always fits inside Android's
+// adaptive icon safe circle (circle diameter = 160/240 of full icon size).
+function computeScaledGeometry() {
+    const s = CONFIG.size / CONFIG._baseSize;
+
+    // copy and scale base nodes
+    const scaled = {};
+    let maxExtent = 0;
+    Object.keys(CONFIG.nodes).forEach((k) => {
+        const n = CONFIG.nodes[k];
+        const dx = n.dx * s;
+        const dy = n.dy * s;
+        const r = n.r * s;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const extent = dist + r; // distance from center to outer edge
+        if (extent > maxExtent) maxExtent = extent;
+        scaled[k] = { dx, dy, r };
+    });
+
+    // Safe radius for adaptive icon: diameter = size * (160/240) => radius = size*(160/240)/2
+    const safeRadius = Math.round(CONFIG.size * (160 / 240) / 2);
+
+    // If our artwork exceeds the safe radius, scale everything down to fit.
+    if (maxExtent > safeRadius) {
+        const clamp = safeRadius / maxExtent;
+        Object.keys(scaled).forEach((k) => {
+            scaled[k].dx *= clamp;
+            scaled[k].dy *= clamp;
+            scaled[k].r *= clamp;
+        });
+    }
+
+    // center point
+    const center = { x: Math.round(CONFIG.size / 2), y: Math.round(CONFIG.size / 2) };
+
+    // final scale applied to base coordinates (useful for other offsets)
+    const finalScale = s * (maxExtent > 0 ? Math.min(1, safeRadius / maxExtent) : 1);
+
+    return { center, nodes: scaled, finalScale, safeRadius };
+}
+
+// derive scaled geometry once and expose on CONFIG for use by builders
+const _GEOM = computeScaledGeometry();
+CONFIG.center = _GEOM.center;
+CONFIG.nodes = _GEOM.nodes;
+CONFIG._finalScale = _GEOM.finalScale;
+CONFIG._safeRadius = _GEOM.safeRadius;
+// scale stroke width so lines look proportional at other sizes
+CONFIG.strokeWidth = Math.max(2, Math.round(CONFIG.strokeWidth * CONFIG._finalScale));
 
 /* ========================= HELPERS ========================= */
 
@@ -134,18 +190,22 @@ function buildHighlights(monochrome = false) {
     if (monochrome) return ""; // usually omitted
 
     const c = CONFIG.center;
+    const fs = CONFIG._finalScale || 1;
 
     function highlight(node, offsetX, offsetY, r) {
         const p = resolvePosition(c, node);
-        return `<circle cx="${p.x + offsetX}" cy="${p.y + offsetY}" r="${r}" />`;
+        const ox = Math.round(offsetX * fs);
+        const oy = Math.round(offsetY * fs);
+        const rr = Math.max(1, Math.round(r * fs));
+        return `<circle cx="${p.x + ox}" cy="${p.y + oy}" r="${rr}" />`;
     }
 
     return `
 <g fill="${CONFIG.colors.highlight}" opacity="${CONFIG.highlightOpacity}">
-  ${highlight(CONFIG.nodes.center, -42, -42, 20)}
-  ${highlight(CONFIG.nodes.topRight, -22, -32, 14)}
-  ${highlight(CONFIG.nodes.bottomRight, -22, -32, 14)}
-  ${highlight(CONFIG.nodes.left, -32, -24, 14)}
+    ${highlight(CONFIG.nodes.center, -42, -42, 20)}
+    ${highlight(CONFIG.nodes.topRight, -22, -32, 14)}
+    ${highlight(CONFIG.nodes.bottomRight, -22, -32, 14)}
+    ${highlight(CONFIG.nodes.left, -32, -24, 14)}
 </g>
 `;
 }
@@ -157,7 +217,8 @@ function buildFull() {
         buildBackground() +
         buildLines() +
         buildNodes() +
-        buildHighlights()
+        buildHighlights() +
+        buildSafeCircle()
     );
 }
 
@@ -165,7 +226,8 @@ function buildForeground() {
     return svgWrapper(
         buildLines() +
         buildNodes() +
-        buildHighlights()
+        buildHighlights() +
+        buildSafeCircle()
     );
 }
 
@@ -173,7 +235,8 @@ function buildForegroundDark() {
     return svgWrapper(
         buildLines(false, CONFIG.colors.connectingLineDarkMode) +
         buildNodes() +
-        buildHighlights()
+        buildHighlights() +
+        buildSafeCircle()
     );
 }
 
@@ -186,6 +249,14 @@ function buildMonochrome() {
         buildLines(true) +
         buildNodes(true)
     );
+}
+
+function buildSafeCircle() {
+    if (!CONFIG.debugSafeCircle) return "";
+    const c = CONFIG.center;
+    const r = CONFIG._safeRadius || Math.round(CONFIG.size * (160 / 240) / 2);
+    const sw = Math.max(1, Math.round(4 * (CONFIG._finalScale || 1)));
+    return `\n<g fill="none">\n  <circle cx="${c.x}" cy="${c.y}" r="${r}" stroke="#FF0000" stroke-width="${sw}" stroke-dasharray="8 4" opacity="0.9" />\n</g>\n`;
 }
 
 /* ========================= WRITE FILES ========================= */
