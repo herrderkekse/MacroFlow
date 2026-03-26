@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+    Dimensions,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -88,6 +89,14 @@ export default function AnalyticsScreen() {
 
     // ── Chart data ─────────────────────────────────────────
 
+    // Available width for the chart area inside the card (card has padding + border)
+    const screenWidth = Dimensions.get("window").width;
+    const chartContainerPadding = spacing.md * 2 + spacing.md * 2 + 2; // scrollContent padding + chartWrapper padding + borders
+    const yAxisLabelWidth = 45;
+    const secondaryAxisWidth = 45;
+
+    const shouldScroll = typeof timeSpan === "number" && timeSpan >= 90 || timeSpan === "all";
+
     const chartConfig = useMemo(() => {
         if (data.length === 0) return null;
 
@@ -96,34 +105,43 @@ export default function AnalyticsScreen() {
             return `${parts[2]}/${parts[1]}`;
         };
 
-        // Show fewer labels for large datasets
-        const labelInterval = data.length > 60 ? Math.ceil(data.length / 8) :
-            data.length > 14 ? Math.ceil(data.length / 7) : 1;
+        // Compute sensible label count: aim for ~5-7 visible labels
+        const targetLabelCount = Math.min(data.length, 7);
+        const labelInterval = Math.max(1, Math.floor(data.length / targetLabelCount));
+        // For very small sets, label every point
+        const actualInterval = data.length <= 7 ? 1 : labelInterval;
+
+        const makeLabelProps = (d: DailyTotals, i: number) => ({
+            label: i % actualInterval === 0 ? formatLabel(d) : "",
+            labelTextStyle: { color: colors.textSecondary, fontSize: 9 } as const,
+        });
 
         if (metric === "calories") {
-            // Stacked: macros as calories on top, total calories line
-            const mainData = data.map((d, i) => ({
-                value: d.calories,
-                label: i % labelInterval === 0 ? formatLabel(d) : "",
-                labelTextStyle: { color: colors.textSecondary, fontSize: 9 },
-            }));
-
-            const proteinData = data.map((d) => ({
-                value: d.protein * MACRO_KCAL.protein,
+            // True stacked area: fat (bottom) → carbs → protein → calories line on top
+            // Each layer's value = cumulative sum up to that layer
+            const fatData = data.map((d, i) => ({
+                value: d.fat * MACRO_KCAL.fat,
+                ...makeLabelProps(d, i),
             }));
             const carbsData = data.map((d) => ({
-                value: d.carbs * MACRO_KCAL.carbs,
+                value: d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs,
             }));
-            const fatData = data.map((d) => ({
-                value: d.fat * MACRO_KCAL.fat,
+            const proteinData = data.map((d) => ({
+                value: d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs + d.protein * MACRO_KCAL.protein,
+            }));
+            // Calories line sits at the stacked top — same value as the protein stack
+            // (the macro calories already total up to ~total calories)
+            // We use the actual calories value so discrepancies between total and macro sum show
+            const caloriesData = data.map((d) => ({
+                value: d.calories,
             }));
 
             return {
                 type: "calories" as const,
-                mainData,
-                proteinData,
-                carbsData,
                 fatData,
+                carbsData,
+                proteinData,
+                caloriesData,
             };
         }
 
@@ -137,13 +155,7 @@ export default function AnalyticsScreen() {
                 const pPct = totalMacroCal > 0 ? (d.protein * MACRO_KCAL.protein / totalMacroCal) * 100 : 0;
                 const cPct = totalMacroCal > 0 ? (d.carbs * MACRO_KCAL.carbs / totalMacroCal) * 100 : 0;
                 const fPct = totalMacroCal > 0 ? (d.fat * MACRO_KCAL.fat / totalMacroCal) * 100 : 0;
-                return {
-                    label: i % labelInterval === 0 ? formatLabel(d) : "",
-                    labelTextStyle: { color: colors.textSecondary, fontSize: 9 },
-                    pPct,
-                    cPct,
-                    fPct,
-                };
+                return { ...makeLabelProps(d, i), pPct, cPct, fPct };
             });
 
             // Stack: fat on bottom, then carbs, then protein on top
@@ -167,18 +179,28 @@ export default function AnalyticsScreen() {
             };
         }
 
-        // Single macro: simple area with grams
+        // Single macro: simple area with grams + secondary axis in kcal
         const macroKey = metric as MacroKey;
+        const kcalFactor = MACRO_KCAL[macroKey];
         const mainData = data.map((d, i) => ({
             value: d[macroKey],
-            label: i % labelInterval === 0 ? formatLabel(d) : "",
-            labelTextStyle: { color: colors.textSecondary, fontSize: 9 },
+            ...makeLabelProps(d, i),
         }));
+        // Secondary data for the right-side kcal axis
+        const secondaryData = data.map((d) => ({
+            value: d[macroKey] * kcalFactor,
+        }));
+
+        // Compute max for secondary axis alignment
+        const maxGrams = Math.max(...data.map((d) => d[macroKey]), 1);
+        const maxKcal = maxGrams * kcalFactor;
 
         return {
             type: "single" as const,
             macroKey,
             mainData,
+            secondaryData,
+            maxKcal,
         };
     }, [data, metric, colors]);
 
@@ -209,7 +231,15 @@ export default function AnalyticsScreen() {
 
     // ── Render ─────────────────────────────────────────────
 
-    const chartWidth = 300;
+    // For non-scrollable charts, compute spacing so data fills exactly the available width
+    const hasSecondaryAxis = chartConfig?.type === "single";
+    const availableChartWidth = screenWidth - chartContainerPadding - yAxisLabelWidth - (hasSecondaryAxis ? secondaryAxisWidth : 0);
+    const computedSpacing = data.length > 1 ? availableChartWidth / (data.length - 1) : availableChartWidth;
+    // For scrollable charts, use a comfortable fixed spacing
+    const scrollSpacing = 8;
+    const chartSpacing = shouldScroll ? scrollSpacing : computedSpacing;
+    // Width prop: for scrollable, let it extend; for non-scrollable, match available width exactly
+    const chartWidthProp = shouldScroll ? undefined : availableChartWidth;
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -330,44 +360,52 @@ export default function AnalyticsScreen() {
                     <View style={styles.chartWrapper}>
                         {chartConfig?.type === "calories" && (
                             <LineChart
-                                data={chartConfig.mainData}
-                                data2={chartConfig.proteinData}
-                                data3={chartConfig.carbsData}
-                                data4={chartConfig.fatData}
-                                width={chartWidth}
+                                data={chartConfig.fatData}
+                                data2={chartConfig.carbsData}
+                                data3={chartConfig.proteinData}
+                                data4={chartConfig.caloriesData}
+                                width={chartWidthProp}
                                 height={220}
-                                spacing={data.length > 30 ? Math.max(6, chartWidth / data.length) : chartWidth / data.length}
-                                color1={colors.calories}
-                                color2={colors.protein}
-                                color3={colors.carbs}
-                                color4={colors.fat}
-                                startFillColor1={colors.calories}
-                                startFillColor2={colors.protein}
-                                startFillColor3={colors.carbs}
-                                startFillColor4={colors.fat}
-                                endFillColor1={colors.calories + "33"}
-                                endFillColor2={colors.protein + "33"}
-                                endFillColor3={colors.carbs + "33"}
-                                endFillColor4={colors.fat + "33"}
-                                startOpacity1={0.4}
-                                startOpacity2={0.3}
-                                startOpacity3={0.3}
-                                startOpacity4={0.3}
-                                endOpacity1={0.05}
-                                endOpacity2={0.05}
-                                endOpacity3={0.05}
-                                endOpacity4={0.05}
+                                spacing={chartSpacing}
+                                initialSpacing={0}
+                                endSpacing={0}
+                                disableScroll={!shouldScroll}
+                                scrollToEnd={shouldScroll}
+                                color1={colors.fat}
+                                color2={colors.carbs}
+                                color3={colors.protein}
+                                color4={colors.calories}
+                                startFillColor1={colors.fat}
+                                startFillColor2={colors.carbs}
+                                startFillColor3={colors.protein}
+                                startFillColor4={"transparent"}
+                                endFillColor1={colors.fat}
+                                endFillColor2={colors.carbs}
+                                endFillColor3={colors.protein}
+                                endFillColor4={"transparent"}
+                                startOpacity1={0.7}
+                                startOpacity2={0.7}
+                                startOpacity3={0.7}
+                                startOpacity4={0}
+                                endOpacity1={0.7}
+                                endOpacity2={0.7}
+                                endOpacity3={0.7}
+                                endOpacity4={0}
                                 noOfSections={5}
                                 yAxisColor={colors.border}
                                 xAxisColor={colors.border}
                                 yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
+                                yAxisLabelSuffix=" kcal"
                                 rulesColor={colors.border + "66"}
                                 curved
                                 areaChart
                                 hideDataPoints
                                 isAnimated
                                 animationDuration={600}
-                                scrollToEnd
+                                thickness1={1.5}
+                                thickness2={1.5}
+                                thickness3={1.5}
+                                thickness4={2}
                             />
                         )}
                         {chartConfig?.type === "macros" && (
@@ -375,24 +413,28 @@ export default function AnalyticsScreen() {
                                 data={chartConfig.proteinData}
                                 data2={chartConfig.carbsData}
                                 data3={chartConfig.fatData}
-                                width={chartWidth}
+                                width={chartWidthProp}
                                 height={220}
-                                spacing={data.length > 30 ? Math.max(6, chartWidth / data.length) : chartWidth / data.length}
+                                spacing={chartSpacing}
+                                initialSpacing={0}
+                                endSpacing={0}
+                                disableScroll={!shouldScroll}
+                                scrollToEnd={shouldScroll}
                                 color1={colors.protein}
                                 color2={colors.carbs}
                                 color3={colors.fat}
                                 startFillColor1={colors.protein}
                                 startFillColor2={colors.carbs}
                                 startFillColor3={colors.fat}
-                                endFillColor1={colors.protein + "55"}
-                                endFillColor2={colors.carbs + "55"}
-                                endFillColor3={colors.fat + "55"}
-                                startOpacity1={0.5}
-                                startOpacity2={0.5}
-                                startOpacity3={0.5}
-                                endOpacity1={0.1}
-                                endOpacity2={0.1}
-                                endOpacity3={0.1}
+                                endFillColor1={colors.protein}
+                                endFillColor2={colors.carbs}
+                                endFillColor3={colors.fat}
+                                startOpacity1={0.7}
+                                startOpacity2={0.7}
+                                startOpacity3={0.7}
+                                endOpacity1={0.7}
+                                endOpacity2={0.7}
+                                endOpacity3={0.7}
                                 noOfSections={5}
                                 maxValue={100}
                                 yAxisColor={colors.border}
@@ -405,15 +447,29 @@ export default function AnalyticsScreen() {
                                 hideDataPoints
                                 isAnimated
                                 animationDuration={600}
-                                scrollToEnd
                             />
                         )}
                         {chartConfig?.type === "single" && (
                             <LineChart
                                 data={chartConfig.mainData}
-                                width={chartWidth}
+                                secondaryData={chartConfig.secondaryData}
+                                secondaryYAxis={{
+                                    maxValue: chartConfig.maxKcal,
+                                    noOfSections: 5,
+                                    yAxisColor: colors.border,
+                                    yAxisTextStyle: { color: colors.textSecondary, fontSize: 10 },
+                                    yAxisLabelSuffix: " kcal",
+                                }}
+                                secondaryLineConfig={{
+                                    color: "transparent",
+                                }}
+                                width={chartWidthProp}
                                 height={220}
-                                spacing={data.length > 30 ? Math.max(6, chartWidth / data.length) : chartWidth / data.length}
+                                spacing={chartSpacing}
+                                initialSpacing={0}
+                                endSpacing={0}
+                                disableScroll={!shouldScroll}
+                                scrollToEnd={shouldScroll}
                                 color1={colors[chartConfig.macroKey]}
                                 startFillColor1={colors[chartConfig.macroKey]}
                                 endFillColor1={colors[chartConfig.macroKey] + "22"}
@@ -430,7 +486,6 @@ export default function AnalyticsScreen() {
                                 hideDataPoints
                                 isAnimated
                                 animationDuration={600}
-                                scrollToEnd
                             />
                         )}
 
