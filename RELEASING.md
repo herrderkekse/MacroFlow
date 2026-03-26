@@ -12,34 +12,51 @@ MacroFlow follows a simplified [Semantic Versioning](https://semver.org/) scheme
 MAJOR.MINOR.PATCH[-suffix]
 ```
 
-| Segment | When to increment |
-|---------|-------------------|
-| `MAJOR` | Breaking change or major rewrite |
+| Segment | When to increment                      |
+| ------- | -------------------------------------- |
+| `MAJOR` | Breaking change or major rewrite       |
 | `MINOR` | New feature or significant improvement |
-| `PATCH` | Bug fixes and small improvements |
+| `PATCH` | Bug fixes and small improvements       |
 
 ### Suffixes
 
-| Suffix | Release type | Audience |
-|--------|--------------|----------|
-| `-alpha` | Early test build | Internal / close testers |
-| `-beta`  | Feature-complete test build | Wider testers |
-| *(none)* | Production release | All users |
+| Suffix   | Release type                | Audience                 |
+| -------- | --------------------------- | ------------------------ |
+| `-alpha` | Early test build            | Internal / close testers |
+| `-beta`  | Feature-complete test build | Wider testers            |
+| *(none)* | Production release          | All users                |
 
 ---
 
 ## Conventions at a Glance
 
-| Artefact | Format | Example |
-|----------|--------|---------|
-| Branch | `release/X.Y.Z` | `release/0.0.2` |
-| Git tag | `vX.Y.Z[-suffix]` | `v0.0.2-alpha` |
-| GitHub release title | `vX.Y.Z-suffix — Short description` | `v0.0.2-alpha — Localization & Templates` |
-| EAS profile (alpha/beta) | `preview` | APK, internal distribution |
-| EAS profile (production) | `production` | AAB, Play Store / App Store |
-| APK filename | `macroflow-vX.Y.Z-suffix.apk` | `macroflow-v0.0.2-alpha.apk` |
+| Artefact                 | Format                              | Example                                   |
+| ------------------------ | ----------------------------------- | ----------------------------------------- |
+| Branch                   | `release/X.Y.Z`                     | `release/0.0.2`                           |
+| Git tag                  | `vX.Y.Z[-suffix]`                   | `v0.0.2-alpha`                            |
+| GitHub release title     | `vX.Y.Z-suffix — Short description` | `v0.0.2-alpha — Localization & Templates` |
+| EAS profile (alpha/beta) | `preview`                           | APK, internal distribution                |
+| EAS profile (production) | `production`                        | AAB, Play Store / App Store               |
+| APK filename             | `macroflow-vX.Y.Z-suffix.apk`       | `macroflow-v0.0.2-alpha.apk`              |
 
 ---
+
+## Before Releasing
+Before releasing, it's a good idea to test on a real device with a preview build. You can use `eas build` with the `preview` profile for that, but to speed things up and cut down on cost you may want to create a local Android build.
+
+To aid you, there's a `create-release-apk.sh` script under `scripts/`. It creates a signed release APK; the APK differs from the one EAS produces for a `preview` build only in the keystore used.
+
+The script requires the Android SDK with build tools to be available. It may be a good idea to first get `npx expo run:android` working and learn how to sign the APK with `apksigner`. There are lots of tutorials online on how to build Expo apps.
+
+If you want to use that preview build to update an existing EAS APK (for example, the last official GitHub release), you will have to use the same keystore as EAS. Android won't allow installing two apps with the same package (`app.json`:`expo.android.package`) signed with different keystores. Luckily, until you publish to the Play Store the package name doesn't really matter for local testing. If you don't have a test device and don't want to uninstall `MacroFlow` from your main device, you can change the package name for testing.
+
+If you have access to the projects [expo.dev dashboard](expo.dev) (which is currently just me - the repo maintainer), you **CAN** download that keystore from the `MacroFlow` Project -> Credentials -> Android. **HOWEVER**, this does save the credentials in clear text to your disk, which is inherently risky, if you lose the device or a third party gains access to it.
+
+The recommended approach is to:
+- checkout to the last release version, build with your own keystore, and install it
+- start the app and perform some actions so the database is set up as it would be for a real user
+- switch back to `main`, build with your own keystore, and continue with the update
+
 
 ## Step-by-Step Release Process
 
@@ -123,11 +140,11 @@ git push origin vX.Y.Z-alpha
 
 ### 7. Trigger the EAS Build
 
-| Release type | EAS profile | Output |
-|---|---|---|
-| Alpha | `preview` | APK (internal distribution) |
-| Beta | `preview` | APK (internal distribution) |
-| Production | `production` | AAB (Play Store / App Store) |
+| Release type | EAS profile  | Output                       |
+| ------------ | ------------ | ---------------------------- |
+| Alpha        | `preview`    | APK (internal distribution)  |
+| Beta         | `preview`    | APK (internal distribution)  |
+| Production   | `production` | AAB (Play Store / App Store) |
 
 ```bash
 # Alpha / Beta
