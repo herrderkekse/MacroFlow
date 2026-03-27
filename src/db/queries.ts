@@ -1,7 +1,7 @@
 import { and, eq, gte, like, lte, sql } from "drizzle-orm";
 import logger from "../utils/logger";
 import { db } from "./index";
-import { entries, foods, goals, recipeItems, recipeLogs, recipes } from "./schema";
+import { entries, foods, goals, recipeItems, recipeLogs, recipes, weightLogs } from "./schema";
 
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
@@ -14,6 +14,8 @@ export type RecipeItem = typeof recipeItems.$inferSelect;
 export type NewRecipeItem = typeof recipeItems.$inferInsert;
 export type RecipeLog = typeof recipeLogs.$inferSelect;
 export type NewRecipeLog = typeof recipeLogs.$inferInsert;
+export type WeightLog = typeof weightLogs.$inferSelect;
+export type NewWeightLog = typeof weightLogs.$inferInsert;
 
 // ── Food CRUD ──────────────────────────────────────────────
 
@@ -433,4 +435,48 @@ export function getDailyTotalsForRange(startDate: string, endDate: string): Dail
         carbs: Number(r.carbs),
         fat: Number(r.fat),
     }));
+}
+
+// ── Weight Logging ─────────────────────────────────────────
+
+export function addWeightLog(weightKg: number, date: Date): WeightLog {
+    const dateKey = formatDateKey(date);
+    return db
+        .insert(weightLogs)
+        .values({ weight_kg: weightKg, date: dateKey, timestamp: Date.now() })
+        .returning()
+        .get();
+}
+
+export function getWeightLogsForDate(date: Date): WeightLog[] {
+    const dateKey = formatDateKey(date);
+    return db
+        .select()
+        .from(weightLogs)
+        .where(eq(weightLogs.date, dateKey))
+        .orderBy(weightLogs.timestamp)
+        .all();
+}
+
+export function deleteWeightLog(id: number) {
+    db.delete(weightLogs).where(eq(weightLogs.id, id)).run();
+}
+
+export function getLatestWeightBefore(date: Date): WeightLog | undefined {
+    const dateKey = formatDateKey(date);
+    return db
+        .select()
+        .from(weightLogs)
+        .where(lte(weightLogs.date, dateKey))
+        .orderBy(sql`${weightLogs.date} DESC`)
+        .get();
+}
+
+export function getWeightLogsForRange(startDate: string, endDate: string): WeightLog[] {
+    return db
+        .select()
+        .from(weightLogs)
+        .where(and(gte(weightLogs.date, startDate), lte(weightLogs.date, endDate)))
+        .orderBy(weightLogs.date)
+        .all();
 }

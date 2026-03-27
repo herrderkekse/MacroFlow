@@ -109,6 +109,8 @@ const de = {
         keepMeal: "Mahlzeit beibehalten",
         move: "Verschieben",
         copy: "Kopieren",
+        logWeight: "Gewicht erfassen",
+        weight: "Gewicht",
     },
     recipes: {
         title: "Vorlagen",

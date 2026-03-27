@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { copyEntriesToDate, deleteEntry, deleteRecipeLog, formatDateKey, getEntriesByDate, getGoals, moveEntriesToDate, updateRecipeLogPortion, type Entry, type Food, type Goals } from "@/src/db/queries";
+import { addWeightLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getGoals, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type Entry, type Food, type Goals, type WeightLog } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
@@ -28,6 +28,7 @@ import DateSelectorBar from "./DateSelectorBar";
 import EntryModal from "./EntryModal";
 import MealSection, { type RecipeGroup } from "./MealSection";
 import MoveCopyModal from "./MoveCopyModal";
+import WeightSection from "./WeightSection";
 
 interface EntryWithFood {
     entries: Entry;
@@ -35,6 +36,27 @@ interface EntryWithFood {
 }
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+
+function computeWeightTrend(logs: WeightLog[]): "up" | "down" | "flat" | null {
+    if (logs.length < 2) return null;
+    const n = logs.length;
+    // x = day index, y = weight_kg
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    const baseDate = new Date(logs[0].date + "T00:00:00").getTime();
+    for (let i = 0; i < n; i++) {
+        const x = (new Date(logs[i].date + "T00:00:00").getTime() - baseDate) / (1000 * 60 * 60 * 24);
+        const y = logs[i].weight_kg;
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumX2 += x * x;
+    }
+    const denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) return "flat";
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    if (Math.abs(slope) < 0.01) return "flat";
+    return slope > 0 ? "up" : "down";
+}
 
 function getDateShifted(date: Date, delta: number) {
     const d = new Date(date);
@@ -88,6 +110,11 @@ function DayPage({
     onToggleEntries,
     onActivateSelection,
     onActivateSelectionMultiple,
+    meanWeightKg,
+    weightTrend,
+    weightLogs,
+    onAddWeight,
+    onDeleteWeight,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
@@ -101,6 +128,11 @@ function DayPage({
     onToggleEntries?: (entryIds: number[]) => void;
     onActivateSelection?: (entryId: number) => void;
     onActivateSelectionMultiple?: (entryIds: number[]) => void;
+    meanWeightKg?: number | null;
+    weightTrend?: "up" | "down" | "flat" | null;
+    weightLogs?: WeightLog[];
+    onAddWeight?: (weightKg: number) => void;
+    onDeleteWeight?: (id: number) => void;
 }) {
     return (
         <View style={styles.dayPage}>
@@ -109,7 +141,7 @@ function DayPage({
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
             >
-                <DailyProgressBar totals={computeTotals(grouped)} goals={goals} />
+                <DailyProgressBar totals={computeTotals(grouped)} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} />
                 {MEAL_TYPES.map((meal) => (
                     <MealSection
                         key={meal.key}
@@ -129,6 +161,13 @@ function DayPage({
                         onActivateSelectionMultiple={onActivateSelectionMultiple}
                     />
                 ))}
+                {onAddWeight && onDeleteWeight && (
+                    <WeightSection
+                        weights={weightLogs ?? []}
+                        onAdd={onAddWeight}
+                        onDelete={onDeleteWeight}
+                    />
+                )}
             </ScrollView>
         </View>
     );
@@ -186,6 +225,10 @@ export default function LogScreen() {
     const [selectedEntryIds, setSelectedEntryIds] = useState<Set<number>>(new Set());
     const [moveModalVisible, setMoveModalVisible] = useState(false);
 
+    const [weightTrend, setWeightTrend] = useState<"up" | "down" | "flat" | null>(null);
+    const [dayWeightLogs, setDayWeightLogs] = useState<WeightLog[]>([]);
+    const [meanWeightKg, setMeanWeightKg] = useState<number | null>(null);
+
     function loadAllDays(center: Date) {
         setGrouped(loadGrouped(center));
         setPrevGrouped(loadGrouped(getDateShifted(center, -1)));
@@ -198,6 +241,33 @@ export default function LogScreen() {
                 useAppStore.getState().setUnitSystem(g.unit_system as "metric" | "imperial");
             }
         }
+        // Load weight data
+        const dayWeights = getWeightLogsForDate(center);
+        setDayWeightLogs(dayWeights);
+        // Compute mean weight for this day, or fall back to last day with weight
+        if (dayWeights.length > 0) {
+            const mean = dayWeights.reduce((s, w) => s + w.weight_kg, 0) / dayWeights.length;
+            setMeanWeightKg(mean);
+        } else {
+            // Find last day with weight logged (using range query going back far)
+            const twoMonthsBefore = new Date(center);
+            twoMonthsBefore.setDate(twoMonthsBefore.getDate() - 60);
+            const pastLogs = getWeightLogsForRange(formatDateKey(twoMonthsBefore), formatDateKey(center));
+            if (pastLogs.length > 0) {
+                // Group by last date
+                const lastDate = pastLogs[pastLogs.length - 1].date;
+                const lastDayLogs = pastLogs.filter(w => w.date === lastDate);
+                const mean = lastDayLogs.reduce((s, w) => s + w.weight_kg, 0) / lastDayLogs.length;
+                setMeanWeightKg(mean);
+            } else {
+                setMeanWeightKg(null);
+            }
+        }
+        // Trend: get weight logs from 14 days before the selected date
+        const twoWeeksBefore = new Date(center);
+        twoWeeksBefore.setDate(twoWeeksBefore.getDate() - 14);
+        const rangeLogs = getWeightLogsForRange(formatDateKey(twoWeeksBefore), formatDateKey(center));
+        setWeightTrend(computeWeightTrend(rangeLogs));
     }
 
     useFocusEffect(
@@ -245,6 +315,18 @@ export default function LogScreen() {
     function handleDeleteRecipeLog(recipeLogId: number) {
         deleteRecipeLog(recipeLogId);
         logger.info("[DB] Deleted recipe log", { recipeLogId });
+        loadAllDays(selectedDate);
+    }
+
+    function handleAddWeight(weightKg: number) {
+        addWeightLog(weightKg, selectedDate);
+        logger.info("[DB] Logged weight", { weight_kg: weightKg });
+        loadAllDays(selectedDate);
+    }
+
+    function handleDeleteWeight(id: number) {
+        deleteWeightLog(id);
+        logger.info("[DB] Deleted weight log", { id });
         loadAllDays(selectedDate);
     }
 
@@ -394,6 +476,8 @@ export default function LogScreen() {
                     onEdit={handleEdit}
                     onEditRecipeGroup={handleEditRecipeGroup}
                     onDeleteRecipeLog={handleDeleteRecipeLog}
+                    meanWeightKg={meanWeightKg}
+                    weightTrend={weightTrend}
                 />
                 <DayPage
                     grouped={grouped}
@@ -408,6 +492,11 @@ export default function LogScreen() {
                     onToggleEntries={handleToggleEntries}
                     onActivateSelection={handleActivateSelection}
                     onActivateSelectionMultiple={handleActivateSelectionMultiple}
+                    meanWeightKg={meanWeightKg}
+                    weightTrend={weightTrend}
+                    weightLogs={dayWeightLogs}
+                    onAddWeight={handleAddWeight}
+                    onDeleteWeight={handleDeleteWeight}
                 />
                 <DayPage
                     grouped={nextGrouped}
@@ -417,6 +506,8 @@ export default function LogScreen() {
                     onEdit={handleEdit}
                     onEditRecipeGroup={handleEditRecipeGroup}
                     onDeleteRecipeLog={handleDeleteRecipeLog}
+                    meanWeightKg={meanWeightKg}
+                    weightTrend={weightTrend}
                 />
             </ScrollView>
 

@@ -110,6 +110,8 @@ const en = {
         keepMeal: "Keep original meal",
         move: "Move",
         copy: "Copy",
+        logWeight: "Log Weight",
+        weight: "Weight",
     },
     recipes: {
         title: "Templates",
