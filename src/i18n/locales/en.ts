@@ -113,6 +113,7 @@ const en = {
         logWeight: "Log Weight",
         weight: "Weight",
         noWeightsLogged: "No weight logged yet",
+        weightDaysAgo: "{{count}}d ago",
     },
     recipes: {
         title: "Templates",

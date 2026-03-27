@@ -34,6 +34,7 @@ interface DailyProgressBarProps {
     goals: Goals;
     meanWeightKg?: number | null;
     weightTrend?: "up" | "down" | "flat" | null;
+    weightDaysAgo?: number | null;
 }
 
 function ProgressRow({
@@ -117,6 +118,7 @@ export default function DailyProgressBar({
     goals,
     meanWeightKg,
     weightTrend,
+    weightDaysAgo,
 }: DailyProgressBarProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -193,20 +195,24 @@ export default function DailyProgressBar({
                     {meanWeightKg != null && (
                         <View style={styles.weightRow}>
                             <Ionicons name="scale-outline" size={14} color={colors.textSecondary} />
+                            {weightTrend === "up" && (
+                                <Ionicons name="arrow-up" size={12} color={colors.textSecondary} />
+                            )}
+                            {weightTrend === "down" && (
+                                <Ionicons name="arrow-down" size={12} color={colors.textSecondary} />
+                            )}
+                            {weightTrend === "flat" && (
+                                <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} />
+                            )}
                             <Text style={styles.weightText}>
                                 {isImperial
                                     ? (meanWeightKg * KG_TO_LB).toFixed(1) + " lb"
                                     : meanWeightKg.toFixed(1) + " kg"}
                             </Text>
-                            <View style={{ flex: 1 }} />
-                            {weightTrend === "up" && (
-                                <Ionicons name="arrow-up" size={14} color={colors.textSecondary} />
-                            )}
-                            {weightTrend === "down" && (
-                                <Ionicons name="arrow-down" size={14} color={colors.textSecondary} />
-                            )}
-                            {weightTrend === "flat" && (
-                                <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+                            {weightDaysAgo != null && weightDaysAgo > 0 && (
+                                <Text style={styles.weightDaysAgo}>
+                                    {t("log.weightDaysAgo", { count: weightDaysAgo })}
+                                </Text>
                             )}
                         </View>
                     )}
@@ -268,6 +274,11 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.xs,
             fontWeight: "600",
             color: colors.textSecondary,
+        },
+        weightDaysAgo: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
+            marginLeft: spacing.xs,
         },
     });
 }

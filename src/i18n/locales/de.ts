@@ -112,6 +112,7 @@ const de = {
         logWeight: "Gewicht erfassen",
         weight: "Gewicht",
         noWeightsLogged: "Noch kein Gewicht erfasst",
+        weightDaysAgo: "vor {{count}}T",
     },
     recipes: {
         title: "Vorlagen",

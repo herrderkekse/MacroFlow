@@ -112,6 +112,7 @@ function DayPage({
     onActivateSelectionMultiple,
     meanWeightKg,
     weightTrend,
+    weightDaysAgo,
     weightLogs,
     onAddWeight,
     onDeleteWeight,
@@ -130,6 +131,7 @@ function DayPage({
     onActivateSelectionMultiple?: (entryIds: number[]) => void;
     meanWeightKg?: number | null;
     weightTrend?: "up" | "down" | "flat" | null;
+    weightDaysAgo?: number | null;
     weightLogs?: WeightLog[];
     onAddWeight?: (weightKg: number) => void;
     onDeleteWeight?: (id: number) => void;
@@ -141,7 +143,7 @@ function DayPage({
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
             >
-                <DailyProgressBar totals={computeTotals(grouped)} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} />
+                <DailyProgressBar totals={computeTotals(grouped)} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
                 {MEAL_TYPES.map((meal) => (
                     <MealSection
                         key={meal.key}
@@ -226,6 +228,7 @@ export default function LogScreen() {
     const [weightTrend, setWeightTrend] = useState<"up" | "down" | "flat" | null>(null);
     const [dayWeightLogs, setDayWeightLogs] = useState<WeightLog[]>([]);
     const [meanWeightKg, setMeanWeightKg] = useState<number | null>(null);
+    const [weightDaysAgo, setWeightDaysAgo] = useState<number | null>(null);
 
     function loadAllDays(center: Date) {
         setGrouped(loadGrouped(center));
@@ -246,6 +249,7 @@ export default function LogScreen() {
         if (dayWeights.length > 0) {
             const mean = dayWeights.reduce((s, w) => s + w.weight_kg, 0) / dayWeights.length;
             setMeanWeightKg(mean);
+            setWeightDaysAgo(0);
         } else {
             // Find last day with weight logged (using range query going back far)
             const twoMonthsBefore = new Date(center);
@@ -257,8 +261,13 @@ export default function LogScreen() {
                 const lastDayLogs = pastLogs.filter(w => w.date === lastDate);
                 const mean = lastDayLogs.reduce((s, w) => s + w.weight_kg, 0) / lastDayLogs.length;
                 setMeanWeightKg(mean);
+                const msPerDay = 86400000;
+                const lastDateObj = new Date(lastDate + "T00:00:00");
+                const centerObj = new Date(formatDateKey(center) + "T00:00:00");
+                setWeightDaysAgo(Math.round((centerObj.getTime() - lastDateObj.getTime()) / msPerDay));
             } else {
                 setMeanWeightKg(null);
+                setWeightDaysAgo(null);
             }
         }
         // Trend: get weight logs from 14 days before the selected date
@@ -476,6 +485,7 @@ export default function LogScreen() {
                     onDeleteRecipeLog={handleDeleteRecipeLog}
                     meanWeightKg={meanWeightKg}
                     weightTrend={weightTrend}
+                    weightDaysAgo={weightDaysAgo}
                 />
                 <DayPage
                     grouped={grouped}
@@ -492,6 +502,7 @@ export default function LogScreen() {
                     onActivateSelectionMultiple={handleActivateSelectionMultiple}
                     meanWeightKg={meanWeightKg}
                     weightTrend={weightTrend}
+                    weightDaysAgo={weightDaysAgo}
                     weightLogs={dayWeightLogs}
                     onAddWeight={handleAddWeight}
                     onDeleteWeight={handleDeleteWeight}
@@ -506,6 +517,7 @@ export default function LogScreen() {
                     onDeleteRecipeLog={handleDeleteRecipeLog}
                     meanWeightKg={meanWeightKg}
                     weightTrend={weightTrend}
+                    weightDaysAgo={weightDaysAgo}
                 />
             </ScrollView>
 
