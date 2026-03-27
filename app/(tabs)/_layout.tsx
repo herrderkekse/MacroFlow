@@ -3,8 +3,8 @@ import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { StyleSheet, Text, View } from "react-native";
 
 const icons: Record<string, string> = {
     index: 'create',
@@ -24,12 +24,12 @@ export default function TabsLayout() {
         streakBadge: {
             position: 'absolute',
             top: -4,
-            right: -14,
+            right: -18,
             flexDirection: 'row',
             alignItems: 'center',
         },
         streakText: {
-            fontSize: 14,
+            fontSize: streak >= 1000 ? 9 : streak >= 100 ? 11 : 13,
             fontWeight: '700',
             color: colors.textSecondary,
         },
@@ -55,7 +55,7 @@ export default function TabsLayout() {
                             <View style={styles.iconContainer}>
                                 <Ionicons name={name as any} size={size} color={color} />
                                 <View style={styles.streakBadge}>
-                                    <Text style={styles.streakText}>🔥{streak}</Text>
+                                    <Text style={styles.streakText} numberOfLines={1}>{`🔥${streak}`}</Text>
                                 </View>
                             </View>
                         );
