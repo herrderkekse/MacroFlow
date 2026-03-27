@@ -43,6 +43,7 @@ export default function RecipesScreen() {
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<FilterType>("all");
     const [filterExpanded, setFilterExpanded] = useState(false);
+    const [fabExpanded, setFabExpanded] = useState(false);
 
     function load() {
         const q = query.trim();
@@ -233,10 +234,38 @@ export default function RecipesScreen() {
 
             <Pressable
                 style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-                onPress={() => router.push("/recipes/edit" as unknown as Href)}
+                onPress={() => setFabExpanded((prev) => !prev)}
             >
-                <Ionicons name="add" size={28} color="#fff" />
+                <Ionicons name={fabExpanded ? "close" : "add"} size={28} color="#fff" />
             </Pressable>
+
+            {fabExpanded && (
+                <>
+                    <Pressable style={styles.fabOverlay} onPress={() => setFabExpanded(false)} />
+
+                    <Pressable
+                        style={[styles.miniFab, styles.miniFabUpper]}
+                        onPress={() => {
+                            setFabExpanded(false);
+                            router.push("/recipes/food-edit" as unknown as Href);
+                        }}
+                    >
+                        <Ionicons name="nutrition-outline" size={20} color="#fff" />
+                        <Text style={styles.miniFabLabel}>{t("recipes.newFood")}</Text>
+                    </Pressable>
+
+                    <Pressable
+                        style={[styles.miniFab, styles.miniFabLower]}
+                        onPress={() => {
+                            setFabExpanded(false);
+                            router.push("/recipes/edit" as unknown as Href);
+                        }}
+                    >
+                        <Ionicons name="book-outline" size={20} color="#fff" />
+                        <Text style={styles.miniFabLabel}>{t("recipes.newRecipe")}</Text>
+                    </Pressable>
+                </>
+            )}
         </View>
     );
 }
@@ -350,5 +379,32 @@ function createStyles(colors: ThemeColors) {
             shadowRadius: 4,
         },
         fabPressed: { opacity: 0.85 },
+        fabOverlay: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: "rgba(0,0,0,0.3)",
+        },
+        miniFab: {
+            position: "absolute",
+            right: 24,
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.primary,
+            borderRadius: 28,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            elevation: 4,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+        },
+        miniFabUpper: { bottom: 24 + 56 + spacing.md + 48 + spacing.sm },
+        miniFabLower: { bottom: 24 + 56 + spacing.md },
+        miniFabLabel: {
+            color: "#fff",
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            marginLeft: spacing.sm,
+        },
     });
 }

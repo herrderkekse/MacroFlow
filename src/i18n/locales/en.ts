@@ -141,6 +141,10 @@ const en = {
         portions: "Portions",
         foodEditorTitle: "Edit Food",
         recipeEditorTitle: "Edit Recipe",
+        newRecipeTitle: "New Recipe",
+        newFoodTitle: "New Food",
+        newRecipe: "Recipe",
+        newFood: "Food",
         calPer100g: "{{cal}} cal/100g",
     },
     analytics: {

@@ -141,6 +141,10 @@ const de = {
         portions: "Portionen",
         foodEditorTitle: "Lebensmittel bearbeiten",
         recipeEditorTitle: "Rezept bearbeiten",
+        newRecipeTitle: "Neues Rezept",
+        newFoodTitle: "Neues Lebensmittel",
+        newRecipe: "Rezept",
+        newFood: "Lebensmittel",
         calPer100g: "{{cal}} kcal/100 g",
     },
     analytics: {
