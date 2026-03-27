@@ -1,21 +1,15 @@
 import { type DailyTotals, formatDateKey, getDailyTotalsForRange } from "@/src/db/queries";
+import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    Dimensions,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// ── Types ──────────────────────────────────────────────────
+// ── Types and Consts ───────────────────────────────────────
 
 type TimeSpan = 7 | 14 | 30 | 90 | 365 | "all";
 type Metric = "calories" | "macros" | "carbs" | "protein" | "fat";
@@ -38,12 +32,70 @@ const METRICS: { key: Metric; labelKey: string }[] = [
     { key: "fat", labelKey: "analytics.fat" },
 ];
 
+const MACRO_KCAL: Record<MacroKey, number> = { protein: 4, carbs: 4, fat: 9 };
+
+const ANIMATION_DURATION = 0;
+const CURVATURE = 0.1; // 0 = straight lines, 1 = very curvy
+const START_OPACITY = 1;
+const END_OPACITY = 1;
+const START_SHADE = -20;
+const END_SHADE = -20;
+const GRAPH_HEIGHT = 220;
 // ── Helpers ────────────────────────────────────────────────
 
 function daysAgo(n: number): string {
     const d = new Date();
     d.setDate(d.getDate() - n);
     return formatDateKey(d);
+}
+
+const formatLabel = (d: DailyTotals) => {
+    const parts = d.date.split("-");
+    return `${parts[2]}/${parts[1]}`;
+};
+
+
+const makeLabelProps = (d: DailyTotals, timespan: TimeSpan, colors: ThemeColors) => {
+    const val = formatLabel(d);
+
+    let shouldShowLabel;
+    switch (timespan) {
+        case 7:
+            // Show all labels for 7-day view
+            shouldShowLabel = true;
+            break;
+        case 14:
+            // Show labels for every other day for 14-day view
+            const dateEndsWithEven = parseInt(d.date.slice(-1)) % 2 === 0;
+            shouldShowLabel = dateEndsWithEven;
+            break;
+        default:
+            // Show labels for 1, 11th, 21st, of each month
+            const isMonthlyLabel = d.date.endsWith("-01") || d.date.endsWith("-11") || d.date.endsWith("-21");
+            shouldShowLabel = isMonthlyLabel;
+    }
+
+    return {
+        showStrip: shouldShowLabel,
+        stripHeight: GRAPH_HEIGHT + 20,
+        stripColor: colors.border + "66",
+        labelComponent: shouldShowLabel ? () => <LabelItem color={colors.textSecondary} label={val} /> : undefined,
+    };
+};
+
+
+function shadeColor(color: string, percent: number): string {
+    // Shade a hex color by a percentage (positive = lighter, negative = darker)
+    const f = parseInt(color.slice(1), 16);
+    const t = percent < 0 ? 0 : 255;
+    const p = Math.abs(percent) / 100;
+    const R = f >> 16;
+    const G = (f >> 8) & 0x00ff;
+    const B = f & 0x0000ff;
+    const newR = Math.round((t - R) * p + R);
+    const newG = Math.round((t - G) * p + G);
+    const newB = Math.round((t - B) * p + B);
+    return `#${(0x1000000 + (newR << 16) + (newG << 8) + newB).toString(16).slice(1)}`;
 }
 
 function computeStats(values: number[]) {
@@ -59,8 +111,6 @@ function computeStats(values: number[]) {
     const trend = last > first ? "up" : last < first ? "down" : "flat";
     return { min, max, avg, stdDev, variance, trend };
 }
-
-const MACRO_KCAL: Record<MacroKey, number> = { protein: 4, carbs: 4, fat: 9 };
 
 function formatNum(v: number, decimals = 1): string {
     return v.toFixed(decimals);
@@ -89,119 +139,93 @@ export default function AnalyticsScreen() {
 
     // ── Chart data ─────────────────────────────────────────
 
-    // Available width for the chart area inside the card (card has padding + border)
-    const screenWidth = Dimensions.get("window").width;
-    const chartContainerPadding = spacing.md * 2 + spacing.md * 2 + 2; // scrollContent padding + chartWrapper padding + borders
-    const yAxisLabelWidth = 45;
-    const secondaryAxisWidth = 45;
-
-    const shouldScroll = typeof timeSpan === "number" && timeSpan >= 90 || timeSpan === "all";
-
     const chartConfig = useMemo(() => {
         if (data.length === 0) return null;
 
-        const formatLabel = (d: DailyTotals) => {
-            const parts = d.date.split("-");
-            return `${parts[2]}/${parts[1]}`;
-        };
-
-        // Compute sensible label count: aim for ~5-7 visible labels
-        const targetLabelCount = Math.min(data.length, 7);
-        const labelInterval = Math.max(1, Math.floor(data.length / targetLabelCount));
-        // For very small sets, label every point
-        const actualInterval = data.length <= 7 ? 1 : labelInterval;
-
-        const makeLabelProps = (d: DailyTotals, i: number) => ({
-            label: i % actualInterval === 0 ? formatLabel(d) : "",
-            labelTextStyle: { color: colors.textSecondary, fontSize: 9 } as const,
-        });
-
         if (metric === "calories") {
+
+            // normalize maco values so the macro sum matches calories (handles cases where total calories != sum of macros due to alcohol, fiber, or data issues)
+            const normalized = data.map((d) => {
+                const macroCal = d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs + d.protein * MACRO_KCAL.protein;
+                const factor = macroCal > 0 ? d.calories / macroCal : 1;
+                return {
+                    ...d,
+                    fat: d.fat * factor,
+                    carbs: d.carbs * factor,
+                    protein: d.protein * factor,
+                };
+            });
+
             // True stacked area: fat (bottom) → carbs → protein → calories line on top
             // Each layer's value = cumulative sum up to that layer
-            const fatData = data.map((d, i) => ({
+            const fatData = normalized.map((d) => ({
                 value: d.fat * MACRO_KCAL.fat,
-                ...makeLabelProps(d, i),
             }));
-            const carbsData = data.map((d) => ({
+            const carbsData = normalized.map((d) => ({
                 value: d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs,
             }));
-            const proteinData = data.map((d) => ({
-                value: d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs + d.protein * MACRO_KCAL.protein,
-            }));
-            // Calories line sits at the stacked top — same value as the protein stack
-            // (the macro calories already total up to ~total calories)
-            // We use the actual calories value so discrepancies between total and macro sum show
-            const caloriesData = data.map((d) => ({
-                value: d.calories,
+            const proteinData = normalized.map((d, i) => ({
+                value: d.calories, // = d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs + d.protein * MACRO_KCAL.protein (because of normalization)
+                ...makeLabelProps(d, timeSpan, colors),
             }));
 
-            return {
-                type: "calories" as const,
-                fatData,
-                carbsData,
-                proteinData,
-                caloriesData,
-            };
+            return { type: "calories" as const, fatData, carbsData, proteinData };
         }
 
         if (metric === "macros") {
             // 100% stacked: each macro as % of total macro calories
             const normalised = data.map((d, i) => {
-                const totalMacroCal =
-                    d.protein * MACRO_KCAL.protein +
-                    d.carbs * MACRO_KCAL.carbs +
-                    d.fat * MACRO_KCAL.fat;
-                const pPct = totalMacroCal > 0 ? (d.protein * MACRO_KCAL.protein / totalMacroCal) * 100 : 0;
-                const cPct = totalMacroCal > 0 ? (d.carbs * MACRO_KCAL.carbs / totalMacroCal) * 100 : 0;
-                const fPct = totalMacroCal > 0 ? (d.fat * MACRO_KCAL.fat / totalMacroCal) * 100 : 0;
-                return { ...makeLabelProps(d, i), pPct, cPct, fPct };
+                let totalMacroCal = d.protein * MACRO_KCAL.protein + d.carbs * MACRO_KCAL.carbs + d.fat * MACRO_KCAL.fat;
+                totalMacroCal = totalMacroCal > 0 ? totalMacroCal : 1;
+                const pPct = (d.protein * MACRO_KCAL.protein / totalMacroCal) * 100;
+                const cPct = (d.carbs * MACRO_KCAL.carbs / totalMacroCal) * 100;
+                const fPct = (d.fat * MACRO_KCAL.fat / totalMacroCal) * 100;
+                return { ...makeLabelProps(d, timeSpan, colors), pPct, cPct, fPct };
             });
 
             // Stack: fat on bottom, then carbs, then protein on top
             const fatData = normalised.map((d) => ({
                 value: d.fPct,
-                label: d.label,
-                labelTextStyle: d.labelTextStyle,
             }));
             const carbsData = normalised.map((d) => ({
                 value: d.fPct + d.cPct,
             }));
             const proteinData = normalised.map((d) => ({
-                value: d.fPct + d.cPct + d.pPct,
+                value: 100, // = d.fPct + d.cPct + d.pPct (because of normalization)
+                labelComponent: d.labelComponent,
             }));
 
+            return { type: "macros" as const, proteinData, carbsData, fatData };
+        }
+
+        if (metric === "carbs" || metric === "protein" || metric === "fat") {
+            const macroKey = metric as MacroKey;
+
+            const dataGram = data.map((d, i) => ({
+                value: d[macroKey],
+                ...makeLabelProps(d, timeSpan, colors),
+            }));
+
+            const kcalFactor = MACRO_KCAL[macroKey];
+            const dataKcal = data.map((d) => ({
+                value: d[macroKey] * kcalFactor,
+            }));
+
+            const maxGrams = Math.max(...data.map((d) => d[macroKey]), 1);
+            const maxKcal = maxGrams * kcalFactor;
+
             return {
-                type: "macros" as const,
-                proteinData,
-                carbsData,
-                fatData,
+                type: "single" as const,
+                macroKey,
+                mainData: dataGram,
+                secondaryData: dataKcal,
+                maxKcal,
             };
         }
 
-        // Single macro: simple area with grams + secondary axis in kcal
-        const macroKey = metric as MacroKey;
-        const kcalFactor = MACRO_KCAL[macroKey];
-        const mainData = data.map((d, i) => ({
-            value: d[macroKey],
-            ...makeLabelProps(d, i),
-        }));
-        // Secondary data for the right-side kcal axis
-        const secondaryData = data.map((d) => ({
-            value: d[macroKey] * kcalFactor,
-        }));
+        logger.warn("[UI] Unknown metric type for analytics chart", { metric });
+        return null;
 
-        // Compute max for secondary axis alignment
-        const maxGrams = Math.max(...data.map((d) => d[macroKey]), 1);
-        const maxKcal = maxGrams * kcalFactor;
-
-        return {
-            type: "single" as const,
-            macroKey,
-            mainData,
-            secondaryData,
-            maxKcal,
-        };
     }, [data, metric, colors]);
 
     // ── Statistics ──────────────────────────────────────────
@@ -215,13 +239,16 @@ export default function AnalyticsScreen() {
         if (metric === "macros") {
             return computeStats(data.map((d) => d[selectedMacro]));
         }
-        const macroKey = metric as MacroKey;
-        return computeStats(data.map((d) => d[macroKey]));
+        if (metric === "carbs" || metric === "protein" || metric === "fat") {
+            const macroKey = metric as MacroKey;
+            return computeStats(data.map((d) => d[macroKey]));
+        }
+        logger.warn("[UI] Unknown metric type for analytics stats", { metric });
+        return null;
     }, [data, metric, selectedMacro]);
 
     const statsUnit = metric === "calories" ? t("common.kcal") : t("common.g");
-    const statsLabel =
-        metric === "macros" ? t(`analytics.${selectedMacro}`) : t(`analytics.${metric}`);
+    const statsLabel = metric === "macros" ? t(`analytics.${selectedMacro}`) : t(`analytics.${metric}`);
 
     // ── Macro area press for macros chart ──────────────────
 
@@ -231,15 +258,24 @@ export default function AnalyticsScreen() {
 
     // ── Render ─────────────────────────────────────────────
 
+
+    // Available width for the chart area inside the card (card has padding + border)
+    const screenWidth = Dimensions.get("window").width;
+    const chartContainerPadding = spacing.md * 2 + spacing.md * 2 + 2; // scrollContent padding + chartWrapper padding + borders
+    const yAxisLabelWidth = 45;
+    const secondaryAxisWidth = 45;
+
+    const shouldScroll = typeof timeSpan === "number" && timeSpan >= 90 || timeSpan === "all";
+
     // For non-scrollable charts, compute spacing so data fills exactly the available width
     const hasSecondaryAxis = chartConfig?.type === "single";
-    const availableChartWidth = screenWidth - chartContainerPadding - yAxisLabelWidth - (hasSecondaryAxis ? secondaryAxisWidth : 0);
-    const computedSpacing = data.length > 1 ? availableChartWidth / (data.length - 1) : availableChartWidth;
+    const chartWidthProp = screenWidth - chartContainerPadding - yAxisLabelWidth - (hasSecondaryAxis ? secondaryAxisWidth - spacing.lg : 0);
+    const computedSpacing = data.length > 1 ? chartWidthProp / (data.length - 1) : chartWidthProp;
     // For scrollable charts, use a comfortable fixed spacing
     const scrollSpacing = 8;
     const chartSpacing = shouldScroll ? scrollSpacing : computedSpacing;
-    // Width prop: for scrollable, let it extend; for non-scrollable, match available width exactly
-    const chartWidthProp = shouldScroll ? undefined : availableChartWidth;
+
+
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -360,10 +396,31 @@ export default function AnalyticsScreen() {
                     <View style={styles.chartWrapper}>
                         {chartConfig?.type === "calories" && (
                             <LineChart
-                                data={chartConfig.fatData}
+                                // chart type dependent props
+                                data={chartConfig.proteinData}
                                 data2={chartConfig.carbsData}
-                                data3={chartConfig.proteinData}
-                                data4={chartConfig.caloriesData}
+                                data3={chartConfig.fatData}
+                                color1={colors.calories}
+                                color2={colors.carbs}
+                                color3={colors.fat}
+                                startFillColor1={shadeColor(colors.protein, START_SHADE)}
+                                startFillColor2={shadeColor(colors.carbs, START_SHADE)}
+                                startFillColor3={shadeColor(colors.fat, START_SHADE)}
+                                endFillColor1={shadeColor(colors.protein, END_SHADE)}
+                                endFillColor2={shadeColor(colors.carbs, END_SHADE)}
+                                endFillColor3={shadeColor(colors.fat, END_SHADE)}
+                                startOpacity1={START_OPACITY}
+                                startOpacity2={START_OPACITY}
+                                startOpacity3={START_OPACITY}
+                                endOpacity1={END_OPACITY}
+                                endOpacity2={END_OPACITY}
+                                endOpacity3={END_OPACITY}
+                                thickness1={2}
+                                thickness2={1.5}
+                                thickness3={1.5}
+                                thickness4={1.5}
+                                yAxisLabelSuffix=""
+                                // chart type independent props
                                 width={chartWidthProp}
                                 height={220}
                                 spacing={chartSpacing}
@@ -371,48 +428,47 @@ export default function AnalyticsScreen() {
                                 endSpacing={0}
                                 disableScroll={!shouldScroll}
                                 scrollToEnd={shouldScroll}
-                                color1={colors.fat}
-                                color2={colors.carbs}
-                                color3={colors.protein}
-                                color4={colors.calories}
-                                startFillColor1={colors.fat}
-                                startFillColor2={colors.carbs}
-                                startFillColor3={colors.protein}
-                                startFillColor4={"transparent"}
-                                endFillColor1={colors.fat}
-                                endFillColor2={colors.carbs}
-                                endFillColor3={colors.protein}
-                                endFillColor4={"transparent"}
-                                startOpacity1={0.7}
-                                startOpacity2={0.7}
-                                startOpacity3={0.7}
-                                startOpacity4={0}
-                                endOpacity1={0.7}
-                                endOpacity2={0.7}
-                                endOpacity3={0.7}
-                                endOpacity4={0}
                                 noOfSections={5}
                                 yAxisColor={colors.border}
                                 xAxisColor={colors.border}
-                                yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
-                                yAxisLabelSuffix=" kcal"
+                                yAxisTextStyle={styles.yAxisTextStyle}
                                 rulesColor={colors.border + "66"}
                                 curved
+                                curvature={CURVATURE}
                                 areaChart
                                 hideDataPoints
-                                isAnimated
-                                animationDuration={600}
-                                thickness1={1.5}
-                                thickness2={1.5}
-                                thickness3={1.5}
-                                thickness4={2}
+                                isAnimated={ANIMATION_DURATION > 0}
+                                animationDuration={ANIMATION_DURATION}
+                                labelsExtraHeight={6}
+                                xAxisLabelsHeight={20}
                             />
                         )}
                         {chartConfig?.type === "macros" && (
                             <LineChart
+                                // chart type dependent props
                                 data={chartConfig.proteinData}
                                 data2={chartConfig.carbsData}
                                 data3={chartConfig.fatData}
+                                color1={colors.protein}
+                                color2={colors.carbs}
+                                color3={colors.fat}
+                                startFillColor1={shadeColor(colors.protein, START_SHADE)}
+                                startFillColor2={shadeColor(colors.carbs, START_SHADE)}
+                                startFillColor3={shadeColor(colors.fat, START_SHADE)}
+                                endFillColor1={shadeColor(colors.protein, END_SHADE)}
+                                endFillColor2={shadeColor(colors.carbs, END_SHADE)}
+                                endFillColor3={shadeColor(colors.fat, END_SHADE)}
+                                startOpacity1={START_OPACITY}
+                                startOpacity2={START_OPACITY}
+                                startOpacity3={START_OPACITY}
+                                endOpacity1={END_OPACITY}
+                                endOpacity2={END_OPACITY}
+                                endOpacity3={END_OPACITY}
+                                stripOverDataPoints={true}
+                                stripOpacity={1}
+                                yAxisLabelSuffix="%"
+                                maxValue={100}
+                                // chart type independent props
                                 width={chartWidthProp}
                                 height={220}
                                 spacing={chartSpacing}
@@ -420,49 +476,42 @@ export default function AnalyticsScreen() {
                                 endSpacing={0}
                                 disableScroll={!shouldScroll}
                                 scrollToEnd={shouldScroll}
-                                color1={colors.protein}
-                                color2={colors.carbs}
-                                color3={colors.fat}
-                                startFillColor1={colors.protein}
-                                startFillColor2={colors.carbs}
-                                startFillColor3={colors.fat}
-                                endFillColor1={colors.protein}
-                                endFillColor2={colors.carbs}
-                                endFillColor3={colors.fat}
-                                startOpacity1={0.7}
-                                startOpacity2={0.7}
-                                startOpacity3={0.7}
-                                endOpacity1={0.7}
-                                endOpacity2={0.7}
-                                endOpacity3={0.7}
                                 noOfSections={5}
-                                maxValue={100}
                                 yAxisColor={colors.border}
                                 xAxisColor={colors.border}
-                                yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
-                                yAxisLabelSuffix="%"
+                                yAxisTextStyle={styles.yAxisTextStyle}
                                 rulesColor={colors.border + "66"}
                                 curved
+                                curvature={CURVATURE}
                                 areaChart
                                 hideDataPoints
-                                isAnimated
-                                animationDuration={600}
+                                isAnimated={ANIMATION_DURATION > 0}
+                                animationDuration={ANIMATION_DURATION}
+                                labelsExtraHeight={6}
+                                xAxisLabelsHeight={20}
                             />
                         )}
                         {chartConfig?.type === "single" && (
                             <LineChart
+                                // chart type dependent props
                                 data={chartConfig.mainData}
                                 secondaryData={chartConfig.secondaryData}
                                 secondaryYAxis={{
                                     maxValue: chartConfig.maxKcal,
-                                    noOfSections: 5,
                                     yAxisColor: colors.border,
-                                    yAxisTextStyle: { color: colors.textSecondary, fontSize: 10 },
-                                    yAxisLabelSuffix: " kcal",
+                                    yAxisTextStyle: styles.yAxisTextStyle,
+                                    yAxisLabelSuffix: "",
                                 }}
                                 secondaryLineConfig={{
                                     color: "transparent",
                                 }}
+                                color1={colors[chartConfig.macroKey]}
+                                startFillColor1={shadeColor(colors[chartConfig.macroKey], START_SHADE)}
+                                endFillColor1={shadeColor(colors[chartConfig.macroKey], END_SHADE)}
+                                startOpacity1={START_OPACITY}
+                                endOpacity1={END_OPACITY}
+                                yAxisLabelSuffix=" g"
+                                // chart type independent props
                                 width={chartWidthProp}
                                 height={220}
                                 spacing={chartSpacing}
@@ -470,22 +519,19 @@ export default function AnalyticsScreen() {
                                 endSpacing={0}
                                 disableScroll={!shouldScroll}
                                 scrollToEnd={shouldScroll}
-                                color1={colors[chartConfig.macroKey]}
-                                startFillColor1={colors[chartConfig.macroKey]}
-                                endFillColor1={colors[chartConfig.macroKey] + "22"}
-                                startOpacity1={0.4}
-                                endOpacity1={0.05}
                                 noOfSections={5}
                                 yAxisColor={colors.border}
                                 xAxisColor={colors.border}
-                                yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
-                                yAxisLabelSuffix=" g"
+                                yAxisTextStyle={styles.yAxisTextStyle}
                                 rulesColor={colors.border + "66"}
                                 curved
+                                curvature={CURVATURE}
                                 areaChart
                                 hideDataPoints
-                                isAnimated
-                                animationDuration={600}
+                                isAnimated={ANIMATION_DURATION > 0}
+                                animationDuration={ANIMATION_DURATION}
+                                labelsExtraHeight={6}
+                                xAxisLabelsHeight={20}
                             />
                         )}
 
@@ -512,6 +558,11 @@ export default function AnalyticsScreen() {
                         </View>
                     </View>
                 )}
+                {chartConfig?.type === "calories" && (
+                    <Text style={styles.statsNote}>
+                        {t("analytics.calorieDisclaimer")}
+                    </Text>
+                )}
             </ScrollView>
         </View>
     );
@@ -528,6 +579,15 @@ function StatCell({ label, value, colors }: { label: string; value: string; colo
             </Text>
         </View>
     );
+}
+
+function LabelItem({ label }: { color: string; label: string }) {
+    const colors = useThemeColors();
+    return (<View style={{ width: 40 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 9, textAlign: 'center' }} allowFontScaling>
+            {label}
+        </Text>
+    </View>);
 }
 
 function LegendItem({ color, label }: { color: string; label: string }) {
@@ -650,10 +710,13 @@ function createStyles(colors: ThemeColors) {
             borderWidth: 1,
             borderColor: colors.border,
         },
+        yAxisTextStyle: {
+            color: colors.textSecondary,
+            fontSize: 10
+        },
         legend: {
             flexDirection: "row",
             flexWrap: "wrap",
-            marginTop: spacing.md,
             justifyContent: "center",
         },
         emptyContainer: {
