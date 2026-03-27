@@ -65,6 +65,13 @@ export function initDB() {
       quantity_unit TEXT NOT NULL DEFAULT 'g'
     );
 
+    CREATE TABLE IF NOT EXISTS weight_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      weight_kg REAL NOT NULL,
+      date TEXT NOT NULL,
+      timestamp INTEGER NOT NULL
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
   `);
 

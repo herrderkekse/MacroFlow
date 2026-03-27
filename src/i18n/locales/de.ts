@@ -109,6 +109,10 @@ const de = {
         keepMeal: "Mahlzeit beibehalten",
         move: "Verschieben",
         copy: "Kopieren",
+        logWeight: "Gewicht erfassen",
+        weight: "Gewicht",
+        noWeightsLogged: "Noch kein Gewicht erfasst",
+        weightDaysAgo: "vor {{count}}T",
     },
     recipes: {
         title: "Vorlagen",
@@ -154,6 +158,7 @@ const de = {
         carbs: "Kohlenhydrate",
         protein: "Eiweiß",
         fat: "Fett",
+        weight: "Gewicht",
         statistics: "Statistik",
         min: "Min",
         avg: "Ø",

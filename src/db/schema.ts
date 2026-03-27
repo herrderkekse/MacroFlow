@@ -56,3 +56,10 @@ export const recipeItems = sqliteTable("recipe_items", {
     quantity_grams: real("quantity_grams").notNull(),
     quantity_unit: text("quantity_unit").notNull().default("g"),
 });
+
+export const weightLogs = sqliteTable("weight_logs", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    weight_kg: real("weight_kg").notNull(),
+    date: text("date").notNull(),
+    timestamp: integer("timestamp").notNull(),
+});

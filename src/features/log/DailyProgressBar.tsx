@@ -1,4 +1,5 @@
 import type { Goals } from "@/src/db/queries";
+import { useAppStore } from "@/src/store/useAppStore";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,6 +32,9 @@ interface Totals {
 interface DailyProgressBarProps {
     totals: Totals;
     goals: Goals;
+    meanWeightKg?: number | null;
+    weightTrend?: "up" | "down" | "flat" | null;
+    weightDaysAgo?: number | null;
 }
 
 function ProgressRow({
@@ -112,11 +116,17 @@ function createRowStyles(colors: ThemeColors) {
 export default function DailyProgressBar({
     totals,
     goals,
+    meanWeightKg,
+    weightTrend,
+    weightDaysAgo,
 }: DailyProgressBarProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
+    const unitSystem = useAppStore((s) => s.unitSystem);
+    const isImperial = unitSystem === "imperial";
+    const KG_TO_LB = 2.20462;
 
     const calRatio =
         goals.calories > 0 ? Math.min(totals.calories / goals.calories, 1) : 0;
@@ -182,6 +192,30 @@ export default function DailyProgressBar({
                         unit="g"
                         colors={colors}
                     />
+                    {meanWeightKg != null && (
+                        <View style={styles.weightRow}>
+                            <Ionicons name="scale-outline" size={14} color={colors.textSecondary} />
+                            {weightTrend === "up" && (
+                                <Ionicons name="arrow-up" size={12} color={colors.textSecondary} />
+                            )}
+                            {weightTrend === "down" && (
+                                <Ionicons name="arrow-down" size={12} color={colors.textSecondary} />
+                            )}
+                            {weightTrend === "flat" && (
+                                <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} />
+                            )}
+                            <Text style={styles.weightText}>
+                                {isImperial
+                                    ? (meanWeightKg * KG_TO_LB).toFixed(1) + " lb"
+                                    : meanWeightKg.toFixed(1) + " kg"}
+                            </Text>
+                            {weightDaysAgo != null && weightDaysAgo > 0 && (
+                                <Text style={styles.weightDaysAgo}>
+                                    {t("log.weightDaysAgo", { count: weightDaysAgo })}
+                                </Text>
+                            )}
+                        </View>
+                    )}
                 </View>
             )}
         </Pressable>
@@ -226,6 +260,25 @@ function createStyles(colors: ThemeColors) {
         },
         macros: {
             marginTop: spacing.xs,
+        },
+        weightRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+            marginTop: spacing.sm,
+            paddingTop: spacing.sm,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+        },
+        weightText: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+            color: colors.textSecondary,
+        },
+        weightDaysAgo: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
+            marginLeft: spacing.xs,
         },
     });
 }

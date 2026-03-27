@@ -1,8 +1,8 @@
+import { db } from "@/src/db";
+import { entries, foods, goals, recipeItems, recipeLogs, recipes, weightLogs } from "@/src/db/schema";
+import * as DocumentPicker from "expo-document-picker";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import * as DocumentPicker from "expo-document-picker";
-import { db } from "@/src/db";
-import { foods, entries, goals, recipes, recipeItems, recipeLogs } from "@/src/db/schema";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ interface ExportPayload {
     recipes: (typeof recipes.$inferSelect)[];
     recipeItems: (typeof recipeItems.$inferSelect)[];
     recipeLogs?: (typeof recipeLogs.$inferSelect)[];
+    weightLogs?: (typeof weightLogs.$inferSelect)[];
 }
 
 // ── Export ──────────────────────────────────────────────────
@@ -29,6 +30,7 @@ export async function exportData(): Promise<void> {
         recipes: db.select().from(recipes).all(),
         recipeItems: db.select().from(recipeItems).all(),
         recipeLogs: db.select().from(recipeLogs).all(),
+        weightLogs: db.select().from(weightLogs).all(),
     };
 
     const json = JSON.stringify(payload, null, 2);
@@ -70,6 +72,7 @@ export async function importData(): Promise<{ inserted: number }> {
         tx.delete(recipeItems).run();
         tx.delete(recipes).run();
         tx.delete(foods).run();
+        tx.delete(weightLogs).run();
 
         for (const row of data.foods) {
             tx.insert(foods).values(row).run();
@@ -92,6 +95,12 @@ export async function importData(): Promise<{ inserted: number }> {
         for (const row of data.entries) {
             tx.insert(entries).values(row).run();
             inserted++;
+        }
+        if (data.weightLogs) {
+            for (const row of data.weightLogs) {
+                tx.insert(weightLogs).values(row).run();
+                inserted++;
+            }
         }
         if (data.goals.length > 0) {
             tx.delete(goals).run();
@@ -123,5 +132,8 @@ function validate(data: unknown): asserts data is ExportPayload {
     // recipeLogs is optional for backwards compat with older exports
     if (d.recipeLogs !== undefined && !Array.isArray(d.recipeLogs)) {
         throw new Error(`Invalid backup file: "recipeLogs" must be an array.`);
+    }
+    if (d.weightLogs !== undefined && !Array.isArray(d.weightLogs)) {
+        throw new Error(`Invalid backup file: "weightLogs" must be an array.`);
     }
 }

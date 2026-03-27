@@ -110,6 +110,10 @@ const en = {
         keepMeal: "Keep original meal",
         move: "Move",
         copy: "Copy",
+        logWeight: "Log Weight",
+        weight: "Weight",
+        noWeightsLogged: "No weight logged yet",
+        weightDaysAgo: "{{count}}d ago",
     },
     recipes: {
         title: "Templates",
@@ -154,6 +158,7 @@ const en = {
         carbs: "Carbs",
         protein: "Protein",
         fat: "Fat",
+        weight: "Weight",
         statistics: "Statistics",
         min: "Min",
         avg: "Avg",
