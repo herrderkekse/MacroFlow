@@ -11,7 +11,7 @@ import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { type FoodUnit, formatQuantity, fromGrams } from "@/src/utils/units";
+import { type FoodUnit, formatEntryQuantity, formatQuantity, fromGrams } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
@@ -129,15 +129,14 @@ export default function RecipeLogModal({
                     {items.map((row) => {
                         const food = row.foods;
                         const qty = row.recipe_items.quantity_grams * portion;
-                        const itemUnit = (row.recipe_items.quantity_unit ?? "g") as FoodUnit;
-                        const displayQty = fromGrams(qty, itemUnit);
+                        const itemUnit = row.recipe_items.quantity_unit ?? "g";
                         const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
                         return (
                             <View key={row.recipe_items.id} style={styles.itemRow}>
                                 <Text style={styles.itemName} numberOfLines={1}>
                                     {food?.name ?? t("common.unknown")}
                                 </Text>
-                                <Text style={styles.itemDetail}>{formatQuantity(Math.round(displayQty * 10) / 10, itemUnit)} · {cals} cal</Text>
+                                <Text style={styles.itemDetail}>{formatEntryQuantity(qty, itemUnit)} · {cals} cal</Text>
                             </View>
                         );
                     })}

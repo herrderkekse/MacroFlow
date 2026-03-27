@@ -65,6 +65,13 @@ export function initDB() {
       quantity_unit TEXT NOT NULL DEFAULT 'g'
     );
 
+    CREATE TABLE IF NOT EXISTS serving_units (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      food_id INTEGER NOT NULL REFERENCES foods(id),
+      name TEXT NOT NULL,
+      grams REAL NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS weight_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       weight_kg REAL NOT NULL,

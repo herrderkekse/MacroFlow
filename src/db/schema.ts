@@ -57,6 +57,13 @@ export const recipeItems = sqliteTable("recipe_items", {
     quantity_unit: text("quantity_unit").notNull().default("g"),
 });
 
+export const servingUnits = sqliteTable("serving_units", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    food_id: integer("food_id").notNull().references(() => foods.id),
+    name: text("name").notNull(),
+    grams: real("grams").notNull(),
+});
+
 export const weightLogs = sqliteTable("weight_logs", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     weight_kg: real("weight_kg").notNull(),

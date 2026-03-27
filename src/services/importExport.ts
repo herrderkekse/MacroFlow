@@ -1,5 +1,5 @@
 import { db } from "@/src/db";
-import { entries, foods, goals, recipeItems, recipeLogs, recipes, weightLogs } from "@/src/db/schema";
+import { entries, foods, goals, recipeItems, recipeLogs, recipes, servingUnits, weightLogs } from "@/src/db/schema";
 import * as DocumentPicker from "expo-document-picker";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -16,6 +16,7 @@ interface ExportPayload {
     recipeItems: (typeof recipeItems.$inferSelect)[];
     recipeLogs?: (typeof recipeLogs.$inferSelect)[];
     weightLogs?: (typeof weightLogs.$inferSelect)[];
+    servingUnits?: (typeof servingUnits.$inferSelect)[];
 }
 
 // ── Export ──────────────────────────────────────────────────
@@ -31,6 +32,7 @@ export async function exportData(): Promise<void> {
         recipeItems: db.select().from(recipeItems).all(),
         recipeLogs: db.select().from(recipeLogs).all(),
         weightLogs: db.select().from(weightLogs).all(),
+        servingUnits: db.select().from(servingUnits).all(),
     };
 
     const json = JSON.stringify(payload, null, 2);
@@ -71,12 +73,19 @@ export async function importData(): Promise<{ inserted: number }> {
         tx.delete(recipeLogs).run();
         tx.delete(recipeItems).run();
         tx.delete(recipes).run();
+        tx.delete(servingUnits).run();
         tx.delete(foods).run();
         tx.delete(weightLogs).run();
 
         for (const row of data.foods) {
             tx.insert(foods).values(row).run();
             inserted++;
+        }
+        if (data.servingUnits) {
+            for (const row of data.servingUnits) {
+                tx.insert(servingUnits).values(row).run();
+                inserted++;
+            }
         }
         for (const row of data.recipes) {
             tx.insert(recipes).values(row).run();
@@ -135,5 +144,8 @@ function validate(data: unknown): asserts data is ExportPayload {
     }
     if (d.weightLogs !== undefined && !Array.isArray(d.weightLogs)) {
         throw new Error(`Invalid backup file: "weightLogs" must be an array.`);
+    }
+    if (d.servingUnits !== undefined && !Array.isArray(d.servingUnits)) {
+        throw new Error(`Invalid backup file: "servingUnits" must be an array.`);
     }
 }

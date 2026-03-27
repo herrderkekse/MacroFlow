@@ -64,3 +64,20 @@ export function formatQuantity(quantity: number, unit: FoodUnit): string {
 export function isValidUnit(s: string): s is FoodUnit {
     return ALL_UNITS.includes(s as FoodUnit);
 }
+
+/**
+ * Format an entry's stored quantity_grams + quantity_unit for display.
+ * Handles both standard units and custom serving unit names.
+ */
+export function formatEntryQuantity(quantityGrams: number, quantityUnit: string, servingGrams?: number): string {
+    if (isValidUnit(quantityUnit)) {
+        const displayQty = fromGrams(quantityGrams, quantityUnit);
+        return formatQuantity(Math.round(displayQty * 10) / 10, quantityUnit);
+    }
+    // Custom serving unit: reverse the stored grams → count
+    const count = servingGrams && servingGrams > 0
+        ? Math.round((quantityGrams / servingGrams) * 10) / 10
+        : Math.round(quantityGrams * 10) / 10;
+    const val = Number.isInteger(count) ? String(count) : count.toFixed(1);
+    return `${val} ${quantityUnit}`;
+}
