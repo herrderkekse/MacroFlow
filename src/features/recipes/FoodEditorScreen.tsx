@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { getFoodById, updateFood } from "@/src/db/queries";
+import { addFood, getFoodById, updateFood } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -8,6 +8,7 @@ import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { type FoodUnit, unitLabel, unitsForSystem } from "@/src/utils/units";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     KeyboardAvoidingView,
     Platform,
@@ -17,10 +18,9 @@ import {
     Text,
     View
 } from "react-native";
-import { useTranslation } from "react-i18next";
 
 export default function FoodEditorScreen() {
-    const { foodId } = useLocalSearchParams<{ foodId: string }>();
+    const { foodId } = useLocalSearchParams<{ foodId?: string }>();
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -47,17 +47,33 @@ export default function FoodEditorScreen() {
     }, [foodId]);
 
     function handleSave() {
-        if (!foodId || !name.trim()) return;
-        updateFood(Number(foodId), {
-            name: name.trim(),
-            calories_per_100g: parseFloat(calories) || 0,
-            protein_per_100g: parseFloat(protein) || 0,
-            carbs_per_100g: parseFloat(carbs) || 0,
-            fat_per_100g: parseFloat(fat) || 0,
-            default_unit: defaultUnit,
-        });
-        logger.info("[DB] Updated food", { id: foodId, name: name.trim() });
-        router.back();
+        if (!name.trim()) return;
+        try {
+            if (foodId) {
+                updateFood(Number(foodId), {
+                    name: name.trim(),
+                    calories_per_100g: parseFloat(calories) || 0,
+                    protein_per_100g: parseFloat(protein) || 0,
+                    carbs_per_100g: parseFloat(carbs) || 0,
+                    fat_per_100g: parseFloat(fat) || 0,
+                    default_unit: defaultUnit,
+                });
+                logger.info("[DB] Updated food", { id: foodId, name: name.trim() });
+            } else {
+                const created = addFood({
+                    name: name.trim(),
+                    calories_per_100g: parseFloat(calories) || 0,
+                    protein_per_100g: parseFloat(protein) || 0,
+                    carbs_per_100g: parseFloat(carbs) || 0,
+                    fat_per_100g: parseFloat(fat) || 0,
+                    default_unit: defaultUnit,
+                });
+                logger.info("[DB] Created food", { id: created.id, name: name.trim() });
+            }
+            router.back();
+        } catch (e) {
+            logger.error("[FoodEditor] Save failed", e);
+        }
     }
 
 

@@ -178,9 +178,7 @@ export function getStreak(): number {
     const yesterdayStr = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
     const last = rows[0].date;
-    console.log("last entry date until today:", last, "today:", todayStr, "yesterday:", yesterdayStr);
     if (last !== todayStr) {
-        console.log("Last entry is not from today, streak reset to 0.");
         return 0;
     }
 
@@ -189,7 +187,6 @@ export function getStreak(): number {
         const curr = new Date(rows[i - 1].date + "T00:00:00");
         const prev = new Date(rows[i].date + "T00:00:00");
         const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-        console.log(`Comparing ${toDateStr(prev)} and ${toDateStr(curr)}. Diff in days:`, diff);
         if (Math.round(diff) === 1) {
             streak++;
         } else {

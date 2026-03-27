@@ -13,8 +13,22 @@ export default function RecipesLayout() {
                 headerShadowVisible: false,
             }}
         >
-            <Stack.Screen name="edit" options={{ title: t("recipes.recipeEditorTitle") }} />
-            <Stack.Screen name="food-edit" options={{ title: t("recipes.foodEditorTitle") }} />
+            <Stack.Screen
+                name="edit"
+                options={({ route }) => ({
+                    title: (route.params as { recipeId?: string })?.recipeId
+                        ? t("recipes.recipeEditorTitle")
+                        : t("recipes.newRecipeTitle"),
+                })}
+            />
+            <Stack.Screen
+                name="food-edit"
+                options={({ route }) => ({
+                    title: (route.params as { foodId?: string })?.foodId
+                        ? t("recipes.foodEditorTitle")
+                        : t("recipes.newFoodTitle"),
+                })}
+            />
         </Stack>
     );
 }
