@@ -157,6 +157,7 @@ const en = {
         carbs: "Carbs",
         protein: "Protein",
         fat: "Fat",
+        weight: "Weight",
         statistics: "Statistics",
         min: "Min",
         avg: "Avg",

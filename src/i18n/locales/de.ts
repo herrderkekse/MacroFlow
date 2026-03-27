@@ -157,6 +157,7 @@ const de = {
         carbs: "Kohlenhydrate",
         protein: "Eiweiß",
         fat: "Fett",
+        weight: "Gewicht",
         statistics: "Statistik",
         min: "Min",
         avg: "Ø",

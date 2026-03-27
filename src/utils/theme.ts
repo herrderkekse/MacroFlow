@@ -14,6 +14,7 @@ export const lightColors = {
     protein: "#3B82F6",
     carbs: "#F59E0B",
     fat: "#EF4444",
+    weight: "#8B5CF6",
 } as const;
 
 export const darkColors = {
@@ -32,6 +33,7 @@ export const darkColors = {
     protein: "#60A5FA",
     carbs: "#FBBF24",
     fat: "#F87171",
+    weight: "#A78BFA",
 } as const;
 
 export type ThemeColors = { [K in keyof typeof lightColors]: string };

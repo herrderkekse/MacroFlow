@@ -1,4 +1,5 @@
-import { type DailyTotals, formatDateKey, getDailyTotalsForRange } from "@/src/db/queries";
+import { type DailyTotals, formatDateKey, getDailyTotalsForRange, getWeightLogsForRange, type WeightLog } from "@/src/db/queries";
+import { useAppStore } from "@/src/store/useAppStore";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
@@ -12,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // ── Types and Consts ───────────────────────────────────────
 
 type TimeSpan = 7 | 14 | 30 | 90 | 365 | "all";
-type Metric = "calories" | "macros" | "carbs" | "protein" | "fat";
+type Metric = "calories" | "macros" | "carbs" | "protein" | "fat" | "weight";
 type MacroKey = "protein" | "carbs" | "fat";
 
 const TIME_SPANS: { key: TimeSpan; labelKey: string }[] = [
@@ -30,6 +31,7 @@ const METRICS: { key: Metric; labelKey: string }[] = [
     { key: "carbs", labelKey: "analytics.carbs" },
     { key: "protein", labelKey: "analytics.protein" },
     { key: "fat", labelKey: "analytics.fat" },
+    { key: "weight", labelKey: "analytics.weight" },
 ];
 
 const MACRO_KCAL: Record<MacroKey, number> = { protein: 4, carbs: 4, fat: 9 };
@@ -49,14 +51,14 @@ function daysAgo(n: number): string {
     return formatDateKey(d);
 }
 
-const formatLabel = (d: DailyTotals) => {
-    const parts = d.date.split("-");
+const formatLabel = (date: string) => {
+    const parts = date.split("-");
     return `${parts[2]}/${parts[1]}`;
 };
 
 
-const makeLabelProps = (d: DailyTotals, timespan: TimeSpan, colors: ThemeColors) => {
-    const val = formatLabel(d);
+const makeLabelProps = (date: string, timespan: TimeSpan, colors: ThemeColors) => {
+    const val = formatLabel(date);
 
     let shouldShowLabel;
     switch (timespan) {
@@ -66,12 +68,12 @@ const makeLabelProps = (d: DailyTotals, timespan: TimeSpan, colors: ThemeColors)
             break;
         case 14:
             // Show labels for every other day for 14-day view
-            const dateEndsWithEven = parseInt(d.date.slice(-1)) % 2 === 0;
+            const dateEndsWithEven = parseInt(date.slice(-1)) % 2 === 0;
             shouldShowLabel = dateEndsWithEven;
             break;
         default:
             // Show labels for 1, 11th, 21st, of each month
-            const isMonthlyLabel = d.date.endsWith("-01") || d.date.endsWith("-11") || d.date.endsWith("-21");
+            const isMonthlyLabel = date.endsWith("-01") || date.endsWith("-11") || date.endsWith("-21");
             shouldShowLabel = isMonthlyLabel;
     }
 
@@ -128,10 +130,14 @@ export default function AnalyticsScreen() {
     const [metric, setMetric] = useState<Metric>("calories");
     const [statsOpen, setStatsOpen] = useState(false);
     const [selectedMacro, setSelectedMacro] = useState<MacroKey>("protein");
+    const unitSystem = useAppStore((s) => s.unitSystem);
+    const isImperial = unitSystem === "imperial";
+    const KG_TO_LB = 2.20462;
 
     // ── Data ───────────────────────────────────────────────
 
     const [data, setData] = useState<DailyTotals[]>([]);
+    const [weightData, setWeightData] = useState<WeightLog[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -141,6 +147,7 @@ export default function AnalyticsScreen() {
             const endDate = formatDateKey(new Date());
             const startDate = timeSpan === "all" ? "2000-01-01" : daysAgo(timeSpan);
             setData(getDailyTotalsForRange(startDate, endDate));
+            setWeightData(getWeightLogsForRange(startDate, endDate));
             setLoading(false);
         });
         return () => cancelAnimationFrame(id);
@@ -175,7 +182,7 @@ export default function AnalyticsScreen() {
             }));
             const proteinData = normalized.map((d, i) => ({
                 value: d.calories, // = d.fat * MACRO_KCAL.fat + d.carbs * MACRO_KCAL.carbs + d.protein * MACRO_KCAL.protein (because of normalization)
-                ...makeLabelProps(d, timeSpan, colors),
+                ...makeLabelProps(d.date, timeSpan, colors),
             }));
 
             return { type: "calories" as const, fatData, carbsData, proteinData };
@@ -189,7 +196,7 @@ export default function AnalyticsScreen() {
                 const pPct = (d.protein * MACRO_KCAL.protein / totalMacroCal) * 100;
                 const cPct = (d.carbs * MACRO_KCAL.carbs / totalMacroCal) * 100;
                 const fPct = (d.fat * MACRO_KCAL.fat / totalMacroCal) * 100;
-                return { ...makeLabelProps(d, timeSpan, colors), pPct, cPct, fPct };
+                return { ...makeLabelProps(d.date, timeSpan, colors), pPct, cPct, fPct };
             });
 
             // Stack: fat on bottom, then carbs, then protein on top
@@ -212,7 +219,7 @@ export default function AnalyticsScreen() {
 
             const dataGram = data.map((d, i) => ({
                 value: d[macroKey],
-                ...makeLabelProps(d, timeSpan, colors),
+                ...makeLabelProps(d.date, timeSpan, colors),
             }));
 
             const kcalFactor = MACRO_KCAL[macroKey];
@@ -232,10 +239,38 @@ export default function AnalyticsScreen() {
             };
         }
 
+        if (metric === "weight") {
+            // Average multiple weight entries per day
+            const byDate = new Map<string, number[]>();
+            for (const w of weightData) {
+                const arr = byDate.get(w.date) ?? [];
+                arr.push(w.weight_kg);
+                byDate.set(w.date, arr);
+            }
+            const dailyAvg = Array.from(byDate.entries())
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, vals]) => ({
+                    date,
+                    avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+                }));
+
+            if (dailyAvg.length === 0) return null;
+
+            const conversionFactor = isImperial ? KG_TO_LB : 1;
+            const weightPoints = dailyAvg.map((d, i) => {
+                return {
+                    value: d.avg * conversionFactor,
+                    ...makeLabelProps(d.date, timeSpan, colors),
+                };
+            });
+
+            return { type: "weight" as const, weightPoints };
+        }
+
         logger.warn("[UI] Unknown metric type for analytics chart", { metric });
         return null;
 
-    }, [data, metric, colors]);
+    }, [data, weightData, metric, colors, isImperial]);
 
     // ── Statistics ──────────────────────────────────────────
 
@@ -252,11 +287,25 @@ export default function AnalyticsScreen() {
             const macroKey = metric as MacroKey;
             return computeStats(data.map((d) => d[macroKey]));
         }
+        if (metric === "weight") {
+            // Average per day, then compute stats on daily averages
+            const byDate = new Map<string, number[]>();
+            for (const w of weightData) {
+                const arr = byDate.get(w.date) ?? [];
+                arr.push(w.weight_kg);
+                byDate.set(w.date, arr);
+            }
+            const conversionFactor = isImperial ? KG_TO_LB : 1;
+            const dailyAvgs = Array.from(byDate.values()).map(
+                (vals) => (vals.reduce((a, b) => a + b, 0) / vals.length) * conversionFactor
+            );
+            return computeStats(dailyAvgs);
+        }
         logger.warn("[UI] Unknown metric type for analytics stats", { metric });
         return null;
-    }, [data, metric, selectedMacro]);
+    }, [data, weightData, metric, selectedMacro, isImperial]);
 
-    const statsUnit = metric === "calories" ? t("common.kcal") : t("common.g");
+    const statsUnit = metric === "calories" ? t("common.kcal") : metric === "weight" ? (isImperial ? "lb" : "kg") : t("common.g");
     const statsLabel = metric === "macros" ? t(`analytics.${selectedMacro}`) : t(`analytics.${metric}`);
 
     // ── Macro area press for macros chart ──────────────────
@@ -279,7 +328,8 @@ export default function AnalyticsScreen() {
     // For non-scrollable charts, compute spacing so data fills exactly the available width
     const hasSecondaryAxis = chartConfig?.type === "single";
     const chartWidthProp = screenWidth - chartContainerPadding - yAxisLabelWidth - (hasSecondaryAxis ? secondaryAxisWidth - spacing.lg : 0);
-    const computedSpacing = data.length > 1 ? chartWidthProp / (data.length - 1) : chartWidthProp;
+    const pointCount = chartConfig?.type === "weight" ? (chartConfig.weightPoints.length) : data.length;
+    const computedSpacing = pointCount > 1 ? chartWidthProp / (pointCount - 1) : chartWidthProp;
     // For scrollable charts, use a comfortable fixed spacing
     const scrollSpacing = 8;
     const chartSpacing = shouldScroll ? scrollSpacing : computedSpacing;
@@ -400,7 +450,7 @@ export default function AnalyticsScreen() {
                     <View style={styles.emptyContainer}>
                         <ActivityIndicator size="large" color={colors.primary} />
                     </View>
-                ) : data.length === 0 ? (
+                ) : !chartConfig ? (
                     <View style={styles.emptyContainer}>
                         <Ionicons name="analytics-outline" size={48} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("analytics.noData")}</Text>
@@ -527,6 +577,40 @@ export default function AnalyticsScreen() {
                                 startOpacity1={START_OPACITY}
                                 endOpacity1={END_OPACITY}
                                 yAxisLabelSuffix=" g"
+                                // chart type independent props
+                                width={chartWidthProp}
+                                height={220}
+                                spacing={chartSpacing}
+                                initialSpacing={0}
+                                endSpacing={0}
+                                disableScroll={!shouldScroll}
+                                scrollToEnd={shouldScroll}
+                                noOfSections={5}
+                                yAxisColor={colors.border}
+                                xAxisColor={colors.border}
+                                yAxisTextStyle={styles.yAxisTextStyle}
+                                rulesColor={colors.border + "66"}
+                                curved
+                                curvature={CURVATURE}
+                                areaChart
+                                hideDataPoints
+                                isAnimated={ANIMATION_DURATION > 0}
+                                animationDuration={ANIMATION_DURATION}
+                                labelsExtraHeight={6}
+                                xAxisLabelsHeight={20}
+                            />
+                        )}
+                        {chartConfig?.type === "weight" && (
+                            <LineChart
+                                key={`weight-${timeSpan}`}
+                                // chart type dependent props
+                                data={chartConfig.weightPoints}
+                                color1={colors.weight}
+                                startFillColor1={shadeColor(colors.weight, START_SHADE)}
+                                endFillColor1={shadeColor(colors.weight, END_SHADE)}
+                                startOpacity1={START_OPACITY}
+                                endOpacity1={END_OPACITY}
+                                yAxisLabelSuffix={isImperial ? " lb" : " kg"}
                                 // chart type independent props
                                 width={chartWidthProp}
                                 height={220}
