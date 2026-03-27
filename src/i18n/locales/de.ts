@@ -146,6 +146,11 @@ const de = {
         newRecipe: "Rezept",
         newFood: "Lebensmittel",
         calPer100g: "{{cal}} kcal/100 g",
+        servingUnits: "Portionseinheiten",
+        servingUnitName: "Name",
+        servingUnitNamePlaceholder: "z. B. Würstchen, Packung",
+        servingUnitGrams: "Gramm",
+        addServingUnit: "Portionseinheit hinzufügen",
     },
     analytics: {
         title: "Analyse",

@@ -146,6 +146,11 @@ const en = {
         newRecipe: "Recipe",
         newFood: "Food",
         calPer100g: "{{cal}} cal/100g",
+        servingUnits: "Serving Units",
+        servingUnitName: "Name",
+        servingUnitNamePlaceholder: "e.g., sausage, pack",
+        servingUnitGrams: "Grams",
+        addServingUnit: "Add Serving Unit",
     },
     analytics: {
         title: "Analytics",

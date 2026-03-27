@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addEntry, formatDateKey, getLoggedRecipeGroups, updateEntry, type Entry, type Food, type LoggedRecipeGroup } from "@/src/db/queries";
+import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
@@ -45,6 +45,8 @@ export default function EntryModal({
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [quantity, setQuantity] = useState("100");
     const [unit, setUnit] = useState<FoodUnit>("g");
+    const [customServingUnit, setCustomServingUnit] = useState<ServingUnit | null>(null);
+    const [foodServingUnits, setFoodServingUnits] = useState<ServingUnit[]>([]);
     const [mealType, setMealType] = useState<MealType>(
         defaultMealType ?? "breakfast",
     );
@@ -59,13 +61,27 @@ export default function EntryModal({
         if (!food) {
             setRecipeGroups([]);
             setSelectedGroup(null);
+            setFoodServingUnits([]);
+            setCustomServingUnit(null);
             return;
         }
 
+        setFoodServingUnits(food.id ? getServingUnits(food.id) : []);
+
         if (entry) {
             const entryUnit = (entry.quantity_unit ?? "g") as FoodUnit;
-            setUnit(entryUnit);
-            setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
+            // Check if the entry uses a custom serving unit
+            const sUnits = food.id ? getServingUnits(food.id) : [];
+            const matchServing = sUnits.find((s) => s.name === entry.quantity_unit);
+            if (matchServing) {
+                setCustomServingUnit(matchServing);
+                setUnit("g");
+                setQuantity(String(Math.round((entry.quantity_grams / matchServing.grams) * 10) / 10));
+            } else {
+                setCustomServingUnit(null);
+                setUnit(entryUnit);
+                setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
+            }
             setMealType(entry.meal_type as MealType);
 
             // Load groups from the entry's own date/meal so the recipe
@@ -81,6 +97,7 @@ export default function EntryModal({
         } else {
             const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
             setUnit(defaultUnit);
+            setCustomServingUnit(null);
             setQuantity(String(food.serving_size ?? 100));
             const meal = defaultMealType ?? "breakfast";
             setMealType(meal);
@@ -107,7 +124,7 @@ export default function EntryModal({
     }, [mealType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const qty = parseFloat(quantity) || 0;
-    const qtyGrams = toGrams(qty, unit);
+    const qtyGrams = customServingUnit ? qty * customServingUnit.grams : toGrams(qty, unit);
 
     const calculated = useMemo(() => {
         if (!food) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -126,13 +143,15 @@ export default function EntryModal({
         !entry && selectedGroup && selectedGroup.portion !== 1 && portionMode === "per-portion";
     const finalQtyGrams = shouldApplyPortion ? qtyGrams * selectedGroup.portion : qtyGrams;
 
+    const savedUnit = customServingUnit ? customServingUnit.name : unit;
+
     function handleSave() {
         if (!food || qty <= 0) return;
 
         if (entry) {
             updateEntry(entry.id, {
                 quantity_grams: qtyGrams,
-                quantity_unit: unit,
+                quantity_unit: savedUnit,
                 meal_type: mealType,
                 recipe_log_id: selectedGroup?.recipeLogId ?? null,
             });
@@ -140,7 +159,7 @@ export default function EntryModal({
                 id: entry.id,
                 foodId: food.id,
                 quantity: qtyGrams,
-                unit,
+                unit: savedUnit,
                 mealType: mealType,
                 recipeLogId: selectedGroup?.recipeLogId,
             });
@@ -148,7 +167,7 @@ export default function EntryModal({
             addEntry({
                 food_id: food.id,
                 quantity_grams: finalQtyGrams,
-                quantity_unit: unit,
+                quantity_unit: savedUnit,
                 timestamp: Date.now(),
                 date: formatDateKey(selectedDate),
                 meal_type: mealType,
@@ -157,7 +176,7 @@ export default function EntryModal({
             logger.info("[DB] Added entry", {
                 foodId: food.id,
                 quantity: finalQtyGrams,
-                unit,
+                unit: savedUnit,
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
                 recipeLogId: selectedGroup?.recipeLogId,
@@ -214,7 +233,7 @@ export default function EntryModal({
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="decimal-pad"
-                        suffix={unitLabel(unit)}
+                        suffix={customServingUnit ? customServingUnit.name : unitLabel(unit)}
                         containerStyle={styles.quantityInput}
                     />
 
@@ -228,19 +247,38 @@ export default function EntryModal({
                         {unitOptions.map((u) => (
                             <Pressable
                                 key={u}
-                                onPress={() => setUnit(u)}
+                                onPress={() => { setUnit(u); setCustomServingUnit(null); }}
                                 style={[
                                     styles.unitChip,
-                                    unit === u && styles.unitChipActive,
+                                    unit === u && !customServingUnit && styles.unitChipActive,
                                 ]}
                             >
                                 <Text
                                     style={[
                                         styles.unitChipText,
-                                        unit === u && styles.unitChipTextActive,
+                                        unit === u && !customServingUnit && styles.unitChipTextActive,
                                     ]}
                                 >
                                     {unitLabel(u)}
+                                </Text>
+                            </Pressable>
+                        ))}
+                        {foodServingUnits.map((su) => (
+                            <Pressable
+                                key={`su-${su.id}`}
+                                onPress={() => setCustomServingUnit(su)}
+                                style={[
+                                    styles.unitChip,
+                                    customServingUnit?.id === su.id && styles.unitChipActive,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.unitChipText,
+                                        customServingUnit?.id === su.id && styles.unitChipTextActive,
+                                    ]}
+                                >
+                                    {su.name} ({su.grams}g)
                                 </Text>
                             </Pressable>
                         ))}

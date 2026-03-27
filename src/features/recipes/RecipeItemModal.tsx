@@ -1,6 +1,6 @@
 import Input from "@/src/components/Input";
 import Button from "@/src/components/Button";
-import { updateRecipeItem, type Food, type RecipeItem } from "@/src/db/queries";
+import { getServingUnits, updateRecipeItem, type Food, type RecipeItem, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
@@ -39,19 +39,34 @@ export default function RecipeItemModal({
 
     const [quantity, setQuantity] = useState("100");
     const [unit, setUnit] = useState<FoodUnit>("g");
+    const [customServingUnit, setCustomServingUnit] = useState<ServingUnit | null>(null);
+    const [foodServingUnits, setFoodServingUnits] = useState<ServingUnit[]>([]);
 
     React.useEffect(() => {
-        if (item) {
-            const itemUnit = (item.quantity_unit ?? "g") as FoodUnit;
-            setUnit(itemUnit);
-            setQuantity(
-                String(Math.round(fromGrams(item.quantity_grams, itemUnit) * 10) / 10),
-            );
+        if (item && food) {
+            const sUnits = food.id ? getServingUnits(food.id) : [];
+            setFoodServingUnits(sUnits);
+            const matchServing = sUnits.find((s) => s.name === item.quantity_unit);
+            if (matchServing) {
+                setCustomServingUnit(matchServing);
+                setUnit("g");
+                setQuantity(String(Math.round((item.quantity_grams / matchServing.grams) * 10) / 10));
+            } else {
+                setCustomServingUnit(null);
+                const itemUnit = (item.quantity_unit ?? "g") as FoodUnit;
+                setUnit(itemUnit);
+                setQuantity(
+                    String(Math.round(fromGrams(item.quantity_grams, itemUnit) * 10) / 10),
+                );
+            }
+        } else if (food) {
+            setFoodServingUnits(food.id ? getServingUnits(food.id) : []);
+            setCustomServingUnit(null);
         }
-    }, [item]);
+    }, [item, food]);
 
     const qty = parseFloat(quantity) || 0;
-    const qtyGrams = toGrams(qty, unit);
+    const qtyGrams = customServingUnit ? qty * customServingUnit.grams : toGrams(qty, unit);
 
     const calculated = useMemo(() => {
         if (!food) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -66,7 +81,8 @@ export default function RecipeItemModal({
 
     function handleSave() {
         if (!item || qty <= 0) return;
-        updateRecipeItem(item.id, { quantity_grams: qtyGrams, quantity_unit: unit });
+        const savedUnit = customServingUnit ? customServingUnit.name : unit;
+        updateRecipeItem(item.id, { quantity_grams: qtyGrams, quantity_unit: savedUnit });
         onSaved(item.id, qtyGrams, unit);
     }
 
@@ -107,7 +123,7 @@ export default function RecipeItemModal({
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="decimal-pad"
-                        suffix={unitLabel(unit)}
+                        suffix={customServingUnit ? customServingUnit.name : unitLabel(unit)}
                         containerStyle={styles.quantityInput}
                     />
 
@@ -121,19 +137,38 @@ export default function RecipeItemModal({
                         {unitOptions.map((u) => (
                             <Pressable
                                 key={u}
-                                onPress={() => setUnit(u)}
+                                onPress={() => { setUnit(u); setCustomServingUnit(null); }}
                                 style={[
                                     styles.unitChip,
-                                    unit === u && styles.unitChipActive,
+                                    unit === u && !customServingUnit && styles.unitChipActive,
                                 ]}
                             >
                                 <Text
                                     style={[
                                         styles.unitChipText,
-                                        unit === u && styles.unitChipTextActive,
+                                        unit === u && !customServingUnit && styles.unitChipTextActive,
                                     ]}
                                 >
                                     {unitLabel(u)}
+                                </Text>
+                            </Pressable>
+                        ))}
+                        {foodServingUnits.map((su) => (
+                            <Pressable
+                                key={`su-${su.id}`}
+                                onPress={() => setCustomServingUnit(su)}
+                                style={[
+                                    styles.unitChip,
+                                    customServingUnit?.id === su.id && styles.unitChipActive,
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.unitChipText,
+                                        customServingUnit?.id === su.id && styles.unitChipTextActive,
+                                    ]}
+                                >
+                                    {su.name} ({su.grams}g)
                                 </Text>
                             </Pressable>
                         ))}

@@ -1,9 +1,9 @@
 import type { Entry, Food } from "@/src/db/queries";
-import { getRecipeById, getRecipeItems, getRecipeLogById } from "@/src/db/queries";
+import { getRecipeById, getRecipeItems, getRecipeLogById, getServingUnits } from "@/src/db/queries";
 import type { MealType } from "@/src/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { type FoodUnit, formatQuantity, fromGrams } from "@/src/utils/units";
+import { type FoodUnit, formatEntryQuantity, formatQuantity, fromGrams } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -213,8 +213,8 @@ function EntryRow({
     const styles = useMemo(() => createStyles(colors), [colors]);
     const food = row.foods;
     const qty = row.entries.quantity_grams;
-    const entryUnit = (row.entries.quantity_unit ?? "g") as FoodUnit;
-    const displayQty = fromGrams(qty, entryUnit);
+    const entryUnit = row.entries.quantity_unit ?? "g";
+    const servingGrams = food?.id ? getServingUnits(food.id).find((s) => s.name === entryUnit)?.grams : undefined;
     const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
 
     return (
@@ -240,7 +240,7 @@ function EntryRow({
                     {food?.name ?? t("log.unknownFood")}
                 </Text>
                 <Text style={styles.entryDetail}>
-                    {formatQuantity(Math.round(displayQty * 10) / 10, entryUnit)} · {cals} cal
+                    {formatEntryQuantity(qty, entryUnit, servingGrams)} · {cals} cal
                 </Text>
             </View>
             {!selectionMode && (

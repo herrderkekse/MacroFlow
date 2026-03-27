@@ -1,7 +1,7 @@
 import { and, eq, gte, like, lte, sql } from "drizzle-orm";
 import logger from "../utils/logger";
 import { db } from "./index";
-import { entries, foods, goals, recipeItems, recipeLogs, recipes, weightLogs } from "./schema";
+import { entries, foods, goals, recipeItems, recipeLogs, recipes, servingUnits, weightLogs } from "./schema";
 
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
@@ -16,6 +16,8 @@ export type RecipeLog = typeof recipeLogs.$inferSelect;
 export type NewRecipeLog = typeof recipeLogs.$inferInsert;
 export type WeightLog = typeof weightLogs.$inferSelect;
 export type NewWeightLog = typeof weightLogs.$inferInsert;
+export type ServingUnit = typeof servingUnits.$inferSelect;
+export type NewServingUnit = typeof servingUnits.$inferInsert;
 
 // ── Food CRUD ──────────────────────────────────────────────
 
@@ -57,9 +59,32 @@ export function updateFood(id: number, values: Partial<NewFood>) {
 }
 
 export function deleteFood(id: number) {
+    db.delete(servingUnits).where(eq(servingUnits.food_id, id)).run();
     db.delete(recipeItems).where(eq(recipeItems.food_id, id)).run();
     db.delete(entries).where(eq(entries.food_id, id)).run();
     db.delete(foods).where(eq(foods.id, id)).run();
+}
+
+// ── Serving Units ─────────────────────────────────────────
+
+export function getServingUnits(foodId: number): ServingUnit[] {
+    return db.select().from(servingUnits).where(eq(servingUnits.food_id, foodId)).all();
+}
+
+export function addServingUnit(unit: NewServingUnit): ServingUnit {
+    return db.insert(servingUnits).values(unit).returning().get();
+}
+
+export function updateServingUnit(id: number, values: Partial<NewServingUnit>) {
+    db.update(servingUnits).set(values).where(eq(servingUnits.id, id)).run();
+}
+
+export function deleteServingUnit(id: number) {
+    db.delete(servingUnits).where(eq(servingUnits.id, id)).run();
+}
+
+export function deleteServingUnitsForFood(foodId: number) {
+    db.delete(servingUnits).where(eq(servingUnits.food_id, foodId)).run();
 }
 
 // ── Entry CRUD ─────────────────────────────────────────────
