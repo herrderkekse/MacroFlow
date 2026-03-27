@@ -1,5 +1,5 @@
-import Input from "@/src/components/Input";
 import Button from "@/src/components/Button";
+import Input from "@/src/components/Input";
 import type { WeightLog } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -46,17 +46,21 @@ export default function WeightSection({ weights, onAdd, onDelete }: WeightSectio
             <Pressable style={styles.header} onPress={() => setShowModal(true)}>
                 <Ionicons name="scale-outline" size={18} color={colors.textSecondary} />
                 <Text style={styles.headerLabel}>{t("log.weight")}</Text>
-                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
             </Pressable>
 
-            {weights.map((w) => (
-                <View key={w.id} style={styles.row}>
-                    <Text style={styles.rowText}>{formatWeight(w.weight_kg)}</Text>
-                    <Pressable onPress={() => onDelete(w.id)} hitSlop={8}>
-                        <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                    </Pressable>
-                </View>
-            ))}
+            {weights.length === 0 ? (
+                <Text style={styles.empty}>{t("log.noWeightsLogged")}</Text>
+            ) : (
+                weights.map((w) => (
+                    <View key={w.id} style={styles.row}>
+                        <Text style={styles.rowText}>{formatWeight(w.weight_kg)}</Text>
+                        <Pressable onPress={() => onDelete(w.id)} hitSlop={8}>
+                            <Ionicons name="close-circle-outline" size={20} color={colors.textTertiary} />
+                        </Pressable>
+                    </View>
+                ))
+            )}
 
             <Modal
                 visible={showModal}
@@ -65,7 +69,7 @@ export default function WeightSection({ weights, onAdd, onDelete }: WeightSectio
                 onRequestClose={() => setShowModal(false)}
             >
                 <Pressable style={styles.overlay} onPress={() => setShowModal(false)}>
-                    <Pressable style={styles.modal} onPress={() => {}}>
+                    <Pressable style={styles.modal} onPress={() => { }}>
                         <Text style={styles.modalTitle}>{t("log.logWeight")}</Text>
                         <Input
                             value={weightInput}
@@ -116,6 +120,12 @@ function createStyles(colors: ThemeColors) {
         rowText: {
             fontSize: fontSize.sm,
             color: colors.text,
+        },
+        empty: {
+            fontSize: fontSize.sm,
+            color: colors.textTertiary,
+            paddingVertical: spacing.sm,
+            marginTop: spacing.sm,
         },
         overlay: {
             flex: 1,

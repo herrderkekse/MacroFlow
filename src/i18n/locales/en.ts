@@ -112,6 +112,7 @@ const en = {
         copy: "Copy",
         logWeight: "Log Weight",
         weight: "Weight",
+        noWeightsLogged: "No weight logged yet",
     },
     recipes: {
         title: "Templates",

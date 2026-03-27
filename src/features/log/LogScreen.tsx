@@ -161,13 +161,11 @@ function DayPage({
                         onActivateSelectionMultiple={onActivateSelectionMultiple}
                     />
                 ))}
-                {onAddWeight && onDeleteWeight && (
-                    <WeightSection
-                        weights={weightLogs ?? []}
-                        onAdd={onAddWeight}
-                        onDelete={onDeleteWeight}
-                    />
-                )}
+                <WeightSection
+                    weights={weightLogs ?? []}
+                    onAdd={onAddWeight ?? (() => { })}
+                    onDelete={onDeleteWeight ?? (() => { })}
+                />
             </ScrollView>
         </View>
     );

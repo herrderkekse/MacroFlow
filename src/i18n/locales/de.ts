@@ -111,6 +111,7 @@ const de = {
         copy: "Kopieren",
         logWeight: "Gewicht erfassen",
         weight: "Gewicht",
+        noWeightsLogged: "Noch kein Gewicht erfasst",
     },
     recipes: {
         title: "Vorlagen",
