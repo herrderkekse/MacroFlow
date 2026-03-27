@@ -133,6 +133,7 @@ export default function FoodEditorScreen() {
                         label={t("settings.carbs")}
                         placeholder="0"
                         suffix={t("common.g")}
+                        value={carbs}
                         onChangeText={setCarbs}
                         keyboardType="decimal-pad"
                         containerStyle={styles.halfField}
@@ -141,6 +142,7 @@ export default function FoodEditorScreen() {
                         label={t("settings.fat")}
                         placeholder="0"
                         suffix={t("common.g")}
+                        value={fat}
                         onChangeText={setFat}
                         keyboardType="decimal-pad"
                         containerStyle={styles.halfField}
