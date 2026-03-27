@@ -3,9 +3,9 @@ import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,7 +34,7 @@ const METRICS: { key: Metric; labelKey: string }[] = [
 
 const MACRO_KCAL: Record<MacroKey, number> = { protein: 4, carbs: 4, fat: 9 };
 
-const ANIMATION_DURATION = 0;
+const ANIMATION_DURATION = 0; // ms, set to 0 to disable animation
 const CURVATURE = 0.1; // 0 = straight lines, 1 = very curvy
 const START_OPACITY = 1;
 const END_OPACITY = 1;
@@ -131,10 +131,19 @@ export default function AnalyticsScreen() {
 
     // ── Data ───────────────────────────────────────────────
 
-    const data = useMemo(() => {
-        const endDate = formatDateKey(new Date());
-        const startDate = timeSpan === "all" ? "2000-01-01" : daysAgo(timeSpan);
-        return getDailyTotalsForRange(startDate, endDate);
+    const [data, setData] = useState<DailyTotals[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+        // Defer the heavy query so the UI can show the loading indicator first
+        const id = requestAnimationFrame(() => {
+            const endDate = formatDateKey(new Date());
+            const startDate = timeSpan === "all" ? "2000-01-01" : daysAgo(timeSpan);
+            setData(getDailyTotalsForRange(startDate, endDate));
+            setLoading(false);
+        });
+        return () => cancelAnimationFrame(id);
     }, [timeSpan]);
 
     // ── Chart data ─────────────────────────────────────────
@@ -387,7 +396,11 @@ export default function AnalyticsScreen() {
                 )}
 
                 {/* Chart */}
-                {data.length === 0 ? (
+                {loading ? (
+                    <View style={styles.emptyContainer}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                ) : data.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <Ionicons name="analytics-outline" size={48} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("analytics.noData")}</Text>
@@ -396,6 +409,7 @@ export default function AnalyticsScreen() {
                     <View style={styles.chartWrapper}>
                         {chartConfig?.type === "calories" && (
                             <LineChart
+                                key={`calories-${timeSpan}`}
                                 // chart type dependent props
                                 data={chartConfig.proteinData}
                                 data2={chartConfig.carbsData}
@@ -445,6 +459,7 @@ export default function AnalyticsScreen() {
                         )}
                         {chartConfig?.type === "macros" && (
                             <LineChart
+                                key={`macros-${timeSpan}`}
                                 // chart type dependent props
                                 data={chartConfig.proteinData}
                                 data2={chartConfig.carbsData}
@@ -493,6 +508,7 @@ export default function AnalyticsScreen() {
                         )}
                         {chartConfig?.type === "single" && (
                             <LineChart
+                                key={`single-${timeSpan}`}
                                 // chart type dependent props
                                 data={chartConfig.mainData}
                                 secondaryData={chartConfig.secondaryData}
