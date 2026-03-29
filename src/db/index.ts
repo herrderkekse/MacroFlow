@@ -100,6 +100,7 @@ export function initDB() {
     "ALTER TABLE goals ADD COLUMN language TEXT NOT NULL DEFAULT 'en'",
     "ALTER TABLE foods ADD COLUMN last_logged_amount REAL",
     "ALTER TABLE foods ADD COLUMN last_logged_unit TEXT",
+    "ALTER TABLE goals ADD COLUMN appearance_mode TEXT NOT NULL DEFAULT 'system'",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }

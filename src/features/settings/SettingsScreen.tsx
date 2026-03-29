@@ -63,6 +63,9 @@ export default function SettingsScreen() {
             if (g.unit_system === "metric" || g.unit_system === "imperial") {
                 setUnitSystem(g.unit_system as UnitSystem);
             }
+            if (g.appearance_mode === "light" || g.appearance_mode === "dark" || g.appearance_mode === "system") {
+                setAppearanceMode(g.appearance_mode as AppearanceMode);
+            }
         }
     }, []);
 
@@ -137,6 +140,9 @@ export default function SettingsScreen() {
                 if (g.unit_system === "metric" || g.unit_system === "imperial") {
                     setUnitSystem(g.unit_system as UnitSystem);
                 }
+                if (g.appearance_mode === "light" || g.appearance_mode === "dark" || g.appearance_mode === "system") {
+                    setAppearanceMode(g.appearance_mode as AppearanceMode);
+                }
             }
             Alert.alert(
                 t("settings.importComplete"),
@@ -191,7 +197,7 @@ export default function SettingsScreen() {
                             styles.chip,
                             appearanceMode === opt.key && styles.chipActive,
                         ]}
-                        onPress={() => setAppearanceMode(opt.key)}
+                        onPress={() => { setAppearanceMode(opt.key); setGoals({ appearance_mode: opt.key }); }}
                     >
                         <Text
                             style={[
