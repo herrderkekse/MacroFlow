@@ -9,7 +9,7 @@ import { StyleSheet, Text, View } from "react-native";
 const icons: Record<string, string> = {
     index: 'create',
     recipes: 'library',
-    settings: 'settings'
+    more: 'ellipsis-horizontal'
 };
 
 export default function TabsLayout() {
@@ -66,7 +66,12 @@ export default function TabsLayout() {
         >
             <Tabs.Screen name="recipes" options={{ title: t("nav.templates"), tabBarLabel: t("nav.templates") }} />
             <Tabs.Screen name="index" options={{ title: t("nav.logs"), tabBarLabel: t("nav.logs") }} />
-            <Tabs.Screen name="settings" options={{ title: t("nav.settings"), tabBarLabel: t("nav.settings") }} />
+            <Tabs.Screen name="more" options={{ title: t("nav.more"), tabBarLabel: t("nav.more") }} />
+            {/* Hidden screens — part of tabs so the tab bar stays visible */}
+            <Tabs.Screen name="analytics" options={{ href: null }} />
+            <Tabs.Screen name="goals" options={{ href: null }} />
+            <Tabs.Screen name="backup" options={{ href: null }} />
+            <Tabs.Screen name="settings" options={{ href: null }} />
         </Tabs>
     );
 }
