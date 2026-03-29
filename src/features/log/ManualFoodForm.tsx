@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addFood, type Food } from "@/src/db/queries";
+import { addFood, addServingUnit, type Food } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -51,6 +51,9 @@ export default function ManualFoodForm({
     const [carbs, setCarbs] = useState("");
     const [fat, setFat] = useState("");
     const [defaultUnit, setDefaultUnit] = useState<FoodUnit>("g");
+    const [servingUnitRows, setServingUnitRows] = useState<
+        { name: string; grams: string }[]
+    >([]);
 
     function handleSave() {
         const trimmedName = name.trim();
@@ -66,6 +69,13 @@ export default function ManualFoodForm({
             default_unit: defaultUnit,
         });
         logger.info("[DB] Created food manually", { id: food.id, name: food.name });
+        for (const row of servingUnitRows) {
+            const trimmedName = row.name.trim();
+            const grams = parseFloat(row.grams);
+            if (trimmedName && grams > 0) {
+                addServingUnit({ food_id: food.id, name: trimmedName, grams });
+            }
+        }
         resetForm();
         onFoodCreated(food);
     }
@@ -77,6 +87,7 @@ export default function ManualFoodForm({
         setCarbs("");
         setFat("");
         setDefaultUnit("g");
+        setServingUnitRows([]);
     }
 
     function handleClose() {
@@ -194,6 +205,53 @@ export default function ManualFoodForm({
                         />
                     </View>
 
+                    {/* Serving Units */}
+                    <Text style={styles.sectionLabel}>
+                        {t("recipes.servingUnits")}
+                    </Text>
+                    {servingUnitRows.map((row, idx) => (
+                        <View key={`su-${idx}`} style={styles.servingRow}>
+                            <Input
+                                label={t("recipes.servingUnitName")}
+                                placeholder={t("recipes.servingUnitNamePlaceholder")}
+                                value={row.name}
+                                onChangeText={(v) => {
+                                    const next = [...servingUnitRows];
+                                    next[idx] = { ...row, name: v };
+                                    setServingUnitRows(next);
+                                }}
+                                containerStyle={styles.servingNameField}
+                            />
+                            <Input
+                                label={t("recipes.servingUnitGrams")}
+                                placeholder="0"
+                                suffix="g"
+                                value={row.grams}
+                                onChangeText={(v) => {
+                                    const next = [...servingUnitRows];
+                                    next[idx] = { ...row, grams: v };
+                                    setServingUnitRows(next);
+                                }}
+                                keyboardType="decimal-pad"
+                                containerStyle={styles.servingGramsField}
+                            />
+                            <Pressable
+                                onPress={() => setServingUnitRows(servingUnitRows.filter((_, i) => i !== idx))}
+                                hitSlop={8}
+                                style={styles.servingDeleteBtn}
+                            >
+                                <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                            </Pressable>
+                        </View>
+                    ))}
+                    <Pressable
+                        onPress={() => setServingUnitRows([...servingUnitRows, { name: "", grams: "" }])}
+                        style={styles.addServingBtn}
+                    >
+                        <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                        <Text style={styles.addServingText}>{t("recipes.addServingUnit")}</Text>
+                    </Pressable>
+
                     <Button
                         title={t("log.createFood")}
                         onPress={handleSave}
@@ -268,5 +326,29 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
         },
         halfField: { flex: 1 },
         saveButton: { marginTop: spacing.md },
+        servingRow: {
+            flexDirection: "row",
+            alignItems: "flex-end",
+            gap: spacing.sm,
+            marginBottom: spacing.sm,
+        },
+        servingNameField: { flex: 2 },
+        servingGramsField: { flex: 1 },
+        servingDeleteBtn: {
+            paddingBottom: spacing.sm,
+            paddingHorizontal: spacing.xs,
+        },
+        addServingBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+            marginBottom: spacing.md,
+            paddingVertical: spacing.sm,
+        },
+        addServingText: {
+            fontSize: fontSize.sm,
+            color: colors.primary,
+            fontWeight: "600",
+        },
     });
 }
