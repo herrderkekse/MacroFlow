@@ -8,7 +8,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -53,6 +53,7 @@ export default function EntryModal({
     const [recipeGroups, setRecipeGroups] = useState<LoggedRecipeGroup[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<LoggedRecipeGroup | null>(null);
     const [portionMode, setPortionMode] = useState<"per-portion" | "total">("per-portion");
+    const amountTouched = useRef(false);
 
     // Initialize form fields and fetch recipe groups whenever the entry/food/meal/date changes.
     // Keeping this in a single effect avoids a race where a second effect would overwrite
@@ -63,6 +64,7 @@ export default function EntryModal({
             setSelectedGroup(null);
             setFoodServingUnits([]);
             setCustomServingUnit(null);
+            amountTouched.current = false;
             return;
         }
 
@@ -83,6 +85,7 @@ export default function EntryModal({
                 setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
             }
             setMealType(entry.meal_type as MealType);
+            amountTouched.current = true;
 
             // Load groups from the entry's own date/meal so the recipe
             // association is always preserved when opening Edit Entry.
@@ -114,6 +117,7 @@ export default function EntryModal({
                 setCustomServingUnit(null);
                 setQuantity(String(food.serving_size ?? 100));
             }
+            amountTouched.current = false;
             const meal = defaultMealType ?? "breakfast";
             setMealType(meal);
 
@@ -252,7 +256,7 @@ export default function EntryModal({
                     <Input
                         label={t("log.quantity")}
                         value={quantity}
-                        onChangeText={setQuantity}
+                        onChangeText={(text) => { amountTouched.current = true; setQuantity(text); }}
                         keyboardType="decimal-pad"
                         suffix={customServingUnit ? customServingUnit.name : unitLabel(unit)}
                         containerStyle={styles.quantityInput}
@@ -287,7 +291,10 @@ export default function EntryModal({
                         {foodServingUnits.map((su) => (
                             <Pressable
                                 key={`su-${su.id}`}
-                                onPress={() => setCustomServingUnit(su)}
+                                onPress={() => {
+                                    if (!amountTouched.current) setQuantity("1");
+                                    setCustomServingUnit(su);
+                                }}
                                 style={[
                                     styles.unitChip,
                                     customServingUnit?.id === su.id && styles.unitChipActive,
