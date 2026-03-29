@@ -1,14 +1,14 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
+import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, updateFood, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { fromGrams, toGrams, defaultAmountForUnit, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -53,6 +53,7 @@ export default function EntryModal({
     const [recipeGroups, setRecipeGroups] = useState<LoggedRecipeGroup[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<LoggedRecipeGroup | null>(null);
     const [portionMode, setPortionMode] = useState<"per-portion" | "total">("per-portion");
+    const amountTouched = useRef(false);
 
     // Initialize form fields and fetch recipe groups whenever the entry/food/meal/date changes.
     // Keeping this in a single effect avoids a race where a second effect would overwrite
@@ -63,6 +64,7 @@ export default function EntryModal({
             setSelectedGroup(null);
             setFoodServingUnits([]);
             setCustomServingUnit(null);
+            amountTouched.current = false;
             return;
         }
 
@@ -83,6 +85,7 @@ export default function EntryModal({
                 setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
             }
             setMealType(entry.meal_type as MealType);
+            amountTouched.current = true;
 
             // Load groups from the entry's own date/meal so the recipe
             // association is always preserved when opening Edit Entry.
@@ -95,10 +98,26 @@ export default function EntryModal({
                 setSelectedGroup(null);
             }
         } else {
-            const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
-            setUnit(defaultUnit);
-            setCustomServingUnit(null);
-            setQuantity(String(food.serving_size ?? 100));
+            // Use last logged amount/unit if available, otherwise fall back to food defaults
+            const sUnits = food.id ? getServingUnits(food.id) : [];
+            if (food.last_logged_amount != null && food.last_logged_unit != null) {
+                const lastUnit = food.last_logged_unit;
+                const matchServing = sUnits.find((s) => s.name === lastUnit);
+                if (matchServing) {
+                    setCustomServingUnit(matchServing);
+                    setUnit("g");
+                } else {
+                    setCustomServingUnit(null);
+                    setUnit(lastUnit as FoodUnit);
+                }
+                setQuantity(String(food.last_logged_amount));
+            } else {
+                const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
+                setUnit(defaultUnit);
+                setCustomServingUnit(null);
+                setQuantity(String(food.serving_size ?? 100));
+            }
+            amountTouched.current = false;
             const meal = defaultMealType ?? "breakfast";
             setMealType(meal);
 
@@ -181,6 +200,12 @@ export default function EntryModal({
                 mealType: mealType,
                 recipeLogId: selectedGroup?.recipeLogId,
             });
+
+            // Persist last logged amount/unit on the food for future defaults
+            updateFood(food.id, {
+                last_logged_amount: qty,
+                last_logged_unit: savedUnit,
+            });
         }
 
         setQuantity("100");
@@ -231,7 +256,7 @@ export default function EntryModal({
                     <Input
                         label={t("log.quantity")}
                         value={quantity}
-                        onChangeText={setQuantity}
+                        onChangeText={(text) => { amountTouched.current = true; setQuantity(text); }}
                         keyboardType="decimal-pad"
                         suffix={customServingUnit ? customServingUnit.name : unitLabel(unit)}
                         containerStyle={styles.quantityInput}
@@ -247,7 +272,11 @@ export default function EntryModal({
                         {unitOptions.map((u) => (
                             <Pressable
                                 key={u}
-                                onPress={() => { setUnit(u); setCustomServingUnit(null); }}
+                                onPress={() => {
+                                    setUnit(u);
+                                    setCustomServingUnit(null);
+                                    if (!amountTouched.current) setQuantity(String(defaultAmountForUnit(u)));
+                                }}
                                 style={[
                                     styles.unitChip,
                                     unit === u && !customServingUnit && styles.unitChipActive,
@@ -266,7 +295,10 @@ export default function EntryModal({
                         {foodServingUnits.map((su) => (
                             <Pressable
                                 key={`su-${su.id}`}
-                                onPress={() => setCustomServingUnit(su)}
+                                onPress={() => {
+                                    if (!amountTouched.current) setQuantity("1");
+                                    setCustomServingUnit(su);
+                                }}
                                 style={[
                                     styles.unitChip,
                                     customServingUnit?.id === su.id && styles.unitChipActive,

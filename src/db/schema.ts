@@ -12,6 +12,8 @@ export const foods = sqliteTable("foods", {
     source: text("source").notNull().default("manual"),
     default_unit: text("default_unit").notNull().default("g"),
     serving_size: real("serving_size").notNull().default(100),
+    last_logged_amount: real("last_logged_amount"),
+    last_logged_unit: text("last_logged_unit"),
 });
 
 export const recipeLogs = sqliteTable("recipe_logs", {
