@@ -1,5 +1,6 @@
 import Input from "@/src/components/Input";
 import Button from "@/src/components/Button";
+import UnitPicker from "@/src/components/UnitPicker";
 import { getServingUnits, updateRecipeItem, type Food, type RecipeItem, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -131,50 +132,20 @@ export default function RecipeItemModal({
 
                     {/* Unit picker */}
                     <Text style={styles.sectionLabel}>{t("log.unit")}</Text>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.unitRow}
-                    >
-                        {unitOptions.map((u) => (
-                            <Pressable
-                                key={u}
-                                onPress={() => { setUnit(u); setCustomServingUnit(null); }}
-                                style={[
-                                    styles.unitChip,
-                                    unit === u && !customServingUnit && styles.unitChipActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.unitChipText,
-                                        unit === u && !customServingUnit && styles.unitChipTextActive,
-                                    ]}
-                                >
-                                    {unitLabel(u)}
-                                </Text>
-                            </Pressable>
-                        ))}
-                        {foodServingUnits.map((su) => (
-                            <Pressable
-                                key={`su-${su.id}`}
-                                onPress={() => setCustomServingUnit(su)}
-                                style={[
-                                    styles.unitChip,
-                                    customServingUnit?.id === su.id && styles.unitChipActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.unitChipText,
-                                        customServingUnit?.id === su.id && styles.unitChipTextActive,
-                                    ]}
-                                >
-                                    {su.name} ({su.grams}g)
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </ScrollView>
+                    <UnitPicker
+                        unitOptions={unitOptions}
+                        selectedUnit={unit}
+                        onSelectUnit={(u) => { setUnit(u); setCustomServingUnit(null); }}
+                        servingUnits={foodServingUnits}
+                        selectedServingUnit={customServingUnit}
+                        onSelectServingUnit={(su) => setCustomServingUnit(su)}
+                        foodId={food?.id ?? null}
+                        onServingUnitCreated={(saved, allUnits) => {
+                            setFoodServingUnits(allUnits);
+                            setCustomServingUnit(saved);
+                            setQuantity("1");
+                        }}
+                    />
 
                     {/* Live macro calculation */}
                     <View style={styles.calcCard}>
@@ -277,31 +248,6 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
             color: colors.text,
             marginTop: spacing.lg,
             marginBottom: spacing.sm,
-        },
-        unitRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            paddingBottom: spacing.sm,
-        },
-        unitChip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-        },
-        unitChipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        unitChipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        unitChipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
         },
         calcCard: {
             backgroundColor: colors.surface,

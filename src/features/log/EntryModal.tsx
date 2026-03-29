@@ -1,6 +1,7 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addEntry, addServingUnit, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, updateFood, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
+import UnitPicker from "@/src/components/UnitPicker";
+import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, updateFood, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
@@ -17,7 +18,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,9 +54,6 @@ export default function EntryModal({
     const [recipeGroups, setRecipeGroups] = useState<LoggedRecipeGroup[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<LoggedRecipeGroup | null>(null);
     const [portionMode, setPortionMode] = useState<"per-portion" | "total">("per-portion");
-    const [showAddUnit, setShowAddUnit] = useState(false);
-    const [newUnitName, setNewUnitName] = useState("");
-    const [newUnitGrams, setNewUnitGrams] = useState("");
     const amountTouched = useRef(false);
 
     // Initialize form fields and fetch recipe groups whenever the entry/food/meal/date changes.
@@ -216,19 +213,10 @@ export default function EntryModal({
         onSaved();
     }
 
-    function handleAddUnit() {
-        if (!food?.id) return;
-        const name = newUnitName.trim();
-        const grams = parseFloat(newUnitGrams);
-        if (!name || !grams || grams <= 0) return;
-        const saved = addServingUnit({ food_id: food.id, name, grams });
-        const updated = getServingUnits(food.id);
-        setFoodServingUnits(updated);
+    function handleServingUnitCreated(saved: ServingUnit, allUnits: ServingUnit[]) {
+        setFoodServingUnits(allUnits);
         setCustomServingUnit(saved);
         if (!amountTouched.current) setQuantity("1");
-        setNewUnitName("");
-        setNewUnitGrams("");
-        setShowAddUnit(false);
     }
 
     function handleClose() {
@@ -283,104 +271,23 @@ export default function EntryModal({
 
                     {/* Unit picker */}
                     <Text style={styles.sectionLabel}>{t("log.unit")}</Text>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.unitRow}
-                    >
-                        {unitOptions.map((u) => (
-                            <Pressable
-                                key={u}
-                                onPress={() => {
-                                    setUnit(u);
-                                    setCustomServingUnit(null);
-                                    if (!amountTouched.current) setQuantity(String(defaultAmountForUnit(u)));
-                                }}
-                                style={[
-                                    styles.unitChip,
-                                    unit === u && !customServingUnit && styles.unitChipActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.unitChipText,
-                                        unit === u && !customServingUnit && styles.unitChipTextActive,
-                                    ]}
-                                >
-                                    {unitLabel(u)}
-                                </Text>
-                            </Pressable>
-                        ))}
-                        {foodServingUnits.map((su) => (
-                            <Pressable
-                                key={`su-${su.id}`}
-                                onPress={() => {
-                                    if (!amountTouched.current) setQuantity("1");
-                                    setCustomServingUnit(su);
-                                }}
-                                style={[
-                                    styles.unitChip,
-                                    customServingUnit?.id === su.id && styles.unitChipActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.unitChipText,
-                                        customServingUnit?.id === su.id && styles.unitChipTextActive,
-                                    ]}
-                                >
-                                    {su.name} ({su.grams}g)
-                                </Text>
-                            </Pressable>
-                        ))}
-                        {food?.id ? (
-                            <Pressable
-                                onPress={() => setShowAddUnit((v) => !v)}
-                                style={[styles.unitChip, styles.unitChipAdd]}
-                            >
-                                <Ionicons name="add" size={16} color={colors.primary} />
-                            </Pressable>
-                        ) : null}
-                    </ScrollView>
-
-                    {/* Inline add-custom-unit form */}
-                    {showAddUnit && (
-                        <View style={styles.addUnitForm}>
-                            <Text style={styles.addUnitTitle}>{t("recipes.addServingUnit")}</Text>
-                            <View style={styles.addUnitRow}>
-                                <TextInput
-                                    style={[styles.addUnitInput, { flex: 2 }]}
-                                    placeholder={t("recipes.servingUnitNamePlaceholder")}
-                                    placeholderTextColor={colors.textSecondary}
-                                    value={newUnitName}
-                                    onChangeText={setNewUnitName}
-                                />
-                                <TextInput
-                                    style={[styles.addUnitInput, { flex: 1 }]}
-                                    placeholder={t("recipes.servingUnitGrams")}
-                                    placeholderTextColor={colors.textSecondary}
-                                    value={newUnitGrams}
-                                    onChangeText={setNewUnitGrams}
-                                    keyboardType="decimal-pad"
-                                />
-                            </View>
-                            <View style={styles.addUnitActions}>
-                                <Pressable
-                                    onPress={() => { setShowAddUnit(false); setNewUnitName(""); setNewUnitGrams(""); }}
-                                    style={styles.addUnitCancelBtn}
-                                >
-                                    <Text style={styles.addUnitCancelText}>{t("common.cancel")}</Text>
-                                </Pressable>
-                                <Pressable
-                                    onPress={handleAddUnit}
-                                    style={[styles.addUnitSaveBtn, (!newUnitName.trim() || !parseFloat(newUnitGrams)) && styles.addUnitSaveBtnDisabled]}
-                                    disabled={!newUnitName.trim() || !parseFloat(newUnitGrams)}
-                                >
-                                    <Text style={styles.addUnitSaveText}>{t("common.save")}</Text>
-                                </Pressable>
-                            </View>
-                        </View>
-                    )}
+                    <UnitPicker
+                        unitOptions={unitOptions}
+                        selectedUnit={unit}
+                        onSelectUnit={(u) => {
+                            setUnit(u);
+                            setCustomServingUnit(null);
+                            if (!amountTouched.current) setQuantity(String(defaultAmountForUnit(u)));
+                        }}
+                        servingUnits={foodServingUnits}
+                        selectedServingUnit={customServingUnit}
+                        onSelectServingUnit={(su) => {
+                            if (!amountTouched.current) setQuantity("1");
+                            setCustomServingUnit(su);
+                        }}
+                        foodId={food?.id ?? null}
+                        onServingUnitCreated={handleServingUnitCreated}
+                    />
 
                     {/* Live calculation */}
                     <View style={styles.calcCard}>
@@ -567,95 +474,6 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
             marginTop: spacing.xs,
         },
         quantityInput: { marginTop: spacing.lg },
-        unitRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            paddingBottom: spacing.sm,
-        },
-        unitChip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-        },
-        unitChipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        unitChipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        unitChipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
-        },
-        unitChipAdd: {
-            borderColor: colors.primary,
-            borderStyle: "dashed",
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: spacing.sm,
-        },
-        addUnitForm: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: spacing.md,
-            marginTop: spacing.sm,
-        },
-        addUnitTitle: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.text,
-            marginBottom: spacing.sm,
-        },
-        addUnitRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-        },
-        addUnitInput: {
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.sm,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: spacing.xs,
-            fontSize: fontSize.sm,
-            color: colors.text,
-            backgroundColor: colors.background,
-        },
-        addUnitActions: {
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            gap: spacing.sm,
-            marginTop: spacing.sm,
-        },
-        addUnitCancelBtn: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.xs,
-            borderRadius: borderRadius.sm,
-        },
-        addUnitCancelText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        addUnitSaveBtn: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.xs,
-            borderRadius: borderRadius.sm,
-            backgroundColor: colors.primary,
-        },
-        addUnitSaveBtnDisabled: {
-            backgroundColor: colors.border,
-        },
-        addUnitSaveText: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.background,
-        },
         calcCard: {
             backgroundColor: colors.surface,
             borderRadius: borderRadius.md,
