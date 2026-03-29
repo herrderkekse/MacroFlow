@@ -432,6 +432,7 @@ export default function LogScreen() {
         }
         exitSelectionMode();
         setMoveModalVisible(false);
+        loadAllDays(targetDate);
         setSelectedDate(targetDate);
     }
 
