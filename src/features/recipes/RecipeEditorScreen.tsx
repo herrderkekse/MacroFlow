@@ -23,7 +23,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { fromGrams, toGrams, unitLabel, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
@@ -36,6 +36,7 @@ import {
     useWindowDimensions,
     View
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
 interface ItemWithFood {
@@ -51,6 +52,7 @@ export default function RecipeEditorScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
     const { height: screenHeight } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const sheetRef = useRef<BottomSheetRef>(null);
     const snapPoints = useMemo(() => [SHEET_COLLAPSED, Math.round(screenHeight * 0.8)], [screenHeight]);
     const isEditing = !!recipeId;
@@ -223,6 +225,18 @@ export default function RecipeEditorScreen() {
 
     return (
         <View style={styles.screen}>
+            <Stack.Screen
+                options={{
+                    headerShown: true,
+                    headerStyle: { backgroundColor: colors.surface },
+                    headerTintColor: colors.text,
+                    headerShadowVisible: false,
+                    headerStatusBarHeight: insets.top,
+                    title: isEditing
+                        ? t("recipes.recipeEditorTitle")
+                        : t("recipes.newRecipeTitle"),
+                }}
+            />
             <ScrollView
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"

@@ -7,16 +7,18 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function FoodEditorScreen() {
     const { foodId } = useLocalSearchParams<{ foodId?: string }>();
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
     const unitSystem = useAppStore((s) => s.unitSystem);
 
     const [name, setName] = useState("");
@@ -99,6 +101,19 @@ export default function FoodEditorScreen() {
 
 
     return (
+        <>
+        <Stack.Screen
+            options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: colors.surface },
+                headerTintColor: colors.text,
+                headerShadowVisible: false,
+                headerStatusBarHeight: insets.top,
+                title: foodId
+                    ? t("recipes.foodEditorTitle")
+                    : t("recipes.newFoodTitle"),
+            }}
+        />
         <ScrollView
             style={styles.flex}
             contentContainerStyle={styles.content}
@@ -236,6 +251,7 @@ export default function FoodEditorScreen() {
                 style={styles.saveButton}
             />
         </ScrollView>
+        </>
     );
 }
 
