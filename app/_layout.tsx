@@ -5,7 +5,7 @@ import { getGoals } from "../src/db/queries";
 import "../src/i18n";
 import i18n from "../src/i18n";
 import { useAppStore } from "../src/store/useAppStore";
-import type { Language } from "../src/types";
+import type { AppearanceMode, Language, UnitSystem } from "../src/types";
 import { ThemeProvider, useThemeColors } from "../src/utils/ThemeProvider";
 import { useEffect } from "react";
 
@@ -14,6 +14,8 @@ initDB();
 function InnerLayout() {
   const colors = useThemeColors();
   const setLanguage = useAppStore((s) => s.setLanguage);
+  const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
+  const setUnitSystem = useAppStore((s) => s.setUnitSystem);
 
   useEffect(() => {
     const goals = getGoals();
@@ -21,6 +23,12 @@ function InnerLayout() {
       const lang = goals.language as Language;
       setLanguage(lang);
       i18n.changeLanguage(lang);
+    }
+    if (goals?.appearance_mode === "light" || goals?.appearance_mode === "dark" || goals?.appearance_mode === "system") {
+      setAppearanceMode(goals.appearance_mode as AppearanceMode);
+    }
+    if (goals?.unit_system === "metric" || goals?.unit_system === "imperial") {
+      setUnitSystem(goals.unit_system as UnitSystem);
     }
   }, []);
 
