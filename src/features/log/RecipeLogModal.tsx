@@ -22,6 +22,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
 interface RecipeLogModalProps {
@@ -39,7 +40,8 @@ export default function RecipeLogModal({
 }: RecipeLogModalProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const [mealType, setMealType] = useState<MealType>(defaultMealType ?? "breakfast");
     const [portionInput, setPortionInput] = useState("1");
@@ -165,14 +167,14 @@ export default function RecipeLogModal({
     );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, insetsTop = 0) {
     return StyleSheet.create({
         header: {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
             paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
+            paddingTop: insetsTop + spacing.lg,
             paddingBottom: spacing.md,
             backgroundColor: colors.surface,
             borderBottomWidth: StyleSheet.hairlineWidth,
