@@ -80,6 +80,89 @@ function ProgressRow({
     );
 }
 
+function MacroMakeupBar({ totals, colors, t }: { totals: Totals; colors: ThemeColors; t: (key: string) => string; }) {
+    const pCal = totals.protein * 4;
+    const cCal = totals.carbs * 4;
+    const fCal = totals.fat * 9;
+    const total = pCal + cCal + fCal;
+
+    if (total <= 0) return null;
+
+    return (
+        <View style={makeupStyles.container}>
+            <View style={makeupStyles.legendRow}>
+                <View style={makeupStyles.legendItem}>
+                    <View style={[makeupStyles.dot, { backgroundColor: colors.protein }]} />
+                    <Text style={[makeupStyles.legendText, { color: colors.textSecondary }]}>
+                        {t("settings.protein")} {Math.round((pCal / total) * 100)}%
+                    </Text>
+                </View>
+                <View style={makeupStyles.legendItem}>
+                    <View style={[makeupStyles.dot, { backgroundColor: colors.carbs }]} />
+                    <Text style={[makeupStyles.legendText, { color: colors.textSecondary }]}>
+                        {t("settings.carbs")} {Math.round((cCal / total) * 100)}%
+                    </Text>
+                </View>
+                <View style={makeupStyles.legendItem}>
+                    <View style={[makeupStyles.dot, { backgroundColor: colors.fat }]} />
+                    <Text style={[makeupStyles.legendText, { color: colors.textSecondary }]}>
+                        {t("settings.fat")} {Math.round((fCal / total) * 100)}%
+                    </Text>
+                </View>
+            </View>
+            <View style={makeupStyles.bar}>
+                <View
+                    style={[
+                        makeupStyles.segment,
+                        {
+                            flex: pCal,
+                            backgroundColor: colors.protein,
+                            borderTopLeftRadius: 3,
+                            borderBottomLeftRadius: 3,
+                        },
+                    ]}
+                />
+                <View
+                    style={[
+                        makeupStyles.segment,
+                        { flex: cCal, backgroundColor: colors.carbs },
+                    ]}
+                />
+                <View
+                    style={[
+                        makeupStyles.segment,
+                        {
+                            flex: fCal,
+                            backgroundColor: colors.fat,
+                            borderTopRightRadius: 3,
+                            borderBottomRightRadius: 3,
+                        },
+                    ]}
+                />
+            </View>
+        </View>
+    );
+}
+
+const makeupStyles = StyleSheet.create({
+    container: { marginTop: spacing.sm },
+    bar: {
+        flexDirection: "row",
+        height: 6,
+        borderRadius: 3,
+        overflow: "hidden",
+    },
+    segment: { height: 6 },
+    legendRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 4,
+    },
+    legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+    dot: { width: 7, height: 7, borderRadius: 4 },
+    legendText: { fontSize: fontSize.xs },
+});
+
 function createRowStyles(colors: ThemeColors) {
     return StyleSheet.create({
         container: { marginTop: spacing.sm },
@@ -192,6 +275,10 @@ export default function DailyProgressBar({
                         unit="g"
                         colors={colors}
                     />
+
+                    {/* Macro makeup bar */}
+                    <MacroMakeupBar totals={totals} colors={colors} t={t} />
+
                     {meanWeightKg != null && (
                         <View style={styles.weightRow}>
                             <Ionicons name="scale-outline" size={14} color={colors.textSecondary} />
