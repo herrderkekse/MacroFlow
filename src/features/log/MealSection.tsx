@@ -164,7 +164,9 @@ export default function MealSection({
 
 
             {items.length === 0 ? (
-                <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
+                <Pressable onPress={() => !selectionMode && onAdd()} style={styles.emptyPressable}>
+                    <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
+                </Pressable>
             ) : (
                 <>
                     {/* Recipe groups */}
@@ -470,6 +472,11 @@ function createStyles(colors: ThemeColors) {
             color: colors.textTertiary,
             fontStyle: "italic",
             paddingVertical: spacing.xs,
+        },
+        emptyPressable: {
+            alignSelf: "stretch",
+            marginTop: -spacing.sm,
+            paddingTop: spacing.sm,
         },
         entryRow: {
             flexDirection: "row",
