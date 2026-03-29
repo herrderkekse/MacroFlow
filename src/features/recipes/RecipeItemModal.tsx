@@ -25,7 +25,7 @@ interface RecipeItemModalProps {
     item: RecipeItem | null;
     food: Food | null;
     onClose: () => void;
-    onSaved: (itemId: number, quantityGrams: number, unit: FoodUnit) => void;
+    onSaved: (itemId: number, quantityGrams: number, unit: string) => void;
 }
 
 export default function RecipeItemModal({
@@ -86,7 +86,7 @@ export default function RecipeItemModal({
         if (!item || qty <= 0) return;
         const savedUnit = customServingUnit ? customServingUnit.name : unit;
         updateRecipeItem(item.id, { quantity_grams: qtyGrams, quantity_unit: savedUnit });
-        onSaved(item.id, qtyGrams, unit);
+        onSaved(item.id, qtyGrams, savedUnit);
     }
 
     const unitOptions = unitsForSystem(unitSystem);

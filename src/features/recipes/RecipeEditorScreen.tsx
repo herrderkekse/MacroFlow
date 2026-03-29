@@ -9,10 +9,12 @@ import {
     getFoodByOpenfoodfactsId,
     getRecipeById,
     getRecipeItems,
+    getServingUnits,
     searchFoodsByName,
     updateRecipe,
     type Food,
-    type RecipeItem
+    type RecipeItem,
+    type ServingUnit,
 } from "@/src/db/queries";
 import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
 import ManualFoodForm from "@/src/features/log/ManualFoodForm";
@@ -42,6 +44,7 @@ import { useTranslation } from "react-i18next";
 interface ItemWithFood {
     recipeItem: RecipeItem;
     food: Food | null;
+    servingUnits: ServingUnit[];
 }
 
 const SHEET_COLLAPSED = 160;
@@ -92,7 +95,11 @@ export default function RecipeEditorScreen() {
 
     function loadItems(id: number) {
         const rows = getRecipeItems(id);
-        setItems(rows.map((r) => ({ recipeItem: r.recipe_items, food: r.foods })));
+        setItems(rows.map((r) => ({
+            recipeItem: r.recipe_items,
+            food: r.foods,
+            servingUnits: r.foods ? getServingUnits(r.foods.id) : [],
+        })));
     }
 
     // ── Save recipe name ──────────────────────────────────
@@ -183,7 +190,8 @@ export default function RecipeEditorScreen() {
         const servingSize = food.serving_size ?? 100;
         const qtyGrams = toGrams(servingSize, foodUnit);
         const ri = addRecipeItem({ recipe_id: rid, food_id: food.id, quantity_grams: qtyGrams, quantity_unit: foodUnit });
-        const newEntry: ItemWithFood = { recipeItem: ri, food };
+        const sUnits = getServingUnits(food.id);
+        const newEntry: ItemWithFood = { recipeItem: ri, food, servingUnits: sUnits };
         setItems((prev) => [...prev, newEntry]);
         setFoodQuery("");
         setLocalResults([]);
@@ -194,7 +202,7 @@ export default function RecipeEditorScreen() {
     }
 
     // ── Item editing ──────────────────────────────────────
-    function handleModalSaved(itemId: number, quantityGrams: number, unit: FoodUnit) {
+    function handleModalSaved(itemId: number, quantityGrams: number, unit: string) {
         setItems((prev) =>
             prev.map((i) =>
                 i.recipeItem.id === itemId
@@ -257,9 +265,18 @@ export default function RecipeEditorScreen() {
 
                 {/* Items */}
                 {items.slice().reverse().map((itemWithFood) => {
-                    const { recipeItem, food } = itemWithFood;
-                    const itemUnit = (recipeItem.quantity_unit ?? "g") as FoodUnit;
-                    const displayQty = Math.round(fromGrams(recipeItem.quantity_grams, itemUnit) * 10) / 10;
+                    const { recipeItem, food, servingUnits } = itemWithFood;
+                    const matchedServing = servingUnits.find((s) => s.name === recipeItem.quantity_unit);
+                    let displayQty: number;
+                    let displayUnit: string;
+                    if (matchedServing) {
+                        displayQty = Math.round((recipeItem.quantity_grams / matchedServing.grams) * 10) / 10;
+                        displayUnit = matchedServing.name;
+                    } else {
+                        const itemUnit = (recipeItem.quantity_unit ?? "g") as FoodUnit;
+                        displayQty = Math.round(fromGrams(recipeItem.quantity_grams, itemUnit) * 10) / 10;
+                        displayUnit = unitLabel(itemUnit);
+                    }
                     const cals = food
                         ? Math.round((food.calories_per_100g * recipeItem.quantity_grams) / 100)
                         : 0;
@@ -273,7 +290,7 @@ export default function RecipeEditorScreen() {
                                     {food?.name ?? "Unknown"}
                                 </Text>
                                 <Text style={styles.itemDetail}>
-                                    {displayQty} {unitLabel(itemUnit)} · {cals} cal
+                                    {displayQty} {displayUnit} · {cals} cal
                                 </Text>
                             </Pressable>
                             <Pressable onPress={() => handleDeleteItem(recipeItem.id)} hitSlop={8}>
