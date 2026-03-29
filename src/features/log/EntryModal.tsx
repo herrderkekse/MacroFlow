@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
+import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, updateFood, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
@@ -95,10 +95,25 @@ export default function EntryModal({
                 setSelectedGroup(null);
             }
         } else {
-            const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
-            setUnit(defaultUnit);
-            setCustomServingUnit(null);
-            setQuantity(String(food.serving_size ?? 100));
+            // Use last logged amount/unit if available, otherwise fall back to food defaults
+            const sUnits = food.id ? getServingUnits(food.id) : [];
+            if (food.last_logged_amount != null && food.last_logged_unit != null) {
+                const lastUnit = food.last_logged_unit;
+                const matchServing = sUnits.find((s) => s.name === lastUnit);
+                if (matchServing) {
+                    setCustomServingUnit(matchServing);
+                    setUnit("g");
+                } else {
+                    setCustomServingUnit(null);
+                    setUnit(lastUnit as FoodUnit);
+                }
+                setQuantity(String(food.last_logged_amount));
+            } else {
+                const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
+                setUnit(defaultUnit);
+                setCustomServingUnit(null);
+                setQuantity(String(food.serving_size ?? 100));
+            }
             const meal = defaultMealType ?? "breakfast";
             setMealType(meal);
 
@@ -180,6 +195,12 @@ export default function EntryModal({
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
                 recipeLogId: selectedGroup?.recipeLogId,
+            });
+
+            // Persist last logged amount/unit on the food for future defaults
+            updateFood(food.id, {
+                last_logged_amount: qty,
+                last_logged_unit: savedUnit,
             });
         }
 
