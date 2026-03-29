@@ -3,7 +3,7 @@ import { getRecipeById, getRecipeItems, getRecipeLogById, getServingUnits } from
 import type { MealType } from "@/src/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { type FoodUnit, formatEntryQuantity, formatQuantity, fromGrams } from "@/src/utils/units";
+import { formatEntryQuantity } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -137,36 +137,31 @@ export default function MealSection({
                 }}
             >
                 <View style={styles.headerLeft}>
-                    <Ionicons
-                        name={icon as never}
-                        size={18}
-                        color={colors.textSecondary}
-                    />
+                    <Ionicons name={icon as never} size={18} color={colors.textSecondary} />
                     <Text style={styles.title}>{label}</Text>
+
                     {items.length > 0 && (
-                        <Text style={styles.totalCals}>
-                            {Math.round(totalCals)} cal
-                        </Text>
+                        <View style={styles.pillsContainer}>
+                            <View style={styles.pill}>
+                                <Text style={[styles.pillText, { color: colors.textSecondary }]}>
+                                    <Text style={{ color: colors.calories }}>{Math.round(totalCals)} {t("common.cal")}</Text>
+                                    <Text style={{ color: colors.textSecondary }}> - </Text>
+                                    <Text style={{ color: colors.protein }}>{Math.round(totalProtein)}g</Text>
+                                    <Text style={{ color: colors.textSecondary }}> | </Text>
+                                    <Text style={{ color: colors.carbs }}>{Math.round(totalCarbs)}g</Text>
+                                    <Text style={{ color: colors.textSecondary }}> | </Text>
+                                    <Text style={{ color: colors.fat }}>{Math.round(totalFat)}g</Text>
+                                </Text>
+                            </View>
+                        </View>
                     )}
                 </View>
                 {!selectionMode && (
-                    <Ionicons
-                        name="add-circle-outline"
-                        size={24}
-                        color={colors.primary}
-                    />
+                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
                 )}
             </Pressable>
 
-            {items.length > 0 && (
-                <View style={styles.macroRow}>
-                    <Text style={styles.macroText}>P {Math.round(totalProtein)}g</Text>
-                    <Text style={styles.macroDot}>·</Text>
-                    <Text style={styles.macroText}>C {Math.round(totalCarbs)}g</Text>
-                    <Text style={styles.macroDot}>·</Text>
-                    <Text style={styles.macroText}>F {Math.round(totalFat)}g</Text>
-                </View>
-            )}
+
 
             {items.length === 0 ? (
                 <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
@@ -452,19 +447,23 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.sm,
             color: colors.textSecondary,
         },
-        macroRow: {
+        pillsContainer: {
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.xs,
-            marginBottom: spacing.xs,
+            marginLeft: spacing.xs,
         },
-        macroText: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
+        pill: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 2,
+            minHeight: 20,
+            justifyContent: "center",
+            alignItems: "center",
         },
-        macroDot: {
+        pillText: {
             fontSize: fontSize.xs,
-            color: colors.textTertiary,
+            color: "#ffffff",
+            fontWeight: "600",
         },
         empty: {
             fontSize: fontSize.sm,
