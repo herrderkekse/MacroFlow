@@ -6,7 +6,7 @@ import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { fromGrams, toGrams, defaultAmountForUnit, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -272,7 +272,11 @@ export default function EntryModal({
                         {unitOptions.map((u) => (
                             <Pressable
                                 key={u}
-                                onPress={() => { setUnit(u); setCustomServingUnit(null); }}
+                                onPress={() => {
+                                    setUnit(u);
+                                    setCustomServingUnit(null);
+                                    if (!amountTouched.current) setQuantity(String(defaultAmountForUnit(u)));
+                                }}
                                 style={[
                                     styles.unitChip,
                                     unit === u && !customServingUnit && styles.unitChipActive,

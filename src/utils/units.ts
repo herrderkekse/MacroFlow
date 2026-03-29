@@ -60,6 +60,22 @@ export function formatQuantity(quantity: number, unit: FoodUnit): string {
     return `${val} ${unitLabel(unit)}`;
 }
 
+/** Sensible default amount when switching to a unit without prior context. */
+const DEFAULT_AMOUNTS: Record<FoodUnit, number> = {
+    g: 100,
+    ml: 100,
+    oz: 1,
+    fl_oz: 1,
+    cup: 1,
+    tbsp: 1,
+    tsp: 1,
+    lb: 1,
+};
+
+export function defaultAmountForUnit(unit: FoodUnit): number {
+    return DEFAULT_AMOUNTS[unit];
+}
+
 /** Check if a unit is a string we recognise. */
 export function isValidUnit(s: string): s is FoodUnit {
     return ALL_UNITS.includes(s as FoodUnit);
