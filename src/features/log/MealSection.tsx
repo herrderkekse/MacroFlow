@@ -3,7 +3,7 @@ import { getRecipeById, getRecipeItems, getRecipeLogById, getServingUnits } from
 import type { MealType } from "@/src/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { type FoodUnit, formatEntryQuantity, formatQuantity, fromGrams } from "@/src/utils/units";
+import { formatEntryQuantity } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -98,6 +98,21 @@ export default function MealSection({
         return sum + (cals * qty) / 100;
     }, 0);
 
+    const totalProtein = items.reduce((sum, row) => {
+        const p = row.foods?.protein_per_100g ?? 0;
+        return sum + (p * row.entries.quantity_grams) / 100;
+    }, 0);
+
+    const totalCarbs = items.reduce((sum, row) => {
+        const c = row.foods?.carbs_per_100g ?? 0;
+        return sum + (c * row.entries.quantity_grams) / 100;
+    }, 0);
+
+    const totalFat = items.reduce((sum, row) => {
+        const f = row.foods?.fat_per_100g ?? 0;
+        return sum + (f * row.entries.quantity_grams) / 100;
+    }, 0);
+
     const { standalone, recipeGroups } = groupEntries(items);
     const allMealEntryIds = items.map(e => e.entries.id);
     const allMealSelected = selectionMode && items.length > 0 && items.every(e => selectedEntryIds?.has(e.entries.id));
@@ -122,26 +137,31 @@ export default function MealSection({
                 }}
             >
                 <View style={styles.headerLeft}>
-                    <Ionicons
-                        name={icon as never}
-                        size={18}
-                        color={colors.textSecondary}
-                    />
+                    <Ionicons name={icon as never} size={18} color={colors.textSecondary} />
                     <Text style={styles.title}>{label}</Text>
+
                     {items.length > 0 && (
-                        <Text style={styles.totalCals}>
-                            {Math.round(totalCals)} cal
-                        </Text>
+                        <View style={styles.pillsContainer}>
+                            <View style={styles.pill}>
+                                <Text style={[styles.pillText, { color: colors.textSecondary }]}>
+                                    <Text style={{ color: colors.calories }}>{Math.round(totalCals)} {t("common.cal")}</Text>
+                                    <Text style={{ color: colors.textSecondary }}> - </Text>
+                                    <Text style={{ color: colors.protein }}>{Math.round(totalProtein)}g</Text>
+                                    <Text style={{ color: colors.textSecondary }}> | </Text>
+                                    <Text style={{ color: colors.carbs }}>{Math.round(totalCarbs)}g</Text>
+                                    <Text style={{ color: colors.textSecondary }}> | </Text>
+                                    <Text style={{ color: colors.fat }}>{Math.round(totalFat)}g</Text>
+                                </Text>
+                            </View>
+                        </View>
                     )}
                 </View>
                 {!selectionMode && (
-                    <Ionicons
-                        name="add-circle-outline"
-                        size={24}
-                        color={colors.primary}
-                    />
+                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
                 )}
             </Pressable>
+
+
 
             {items.length === 0 ? (
                 <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
@@ -426,6 +446,24 @@ function createStyles(colors: ThemeColors) {
         totalCals: {
             fontSize: fontSize.sm,
             color: colors.textSecondary,
+        },
+        pillsContainer: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+            marginLeft: spacing.xs,
+        },
+        pill: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 2,
+            minHeight: 20,
+            justifyContent: "center",
+            alignItems: "center",
+        },
+        pillText: {
+            fontSize: fontSize.xs,
+            color: "#ffffff",
+            fontWeight: "600",
         },
         empty: {
             fontSize: fontSize.sm,
