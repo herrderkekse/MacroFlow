@@ -98,6 +98,21 @@ export default function MealSection({
         return sum + (cals * qty) / 100;
     }, 0);
 
+    const totalProtein = items.reduce((sum, row) => {
+        const p = row.foods?.protein_per_100g ?? 0;
+        return sum + (p * row.entries.quantity_grams) / 100;
+    }, 0);
+
+    const totalCarbs = items.reduce((sum, row) => {
+        const c = row.foods?.carbs_per_100g ?? 0;
+        return sum + (c * row.entries.quantity_grams) / 100;
+    }, 0);
+
+    const totalFat = items.reduce((sum, row) => {
+        const f = row.foods?.fat_per_100g ?? 0;
+        return sum + (f * row.entries.quantity_grams) / 100;
+    }, 0);
+
     const { standalone, recipeGroups } = groupEntries(items);
     const allMealEntryIds = items.map(e => e.entries.id);
     const allMealSelected = selectionMode && items.length > 0 && items.every(e => selectedEntryIds?.has(e.entries.id));
@@ -142,6 +157,16 @@ export default function MealSection({
                     />
                 )}
             </Pressable>
+
+            {items.length > 0 && (
+                <View style={styles.macroRow}>
+                    <Text style={styles.macroText}>P {Math.round(totalProtein)}g</Text>
+                    <Text style={styles.macroDot}>·</Text>
+                    <Text style={styles.macroText}>C {Math.round(totalCarbs)}g</Text>
+                    <Text style={styles.macroDot}>·</Text>
+                    <Text style={styles.macroText}>F {Math.round(totalFat)}g</Text>
+                </View>
+            )}
 
             {items.length === 0 ? (
                 <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
@@ -426,6 +451,20 @@ function createStyles(colors: ThemeColors) {
         totalCals: {
             fontSize: fontSize.sm,
             color: colors.textSecondary,
+        },
+        macroRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+            marginBottom: spacing.xs,
+        },
+        macroText: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+        },
+        macroDot: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
         },
         empty: {
             fontSize: fontSize.sm,
