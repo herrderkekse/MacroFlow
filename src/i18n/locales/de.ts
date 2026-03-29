@@ -3,6 +3,7 @@ const de = {
         logs: "Protokoll",
         templates: "Vorlagen",
         settings: "Einstellungen",
+        more: "Mehr",
     },
     meal: {
         breakfast: "Frühstück",
@@ -181,6 +182,11 @@ const de = {
         noData: "Keine Daten für den gewählten Zeitraum",
         calorieDisclaimer:
             "Die Kalorienangaben können aufgrund von Alkohol, Ballaststoffen oder Dateninkonsistenzen von der Summe der Makros abweichen. Die Makros werden normalisiert, um den Kalorien zu entsprechen.",
+    },
+    more: {
+        analytics: "Analyse",
+        goals: "Ziele",
+        backup: "Datensicherung",
     },
 } as const;
 

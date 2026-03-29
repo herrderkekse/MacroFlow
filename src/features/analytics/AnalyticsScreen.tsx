@@ -4,6 +4,7 @@ import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -336,9 +337,16 @@ export default function AnalyticsScreen() {
 
 
 
+    const router = useRouter();
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <Text style={styles.title}>{t("analytics.title")}</Text>
+            <View style={styles.titleRow}>
+                <Pressable onPress={() => router.navigate("/(tabs)/more" as any)} style={styles.backBtn} hitSlop={8}>
+                    <Ionicons name="chevron-back" size={24} color={colors.primary} />
+                </Pressable>
+                <Text style={styles.title}>{t("analytics.title")}</Text>
+            </View>
 
             <ScrollView
                 style={styles.scroll}
@@ -708,13 +716,18 @@ function createStyles(colors: ThemeColors) {
             flex: 1,
             backgroundColor: colors.background,
         },
+        titleRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.sm,
+        },
+        backBtn: { padding: 4, marginRight: spacing.sm },
         title: {
             fontSize: fontSize.xl,
             fontWeight: "700",
             color: colors.text,
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
         },
         scroll: {
             flex: 1,

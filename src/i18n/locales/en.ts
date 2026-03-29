@@ -4,6 +4,7 @@ const en = {
         logs: "Logs",
         templates: "Templates",
         settings: "Settings",
+        more: "More",
     },
     meal: {
         breakfast: "Breakfast",
@@ -180,6 +181,11 @@ const en = {
         trendFlat: "→ Stable",
         noData: "No data for the selected period",
         calorieDisclaimer: "Calorie values may not perfectly match the macro breakdown due to alcohol, fiber, or data inconsistencies. Macros are normalized to match calories.",
+    },
+    more: {
+        analytics: "Analytics",
+        goals: "Goals",
+        backup: "Backup Data",
     },
 } as const;
 
