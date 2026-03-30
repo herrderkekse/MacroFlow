@@ -1,24 +1,23 @@
-import Input from "@/src/components/Input";
 import Button from "@/src/components/Button";
+import Input from "@/src/components/Input";
+import MacroLabel from "@/src/components/MacroLabel";
+import ModalHeader from "@/src/components/ModalHeader";
 import UnitPicker from "@/src/components/UnitPicker";
 import { getServingUnits, updateRecipeItem, type Food, type RecipeItem, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
     KeyboardAvoidingView,
     Modal,
     Platform,
-    Pressable,
     ScrollView,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
 interface RecipeItemModalProps {
@@ -36,8 +35,7 @@ export default function RecipeItemModal({
 }: RecipeItemModalProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
-    const insets = useSafeAreaInsets();
-    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const unitSystem = useAppStore((s) => s.unitSystem);
 
     const [quantity, setQuantity] = useState("100");
@@ -103,12 +101,7 @@ export default function RecipeItemModal({
                 style={styles.flex}
             >
                 {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t("recipes.editIngredient")}</Text>
-                    <Pressable onPress={onClose} hitSlop={8}>
-                        <Ionicons name="close" size={24} color={colors.textSecondary} />
-                    </Pressable>
-                </View>
+                <ModalHeader title={t("templates.editIngredient")} onClose={onClose} />
 
                 <ScrollView
                     contentContainerStyle={styles.content}
@@ -186,50 +179,9 @@ export default function RecipeItemModal({
     );
 }
 
-function MacroLabel({
-    label,
-    value,
-    color,
-    textColor,
-}: {
-    label: string;
-    value: number;
-    color: string;
-    textColor: string;
-}) {
-    return (
-        <View style={macroStyles.macroItem}>
-            <Text style={[macroStyles.macroValue, { color }]}>{value.toFixed(1)}g</Text>
-            <Text style={[macroStyles.macroLabel, { color: textColor }]}>{label}</Text>
-        </View>
-    );
-}
-
-const macroStyles = StyleSheet.create({
-    macroItem: { alignItems: "center" },
-    macroValue: { fontSize: fontSize.md, fontWeight: "600" },
-    macroLabel: { fontSize: fontSize.xs },
-});
-
-function createStyles(colors: ThemeColors, insetsTop = 0) {
+function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         flex: { flex: 1, backgroundColor: colors.background },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: spacing.lg,
-            paddingTop: insetsTop + spacing.lg,
-            paddingBottom: spacing.md,
-            backgroundColor: colors.surface,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-        },
-        headerTitle: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-        },
         content: { padding: spacing.lg },
         foodName: {
             fontSize: fontSize.xl,

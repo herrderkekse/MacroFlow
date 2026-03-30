@@ -126,18 +126,18 @@ export default function UnitPicker({
 
             {showAddUnit && (
                 <View style={styles.addUnitForm}>
-                    <Text style={styles.addUnitTitle}>{t("recipes.addServingUnit")}</Text>
+                    <Text style={styles.addUnitTitle}>{t("templates.addServingUnit")}</Text>
                     <View style={styles.addUnitRow}>
                         <TextInput
                             style={[styles.addUnitInput, { flex: 2 }]}
-                            placeholder={t("recipes.servingUnitNamePlaceholder")}
+                            placeholder={t("templates.servingUnitNamePlaceholder")}
                             placeholderTextColor={colors.textSecondary}
                             value={newUnitName}
                             onChangeText={setNewUnitName}
                         />
                         <TextInput
                             style={[styles.addUnitInput, { flex: 1 }]}
-                            placeholder={t("recipes.servingUnitGrams")}
+                            placeholder={t("templates.servingUnitGrams")}
                             placeholderTextColor={colors.textSecondary}
                             value={newUnitGrams}
                             onChangeText={setNewUnitGrams}

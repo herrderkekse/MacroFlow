@@ -86,7 +86,7 @@ export default function RecipeLogModal({
         >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t("recipes.addRecipe")}</Text>
+                    <Text style={styles.headerTitle}>{t("templates.addRecipe")}</Text>
                     <Pressable onPress={onClose} hitSlop={8}>
                         <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </Pressable>
@@ -99,7 +99,7 @@ export default function RecipeLogModal({
                     </Text>
 
                     {/* Portion multiplier */}
-                    <Text style={styles.sectionLabel}>{t("recipes.portions")}</Text>
+                    <Text style={styles.sectionLabel}>{t("templates.portions")}</Text>
                     <View style={styles.portionRow}>
                         <Pressable
                             onPress={() => {

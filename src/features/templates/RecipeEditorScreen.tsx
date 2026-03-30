@@ -18,7 +18,7 @@ import {
 } from "@/src/db/queries";
 import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
 import ManualFoodForm from "@/src/features/log/ManualFoodForm";
-import RecipeItemModal from "@/src/features/recipes/RecipeItemModal";
+import RecipeItemModal from "@/src/features/templates/RecipeItemModal";
 import { guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -161,7 +161,7 @@ export default function RecipeEditorScreen() {
 
     function handleBarcodeNotFound() {
         setShowScanner(false);
-        Alert.alert(t("recipes.notFound"), t("recipes.productNotFound"));
+        Alert.alert(t("templates.notFound"), t("templates.productNotFound"));
     }
 
     function handleSelectOFF(product: OFFProduct) {
@@ -241,8 +241,8 @@ export default function RecipeEditorScreen() {
                     headerShadowVisible: false,
                     headerStatusBarHeight: insets.top,
                     title: isEditing
-                        ? t("recipes.recipeEditorTitle")
-                        : t("recipes.newRecipeTitle"),
+                        ? t("templates.recipeEditorTitle")
+                        : t("templates.newRecipeTitle"),
                 }}
             />
             <ScrollView
@@ -251,8 +251,8 @@ export default function RecipeEditorScreen() {
             >
                 {/* Recipe name */}
                 <Input
-                    label={t("recipes.recipeName")}
-                    placeholder={t("recipes.recipeNamePlaceholder")}
+                    label={t("templates.recipeName")}
+                    placeholder={t("templates.recipeNamePlaceholder")}
                     value={name}
                     onChangeText={setName}
                     containerStyle={styles.nameInput}
@@ -310,12 +310,12 @@ export default function RecipeEditorScreen() {
                 onSnapChange={handleSheetSnapChange}
             >
                 <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetLabel}>{t("recipes.addIngredient")}</Text>
+                    <Text style={styles.sheetLabel}>{t("templates.addIngredient")}</Text>
                     <View style={styles.searchRow}>
                         <Ionicons name="search" size={18} color={colors.textTertiary} />
                         <TextInput
                             style={styles.searchInput}
-                            placeholder={t("recipes.searchFoods")}
+                            placeholder={t("templates.searchFoods")}
                             placeholderTextColor={colors.textTertiary}
                             value={foodQuery}
                             onChangeText={setFoodQuery}
@@ -353,7 +353,7 @@ export default function RecipeEditorScreen() {
                 >
                     {foodQuery.trim().length >= 2 && !hasSearchedOFF && !offError && (
                         <Button
-                            title={isSearchingOFF ? t("recipes.searching") : t("recipes.searchOpenFoodFacts")}
+                            title={isSearchingOFF ? t("templates.searching") : t("templates.searchOpenFoodFacts")}
                             onPress={handleSearchOFF}
                             variant="outline"
                             loading={isSearchingOFF}

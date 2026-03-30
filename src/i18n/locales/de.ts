@@ -115,7 +115,7 @@ const de = {
         noWeightsLogged: "Noch kein Gewicht erfasst",
         weightDaysAgo: "vor {{count}}T",
     },
-    recipes: {
+    templates: {
         title: "Vorlagen",
         searchPlaceholder: "Vorlagen suchen…",
         filter: "Filter",

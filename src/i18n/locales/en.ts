@@ -116,7 +116,7 @@ const en = {
         noWeightsLogged: "No weight logged yet",
         weightDaysAgo: "{{count}}d ago",
     },
-    recipes: {
+    templates: {
         title: "Templates",
         searchPlaceholder: "Search templates…",
         filter: "Filter",
