@@ -5,6 +5,9 @@
 SPECS.md
 .github/copilot-instructions.md
 
+# dev data files
+macroflow-backup.json
+
 # VS Code
 .vscode/
 

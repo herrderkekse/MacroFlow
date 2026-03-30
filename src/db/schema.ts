@@ -36,6 +36,7 @@ export const entries = sqliteTable("entries", {
     date: text("date").notNull(),
     meal_type: text("meal_type").notNull(),
     recipe_log_id: integer("recipe_log_id").references(() => recipeLogs.id),
+    is_scheduled: integer("is_scheduled").notNull().default(0),
 });
 
 export const goals = sqliteTable("goals", {

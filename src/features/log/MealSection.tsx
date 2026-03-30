@@ -262,9 +262,14 @@ function EntryRow({
         >
             {isChild && <View style={styles.childConnector} />}
             <View style={styles.entryInfo}>
-                <Text style={styles.entryName} numberOfLines={1}>
-                    {food?.name ?? t("log.unknownFood")}
-                </Text>
+                <View style={styles.entryNameRow}>
+                    <Text style={styles.entryName} numberOfLines={1}>
+                        {food?.name ?? t("log.unknownFood")}
+                    </Text>
+                    {row.entries.is_scheduled === 1 && (
+                        <Ionicons name="calendar-outline" size={14} color={colors.primary} style={{ marginLeft: 4 }} />
+                    )}
+                </View>
                 <Text style={styles.entryDetail}>
                     {formatEntryQuantity(qty, entryUnit, servingGrams)} · {cals} {t("common.cal")}
                 </Text>
@@ -480,6 +485,10 @@ function createStyles(colors: ThemeColors) {
             borderTopColor: colors.border,
         },
         entryInfo: { flex: 1, marginRight: spacing.sm },
+        entryNameRow: {
+            flexDirection: "row",
+            alignItems: "center",
+        },
         entryName: {
             fontSize: fontSize.sm,
             fontWeight: "500",
