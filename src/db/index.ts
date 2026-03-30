@@ -79,7 +79,18 @@ export function initDB() {
       timestamp INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      id INTEGER PRIMARY KEY,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      breakfast_time TEXT NOT NULL DEFAULT '08:00',
+      lunch_time TEXT NOT NULL DEFAULT '12:00',
+      dinner_time TEXT NOT NULL DEFAULT '18:00',
+      snack_time TEXT NOT NULL DEFAULT '15:00',
+      weight_time TEXT NOT NULL DEFAULT '07:30'
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
+    INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
   `);
 
   // Migrate existing DBs: add new columns if missing

@@ -10,6 +10,7 @@ import {
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
+import { cancelMealReminderIfLogged } from "@/src/services/notifications";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { formatEntryQuantity } from "@/src/utils/units";
@@ -87,6 +88,7 @@ export default function RecipeLogModal({
             date: formatDateKey(selectedDate),
             portionMultiplier: portion,
         });
+        cancelMealReminderIfLogged(mealType);
         onSaved();
     }
 

@@ -2,7 +2,7 @@ import { and, eq, gte, like, lte, sql } from "drizzle-orm";
 import logger from "../utils/logger";
 import { diffCalendarDays, formatDateKey as formatLocalDateKey, parseDateKey } from "../utils/date";
 import { db } from "./index";
-import { entries, foods, goals, recipeItems, recipeLogs, recipes, servingUnits, weightLogs } from "./schema";
+import { entries, foods, goals, notificationSettings, recipeItems, recipeLogs, recipes, servingUnits, weightLogs } from "./schema";
 
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
@@ -19,6 +19,7 @@ export type WeightLog = typeof weightLogs.$inferSelect;
 export type NewWeightLog = typeof weightLogs.$inferInsert;
 export type ServingUnit = typeof servingUnits.$inferSelect;
 export type NewServingUnit = typeof servingUnits.$inferInsert;
+export type NotificationSettings = typeof notificationSettings.$inferSelect;
 
 // ── Food CRUD ──────────────────────────────────────────────
 
@@ -567,4 +568,14 @@ export function getWeightLogsForRange(startDate: string, endDate: string): Weigh
         .where(and(gte(weightLogs.date, startDate), lte(weightLogs.date, endDate)))
         .orderBy(weightLogs.date)
         .all();
+}
+
+// ── Notification Settings ──────────────────────────────────
+
+export function getNotificationSettings(): NotificationSettings | undefined {
+    return db.select().from(notificationSettings).where(eq(notificationSettings.id, 1)).get();
+}
+
+export function setNotificationSettings(values: Partial<Omit<NotificationSettings, "id">>) {
+    db.update(notificationSettings).set(values).where(eq(notificationSettings.id, 1)).run();
 }
