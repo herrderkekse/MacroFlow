@@ -18,7 +18,7 @@ import {
 } from "@/src/db/queries";
 import BarcodeScannerView from "@/src/features/log/BarcodeScannerView";
 import ManualFoodForm from "@/src/features/log/ManualFoodForm";
-import RecipeItemModal from "@/src/features/recipes/RecipeItemModal";
+import RecipeItemModal from "@/src/features/templates/RecipeItemModal";
 import { guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -27,6 +27,7 @@ import { fromGrams, toGrams, unitLabel, type FoodUnit } from "@/src/utils/units"
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Alert,
     Keyboard,
@@ -38,8 +39,6 @@ import {
     useWindowDimensions,
     View
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 interface ItemWithFood {
     recipeItem: RecipeItem;
@@ -55,7 +54,6 @@ export default function RecipeEditorScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
     const { height: screenHeight } = useWindowDimensions();
-    const insets = useSafeAreaInsets();
     const sheetRef = useRef<BottomSheetRef>(null);
     const snapPoints = useMemo(() => [SHEET_COLLAPSED, Math.round(screenHeight * 0.8)], [screenHeight]);
     const isEditing = !!recipeId;
@@ -137,12 +135,12 @@ export default function RecipeEditorScreen() {
             setOffResults(results);
             setHasSearchedOFF(true);
         } catch (err) {
-            const msg = err instanceof Error ? err.message : "Search failed";
+            const msg = err instanceof Error ? err.message : t("common.searchFailed");
             setOffError(msg);
         } finally {
             setIsSearchingOFF(false);
         }
-    }, [foodQuery]);
+    }, [foodQuery, t]);
 
     function handleSelectLocal(food: Food) {
         Keyboard.dismiss();
@@ -161,14 +159,14 @@ export default function RecipeEditorScreen() {
 
     function handleBarcodeNotFound() {
         setShowScanner(false);
-        Alert.alert(t("recipes.notFound"), t("recipes.productNotFound"));
+        Alert.alert(t("templates.notFound"), t("templates.productNotFound"));
     }
 
     function handleSelectOFF(product: OFFProduct) {
         Keyboard.dismiss();
         const existing = getFoodByOpenfoodfactsId(product.code);
         if (existing) { addItemForFood(existing); return; }
-        const n = product.product_name || "Unknown";
+        const n = product.product_name || t("common.unknown");
         const nu = product.nutriments ?? {};
         const food = addFood({
             name: n,
@@ -239,10 +237,9 @@ export default function RecipeEditorScreen() {
                     headerStyle: { backgroundColor: colors.surface },
                     headerTintColor: colors.text,
                     headerShadowVisible: false,
-                    headerStatusBarHeight: insets.top,
                     title: isEditing
-                        ? t("recipes.recipeEditorTitle")
-                        : t("recipes.newRecipeTitle"),
+                        ? t("templates.recipeEditorTitle")
+                        : t("templates.newRecipeTitle"),
                 }}
             />
             <ScrollView
@@ -251,8 +248,8 @@ export default function RecipeEditorScreen() {
             >
                 {/* Recipe name */}
                 <Input
-                    label={t("recipes.recipeName")}
-                    placeholder={t("recipes.recipeNamePlaceholder")}
+                    label={t("templates.recipeName")}
+                    placeholder={t("templates.recipeNamePlaceholder")}
                     value={name}
                     onChangeText={setName}
                     containerStyle={styles.nameInput}
@@ -260,7 +257,7 @@ export default function RecipeEditorScreen() {
 
                 {/* Summary */}
                 <Text style={styles.summary}>
-                    {items.length} item{items.length !== 1 ? "s" : ""} · {Math.round(totalCals)} cal total
+                    {t("common.itemCount", { count: items.length })} · {Math.round(totalCals)} {t("common.cal")}
                 </Text>
 
                 {/* Items */}
@@ -287,10 +284,10 @@ export default function RecipeEditorScreen() {
                                 onPress={() => setEditingItem(itemWithFood)}
                             >
                                 <Text style={styles.itemName} numberOfLines={1}>
-                                    {food?.name ?? "Unknown"}
+                                    {food?.name ?? t("common.unknown")}
                                 </Text>
                                 <Text style={styles.itemDetail}>
-                                    {displayQty} {displayUnit} · {cals} cal
+                                    {displayQty} {displayUnit} · {cals} {t("common.cal")}
                                 </Text>
                             </Pressable>
                             <Pressable onPress={() => handleDeleteItem(recipeItem.id)} hitSlop={8}>
@@ -310,12 +307,12 @@ export default function RecipeEditorScreen() {
                 onSnapChange={handleSheetSnapChange}
             >
                 <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetLabel}>{t("recipes.addIngredient")}</Text>
+                    <Text style={styles.sheetLabel}>{t("templates.addIngredient")}</Text>
                     <View style={styles.searchRow}>
                         <Ionicons name="search" size={18} color={colors.textTertiary} />
                         <TextInput
                             style={styles.searchInput}
-                            placeholder={t("recipes.searchFoods")}
+                            placeholder={t("templates.searchFoods")}
                             placeholderTextColor={colors.textTertiary}
                             value={foodQuery}
                             onChangeText={setFoodQuery}
@@ -353,7 +350,7 @@ export default function RecipeEditorScreen() {
                 >
                     {foodQuery.trim().length >= 2 && !hasSearchedOFF && !offError && (
                         <Button
-                            title={isSearchingOFF ? t("recipes.searching") : t("recipes.searchOpenFoodFacts")}
+                            title={isSearchingOFF ? t("templates.searching") : t("templates.searchOpenFoodFacts")}
                             onPress={handleSearchOFF}
                             variant="outline"
                             loading={isSearchingOFF}
@@ -365,7 +362,7 @@ export default function RecipeEditorScreen() {
                         <View style={styles.errorBox}>
                             <Text style={styles.errorText}>{offError}</Text>
                             <Button
-                                title="Retry"
+                                title={t("common.retry")}
                                 variant="ghost"
                                 onPress={handleSearchOFF}
                                 textStyle={{ fontSize: fontSize.sm }}
@@ -381,7 +378,7 @@ export default function RecipeEditorScreen() {
                         >
                             <Text style={styles.resultName} numberOfLines={1}>{food.name}</Text>
                             <Text style={styles.resultDetail}>
-                                {Math.round(food.calories_per_100g)} cal/100g
+                                {t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) })}
                             </Text>
                         </Pressable>
                     ))}
@@ -393,11 +390,11 @@ export default function RecipeEditorScreen() {
                             onPress={() => handleSelectOFF(p)}
                         >
                             <Text style={styles.resultName} numberOfLines={1}>
-                                {p.product_name || "Unknown"}{" "}
+                                {p.product_name || t("common.unknown")}{" "}
                                 <Ionicons name="globe-outline" size={12} color={colors.textTertiary} />
                             </Text>
                             <Text style={styles.resultDetail}>
-                                {Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0)} cal/100g
+                                {t("templates.calPer100g", { cal: Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0) })}
                             </Text>
                         </Pressable>
                     ))}

@@ -8,9 +8,9 @@ export type Language = "en" | "de";
 
 export type { FoodUnit, UnitSystem } from "@/src/utils/units";
 
-export const MEAL_TYPES: { key: MealType; label: string; icon: string }[] = [
-    { key: "breakfast", label: "Breakfast", icon: "sunny-outline" },
-    { key: "lunch", label: "Lunch", icon: "partly-sunny-outline" },
-    { key: "dinner", label: "Dinner", icon: "moon-outline" },
-    { key: "snack", label: "Snack", icon: "nutrition-outline" },
+export const MEAL_TYPES: { key: MealType; icon: string }[] = [
+    { key: "breakfast", icon: "sunny-outline" },
+    { key: "lunch", icon: "partly-sunny-outline" },
+    { key: "dinner", icon: "moon-outline" },
+    { key: "snack", icon: "nutrition-outline" },
 ];

@@ -1,5 +1,7 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
+import MacroLabel from "@/src/components/MacroLabel";
+import ModalHeader from "@/src/components/ModalHeader";
 import UnitPicker from "@/src/components/UnitPicker";
 import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, updateEntry, updateFood, type Entry, type Food, type LoggedRecipeGroup, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
@@ -7,9 +9,10 @@ import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { fromGrams, toGrams, defaultAmountForUnit, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { defaultAmountForUnit, fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -20,8 +23,6 @@ import {
     Text,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 interface EntryModalProps {
     food: Food | null;
@@ -39,9 +40,8 @@ export default function EntryModal({
     onSaved,
 }: EntryModalProps) {
     const colors = useThemeColors();
-    const insets = useSafeAreaInsets();
     const { t } = useTranslation();
-    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const [quantity, setQuantity] = useState("100");
@@ -146,22 +146,23 @@ export default function EntryModal({
     const qty = parseFloat(quantity) || 0;
     const qtyGrams = customServingUnit ? qty * customServingUnit.grams : toGrams(qty, unit);
 
+    // When adding to a recipe group with a non-1 multiplier and
+    // "per-portion" mode, scale the quantity by the group portion.
+    const shouldApplyPortion =
+        !entry && selectedGroup && selectedGroup.portion !== 1 && portionMode === "per-portion";
+    const finalQtyGrams = shouldApplyPortion ? qtyGrams * selectedGroup.portion : qtyGrams;
+    const previewQtyGrams = shouldApplyPortion ? finalQtyGrams : qtyGrams;
+
     const calculated = useMemo(() => {
         if (!food) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
-        const factor = qtyGrams / 100;
+        const factor = previewQtyGrams / 100;
         return {
             calories: food.calories_per_100g * factor,
             protein: food.protein_per_100g * factor,
             carbs: food.carbs_per_100g * factor,
             fat: food.fat_per_100g * factor,
         };
-    }, [food, qtyGrams]);
-
-    // When adding to a recipe group with a non-1 multiplier and
-    // "per-portion" mode, scale the quantity by the group portion.
-    const shouldApplyPortion =
-        !entry && selectedGroup && selectedGroup.portion !== 1 && portionMode === "per-portion";
-    const finalQtyGrams = shouldApplyPortion ? qtyGrams * selectedGroup.portion : qtyGrams;
+    }, [food, previewQtyGrams]);
 
     const savedUnit = customServingUnit ? customServingUnit.name : unit;
 
@@ -238,16 +239,10 @@ export default function EntryModal({
                 style={styles.flex}
             >
                 {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{entry ? t("log.editEntry") : t("log.addToLog")}</Text>
-                    <Pressable onPress={handleClose} hitSlop={8}>
-                        <Ionicons
-                            name="close"
-                            size={24}
-                            color={colors.textSecondary}
-                        />
-                    </Pressable>
-                </View>
+                <ModalHeader
+                    title={entry ? t("log.editEntry") : t("log.addToLog")}
+                    onClose={handleClose}
+                />
 
                 <ScrollView
                     contentContainerStyle={styles.content}
@@ -292,23 +287,23 @@ export default function EntryModal({
                     {/* Live calculation */}
                     <View style={styles.calcCard}>
                         <Text style={styles.calcCalories}>
-                            {Math.round(calculated.calories)} cal
+                            {Math.round(calculated.calories)} {t("common.cal")}
                         </Text>
                         <View style={styles.calcMacros}>
                             <MacroLabel
-                                label="Protein"
+                                label={t("common.protein")}
                                 value={calculated.protein}
                                 color={colors.protein}
                                 textColor={colors.textSecondary}
                             />
                             <MacroLabel
-                                label="Carbs"
+                                label={t("common.carbs")}
                                 value={calculated.carbs}
                                 color={colors.carbs}
                                 textColor={colors.textSecondary}
                             />
                             <MacroLabel
-                                label="Fat"
+                                label={t("common.fat")}
                                 value={calculated.fat}
                                 color={colors.fat}
                                 textColor={colors.textSecondary}
@@ -344,7 +339,7 @@ export default function EntryModal({
 
                     {/* Recipe group picker */}
                     {recipeGroups.length > 0 && (
-                        <>            
+                        <>
                             <Text style={styles.sectionLabel}>{t("log.addToRecipe")}</Text>
                             {recipeGroups.map((g) => {
                                 const isSelected = selectedGroup?.recipeLogId === g.recipeLogId;
@@ -377,14 +372,14 @@ export default function EntryModal({
                     {/* Portion mode toggle — shown when adding to a recipe group with multiplier ≠ 1 */}
                     {!entry && selectedGroup && selectedGroup.portion !== 1 && (
                         <>
-                            <Text style={styles.sectionLabel}>Amount is</Text>
+                            <Text style={styles.sectionLabel}>{t("log.enteredAmountRepresents")}</Text>
                             <View style={styles.mealRow}>
                                 <Pressable
                                     onPress={() => setPortionMode("per-portion")}
                                     style={[styles.mealChip, portionMode === "per-portion" && styles.mealChipActive]}
                                 >
                                     <Text style={[styles.mealChipText, portionMode === "per-portion" && styles.mealChipTextActive]}>
-                                        Per Portion
+                                        {t("log.perPortion")}
                                     </Text>
                                 </Pressable>
                                 <Pressable
@@ -392,20 +387,28 @@ export default function EntryModal({
                                     style={[styles.mealChip, portionMode === "total" && styles.mealChipActive]}
                                 >
                                     <Text style={[styles.mealChipText, portionMode === "total" && styles.mealChipTextActive]}>
-                                        Total
+                                        {t("log.totalBatch")}
                                     </Text>
                                 </Pressable>
                             </View>
                             <Text style={styles.portionHint}>
                                 {portionMode === "per-portion"
-                                    ? `Saved as ${Math.round(finalQtyGrams)}g (${qty} × ${selectedGroup.portion})`
-                                    : `Saved as ${Math.round(qtyGrams)}g (no multiplier applied)`}
+                                    ? t("log.previewAndSavePerPortion", {
+                                        grams: Math.round(finalQtyGrams),
+                                        unit: t("common.g"),
+                                        quantity: qty,
+                                        portion: selectedGroup.portion,
+                                    })
+                                    : t("log.previewAndSaveTotal", {
+                                        grams: Math.round(qtyGrams),
+                                        unit: t("common.g"),
+                                    })}
                             </Text>
                         </>
                     )}
 
                     <Button
-                        title="Save Entry"
+                        title={t("log.saveEntry")}
                         onPress={handleSave}
                         disabled={qty <= 0}
                         style={styles.saveButton}
@@ -416,52 +419,9 @@ export default function EntryModal({
     );
 }
 
-function MacroLabel({
-    label,
-    value,
-    color,
-    textColor,
-}: {
-    label: string;
-    value: number;
-    color: string;
-    textColor: string;
-}) {
-    return (
-        <View style={macroStyles.macroItem}>
-            <Text style={[macroStyles.macroValue, { color }]}>
-                {value.toFixed(1)}g
-            </Text>
-            <Text style={[macroStyles.macroLabel, { color: textColor }]}>{label}</Text>
-        </View>
-    );
-}
-
-const macroStyles = StyleSheet.create({
-    macroItem: { alignItems: "center" },
-    macroValue: { fontSize: fontSize.md, fontWeight: "600" },
-    macroLabel: { fontSize: fontSize.xs },
-});
-
-function createStyles(colors: ThemeColors, insetsTop = 0) {
+function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         flex: { flex: 1, backgroundColor: colors.background },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: spacing.lg,
-            paddingTop: insetsTop + spacing.md,
-            paddingBottom: spacing.md,
-            backgroundColor: colors.surface,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-        },
-        headerTitle: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-        },
         content: { padding: spacing.lg },
         foodName: {
             fontSize: fontSize.xl,

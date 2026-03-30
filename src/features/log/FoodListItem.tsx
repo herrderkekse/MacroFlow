@@ -2,6 +2,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface FoodListItemProps {
@@ -25,6 +26,7 @@ export default function FoodListItem({
 }: FoodListItemProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     return (
         <Pressable
             onPress={onPress}
@@ -38,13 +40,13 @@ export default function FoodListItem({
                     {name}
                 </Text>
                 <Text style={styles.calories}>
-                    {Math.round(calories)} cal
+                    {Math.round(calories)} {t("common.cal")}
                 </Text>
             </View>
             <View style={styles.macros}>
-                <MacroPill label="P" value={protein} color={colors.protein} />
-                <MacroPill label="C" value={carbs} color={colors.carbs} />
-                <MacroPill label="F" value={fat} color={colors.fat} />
+                <MacroPill label={t("common.proteinShort")} value={protein} color={colors.protein} />
+                <MacroPill label={t("common.carbsShort")} value={carbs} color={colors.carbs} />
+                <MacroPill label={t("common.fatShort")} value={fat} color={colors.fat} />
                 {badge && (
                     <View style={styles.badge}>
                         <Ionicons

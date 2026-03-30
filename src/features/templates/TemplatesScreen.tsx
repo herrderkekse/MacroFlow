@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, type Href } from "expo-router";
 import React, { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Alert,
     FlatList,
@@ -26,7 +27,6 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 type FilterType = "all" | "recipes" | "foods";
 
@@ -34,7 +34,7 @@ type TemplateItem =
     | { kind: "food"; data: Food }
     | { kind: "recipe"; data: Recipe };
 
-export default function RecipesScreen() {
+export default function TemplatesScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -45,7 +45,7 @@ export default function RecipesScreen() {
     const [filterExpanded, setFilterExpanded] = useState(false);
     const [fabExpanded, setFabExpanded] = useState(false);
 
-    function load() {
+    const load = useCallback(() => {
         const q = query.trim();
         const hasQuery = q.length >= 2;
         const result: TemplateItem[] = [];
@@ -61,12 +61,12 @@ export default function RecipesScreen() {
 
         result.sort((a, b) => a.data.name.localeCompare(b.data.name));
         setItems(result);
-    }
+    }, [filter, query]);
 
-    useFocusEffect(useCallback(() => { load(); }, [query, filter]));
+    useFocusEffect(load);
 
     function handleDeleteRecipe(recipe: Recipe) {
-        Alert.alert(t("recipes.deleteRecipe"), t("recipes.removeRecipe", { name: recipe.name }), [
+        Alert.alert(t("templates.deleteRecipe"), t("templates.removeRecipe", { name: recipe.name }), [
             { text: t("common.cancel"), style: "cancel" },
             {
                 text: t("common.delete"),
@@ -82,8 +82,8 @@ export default function RecipesScreen() {
 
     function handleDeleteFood(food: Food) {
         Alert.alert(
-            t("recipes.deleteFood"),
-            t("recipes.removeFoodWarning", { name: food.name }),
+            t("templates.deleteFood"),
+            t("templates.removeFoodWarning", { name: food.name }),
             [
                 { text: t("common.cancel"), style: "cancel" },
                 {
@@ -101,17 +101,17 @@ export default function RecipesScreen() {
 
     function recipeSummary(recipeId: number) {
         const recipeItemsList = getRecipeItems(recipeId);
-        if (recipeItemsList.length === 0) return t("recipes.noItems");
+        if (recipeItemsList.length === 0) return t("templates.noItems");
         const totalCals = recipeItemsList.reduce((sum, row) => {
             const food = row.foods;
             if (!food) return sum;
             return sum + (food.calories_per_100g * row.recipe_items.quantity_grams) / 100;
         }, 0);
-        return `${recipeItemsList.length} item${recipeItemsList.length > 1 ? "s" : ""} · ${Math.round(totalCals)} cal`;
+        return `${t("common.itemCount", { count: recipeItemsList.length })} · ${Math.round(totalCals)} ${t("common.cal")}`;
     }
 
     function foodSummary(food: Food) {
-        return t("recipes.calPer100g", { cal: Math.round(food.calories_per_100g) });
+        return t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) });
     }
 
     function toggleFilter(type: "recipes" | "foods") {
@@ -124,7 +124,7 @@ export default function RecipesScreen() {
             return (
                 <Pressable
                     style={styles.card}
-                    onPress={() => router.push({ pathname: "/recipes/edit", params: { recipeId: String(recipe.id) } } as unknown as Href)}
+                    onPress={() => router.push({ pathname: "/templates/edit", params: { recipeId: String(recipe.id) } } as unknown as Href)}
                 >
                     <Ionicons name="book-outline" size={22} color={colors.primary} style={styles.cardIcon} />
                     <View style={styles.cardInfo}>
@@ -141,7 +141,7 @@ export default function RecipesScreen() {
         return (
             <Pressable
                 style={styles.card}
-                onPress={() => router.push({ pathname: "/recipes/food-edit", params: { foodId: String(food.id) } } as unknown as Href)}
+                onPress={() => router.push({ pathname: "/templates/food-edit", params: { foodId: String(food.id) } } as unknown as Href)}
             >
                 <Ionicons name="nutrition-outline" size={22} color={colors.success} style={styles.cardIcon} />
                 <View style={styles.cardInfo}>
@@ -157,12 +157,12 @@ export default function RecipesScreen() {
 
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
-            <Text style={styles.heading}>{t("recipes.title")}</Text>
+            <Text style={styles.heading}>{t("templates.title")}</Text>
             <View style={styles.searchRow}>
                 <Ionicons name="search" size={18} color={colors.textTertiary} />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder={t("recipes.searchPlaceholder")}
+                    placeholder={t("templates.searchPlaceholder")}
                     placeholderTextColor={colors.textTertiary}
                     value={query}
                     onChangeText={setQuery}
@@ -178,7 +178,7 @@ export default function RecipesScreen() {
                 onPress={() => setFilterExpanded((prev) => !prev)}
                 style={styles.filterHeader}
             >
-                <Text style={styles.filterLabel}>{t("recipes.filter")}</Text>
+                <Text style={styles.filterLabel}>{t("templates.filter")}</Text>
                 <Ionicons
                     name={filterExpanded ? "chevron-up" : "chevron-down"}
                     size={18}
@@ -198,7 +198,7 @@ export default function RecipesScreen() {
                             style={{ marginRight: spacing.xs }}
                         />
                         <Text style={[styles.filterButtonText, filter === "recipes" && styles.filterButtonTextActive]}>
-                            {t("recipes.filterRecipes")}
+                            {t("templates.filterRecipes")}
                         </Text>
                     </Pressable>
                     <Pressable
@@ -212,7 +212,7 @@ export default function RecipesScreen() {
                             style={{ marginRight: spacing.xs }}
                         />
                         <Text style={[styles.filterButtonText, filter === "foods" && styles.filterButtonTextActive]}>
-                            {t("recipes.filterFoods")}
+                            {t("templates.filterFoods")}
                         </Text>
                     </Pressable>
                 </View>
@@ -226,7 +226,7 @@ export default function RecipesScreen() {
                 contentContainerStyle={styles.list}
                 ListEmptyComponent={
                     <Text style={styles.empty}>
-                        {query ? t("recipes.noMatchingTemplates") : t("recipes.noTemplatesYet")}
+                        {query ? t("templates.noMatchingTemplates") : t("templates.noTemplatesYet")}
                     </Text>
                 }
                 renderItem={renderItem}
@@ -247,22 +247,22 @@ export default function RecipesScreen() {
                         style={[styles.miniFab, styles.miniFabUpper]}
                         onPress={() => {
                             setFabExpanded(false);
-                            router.push("/recipes/food-edit" as unknown as Href);
+                            router.push("/templates/food-edit" as unknown as Href);
                         }}
                     >
                         <Ionicons name="nutrition-outline" size={20} color="#fff" />
-                        <Text style={styles.miniFabLabel}>{t("recipes.newFood")}</Text>
+                        <Text style={styles.miniFabLabel}>{t("templates.newFood")}</Text>
                     </Pressable>
 
                     <Pressable
                         style={[styles.miniFab, styles.miniFabLower]}
                         onPress={() => {
                             setFabExpanded(false);
-                            router.push("/recipes/edit" as unknown as Href);
+                            router.push("/templates/edit" as unknown as Href);
                         }}
                     >
                         <Ionicons name="book-outline" size={20} color="#fff" />
-                        <Text style={styles.miniFabLabel}>{t("recipes.newRecipe")}</Text>
+                        <Text style={styles.miniFabLabel}>{t("templates.newRecipe")}</Text>
                     </Pressable>
                 </>
             )}

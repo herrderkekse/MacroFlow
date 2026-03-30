@@ -1,13 +1,15 @@
 import { useThemeColors } from '@/src/utils/ThemeProvider';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
     const colors = useThemeColors();
+    const { t } = useTranslation();
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Text style={[styles.title, { color: colors.text }]}>MacroFlow</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Home — implement dashboard here</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t("home.subtitle")}</Text>
         </View>
     );
 }

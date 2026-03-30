@@ -1,4 +1,5 @@
 import type { AppearanceMode, Language, UnitSystem } from "@/src/types";
+import { normalizeCalendarDate } from "@/src/utils/date";
 import { create } from "zustand";
 import i18n, { defaultLanguage } from "@/src/i18n";
 
@@ -14,8 +15,8 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-    selectedDate: new Date(),
-    setSelectedDate: (date) => set({ selectedDate: date }),
+    selectedDate: normalizeCalendarDate(new Date()),
+    setSelectedDate: (date) => set({ selectedDate: normalizeCalendarDate(date) }),
     unitSystem: "metric",
     setUnitSystem: (system) => set({ unitSystem: system }),
     appearanceMode: "system",

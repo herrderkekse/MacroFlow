@@ -8,7 +8,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 const icons: Record<string, string> = {
     index: 'create',
-    recipes: 'library',
+    templates: 'library',
     more: 'ellipsis-horizontal'
 };
 
@@ -64,7 +64,7 @@ export default function TabsLayout() {
                 },
             })}
         >
-            <Tabs.Screen name="recipes" options={{ title: t("nav.templates"), tabBarLabel: t("nav.templates") }} />
+            <Tabs.Screen name="templates" options={{ title: t("nav.templates"), tabBarLabel: t("nav.templates") }} />
             <Tabs.Screen name="index" options={{ title: t("nav.logs"), tabBarLabel: t("nav.logs") }} />
             <Tabs.Screen name="more" options={{ title: t("nav.more"), tabBarLabel: t("nav.more") }} />
             {/* Hidden screens — part of tabs so the tab bar stays visible */}

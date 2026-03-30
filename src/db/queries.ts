@@ -1,5 +1,6 @@
 import { and, eq, gte, like, lte, sql } from "drizzle-orm";
 import logger from "../utils/logger";
+import { diffCalendarDays, formatDateKey as formatLocalDateKey, parseDateKey } from "../utils/date";
 import { db } from "./index";
 import { entries, foods, goals, recipeItems, recipeLogs, recipes, servingUnits, weightLogs } from "./schema";
 
@@ -75,15 +76,64 @@ export function addServingUnit(unit: NewServingUnit): ServingUnit {
     return db.insert(servingUnits).values(unit).returning().get();
 }
 
+function renameServingUnitReferences(foodId: number, oldName: string, newName: string) {
+    db.update(entries)
+        .set({ quantity_unit: newName })
+        .where(and(eq(entries.food_id, foodId), eq(entries.quantity_unit, oldName)))
+        .run();
+
+    db.update(recipeItems)
+        .set({ quantity_unit: newName })
+        .where(and(eq(recipeItems.food_id, foodId), eq(recipeItems.quantity_unit, oldName)))
+        .run();
+
+    db.update(foods)
+        .set({ last_logged_unit: newName })
+        .where(and(eq(foods.id, foodId), eq(foods.last_logged_unit, oldName)))
+        .run();
+}
+
+function normalizeDeletedServingUnitReferences(foodId: number, unitName: string, grams: number) {
+    db.update(entries)
+        .set({ quantity_unit: "g" })
+        .where(and(eq(entries.food_id, foodId), eq(entries.quantity_unit, unitName)))
+        .run();
+
+    db.update(recipeItems)
+        .set({ quantity_unit: "g" })
+        .where(and(eq(recipeItems.food_id, foodId), eq(recipeItems.quantity_unit, unitName)))
+        .run();
+
+    db.update(foods)
+        .set({
+            last_logged_amount: sql`coalesce(${foods.last_logged_amount}, 0) * ${grams}`,
+            last_logged_unit: "g",
+        })
+        .where(and(eq(foods.id, foodId), eq(foods.last_logged_unit, unitName)))
+        .run();
+}
+
 export function updateServingUnit(id: number, values: Partial<NewServingUnit>) {
+    const existing = db.select().from(servingUnits).where(eq(servingUnits.id, id)).get();
+    if (!existing) return;
     db.update(servingUnits).set(values).where(eq(servingUnits.id, id)).run();
+    if (values.name && values.name !== existing.name) {
+        renameServingUnitReferences(existing.food_id, existing.name, values.name);
+    }
 }
 
 export function deleteServingUnit(id: number) {
+    const existing = db.select().from(servingUnits).where(eq(servingUnits.id, id)).get();
+    if (!existing) return;
+    normalizeDeletedServingUnitReferences(existing.food_id, existing.name, existing.grams);
     db.delete(servingUnits).where(eq(servingUnits.id, id)).run();
 }
 
 export function deleteServingUnitsForFood(foodId: number) {
+    const units = getServingUnits(foodId);
+    for (const unit of units) {
+        normalizeDeletedServingUnitReferences(foodId, unit.name, unit.grams);
+    }
     db.delete(servingUnits).where(eq(servingUnits.food_id, foodId)).run();
 }
 
@@ -94,10 +144,7 @@ export function addEntry(entry: NewEntry): Entry {
 }
 
 export function formatDateKey(date: Date): string {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    return formatLocalDateKey(date);
 }
 
 export function getEntriesByDate(date: Date) {
@@ -200,7 +247,6 @@ export function getStreak(): number {
 
     const toDateStr = (d: Date) => formatDateKey(d);
     const todayStr = toDateStr(new Date());
-    const yesterdayStr = toDateStr(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
     const last = rows[0].date;
     if (last !== todayStr) {
@@ -209,10 +255,9 @@ export function getStreak(): number {
 
     let streak = 1;
     for (let i = 1; i < rows.length; i++) {
-        const curr = new Date(rows[i - 1].date + "T00:00:00");
-        const prev = new Date(rows[i].date + "T00:00:00");
-        const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
-        if (Math.round(diff) === 1) {
+        const curr = parseDateKey(rows[i - 1].date);
+        const prev = parseDateKey(rows[i].date);
+        if (diffCalendarDays(curr, prev) === 1) {
             streak++;
         } else {
             break;

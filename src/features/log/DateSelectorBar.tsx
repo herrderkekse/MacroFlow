@@ -3,8 +3,8 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface DateSelectorBarProps {
     date: Date;
@@ -25,7 +25,7 @@ export default function DateSelectorBar({
 }: DateSelectorBarProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [calendarVisible, setCalendarVisible] = useState(false);
 
     function shiftDay(delta: number) {
@@ -47,14 +47,14 @@ export default function DateSelectorBar({
     const label = isToday
         ? t("log.today")
         : isYesterday
-        ? t("log.yesterday")
-        : isTomorrow
-        ? t("log.tomorrow")
-        : date.toLocaleDateString(undefined, {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-        });
+            ? t("log.yesterday")
+            : isTomorrow
+                ? t("log.tomorrow")
+                : date.toLocaleDateString(i18n.language, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                });
 
     return (
         <>
