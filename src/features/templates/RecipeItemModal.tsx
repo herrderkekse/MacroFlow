@@ -3,7 +3,7 @@ import Input from "@/src/components/Input";
 import MacroLabel from "@/src/components/MacroLabel";
 import ModalHeader from "@/src/components/ModalHeader";
 import UnitPicker from "@/src/components/UnitPicker";
-import { getServingUnits, updateRecipeItem, type Food, type RecipeItem, type ServingUnit } from "@/src/db/queries";
+import { getServingUnits, updateFood, updateRecipeItem, type Food, type RecipeItem, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
@@ -84,6 +84,12 @@ export default function RecipeItemModal({
         if (!item || qty <= 0) return;
         const savedUnit = customServingUnit ? customServingUnit.name : unit;
         updateRecipeItem(item.id, { quantity_grams: qtyGrams, quantity_unit: savedUnit });
+        if (food?.id) {
+            updateFood(food.id, {
+                last_logged_amount: qty,
+                last_logged_unit: savedUnit,
+            });
+        }
         onSaved(item.id, qtyGrams, savedUnit);
     }
 

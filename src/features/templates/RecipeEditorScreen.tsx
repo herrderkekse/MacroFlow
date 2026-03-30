@@ -38,7 +38,6 @@ import {
     useWindowDimensions,
     View
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
 interface ItemWithFood {
@@ -55,7 +54,6 @@ export default function RecipeEditorScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
     const { height: screenHeight } = useWindowDimensions();
-    const insets = useSafeAreaInsets();
     const sheetRef = useRef<BottomSheetRef>(null);
     const snapPoints = useMemo(() => [SHEET_COLLAPSED, Math.round(screenHeight * 0.8)], [screenHeight]);
     const isEditing = !!recipeId;
@@ -239,7 +237,6 @@ export default function RecipeEditorScreen() {
                     headerStyle: { backgroundColor: colors.surface },
                     headerTintColor: colors.text,
                     headerShadowVisible: false,
-                    headerStatusBarHeight: insets.top,
                     title: isEditing
                         ? t("templates.recipeEditorTitle")
                         : t("templates.newRecipeTitle"),

@@ -146,22 +146,23 @@ export default function EntryModal({
     const qty = parseFloat(quantity) || 0;
     const qtyGrams = customServingUnit ? qty * customServingUnit.grams : toGrams(qty, unit);
 
+    // When adding to a recipe group with a non-1 multiplier and
+    // "per-portion" mode, scale the quantity by the group portion.
+    const shouldApplyPortion =
+        !entry && selectedGroup && selectedGroup.portion !== 1 && portionMode === "per-portion";
+    const finalQtyGrams = shouldApplyPortion ? qtyGrams * selectedGroup.portion : qtyGrams;
+    const previewQtyGrams = shouldApplyPortion ? finalQtyGrams : qtyGrams;
+
     const calculated = useMemo(() => {
         if (!food) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
-        const factor = qtyGrams / 100;
+        const factor = previewQtyGrams / 100;
         return {
             calories: food.calories_per_100g * factor,
             protein: food.protein_per_100g * factor,
             carbs: food.carbs_per_100g * factor,
             fat: food.fat_per_100g * factor,
         };
-    }, [food, qtyGrams]);
-
-    // When adding to a recipe group with a non-1 multiplier and
-    // "per-portion" mode, scale the quantity by the group portion.
-    const shouldApplyPortion =
-        !entry && selectedGroup && selectedGroup.portion !== 1 && portionMode === "per-portion";
-    const finalQtyGrams = shouldApplyPortion ? qtyGrams * selectedGroup.portion : qtyGrams;
+    }, [food, previewQtyGrams]);
 
     const savedUnit = customServingUnit ? customServingUnit.name : unit;
 
@@ -371,14 +372,14 @@ export default function EntryModal({
                     {/* Portion mode toggle — shown when adding to a recipe group with multiplier ≠ 1 */}
                     {!entry && selectedGroup && selectedGroup.portion !== 1 && (
                         <>
-                            <Text style={styles.sectionLabel}>Amount is</Text>
+                            <Text style={styles.sectionLabel}>Entered amount represents</Text>
                             <View style={styles.mealRow}>
                                 <Pressable
                                     onPress={() => setPortionMode("per-portion")}
                                     style={[styles.mealChip, portionMode === "per-portion" && styles.mealChipActive]}
                                 >
                                     <Text style={[styles.mealChipText, portionMode === "per-portion" && styles.mealChipTextActive]}>
-                                        Per Portion
+                                        Per portion
                                     </Text>
                                 </Pressable>
                                 <Pressable
@@ -386,14 +387,14 @@ export default function EntryModal({
                                     style={[styles.mealChip, portionMode === "total" && styles.mealChipActive]}
                                 >
                                     <Text style={[styles.mealChipText, portionMode === "total" && styles.mealChipTextActive]}>
-                                        Total
+                                        Total batch
                                     </Text>
                                 </Pressable>
                             </View>
                             <Text style={styles.portionHint}>
                                 {portionMode === "per-portion"
-                                    ? `Saved as ${Math.round(finalQtyGrams)}g (${qty} × ${selectedGroup.portion})`
-                                    : `Saved as ${Math.round(qtyGrams)}g (no multiplier applied)`}
+                                    ? `Preview and save use ${Math.round(finalQtyGrams)}g total (${qty} × ${selectedGroup.portion})`
+                                    : `Preview and save use ${Math.round(qtyGrams)}g total`}
                             </Text>
                         </>
                     )}

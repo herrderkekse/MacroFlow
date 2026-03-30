@@ -5,7 +5,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { formatEntryQuantity } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -37,6 +37,20 @@ export interface RecipeGroup {
     recipeName: string;
     portion: number;
     rows: EntryWithFood[];
+}
+
+interface MealSelectionContextValue {
+    selectionMode: boolean;
+    selectedEntryIds: Set<number>;
+    toggleEntries: (entryIds: number[]) => void;
+    activateSelection: (entryId: number) => void;
+    activateSelectionMultiple: (entryIds: number[]) => void;
+}
+
+const MealSelectionContext = createContext<MealSelectionContextValue | null>(null);
+
+function useMealSelection() {
+    return useContext(MealSelectionContext);
 }
 
 function groupEntries(items: EntryWithFood[]) {
@@ -116,94 +130,90 @@ export default function MealSection({
     const { standalone, recipeGroups } = groupEntries(items);
     const allMealEntryIds = items.map(e => e.entries.id);
     const allMealSelected = selectionMode && items.length > 0 && items.every(e => selectedEntryIds?.has(e.entries.id));
+    const selectionContextValue: MealSelectionContextValue = {
+        selectionMode: selectionMode ?? false,
+        selectedEntryIds: selectedEntryIds ?? new Set<number>(),
+        toggleEntries: (entryIds) => onToggleEntries?.(entryIds),
+        activateSelection: (entryId) => onActivateSelection?.(entryId),
+        activateSelectionMultiple: (entryIds) => onActivateSelectionMultiple?.(entryIds),
+    };
 
     return (
-        <View style={[styles.container, allMealSelected && styles.selectedMeal]}>
-            <Pressable
-                style={styles.header}
-                onPress={() => {
-                    if (selectionMode && items.length > 0) {
-                        onToggleEntries?.(allMealEntryIds);
-                    } else if (!selectionMode) {
-                        onAdd();
-                    }
-                }}
-                onLongPress={() => {
-                    if (selectionMode && items.length > 0) {
-                        onToggleEntries?.(allMealEntryIds);
-                    } else if (!selectionMode && items.length > 0) {
-                        onActivateSelectionMultiple?.(allMealEntryIds);
-                    }
-                }}
-            >
-                <View style={styles.headerLeft}>
-                    <Ionicons name={icon as never} size={18} color={colors.textSecondary} />
-                    <Text style={styles.title}>{label}</Text>
+        <MealSelectionContext.Provider value={selectionContextValue}>
+            <View style={[styles.container, allMealSelected && styles.selectedMeal]}>
+                <Pressable
+                    style={styles.header}
+                    onPress={() => {
+                        if (selectionMode && items.length > 0) {
+                            onToggleEntries?.(allMealEntryIds);
+                        } else if (!selectionMode) {
+                            onAdd();
+                        }
+                    }}
+                    onLongPress={() => {
+                        if (selectionMode && items.length > 0) {
+                            onToggleEntries?.(allMealEntryIds);
+                        } else if (!selectionMode && items.length > 0) {
+                            onActivateSelectionMultiple?.(allMealEntryIds);
+                        }
+                    }}
+                >
+                    <View style={styles.headerLeft}>
+                        <Ionicons name={icon as never} size={18} color={colors.textSecondary} />
+                        <Text style={styles.title}>{label}</Text>
 
-                    {items.length > 0 && (
-                        <View style={styles.pillsContainer}>
-                            <View style={styles.pill}>
-                                <Text style={[styles.pillText, { color: colors.textSecondary }]}>
-                                    <Text style={{ color: colors.calories }}>{Math.round(totalCals)} {t("common.cal")}</Text>
-                                    <Text style={{ color: colors.textSecondary }}> - </Text>
-                                    <Text style={{ color: colors.protein }}>{Math.round(totalProtein)}g</Text>
-                                    <Text style={{ color: colors.textSecondary }}> | </Text>
-                                    <Text style={{ color: colors.carbs }}>{Math.round(totalCarbs)}g</Text>
-                                    <Text style={{ color: colors.textSecondary }}> | </Text>
-                                    <Text style={{ color: colors.fat }}>{Math.round(totalFat)}g</Text>
-                                </Text>
+                        {items.length > 0 && (
+                            <View style={styles.pillsContainer}>
+                                <View style={styles.pill}>
+                                    <Text style={[styles.pillText, { color: colors.textSecondary }]}> 
+                                        <Text style={{ color: colors.calories }}>{Math.round(totalCals)} {t("common.cal")}</Text>
+                                        <Text style={{ color: colors.textSecondary }}> - </Text>
+                                        <Text style={{ color: colors.protein }}>{Math.round(totalProtein)}g</Text>
+                                        <Text style={{ color: colors.textSecondary }}> | </Text>
+                                        <Text style={{ color: colors.carbs }}>{Math.round(totalCarbs)}g</Text>
+                                        <Text style={{ color: colors.textSecondary }}> | </Text>
+                                        <Text style={{ color: colors.fat }}>{Math.round(totalFat)}g</Text>
+                                    </Text>
+                                </View>
                             </View>
-                        </View>
+                        )}
+                    </View>
+                    {!selectionMode && (
+                        <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
                     )}
-                </View>
-                {!selectionMode && (
-                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
-                )}
-            </Pressable>
-
-
-
-            {items.length === 0 ? (
-                <Pressable onPress={() => !selectionMode && onAdd()} style={styles.emptyPressable}>
-                    <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
                 </Pressable>
-            ) : (
-                <>
-                    {/* Recipe groups */}
-                    {recipeGroups.map((rg) => (
-                        <RecipeGroupRow
-                            key={rg.recipeLogId}
-                            group={rg}
-                            onEdit={onEdit}
-                            onDeleteEntry={onDeleteEntry}
-                            onEditRecipeGroup={onEditRecipeGroup}
-                            onDeleteRecipeLog={onDeleteRecipeLog}
-                            selectionMode={selectionMode}
-                            selectedEntryIds={selectedEntryIds}
-                            onToggleEntries={onToggleEntries}
-                            onActivateSelection={onActivateSelection}
-                            onActivateSelectionMultiple={onActivateSelectionMultiple}
-                            allMealSelected={allMealSelected}
-                        />
-                    ))}
 
-                    {/* Standalone entries */}
-                    {standalone.map((row) => (
-                        <EntryRow
-                            key={row.entries.id}
-                            row={row}
-                            onEdit={onEdit}
-                            onDeleteEntry={onDeleteEntry}
-                            selectionMode={selectionMode}
-                            isSelected={selectedEntryIds?.has(row.entries.id)}
-                            onToggleSelection={() => onToggleEntries?.([row.entries.id])}
-                            onActivateSelection={() => onActivateSelection?.(row.entries.id)}
-                            allMealSelected={allMealSelected}
-                        />
-                    ))}
-                </>
-            )}
-        </View>
+                {items.length === 0 ? (
+                    <Pressable onPress={() => !selectionMode && onAdd()} style={styles.emptyPressable}>
+                        <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
+                    </Pressable>
+                ) : (
+                    <>
+                        {recipeGroups.map((rg) => (
+                            <RecipeGroupRow
+                                key={rg.recipeLogId}
+                                group={rg}
+                                onEdit={onEdit}
+                                onDeleteEntry={onDeleteEntry}
+                                onEditRecipeGroup={onEditRecipeGroup}
+                                onDeleteRecipeLog={onDeleteRecipeLog}
+                                allMealSelected={allMealSelected}
+                            />
+                        ))}
+
+                        {standalone.map((row) => (
+                            <EntryRow
+                                key={row.entries.id}
+                                row={row}
+                                onEdit={onEdit}
+                                onDeleteEntry={onDeleteEntry}
+                                allMealSelected={allMealSelected}
+                            />
+                        ))}
+                    </>
+                )}
+            </View>
+        </MealSelectionContext.Provider>
     );
 }
 
@@ -212,10 +222,6 @@ function EntryRow({
     onEdit,
     onDeleteEntry,
     isChild = false,
-    selectionMode,
-    isSelected,
-    onToggleSelection,
-    onActivateSelection,
     allMealSelected,
     allGroupSelected,
 }: {
@@ -223,21 +229,20 @@ function EntryRow({
     onEdit?: (row: EntryWithFood) => void;
     onDeleteEntry: (id: number) => void;
     isChild?: boolean;
-    selectionMode?: boolean;
-    isSelected?: boolean;
-    onToggleSelection?: () => void;
-    onActivateSelection?: () => void;
     allMealSelected?: boolean;
     allGroupSelected?: boolean;
 }) {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const selection = useMealSelection();
     const food = row.foods;
     const qty = row.entries.quantity_grams;
     const entryUnit = row.entries.quantity_unit ?? "g";
     const servingGrams = food?.id ? getServingUnits(food.id).find((s) => s.name === entryUnit)?.grams : undefined;
     const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
+    const selectionMode = selection?.selectionMode ?? false;
+    const isSelected = selection?.selectedEntryIds.has(row.entries.id) ?? false;
 
     return (
         <Pressable
@@ -247,12 +252,12 @@ function EntryRow({
                 selectionMode && isSelected && !allMealSelected && !allGroupSelected && styles.selectedEntry,
             ]}
             onPress={() => {
-                if (selectionMode) onToggleSelection?.();
+                if (selectionMode) selection?.toggleEntries([row.entries.id]);
                 else onEdit?.(row);
             }}
             onLongPress={() => {
-                if (selectionMode) onToggleSelection?.();
-                else onActivateSelection?.();
+                if (selectionMode) selection?.toggleEntries([row.entries.id]);
+                else selection?.activateSelection(row.entries.id);
             }}
             android_ripple={{ color: "#00000004" }}
         >
@@ -284,11 +289,6 @@ function RecipeGroupRow({
     onDeleteEntry,
     onEditRecipeGroup,
     onDeleteRecipeLog,
-    selectionMode,
-    selectedEntryIds,
-    onToggleEntries,
-    onActivateSelection,
-    onActivateSelectionMultiple,
     allMealSelected,
 }: {
     group: RecipeGroup;
@@ -296,15 +296,11 @@ function RecipeGroupRow({
     onDeleteEntry: (id: number) => void;
     onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
     onDeleteRecipeLog?: (recipeLogId: number) => void;
-    selectionMode?: boolean;
-    selectedEntryIds?: Set<number>;
-    onToggleEntries?: (entryIds: number[]) => void;
-    onActivateSelection?: (entryId: number) => void;
-    onActivateSelectionMultiple?: (entryIds: number[]) => void;
     allMealSelected?: boolean;
 }) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const selection = useMealSelection();
     const [expanded, setExpanded] = useState(false);
 
     const totalCals = group.rows.reduce((sum, row) => {
@@ -330,7 +326,9 @@ function RecipeGroupRow({
         return false;
     }, [group.recipeId, group.rows, multiplier]);
 
-    const allGroupSelected = selectionMode && group.rows.length > 0 && group.rows.every(r => selectedEntryIds?.has(r.entries.id));
+    const selectionMode = selection?.selectionMode ?? false;
+    const selectedEntryIds = selection?.selectedEntryIds ?? new Set<number>();
+    const allGroupSelected = selectionMode && group.rows.length > 0 && group.rows.every(r => selectedEntryIds.has(r.entries.id));
 
     const displayName = multiplier !== 1
         ? `${multiplier}x ${group.recipeName}`
@@ -347,7 +345,7 @@ function RecipeGroupRow({
                 style={styles.recipeHeader}
                 onPress={() => {
                     if (selectionMode) {
-                        onToggleEntries?.(allGroupEntryIds);
+                        selection?.toggleEntries(allGroupEntryIds);
                     } else {
                         setExpanded(!expanded);
                     }
@@ -356,7 +354,7 @@ function RecipeGroupRow({
                     if (selectionMode) {
                         setExpanded(!expanded);
                     } else {
-                        onActivateSelectionMultiple?.(allGroupEntryIds);
+                        selection?.activateSelectionMultiple(allGroupEntryIds);
                     }
                 }}
             >
@@ -407,10 +405,6 @@ function RecipeGroupRow({
                             onEdit={onEdit}
                             onDeleteEntry={onDeleteEntry}
                             isChild
-                            selectionMode={selectionMode}
-                            isSelected={selectedEntryIds?.has(row.entries.id)}
-                            onToggleSelection={() => onToggleEntries?.([row.entries.id])}
-                            onActivateSelection={() => onActivateSelection?.(row.entries.id)}
                             allMealSelected={allMealSelected}
                             allGroupSelected={allGroupSelected}
                         />

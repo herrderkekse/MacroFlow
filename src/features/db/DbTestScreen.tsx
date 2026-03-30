@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
-import { addFood, addEntry, getEntriesByDate, getGoals, setGoals } from "@/src/db/queries";
+import { Text, Pressable, ScrollView, StyleSheet } from "react-native";
+import { addFood, addEntry, formatDateKey, getEntriesByDate, getGoals, setGoals } from "@/src/db/queries";
 
 export default function DbTestScreen() {
     const [logs, setLogs] = useState<string[]>([]);
@@ -26,7 +26,7 @@ export default function DbTestScreen() {
                 quantity_grams: 50,
                 timestamp: Date.now(),
                 meal_type: "breakfast",
-                date: new Date().toISOString().split("T")[0],
+                date: formatDateKey(new Date()),
             });
             log(`Added entry id=${entry.id}`);
 

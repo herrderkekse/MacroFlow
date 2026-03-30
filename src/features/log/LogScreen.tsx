@@ -3,6 +3,7 @@ import Input from "@/src/components/Input";
 import { addWeightLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getGoals, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type Entry, type Food, type Goals, type WeightLog } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
+import { diffCalendarDays, diffDateKeys, parseDateKey, shiftCalendarDate } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
@@ -42,9 +43,9 @@ function computeWeightTrend(logs: WeightLog[]): "up" | "down" | "flat" | null {
     const n = logs.length;
     // x = day index, y = weight_kg
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    const baseDate = new Date(logs[0].date + "T00:00:00").getTime();
+    const baseDate = parseDateKey(logs[0].date).getTime();
     for (let i = 0; i < n; i++) {
-        const x = (new Date(logs[i].date + "T00:00:00").getTime() - baseDate) / (1000 * 60 * 60 * 24);
+        const x = (parseDateKey(logs[i].date).getTime() - baseDate) / (1000 * 60 * 60 * 24);
         const y = logs[i].weight_kg;
         sumX += x;
         sumY += y;
@@ -56,12 +57,6 @@ function computeWeightTrend(logs: WeightLog[]): "up" | "down" | "flat" | null {
     const slope = (n * sumXY - sumX * sumY) / denom;
     if (Math.abs(slope) < 0.01) return "flat";
     return slope > 0 ? "up" : "down";
-}
-
-function getDateShifted(date: Date, delta: number) {
-    const d = new Date(date);
-    d.setDate(d.getDate() + delta);
-    return d;
 }
 
 function loadGrouped(date: Date) {
@@ -212,6 +207,7 @@ export default function LogScreen() {
         fat: 70,
         unit_system: "metric",
         language: "en",
+        appearance_mode: "system",
     });
 
     const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
@@ -232,8 +228,8 @@ export default function LogScreen() {
 
     function loadAllDays(center: Date) {
         setGrouped(loadGrouped(center));
-        setPrevGrouped(loadGrouped(getDateShifted(center, -1)));
-        setNextGrouped(loadGrouped(getDateShifted(center, +1)));
+        setPrevGrouped(loadGrouped(shiftCalendarDate(center, -1)));
+        setNextGrouped(loadGrouped(shiftCalendarDate(center, +1)));
         const g = getGoals();
         if (g) {
             setDailyGoals(g);
@@ -252,8 +248,7 @@ export default function LogScreen() {
             setWeightDaysAgo(0);
         } else {
             // Find last day with weight logged (using range query going back far)
-            const twoMonthsBefore = new Date(center);
-            twoMonthsBefore.setDate(twoMonthsBefore.getDate() - 60);
+            const twoMonthsBefore = shiftCalendarDate(center, -60);
             const pastLogs = getWeightLogsForRange(formatDateKey(twoMonthsBefore), formatDateKey(center));
             if (pastLogs.length > 0) {
                 // Group by last date
@@ -261,18 +256,14 @@ export default function LogScreen() {
                 const lastDayLogs = pastLogs.filter(w => w.date === lastDate);
                 const mean = lastDayLogs.reduce((s, w) => s + w.weight_kg, 0) / lastDayLogs.length;
                 setMeanWeightKg(mean);
-                const msPerDay = 86400000;
-                const lastDateObj = new Date(lastDate + "T00:00:00");
-                const centerObj = new Date(formatDateKey(center) + "T00:00:00");
-                setWeightDaysAgo(Math.round((centerObj.getTime() - lastDateObj.getTime()) / msPerDay));
+                setWeightDaysAgo(diffDateKeys(formatDateKey(center), lastDate));
             } else {
                 setMeanWeightKg(null);
                 setWeightDaysAgo(null);
             }
         }
         // Trend: get weight logs from 14 days before the selected date
-        const twoWeeksBefore = new Date(center);
-        twoWeeksBefore.setDate(twoWeeksBefore.getDate() - 14);
+        const twoWeeksBefore = shiftCalendarDate(center, -14);
         const rangeLogs = getWeightLogsForRange(formatDateKey(twoWeeksBefore), formatDateKey(center));
         setWeightTrend(computeWeightTrend(rangeLogs));
     }
@@ -302,12 +293,12 @@ export default function LogScreen() {
         const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
         if (page === 0) {
             isSettling.current = true;
-            const newDate = getDateShifted(dateRef.current, -1);
+            const newDate = shiftCalendarDate(dateRef.current, -1);
             loadAllDays(newDate);
             setSelectedDate(newDate);
         } else if (page === 2) {
             isSettling.current = true;
-            const newDate = getDateShifted(dateRef.current, 1);
+            const newDate = shiftCalendarDate(dateRef.current, 1);
             loadAllDays(newDate);
             setSelectedDate(newDate);
         }
@@ -438,9 +429,7 @@ export default function LogScreen() {
 
     function handleDateChange(newDate: Date) {
         exitSelectionMode();
-        const diff = Math.round(
-            (newDate.getTime() - dateRef.current.getTime()) / (1000 * 60 * 60 * 24),
-        );
+        const diff = diffCalendarDays(newDate, dateRef.current);
         if (diff === 1 || diff === -1) {
             isSettling.current = true;
             carouselRef.current?.scrollTo({
