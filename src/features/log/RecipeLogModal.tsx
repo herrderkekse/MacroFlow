@@ -3,6 +3,7 @@ import Input from "@/src/components/Input";
 import {
     formatDateKey,
     getRecipeItems,
+    getServingUnits,
     logRecipeToMeal,
     type Recipe,
 } from "@/src/db/queries";
@@ -54,11 +55,23 @@ export default function RecipeLogModal({
         if (recipe) setPortionInput("1");
     }, [recipe]);
 
+    const items = React.useMemo(() => (recipe ? getRecipeItems(recipe.id) : []), [recipe]);
+    const servingUnitGramsByFoodId = React.useMemo(() => {
+        const unitMap = new Map<number, Map<string, number>>();
+        for (const row of items) {
+            const foodId = row.foods?.id;
+            if (!foodId || unitMap.has(foodId)) continue;
+            unitMap.set(
+                foodId,
+                new Map(getServingUnits(foodId).map((servingUnit) => [servingUnit.name, servingUnit.grams])),
+            );
+        }
+        return unitMap;
+    }, [items]);
+
     if (!recipe) return null;
 
     const portion = Math.max(0, parseFloat(portionInput) || 0);
-
-    const items = getRecipeItems(recipe.id);
     const totalCals = items.reduce((sum, row) => {
         const food = row.foods;
         if (!food) return sum;
@@ -132,13 +145,16 @@ export default function RecipeLogModal({
                         const food = row.foods;
                         const qty = row.recipe_items.quantity_grams * portion;
                         const itemUnit = row.recipe_items.quantity_unit ?? "g";
+                        const servingGrams = food?.id
+                            ? servingUnitGramsByFoodId.get(food.id)?.get(itemUnit)
+                            : undefined;
                         const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
                         return (
                             <View key={row.recipe_items.id} style={styles.itemRow}>
                                 <Text style={styles.itemName} numberOfLines={1}>
                                     {food?.name ?? t("common.unknown")}
                                 </Text>
-                                <Text style={styles.itemDetail}>{formatEntryQuantity(qty, itemUnit)} · {cals} {t("common.cal")}</Text>
+                                <Text style={styles.itemDetail}>{formatEntryQuantity(qty, itemUnit, servingGrams)} · {cals} {t("common.cal")}</Text>
                             </View>
                         );
                     })}
