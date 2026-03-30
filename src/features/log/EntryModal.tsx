@@ -7,6 +7,7 @@ import { addEntry, formatDateKey, getLoggedRecipeGroups, getServingUnits, update
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
+import { cancelMealReminderIfLogged } from "@/src/services/notifications";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { defaultAmountForUnit, fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
@@ -208,6 +209,9 @@ export default function EntryModal({
                 last_logged_amount: qty,
                 last_logged_unit: savedUnit,
             });
+
+            // Cancel today's meal reminder since the user just logged food
+            cancelMealReminderIfLogged(mealType as MealType);
         }
 
         setQuantity("100");

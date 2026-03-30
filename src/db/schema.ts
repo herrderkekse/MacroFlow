@@ -75,3 +75,13 @@ export const weightLogs = sqliteTable("weight_logs", {
     date: text("date").notNull(),
     timestamp: integer("timestamp").notNull(),
 });
+
+export const notificationSettings = sqliteTable("notification_settings", {
+    id: integer("id").primaryKey(),
+    enabled: integer("enabled").notNull().default(0),
+    breakfast_time: text("breakfast_time").notNull().default("08:00"),
+    lunch_time: text("lunch_time").notNull().default("12:00"),
+    dinner_time: text("dinner_time").notNull().default("18:00"),
+    snack_time: text("snack_time").notNull().default("15:00"),
+    weight_time: text("weight_time").notNull().default("07:30"),
+});

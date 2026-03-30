@@ -5,6 +5,7 @@ import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import { diffCalendarDays, diffDateKeys, parseDateKey, shiftCalendarDate } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
+import { cancelWeightReminderIfLogged } from "@/src/services/notifications";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
@@ -318,6 +319,7 @@ export default function LogScreen() {
     function handleAddWeight(weightKg: number) {
         addWeightLog(weightKg, selectedDate);
         logger.info("[DB] Logged weight", { weight_kg: weightKg });
+        cancelWeightReminderIfLogged();
         loadAllDays(selectedDate);
     }
 
