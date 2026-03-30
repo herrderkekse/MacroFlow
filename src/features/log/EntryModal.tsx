@@ -120,7 +120,7 @@ export default function EntryModal({
                 setQuantity(String(food.serving_size ?? 100));
             }
             amountTouched.current = false;
-            const meal = defaultMealType ?? "breakfast";
+            const meal = defaultMealType ?? (food.last_logged_meal as MealType | null) ?? "breakfast";
             setMealType(meal);
 
             const dateKey = formatDateKey(selectedDate);
@@ -204,10 +204,11 @@ export default function EntryModal({
                 recipeLogId: selectedGroup?.recipeLogId,
             });
 
-            // Persist last logged amount/unit on the food for future defaults
+            // Persist last logged amount/unit/meal on the food for future defaults
             updateFood(food.id, {
                 last_logged_amount: qty,
                 last_logged_unit: savedUnit,
+                last_logged_meal: mealType,
             });
 
             // Cancel today's meal reminder since the user just logged food
