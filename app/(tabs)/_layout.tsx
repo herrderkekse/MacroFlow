@@ -72,6 +72,8 @@ export default function TabsLayout() {
             <Tabs.Screen name="goals" options={{ href: null }} />
             <Tabs.Screen name="backup" options={{ href: null }} />
             <Tabs.Screen name="settings" options={{ href: null }} />
+            <Tabs.Screen name="ai-settings" options={{ href: null }} />
+            <Tabs.Screen name="meal-plan" options={{ href: null }} />
         </Tabs>
     );
 }
