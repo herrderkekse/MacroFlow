@@ -6,6 +6,8 @@ import {
     getRecipeItems,
     searchFoodsByName,
     searchRecipesByName,
+    softDeleteFood,
+    softDeleteRecipe,
     type Food,
     type Recipe,
 } from "@/src/db/queries";
@@ -66,10 +68,18 @@ export default function TemplatesScreen() {
     useFocusEffect(load);
 
     function handleDeleteRecipe(recipe: Recipe) {
-        Alert.alert(t("templates.deleteRecipe"), t("templates.removeRecipe", { name: recipe.name }), [
+        Alert.alert(t("templates.deleteRecipe"), t("templates.deleteTitle"), [
             { text: t("common.cancel"), style: "cancel" },
             {
-                text: t("common.delete"),
+                text: t("templates.deleteFutureOnly"),
+                onPress: () => {
+                    softDeleteRecipe(recipe.id);
+                    logger.info("[DB] Soft-deleted recipe", { id: recipe.id });
+                    load();
+                },
+            },
+            {
+                text: t("templates.deleteEverything"),
                 style: "destructive",
                 onPress: () => {
                     deleteRecipe(recipe.id);
@@ -83,11 +93,19 @@ export default function TemplatesScreen() {
     function handleDeleteFood(food: Food) {
         Alert.alert(
             t("templates.deleteFood"),
-            t("templates.removeFoodWarning", { name: food.name }),
+            t("templates.deleteTitle"),
             [
                 { text: t("common.cancel"), style: "cancel" },
                 {
-                    text: t("common.delete"),
+                    text: t("templates.deleteFutureOnly"),
+                    onPress: () => {
+                        softDeleteFood(food.id);
+                        logger.info("[DB] Soft-deleted food", { id: food.id });
+                        load();
+                    },
+                },
+                {
+                    text: t("templates.deleteEverything"),
                     style: "destructive",
                     onPress: () => {
                         deleteFood(food.id);

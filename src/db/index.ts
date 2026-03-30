@@ -101,6 +101,8 @@ export function initDB() {
     "ALTER TABLE foods ADD COLUMN last_logged_amount REAL",
     "ALTER TABLE foods ADD COLUMN last_logged_unit TEXT",
     "ALTER TABLE goals ADD COLUMN appearance_mode TEXT NOT NULL DEFAULT 'system'",
+    "ALTER TABLE foods ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE recipes ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }
