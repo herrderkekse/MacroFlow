@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { getAllFoods, getAllRecipes, getGoals, getRecipeItems, addEntry } from "@/src/db/queries";
+import { addEntry, getAllFoods, getAllRecipes, getGoals, getRecipeItems } from "@/src/db/queries";
 import {
     buildMealPlanPrompt,
     getProvider,
@@ -128,6 +128,7 @@ export default function MealPlanScreen() {
                     timestamp: ts,
                     date: entry.date,
                     meal_type: entry.meal_type,
+                    is_scheduled: 1,
                 });
             }
 

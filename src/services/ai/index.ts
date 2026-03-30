@@ -1,6 +1,7 @@
-import * as SecureStore from "expo-secure-store";
+import { formatDateKey as formatLocalDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
-import { nvidiaProvider, NVIDIA_DEFAULT_BASE_URL, NVIDIA_DEFAULT_MODEL } from "./nvidia";
+import * as SecureStore from "expo-secure-store";
+import { NVIDIA_DEFAULT_BASE_URL, NVIDIA_DEFAULT_MODEL, nvidiaProvider } from "./nvidia";
 import type {
     AiFoodPayload,
     AiGoalsPayload,
@@ -14,7 +15,7 @@ import type {
     MealPlanPreferences,
 } from "./types";
 
-export type { AiProviderConfig, AiProviderId, MealPlanPreferences, AiMealPlanEntry, AiMealPlanResponse } from "./types";
+export type { AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences } from "./types";
 
 // ── Provider registry ─────────────────────────────────────
 const providers: Record<AiProviderId, AiProvider> = {
@@ -70,6 +71,7 @@ export function buildMealPlanPrompt(
             "You MUST only use food IDs from the provided list.",
             "All quantities are in grams (the base unit).",
             "The daily macros should closely match the targets (±10% tolerance).",
+            "IMPORTANT: Each day MUST have a unique date and different meals. Vary the foods across days — do NOT repeat the same meals or combinations day after day. Aim for diverse, interesting combinations.",
             "Respond with ONLY valid JSON matching the schema below. No markdown, no explanation.",
             "",
             "Response schema:",
@@ -77,8 +79,9 @@ export function buildMealPlanPrompt(
         ].join("\n"),
     };
 
+    const startDate = formatLocalDateKey(new Date());
     const userContent = [
-        `Generate a ${prefs.days}-day meal plan.`,
+        `Generate a ${prefs.days}-day meal plan starting from ${startDate}.`,
         "",
         "=== Daily macro targets ===",
         `Calories: ${goals.calories} kcal`,
