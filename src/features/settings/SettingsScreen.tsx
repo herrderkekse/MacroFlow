@@ -48,6 +48,13 @@ export default function SettingsScreen() {
         snack_time: "15:00",
         weight_time: "07:30",
     });
+    const [notifRowEnabled, setNotifRowEnabled] = useState({
+        breakfast_enabled: true,
+        lunch_enabled: true,
+        dinner_enabled: true,
+        snack_enabled: true,
+        weight_enabled: true,
+    });
 
     useEffect(() => {
         const s = getNotificationSettings();
@@ -59,6 +66,13 @@ export default function SettingsScreen() {
                 dinner_time: s.dinner_time,
                 snack_time: s.snack_time,
                 weight_time: s.weight_time,
+            });
+            setNotifRowEnabled({
+                breakfast_enabled: s.breakfast_enabled !== 0,
+                lunch_enabled: s.lunch_enabled !== 0,
+                dinner_enabled: s.dinner_enabled !== 0,
+                snack_enabled: s.snack_enabled !== 0,
+                weight_enabled: s.weight_enabled !== 0,
             });
         }
     }, []);
@@ -87,6 +101,13 @@ export default function SettingsScreen() {
         } else {
             await cancelAllReminders();
         }
+    }
+
+    function handleRowToggle(key: keyof typeof notifRowEnabled) {
+        const newValue = !notifRowEnabled[key];
+        setNotifRowEnabled((prev) => ({ ...prev, [key]: newValue }));
+        setNotificationSettings({ [key]: newValue ? 1 : 0 });
+        scheduleAllReminders(getMealLabels(), t("settings.notificationWeight"));
     }
 
     function handleTimeChange(key: keyof typeof notifTimes, value: string) {
@@ -123,12 +144,12 @@ export default function SettingsScreen() {
         setGoals({ language: lang });
     }
 
-    const NOTIF_TIME_ROWS: { key: keyof typeof notifTimes; labelKey: string }[] = [
-        { key: "breakfast_time", labelKey: "settings.notificationBreakfast" },
-        { key: "lunch_time", labelKey: "settings.notificationLunch" },
-        { key: "dinner_time", labelKey: "settings.notificationDinner" },
-        { key: "snack_time", labelKey: "settings.notificationSnack" },
-        { key: "weight_time", labelKey: "settings.notificationWeight" },
+    const NOTIF_TIME_ROWS: { key: keyof typeof notifTimes; labelKey: string; enabledKey: keyof typeof notifRowEnabled }[] = [
+        { key: "breakfast_time", labelKey: "settings.notificationBreakfast", enabledKey: "breakfast_enabled" },
+        { key: "lunch_time", labelKey: "settings.notificationLunch", enabledKey: "lunch_enabled" },
+        { key: "dinner_time", labelKey: "settings.notificationDinner", enabledKey: "dinner_enabled" },
+        { key: "snack_time", labelKey: "settings.notificationSnack", enabledKey: "snack_enabled" },
+        { key: "weight_time", labelKey: "settings.notificationWeight", enabledKey: "weight_enabled" },
     ];
 
     return (
@@ -214,6 +235,8 @@ export default function SettingsScreen() {
                             label={t(row.labelKey)}
                             value={notifTimes[row.key]}
                             onChange={(v) => handleTimeChange(row.key, v)}
+                            enabled={notifRowEnabled[row.enabledKey]}
+                            onToggleEnabled={() => handleRowToggle(row.enabledKey)}
                             colors={colors}
                             styles={styles}
                         />
@@ -228,12 +251,16 @@ function TimeRow({
     label,
     value,
     onChange,
+    enabled,
+    onToggleEnabled,
     colors,
     styles,
 }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
+    enabled: boolean;
+    onToggleEnabled: () => void;
     colors: ThemeColors;
     styles: ReturnType<typeof createStyles>;
 }) {
@@ -247,15 +274,26 @@ function TimeRow({
     }
 
     return (
-        <View style={styles.timeRow}>
-            <Text style={styles.timeLabel}>{label}</Text>
+        <View style={[styles.timeRow, !enabled && styles.timeRowDisabled]}>
+            <Text style={[styles.timeLabel, !enabled && styles.timeLabelDisabled]}>{label}</Text>
             <View style={styles.timeControls}>
-                <Pressable onPress={() => adjust(-15)} hitSlop={6}>
-                    <Ionicons name="remove-circle-outline" size={22} color={colors.primary} />
-                </Pressable>
-                <Text style={styles.timeValue}>{value}</Text>
-                <Pressable onPress={() => adjust(15)} hitSlop={6}>
-                    <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+                {enabled && (
+                    <>
+                        <Pressable onPress={() => adjust(-15)} hitSlop={6}>
+                            <Ionicons name="remove-circle-outline" size={22} color={colors.primary} />
+                        </Pressable>
+                        <Text style={styles.timeValue}>{value}</Text>
+                        <Pressable onPress={() => adjust(15)} hitSlop={6}>
+                            <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+                        </Pressable>
+                    </>
+                )}
+                <Pressable onPress={onToggleEnabled} hitSlop={6} style={styles.bellBtn}>
+                    <Ionicons
+                        name={enabled ? "notifications" : "notifications-off-outline"}
+                        size={22}
+                        color={enabled ? colors.primary : colors.textSecondary}
+                    />
                 </Pressable>
             </View>
         </View>
@@ -346,10 +384,16 @@ function createStyles(colors: ThemeColors) {
             paddingVertical: spacing.sm + 2,
             marginBottom: spacing.sm,
         },
+        timeRowDisabled: {
+            opacity: 0.5,
+        },
         timeLabel: {
             fontSize: fontSize.sm,
             color: colors.text,
             fontWeight: "500",
+        },
+        timeLabelDisabled: {
+            color: colors.textSecondary,
         },
         timeControls: {
             flexDirection: "row",
@@ -362,6 +406,9 @@ function createStyles(colors: ThemeColors) {
             color: colors.text,
             minWidth: 50,
             textAlign: "center",
+        },
+        bellBtn: {
+            marginLeft: spacing.xs,
         },
     });
 }

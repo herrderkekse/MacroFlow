@@ -118,13 +118,13 @@ export async function scheduleAllReminders(mealLabels: Record<MealType, string>,
 
     await cancelAllReminders();
 
-    await Promise.all([
-        scheduleMealReminder("breakfast", settings.breakfast_time, mealLabels.breakfast),
-        scheduleMealReminder("lunch", settings.lunch_time, mealLabels.lunch),
-        scheduleMealReminder("dinner", settings.dinner_time, mealLabels.dinner),
-        scheduleMealReminder("snack", settings.snack_time, mealLabels.snack),
-        scheduleWeightReminder(settings.weight_time, weightLabel),
-    ]);
+    const tasks: Promise<void>[] = [];
+    if (settings.breakfast_enabled !== 0) tasks.push(scheduleMealReminder("breakfast", settings.breakfast_time, mealLabels.breakfast));
+    if (settings.lunch_enabled !== 0) tasks.push(scheduleMealReminder("lunch", settings.lunch_time, mealLabels.lunch));
+    if (settings.dinner_enabled !== 0) tasks.push(scheduleMealReminder("dinner", settings.dinner_time, mealLabels.dinner));
+    if (settings.snack_enabled !== 0) tasks.push(scheduleMealReminder("snack", settings.snack_time, mealLabels.snack));
+    if (settings.weight_enabled !== 0) tasks.push(scheduleWeightReminder(settings.weight_time, weightLabel));
+    await Promise.all(tasks);
 
     logger.info("[Notifications] Scheduled reminders for the next week");
 }
