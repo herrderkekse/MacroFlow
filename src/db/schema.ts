@@ -85,4 +85,9 @@ export const notificationSettings = sqliteTable("notification_settings", {
     dinner_time: text("dinner_time").notNull().default("18:00"),
     snack_time: text("snack_time").notNull().default("15:00"),
     weight_time: text("weight_time").notNull().default("07:30"),
+    breakfast_enabled: integer("breakfast_enabled").notNull().default(1),
+    lunch_enabled: integer("lunch_enabled").notNull().default(1),
+    dinner_enabled: integer("dinner_enabled").notNull().default(1),
+    snack_enabled: integer("snack_enabled").notNull().default(1),
+    weight_enabled: integer("weight_enabled").notNull().default(1),
 });

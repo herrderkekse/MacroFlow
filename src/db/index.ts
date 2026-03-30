@@ -115,6 +115,11 @@ export function initDB() {
     "ALTER TABLE foods ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE recipes ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE foods ADD COLUMN last_logged_meal TEXT",
+    "ALTER TABLE notification_settings ADD COLUMN breakfast_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE notification_settings ADD COLUMN lunch_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE notification_settings ADD COLUMN dinner_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE notification_settings ADD COLUMN snack_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE notification_settings ADD COLUMN weight_enabled INTEGER NOT NULL DEFAULT 1",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }
