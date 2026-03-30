@@ -14,6 +14,7 @@ export const foods = sqliteTable("foods", {
     serving_size: real("serving_size").notNull().default(100),
     last_logged_amount: real("last_logged_amount"),
     last_logged_unit: text("last_logged_unit"),
+    deleted: integer("deleted").notNull().default(0),
 });
 
 export const recipeLogs = sqliteTable("recipe_logs", {
@@ -50,6 +51,7 @@ export const goals = sqliteTable("goals", {
 export const recipes = sqliteTable("recipes", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
+    deleted: integer("deleted").notNull().default(0),
 });
 
 export const recipeItems = sqliteTable("recipe_items", {

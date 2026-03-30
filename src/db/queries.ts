@@ -30,7 +30,7 @@ export function searchFoodsByName(query: string): Food[] {
     return db
         .select()
         .from(foods)
-        .where(like(foods.name, `%${query}%`))
+        .where(and(like(foods.name, `%${query}%`), eq(foods.deleted, 0)))
         .limit(30)
         .all();
 }
@@ -48,7 +48,7 @@ export function getFoodByOpenfoodfactsId(offId: string): Food | undefined {
 }
 
 export function getAllFoods(): Food[] {
-    return db.select().from(foods).all();
+    return db.select().from(foods).where(eq(foods.deleted, 0)).all();
 }
 
 export function getFoodById(id: number): Food | undefined {
@@ -64,6 +64,23 @@ export function deleteFood(id: number) {
     db.delete(recipeItems).where(eq(recipeItems.food_id, id)).run();
     db.delete(entries).where(eq(entries.food_id, id)).run();
     db.delete(foods).where(eq(foods.id, id)).run();
+}
+
+export function softDeleteFood(id: number) {
+    db.update(foods).set({ deleted: 1 }).where(eq(foods.id, id)).run();
+}
+
+export function duplicateFood(id: number, overrides: Partial<NewFood>): Food {
+    const original = getFoodById(id);
+    if (!original) throw new Error(`Food ${id} not found`);
+    const { id: _id, deleted: _del, ...rest } = original;
+    const created = db.insert(foods).values({ ...rest, ...overrides, deleted: 0 }).returning().get();
+    // Copy serving units to the new food
+    const units = getServingUnits(id);
+    for (const u of units) {
+        db.insert(servingUnits).values({ food_id: created.id, name: u.name, grams: u.grams }).run();
+    }
+    return created;
 }
 
 // ── Serving Units ─────────────────────────────────────────
@@ -192,15 +209,19 @@ export function deleteRecipe(id: number) {
     db.delete(recipes).where(eq(recipes.id, id)).run();
 }
 
+export function softDeleteRecipe(id: number) {
+    db.update(recipes).set({ deleted: 1 }).where(eq(recipes.id, id)).run();
+}
+
 export function getAllRecipes(): Recipe[] {
-    return db.select().from(recipes).all();
+    return db.select().from(recipes).where(eq(recipes.deleted, 0)).all();
 }
 
 export function searchRecipesByName(query: string): Recipe[] {
     return db
         .select()
         .from(recipes)
-        .where(like(recipes.name, `%${query}%`))
+        .where(and(like(recipes.name, `%${query}%`), eq(recipes.deleted, 0)))
         .limit(30)
         .all();
 }

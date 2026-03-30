@@ -2,14 +2,14 @@ import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import ServingUnitEditor, { type ServingUnitRow } from "@/src/components/ServingUnitEditor";
 import UnitPicker from "@/src/components/UnitPicker";
-import { addFood, addServingUnit, deleteServingUnit, getFoodById, getServingUnits, updateFood, updateServingUnit, type Food, type ServingUnit } from "@/src/db/queries";
+import { addFood, addServingUnit, deleteServingUnit, duplicateFood, getFoodById, getServingUnits, softDeleteFood, updateFood, updateServingUnit, type Food, type ServingUnit } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import logger from "@/src/utils/logger";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 interface FoodFormProps {
@@ -76,18 +76,52 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
         if (!name.trim()) return;
         try {
             if (foodId) {
-                updateFood(foodId, {
+                // Editing an existing food: ask user how to apply the change
+                const newValues = {
                     name: name.trim(),
                     calories_per_100g: parseFloat(calories) || 0,
                     protein_per_100g: parseFloat(protein) || 0,
                     carbs_per_100g: parseFloat(carbs) || 0,
                     fat_per_100g: parseFloat(fat) || 0,
                     default_unit: defaultUnit,
-                });
-                saveServingUnits(foodId, getServingUnits(foodId));
-                logger.info("[DB] Updated food", { id: foodId, name: name.trim() });
-                const updated = getFoodById(foodId)!;
-                onSaved(updated);
+                };
+                Alert.alert(
+                    t("templates.editTitle"),
+                    undefined,
+                    [
+                        { text: t("common.cancel"), style: "cancel" },
+                        {
+                            text: t("templates.editFutureOnly"),
+                            onPress: () => {
+                                try {
+                                    softDeleteFood(foodId);
+                                    const created = duplicateFood(foodId, newValues);
+                                    // Apply serving unit edits to the new copy
+                                    saveServingUnits(created.id, getServingUnits(created.id));
+                                    logger.info("[DB] Duplicated food (future only)", { oldId: foodId, newId: created.id });
+                                    onSaved(created);
+                                } catch (e) {
+                                    logger.error("[FoodForm] Future-only save failed", e);
+                                }
+                            },
+                        },
+                        {
+                            text: t("templates.editRewriteHistory"),
+                            style: "destructive",
+                            onPress: () => {
+                                try {
+                                    updateFood(foodId, newValues);
+                                    saveServingUnits(foodId, getServingUnits(foodId));
+                                    logger.info("[DB] Updated food (all entries)", { id: foodId, name: name.trim() });
+                                    const updated = getFoodById(foodId)!;
+                                    onSaved(updated);
+                                } catch (e) {
+                                    logger.error("[FoodForm] Rewrite-history save failed", e);
+                                }
+                            },
+                        },
+                    ],
+                );
             } else {
                 const created = addFood({
                     name: name.trim(),
