@@ -143,7 +143,6 @@ function DayPage({
                     <MealSection
                         key={meal.key}
                         mealType={meal.key}
-                        label={meal.label}
                         icon={meal.icon}
                         items={grouped[meal.key]}
                         onAdd={() => onAdd(meal.key)}

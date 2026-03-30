@@ -85,7 +85,7 @@ export default function BarcodeScannerView({
 
             // Create local copy
             const food = addFood({
-                name: product.product_name ?? "Unknown",
+                name: product.product_name ?? t("common.unknown"),
                 calories_per_100g:
                     product.nutriments?.["energy-kcal_100g"] ?? 0,
                 protein_per_100g: product.nutriments?.proteins_100g ?? 0,

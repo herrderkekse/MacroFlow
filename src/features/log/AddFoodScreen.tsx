@@ -102,12 +102,12 @@ export default function AddFoodScreen() {
             });
         } catch (err) {
             const msg =
-                err instanceof Error ? err.message : "Search failed";
+                err instanceof Error ? err.message : t("common.searchFailed");
             setOffError(msg);
         } finally {
             setIsSearchingOFF(false);
         }
-    }, [query]);
+    }, [query, t]);
 
     // ── Handlers ───────────────────────────────────────────
 
@@ -126,7 +126,7 @@ export default function AddFoodScreen() {
         }
         // Create local copy
         const food = addFood({
-            name: product.product_name ?? "Unknown",
+            name: product.product_name ?? t("common.unknown"),
             calories_per_100g:
                 product.nutriments?.["energy-kcal_100g"] ?? 0,
             protein_per_100g: product.nutriments?.proteins_100g ?? 0,
@@ -321,7 +321,7 @@ export default function AddFoodScreen() {
                                     {offError}
                                 </Text>
                                 <Button
-                                    title="Retry"
+                                    title={t("common.retry")}
                                     variant="ghost"
                                     onPress={handleSearchOFF}
                                     textStyle={{ fontSize: fontSize.sm }}
@@ -331,14 +331,14 @@ export default function AddFoodScreen() {
 
                         {hasSearchedOFF && filteredOFF.length === 0 && !offError && (
                             <Text style={styles.emptyText}>
-                                No online results
+                                {t("common.noOnlineResults")}
                             </Text>
                         )}
 
                         {filteredOFF.map((p) => (
                             <FoodListItem
                                 key={p.code}
-                                name={p.product_name ?? "Unknown"}
+                                name={p.product_name ?? t("common.unknown")}
                                 calories={
                                     p.nutriments?.["energy-kcal_100g"] ?? 0
                                 }

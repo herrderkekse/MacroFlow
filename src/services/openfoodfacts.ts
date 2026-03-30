@@ -1,3 +1,4 @@
+import i18n from "@/src/i18n";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
 
@@ -87,7 +88,7 @@ export async function searchProducts(
         const waitSec = Math.ceil(
             (SEARCH_MIN_INTERVAL_MS - elapsed) / 1000,
         );
-        throw new Error(`Rate limited — please wait ${waitSec}s`);
+        throw new Error(i18n.t("common.rateLimitedWait", { seconds: waitSec }));
     }
     lastSearchTimestamp = now;
 
@@ -109,8 +110,8 @@ export async function searchProducts(
         logger.error("[API] Search failed", { status: res.status });
         throw new Error(
             res.status === 503
-                ? "OpenFoodFacts is temporarily unavailable — try again later"
-                : `Search failed (HTTP ${res.status})`,
+                ? i18n.t("common.openFoodFactsUnavailable")
+                : i18n.t("common.searchFailedHttp", { status: res.status }),
         );
     }
 

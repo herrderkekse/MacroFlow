@@ -9,9 +9,10 @@ import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { fromGrams, toGrams, defaultAmountForUnit, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { defaultAmountForUnit, fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -22,7 +23,6 @@ import {
     Text,
     View,
 } from "react-native";
-import { useTranslation } from "react-i18next";
 
 interface EntryModalProps {
     food: Food | null;
@@ -287,23 +287,23 @@ export default function EntryModal({
                     {/* Live calculation */}
                     <View style={styles.calcCard}>
                         <Text style={styles.calcCalories}>
-                            {Math.round(calculated.calories)} cal
+                            {Math.round(calculated.calories)} {t("common.cal")}
                         </Text>
                         <View style={styles.calcMacros}>
                             <MacroLabel
-                                label="Protein"
+                                label={t("common.protein")}
                                 value={calculated.protein}
                                 color={colors.protein}
                                 textColor={colors.textSecondary}
                             />
                             <MacroLabel
-                                label="Carbs"
+                                label={t("common.carbs")}
                                 value={calculated.carbs}
                                 color={colors.carbs}
                                 textColor={colors.textSecondary}
                             />
                             <MacroLabel
-                                label="Fat"
+                                label={t("common.fat")}
                                 value={calculated.fat}
                                 color={colors.fat}
                                 textColor={colors.textSecondary}
@@ -339,7 +339,7 @@ export default function EntryModal({
 
                     {/* Recipe group picker */}
                     {recipeGroups.length > 0 && (
-                        <>            
+                        <>
                             <Text style={styles.sectionLabel}>{t("log.addToRecipe")}</Text>
                             {recipeGroups.map((g) => {
                                 const isSelected = selectedGroup?.recipeLogId === g.recipeLogId;
@@ -372,14 +372,14 @@ export default function EntryModal({
                     {/* Portion mode toggle — shown when adding to a recipe group with multiplier ≠ 1 */}
                     {!entry && selectedGroup && selectedGroup.portion !== 1 && (
                         <>
-                            <Text style={styles.sectionLabel}>Entered amount represents</Text>
+                            <Text style={styles.sectionLabel}>{t("log.enteredAmountRepresents")}</Text>
                             <View style={styles.mealRow}>
                                 <Pressable
                                     onPress={() => setPortionMode("per-portion")}
                                     style={[styles.mealChip, portionMode === "per-portion" && styles.mealChipActive]}
                                 >
                                     <Text style={[styles.mealChipText, portionMode === "per-portion" && styles.mealChipTextActive]}>
-                                        Per portion
+                                        {t("log.perPortion")}
                                     </Text>
                                 </Pressable>
                                 <Pressable
@@ -387,20 +387,28 @@ export default function EntryModal({
                                     style={[styles.mealChip, portionMode === "total" && styles.mealChipActive]}
                                 >
                                     <Text style={[styles.mealChipText, portionMode === "total" && styles.mealChipTextActive]}>
-                                        Total batch
+                                        {t("log.totalBatch")}
                                     </Text>
                                 </Pressable>
                             </View>
                             <Text style={styles.portionHint}>
                                 {portionMode === "per-portion"
-                                    ? `Preview and save use ${Math.round(finalQtyGrams)}g total (${qty} × ${selectedGroup.portion})`
-                                    : `Preview and save use ${Math.round(qtyGrams)}g total`}
+                                    ? t("log.previewAndSavePerPortion", {
+                                        grams: Math.round(finalQtyGrams),
+                                        unit: t("common.g"),
+                                        quantity: qty,
+                                        portion: selectedGroup.portion,
+                                    })
+                                    : t("log.previewAndSaveTotal", {
+                                        grams: Math.round(qtyGrams),
+                                        unit: t("common.g"),
+                                    })}
                             </Text>
                         </>
                     )}
 
                     <Button
-                        title="Save Entry"
+                        title={t("log.saveEntry")}
                         onPress={handleSave}
                         disabled={qty <= 0}
                         style={styles.saveButton}

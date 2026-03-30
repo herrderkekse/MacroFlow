@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, type Href } from "expo-router";
 import React, { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Alert,
     FlatList,
@@ -26,7 +27,6 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 type FilterType = "all" | "recipes" | "foods";
 
@@ -45,7 +45,7 @@ export default function TemplatesScreen() {
     const [filterExpanded, setFilterExpanded] = useState(false);
     const [fabExpanded, setFabExpanded] = useState(false);
 
-    function load() {
+    const load = useCallback(() => {
         const q = query.trim();
         const hasQuery = q.length >= 2;
         const result: TemplateItem[] = [];
@@ -61,9 +61,9 @@ export default function TemplatesScreen() {
 
         result.sort((a, b) => a.data.name.localeCompare(b.data.name));
         setItems(result);
-    }
+    }, [filter, query]);
 
-    useFocusEffect(useCallback(() => { load(); }, [query, filter]));
+    useFocusEffect(load);
 
     function handleDeleteRecipe(recipe: Recipe) {
         Alert.alert(t("templates.deleteRecipe"), t("templates.removeRecipe", { name: recipe.name }), [
@@ -107,7 +107,7 @@ export default function TemplatesScreen() {
             if (!food) return sum;
             return sum + (food.calories_per_100g * row.recipe_items.quantity_grams) / 100;
         }, 0);
-        return `${recipeItemsList.length} item${recipeItemsList.length > 1 ? "s" : ""} · ${Math.round(totalCals)} cal`;
+        return `${t("common.itemCount", { count: recipeItemsList.length })} · ${Math.round(totalCals)} ${t("common.cal")}`;
     }
 
     function foodSummary(food: Food) {

@@ -27,6 +27,7 @@ import { fromGrams, toGrams, unitLabel, type FoodUnit } from "@/src/utils/units"
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Alert,
     Keyboard,
@@ -38,7 +39,6 @@ import {
     useWindowDimensions,
     View
 } from "react-native";
-import { useTranslation } from "react-i18next";
 
 interface ItemWithFood {
     recipeItem: RecipeItem;
@@ -135,12 +135,12 @@ export default function RecipeEditorScreen() {
             setOffResults(results);
             setHasSearchedOFF(true);
         } catch (err) {
-            const msg = err instanceof Error ? err.message : "Search failed";
+            const msg = err instanceof Error ? err.message : t("common.searchFailed");
             setOffError(msg);
         } finally {
             setIsSearchingOFF(false);
         }
-    }, [foodQuery]);
+    }, [foodQuery, t]);
 
     function handleSelectLocal(food: Food) {
         Keyboard.dismiss();
@@ -166,7 +166,7 @@ export default function RecipeEditorScreen() {
         Keyboard.dismiss();
         const existing = getFoodByOpenfoodfactsId(product.code);
         if (existing) { addItemForFood(existing); return; }
-        const n = product.product_name || "Unknown";
+        const n = product.product_name || t("common.unknown");
         const nu = product.nutriments ?? {};
         const food = addFood({
             name: n,
@@ -257,7 +257,7 @@ export default function RecipeEditorScreen() {
 
                 {/* Summary */}
                 <Text style={styles.summary}>
-                    {items.length} item{items.length !== 1 ? "s" : ""} · {Math.round(totalCals)} cal total
+                    {t("common.itemCount", { count: items.length })} · {Math.round(totalCals)} {t("common.cal")}
                 </Text>
 
                 {/* Items */}
@@ -284,10 +284,10 @@ export default function RecipeEditorScreen() {
                                 onPress={() => setEditingItem(itemWithFood)}
                             >
                                 <Text style={styles.itemName} numberOfLines={1}>
-                                    {food?.name ?? "Unknown"}
+                                    {food?.name ?? t("common.unknown")}
                                 </Text>
                                 <Text style={styles.itemDetail}>
-                                    {displayQty} {displayUnit} · {cals} cal
+                                    {displayQty} {displayUnit} · {cals} {t("common.cal")}
                                 </Text>
                             </Pressable>
                             <Pressable onPress={() => handleDeleteItem(recipeItem.id)} hitSlop={8}>
@@ -362,7 +362,7 @@ export default function RecipeEditorScreen() {
                         <View style={styles.errorBox}>
                             <Text style={styles.errorText}>{offError}</Text>
                             <Button
-                                title="Retry"
+                                title={t("common.retry")}
                                 variant="ghost"
                                 onPress={handleSearchOFF}
                                 textStyle={{ fontSize: fontSize.sm }}
@@ -378,7 +378,7 @@ export default function RecipeEditorScreen() {
                         >
                             <Text style={styles.resultName} numberOfLines={1}>{food.name}</Text>
                             <Text style={styles.resultDetail}>
-                                {Math.round(food.calories_per_100g)} cal/100g
+                                {t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) })}
                             </Text>
                         </Pressable>
                     ))}
@@ -390,11 +390,11 @@ export default function RecipeEditorScreen() {
                             onPress={() => handleSelectOFF(p)}
                         >
                             <Text style={styles.resultName} numberOfLines={1}>
-                                {p.product_name || "Unknown"}{" "}
+                                {p.product_name || t("common.unknown")}{" "}
                                 <Ionicons name="globe-outline" size={12} color={colors.textTertiary} />
                             </Text>
                             <Text style={styles.resultDetail}>
-                                {Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0)} cal/100g
+                                {t("templates.calPer100g", { cal: Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0) })}
                             </Text>
                         </Pressable>
                     ))}

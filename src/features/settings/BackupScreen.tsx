@@ -30,7 +30,7 @@ export default function BackupScreen() {
             setExporting(true);
             await exportData();
         } catch (e: any) {
-            Alert.alert(t("settings.exportFailed"), e.message ?? "Unknown error");
+            Alert.alert(t("settings.exportFailed"), e.message ?? t("common.unknownError"));
         } finally {
             setExporting(false);
         }
@@ -66,7 +66,7 @@ export default function BackupScreen() {
             );
         } catch (e: any) {
             if (e.message !== "cancelled") {
-                Alert.alert(t("settings.importFailed"), e.message ?? "Unknown error");
+                Alert.alert(t("settings.importFailed"), e.message ?? t("common.unknownError"));
             }
         } finally {
             setImporting(false);

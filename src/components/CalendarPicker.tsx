@@ -2,6 +2,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Modal,
     Pressable,
@@ -9,12 +10,6 @@ import {
     Text,
     View,
 } from "react-native";
-
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-];
 
 interface CalendarPickerProps {
     visible: boolean;
@@ -53,6 +48,7 @@ export default function CalendarPicker({
 }: CalendarPickerProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t, i18n } = useTranslation();
     const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
     const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
 
@@ -66,6 +62,19 @@ export default function CalendarPicker({
 
     const cells = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
     const today = useMemo(() => new Date(), []);
+    const weekdayLabels = useMemo(() => {
+        const formatter = new Intl.DateTimeFormat(i18n.language, { weekday: "short" });
+        const monday = new Date(2024, 0, 1);
+        return Array.from({ length: 7 }, (_, index) => {
+            const day = new Date(monday);
+            day.setDate(monday.getDate() + index);
+            return formatter.format(day);
+        });
+    }, [i18n.language]);
+    const monthTitle = useMemo(() => {
+        const formatter = new Intl.DateTimeFormat(i18n.language, { month: "long" });
+        return `${formatter.format(new Date(viewYear, viewMonth, 1))} ${viewYear}`;
+    }, [i18n.language, viewMonth, viewYear]);
 
     function prevMonth() {
         if (viewMonth === 0) {
@@ -113,7 +122,7 @@ export default function CalendarPicker({
                             />
                         </Pressable>
                         <Text style={styles.monthTitle}>
-                            {MONTH_NAMES[viewMonth]} {viewYear}
+                            {monthTitle}
                         </Text>
                         <Pressable onPress={nextMonth} hitSlop={12}>
                             <Ionicons
@@ -126,7 +135,7 @@ export default function CalendarPicker({
 
                     {/* Day-of-week labels */}
                     <View style={styles.row}>
-                        {DAY_LABELS.map((d) => (
+                        {weekdayLabels.map((d) => (
                             <View key={d} style={styles.cell}>
                                 <Text style={styles.dayLabel}>{d}</Text>
                             </View>
@@ -192,7 +201,7 @@ export default function CalendarPicker({
 
                     {/* Today button */}
                     <Pressable style={styles.todayButton} onPress={goToToday}>
-                        <Text style={styles.todayButtonText}>Today</Text>
+                        <Text style={styles.todayButtonText}>{t("log.today")}</Text>
                     </Pressable>
                 </Pressable>
             </Pressable>

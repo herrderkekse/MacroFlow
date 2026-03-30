@@ -11,9 +11,10 @@ import { MEAL_TYPES, type MealType } from "@/src/types";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
-import { type FoodUnit, formatEntryQuantity, formatQuantity, fromGrams } from "@/src/utils/units";
+import { formatEntryQuantity } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     Modal,
     Pressable,
@@ -23,7 +24,6 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
 
 interface RecipeLogModalProps {
     recipe: Recipe | null;
@@ -95,7 +95,7 @@ export default function RecipeLogModal({
                 <ScrollView contentContainerStyle={styles.content}>
                     <Text style={styles.recipeName}>{recipe.name}</Text>
                     <Text style={styles.summary}>
-                        {items.length} item{items.length !== 1 ? "s" : ""} · {Math.round(totalCals)} cal
+                        {t("common.itemCount", { count: items.length })} · {Math.round(totalCals)} {t("common.cal")}
                     </Text>
 
                     {/* Portion multiplier */}
@@ -138,7 +138,7 @@ export default function RecipeLogModal({
                                 <Text style={styles.itemName} numberOfLines={1}>
                                     {food?.name ?? t("common.unknown")}
                                 </Text>
-                                <Text style={styles.itemDetail}>{formatEntryQuantity(qty, itemUnit)} · {cals} cal</Text>
+                                <Text style={styles.itemDetail}>{formatEntryQuantity(qty, itemUnit)} · {cals} {t("common.cal")}</Text>
                             </View>
                         );
                     })}

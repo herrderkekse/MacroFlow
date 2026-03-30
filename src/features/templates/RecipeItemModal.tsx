@@ -9,6 +9,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { fromGrams, toGrams, unitLabel, unitsForSystem, type FoodUnit } from "@/src/utils/units";
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
     KeyboardAvoidingView,
     Modal,
@@ -18,7 +19,6 @@ import {
     Text,
     View,
 } from "react-native";
-import { useTranslation } from "react-i18next";
 
 interface RecipeItemModalProps {
     item: RecipeItem | null;
@@ -149,23 +149,23 @@ export default function RecipeItemModal({
                     {/* Live macro calculation */}
                     <View style={styles.calcCard}>
                         <Text style={styles.calcCalories}>
-                            {Math.round(calculated.calories)} cal
+                            {Math.round(calculated.calories)} {t("common.cal")}
                         </Text>
                         <View style={styles.calcMacros}>
                             <MacroLabel
-                                label="Protein"
+                                label={t("common.protein")}
                                 value={calculated.protein}
                                 color={colors.protein}
                                 textColor={colors.textSecondary}
                             />
                             <MacroLabel
-                                label="Carbs"
+                                label={t("common.carbs")}
                                 value={calculated.carbs}
                                 color={colors.carbs}
                                 textColor={colors.textSecondary}
                             />
                             <MacroLabel
-                                label="Fat"
+                                label={t("common.fat")}
                                 value={calculated.fat}
                                 color={colors.fat}
                                 textColor={colors.textSecondary}

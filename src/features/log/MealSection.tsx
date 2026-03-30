@@ -16,7 +16,6 @@ interface EntryWithFood {
 
 interface MealSectionProps {
     mealType: MealType;
-    label: string;
     icon: string;
     items: EntryWithFood[];
     onAdd: () => void;
@@ -89,7 +88,7 @@ function groupEntries(items: EntryWithFood[]) {
 }
 
 export default function MealSection({
-    label,
+    mealType,
     icon,
     items,
     onAdd,
@@ -160,12 +159,12 @@ export default function MealSection({
                 >
                     <View style={styles.headerLeft}>
                         <Ionicons name={icon as never} size={18} color={colors.textSecondary} />
-                        <Text style={styles.title}>{label}</Text>
+                        <Text style={styles.title}>{t(`meal.${mealType}`)}</Text>
 
                         {items.length > 0 && (
                             <View style={styles.pillsContainer}>
                                 <View style={styles.pill}>
-                                    <Text style={[styles.pillText, { color: colors.textSecondary }]}> 
+                                    <Text style={[styles.pillText, { color: colors.textSecondary }]}>
                                         <Text style={{ color: colors.calories }}>{Math.round(totalCals)} {t("common.cal")}</Text>
                                         <Text style={{ color: colors.textSecondary }}> - </Text>
                                         <Text style={{ color: colors.protein }}>{Math.round(totalProtein)}g</Text>
@@ -267,7 +266,7 @@ function EntryRow({
                     {food?.name ?? t("log.unknownFood")}
                 </Text>
                 <Text style={styles.entryDetail}>
-                    {formatEntryQuantity(qty, entryUnit, servingGrams)} · {cals} cal
+                    {formatEntryQuantity(qty, entryUnit, servingGrams)} · {cals} {t("common.cal")}
                 </Text>
             </View>
             {!selectionMode && (
@@ -298,6 +297,7 @@ function RecipeGroupRow({
     onDeleteRecipeLog?: (recipeLogId: number) => void;
     allMealSelected?: boolean;
 }) {
+    const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const selection = useMealSelection();
@@ -373,7 +373,7 @@ function RecipeGroupRow({
                     {displayName}
                 </Text>
                 <Text style={styles.recipeDetail}>
-                    {group.rows.length} items · {Math.round(totalCals)} cal
+                    {t("common.itemCount", { count: group.rows.length })} · {Math.round(totalCals)} {t("common.cal")}
                 </Text>
                 {!selectionMode && (
                     <>
