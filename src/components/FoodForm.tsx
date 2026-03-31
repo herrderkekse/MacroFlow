@@ -8,7 +8,7 @@ import logger from "@/src/utils/logger";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { unitsForSystem, type FoodUnit } from "@/src/utils/units";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -141,6 +141,20 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
         }
     }
 
+    const macroWarning = useMemo(() => {
+        const cal = parseFloat(calories);
+        const p = parseFloat(protein);
+        const c = parseFloat(carbs);
+        const f = parseFloat(fat);
+        if (!cal || (!p && !c && !f)) return null;
+        const expected = p * 4 + c * 4 + f * 9;
+        const diff = Math.abs(cal - expected);
+        if (diff / Math.max(cal, 1) > 0.2) {
+            return t("log.macroWarning", { entered: Math.round(cal), expected: Math.round(expected) });
+        }
+        return null;
+    }, [calories, protein, carbs, fat, t]);
+
     const unitOptions = unitsForSystem(unitSystem);
 
     return (
@@ -213,6 +227,8 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
                 />
             </View>
 
+            {macroWarning && <Text style={styles.macroWarning}>{macroWarning}</Text>}
+
             <Text style={styles.sectionLabel}>{t("templates.servingUnits")}</Text>
             <ServingUnitEditor rows={servingUnitRows} onChange={setServingUnitRows} />
 
@@ -243,6 +259,11 @@ function createStyles(colors: ThemeColors) {
             marginBottom: spacing.md,
         },
         halfField: { flex: 1 },
+        macroWarning: {
+            fontSize: fontSize.sm,
+            color: colors.warning,
+            marginBottom: spacing.md,
+        },
         saveButton: { marginTop: spacing.md },
     });
 }

@@ -129,6 +129,7 @@ const de = {
         barcodeScanAgain: "Erneut scannen",
         barcodeCreateManually: "Manuell erstellen",
         barcodeProductNotFound: "Kein Produkt für Barcode {{barcode}} gefunden",
+        macroWarning: "Makros stimmen nicht überein: {{entered}} kcal eingegeben, aber ~{{expected}} kcal aus Makros (E×4 + KH×4 + F×9)",
         adjustPortions: "Portionen anpassen",
         unknownFood: "Unbekanntes Lebensmittel",
         noRecipeItems: "Keine Rezeptzutaten",

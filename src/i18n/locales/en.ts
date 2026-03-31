@@ -130,6 +130,7 @@ const en = {
         barcodeScanAgain: "Scan Again",
         barcodeCreateManually: "Create Manually",
         barcodeProductNotFound: "Product not found for barcode {{barcode}}",
+        macroWarning: "Macros don't add up: {{entered}} kcal entered but ~{{expected}} kcal from macros (P×4 + C×4 + F×9)",
         adjustPortions: "Adjust Portions",
         unknownFood: "Unknown food",
         noRecipeItems: "No recipe items",
