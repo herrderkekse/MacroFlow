@@ -8,6 +8,7 @@ export const lightColors = {
     textTertiary: "#9CA3AF",
     border: "#E5E7EB",
     danger: "#EF4444",
+    warning: "#D97706",
     success: "#10B981",
     // Macro colours
     calories: "#10B981",
@@ -28,6 +29,7 @@ export const darkColors = {
     textTertiary: "#6B7280",
     border: "#374151",
     danger: "#EF4444",
+    warning: "#FBBF24",
     success: "#10B981",
     // Macro colours
     calories: "#10B981",
