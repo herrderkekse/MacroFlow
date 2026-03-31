@@ -15,7 +15,7 @@ import {
 import { formatDateKey, parseDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
 import { buildMealPlanPrompt } from "./index";
-import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload } from "./types";
+import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, OpenAiTool } from "./types";
 
 // ── Tool definition types ─────────────────────────────────
 
@@ -225,6 +225,18 @@ export const AI_TOOLS: AiToolDefinition[] = [
     removeEntryTool,
     searchTemplatesTool,
 ];
+
+/** Convert internal tool definitions to the OpenAI-compatible tools format. */
+export function toOpenAiTools(): OpenAiTool[] {
+    return AI_TOOLS.map((tool) => ({
+        type: "function" as const,
+        function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters,
+        },
+    }));
+}
 
 // ── Tool registry (name → executor) ──────────────────────
 
@@ -542,7 +554,7 @@ export function importMealPlanEntries(entries: AiMealPlanEntry[]): number {
     return count;
 }
 
-/** Build the system prompt describing available tools. */
+/** Build the system prompt describing available tools (used as fallback when native tool calling is unavailable). */
 export function buildToolSystemPrompt(): string {
     const today = formatDateKey(new Date());
 
@@ -568,13 +580,33 @@ export function buildToolSystemPrompt(): string {
         toolDescriptions,
         "",
         "TOOL CALLING FORMAT:",
-        "When you want to use a tool, respond with ONLY a JSON block in this exact format:",
+        "When you want to use a tool, respond with ONLY a JSON block in this exact format — no other text before or after:",
         '```tool',
         '{"name": "tool_name", "arguments": {"param1": "value1"}}',
         '```',
         "",
+        "EXAMPLES:",
+        "",
+        'User: "What did I eat today?"',
+        "Response:",
+        '```tool',
+        `{"name": "read_entries", "arguments": {"date": "${today}"}}`,
+        '```',
+        "",
+        'User: "Log 200g of chicken breast for lunch"',
+        "Response:",
+        '```tool',
+        '{"name": "search_templates", "arguments": {"query": "chicken breast"}}',
+        '```',
+        "",
+        'After receiving search_templates result with food_id 5:',
+        '```tool',
+        `{"name": "create_entry", "arguments": {"food_id": 5, "quantity_grams": 200, "date": "${today}", "meal_type": "lunch"}}`,
+        '```',
+        "",
         "IMPORTANT RULES:",
         "- Only call ONE tool at a time.",
+        "- When calling a tool, respond with ONLY the tool block above — no extra text.",
         "- After a tool executes, you will receive the result and can respond to the user.",
         "- If you don't need a tool, just respond normally in plain text.",
         "- Be concise and helpful. Use the user's language when possible.",
@@ -585,15 +617,59 @@ export function buildToolSystemPrompt(): string {
     ].join("\n");
 }
 
-/** Try to parse a tool call from an AI response. Returns null if no tool call found. */
+/** Build a minimal system prompt for use with native tool calling (no tool format instructions needed). */
+export function buildNativeToolSystemPrompt(): string {
+    const today = formatDateKey(new Date());
+
+    return [
+        "You are a helpful nutrition and meal planning assistant inside a food tracking app called MacroFlow.",
+        "You can help users with their diet by using the provided tools.",
+        "",
+        `TODAY'S DATE: ${today}`,
+        "",
+        "RULES:",
+        "- Only call ONE tool at a time.",
+        "- Be concise and helpful. Use the user's language when possible.",
+        "- When a meal plan is generated, briefly summarize what was created.",
+        "- Before creating an entry, ALWAYS use search_templates first to find the correct food_id. Never guess IDs.",
+        "- Before modifying or removing an entry, ALWAYS use read_entries first to find the correct entry_id.",
+        "- When the user says 'today', use the date provided above. Calculate other relative dates from it.",
+    ].join("\n");
+}
+
+/** Try to parse a tool call from an AI text response (prompt-based fallback). Returns null if no tool call found. */
 export function parseToolCall(response: string): AiToolCall | null {
-    // Look for ```tool ... ``` blocks
+    // Strategy 1: Look for ```tool ... ``` blocks (primary format)
     const toolBlockRegex = /```tool\s*\n?([\s\S]*?)\n?```/;
     const match = response.match(toolBlockRegex);
-    if (!match) return null;
+    if (match) {
+        const parsed = tryParseToolJson(match[1].trim());
+        if (parsed) return parsed;
+    }
 
+    // Strategy 2: Look for ```json ... ``` or ``` ... ``` blocks containing tool JSON
+    const genericBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
+    const genericMatch = response.match(genericBlockRegex);
+    if (genericMatch) {
+        const parsed = tryParseToolJson(genericMatch[1].trim());
+        if (parsed) return parsed;
+    }
+
+    // Strategy 3: Try to find a raw JSON object with "name" field in the response
+    const jsonObjectRegex = /\{[^{}]*"name"\s*:\s*"[^"]+"\s*[,}][\s\S]*?\}/;
+    const jsonMatch = response.match(jsonObjectRegex);
+    if (jsonMatch) {
+        const parsed = tryParseToolJson(jsonMatch[0]);
+        if (parsed) return parsed;
+    }
+
+    return null;
+}
+
+/** Try to parse a JSON string as a tool call. Returns null on failure. */
+function tryParseToolJson(jsonStr: string): AiToolCall | null {
     try {
-        const parsed = JSON.parse(match[1].trim());
+        const parsed = JSON.parse(jsonStr);
         if (parsed.name && typeof parsed.name === "string") {
             return {
                 name: parsed.name,
@@ -603,6 +679,5 @@ export function parseToolCall(response: string): AiToolCall | null {
     } catch {
         // Not valid JSON
     }
-
     return null;
 }

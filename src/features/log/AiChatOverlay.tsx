@@ -57,6 +57,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const [loading, setLoading] = useState(false);
     const [streamingText, setStreamingText] = useState("");
     const [pendingToolCall, setPendingToolCall] = useState<AiToolCall | null>(null);
+    const [pendingToolCallId, setPendingToolCallId] = useState<string | undefined>(undefined);
     const [streamingToolData, setStreamingToolData] = useState<AiMealPlanEntry[] | null>(null);
 
     const scrollRef = useRef<ScrollView>(null);
@@ -109,6 +110,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const addMessage = useCallback((msg: UiChatMessage) => {
         if (msg.role === "tool-request" && msg.toolCall) {
             setPendingToolCall(msg.toolCall);
+            setPendingToolCallId(msg.toolCallId);
         }
         // Notify parent when a data-modifying tool executed successfully
         if (msg.role === "tool-result" && msg.toolResult?.success) {
@@ -156,7 +158,9 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         if (!pendingToolCall || loading) return;
 
         const toolCall = pendingToolCall;
+        const toolCallId = pendingToolCallId;
         setPendingToolCall(null);
+        setPendingToolCallId(undefined);
         setLoading(true);
         setStreamingText("");
         const abort = new AbortController();
@@ -166,6 +170,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             await executeApprovedTool({
                 messages: messagesRef.current,
                 toolCall,
+                toolCallId,
                 onMessage: addMessage,
                 onStreamToken: (accumulated) => setStreamingText(accumulated),
                 onStreamingToolData: (data) => {
@@ -189,13 +194,15 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             setStreamingToolData(null);
             abortRef.current = null;
         }
-    }, [pendingToolCall, loading, addMessage, t]);
+    }, [pendingToolCall, pendingToolCallId, loading, addMessage, t]);
 
     const handleDeclineTool = useCallback(async () => {
         if (!pendingToolCall || loading) return;
 
         const toolCall = pendingToolCall;
+        const toolCallId = pendingToolCallId;
         setPendingToolCall(null);
+        setPendingToolCallId(undefined);
         setLoading(true);
         setStreamingText("");
         const abort = new AbortController();
@@ -205,6 +212,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             await declineToolCall({
                 messages: messagesRef.current,
                 toolCall,
+                toolCallId,
                 onMessage: addMessage,
                 onStreamToken: (accumulated) => setStreamingText(accumulated),
                 signal: abort.signal,
@@ -222,7 +230,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             setStreamingText("");
             abortRef.current = null;
         }
-    }, [pendingToolCall, loading, addMessage, t]);
+    }, [pendingToolCall, pendingToolCallId, loading, addMessage, t]);
 
     // Handle meal plan import from tool result
     const handleMealPlanImport = useCallback((msgId: string) => {

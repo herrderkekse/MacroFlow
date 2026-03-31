@@ -125,7 +125,7 @@ export default function MealPlanScreen() {
             let raw: string;
 
             if (provider.supportsStreaming && provider.chatStream) {
-                raw = await provider.chatStream(
+                const response = await provider.chatStream(
                     config,
                     messages,
                     {
@@ -138,11 +138,13 @@ export default function MealPlanScreen() {
                             }
                         },
                     },
-                    abort.signal,
+                    { signal: abort.signal },
                 );
+                raw = response.type === "text" ? response.content : "";
             } else {
                 setStreamStatus("connecting");
-                raw = await provider.chat(config, messages);
+                const response = await provider.chat(config, messages);
+                raw = response.type === "text" ? response.content : "";
             }
 
             // Final parse with the complete response
