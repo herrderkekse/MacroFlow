@@ -1,15 +1,34 @@
 import logger from "@/src/utils/logger";
-import type { AiProvider, AiProviderConfig, ChatMessage, StreamCallbacks } from "./types";
+import type { AiChatResponse, AiProvider, AiProviderConfig, ChatMessage, ChatOptions, StreamCallbacks } from "./types";
 
 const DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1";
 const DEFAULT_MODEL = "meta/llama-3.1-70b-instruct";
 
+interface NvidiaToolCallPart {
+    id?: string;
+    type?: string;
+    function?: { name?: string; arguments?: string };
+}
+
 interface NvidiaChatResponse {
-    choices?: { message?: { content?: string } }[];
+    choices?: {
+        message?: {
+            content?: string | null;
+            tool_calls?: NvidiaToolCallPart[];
+        };
+        finish_reason?: string;
+    }[];
 }
 
 interface NvidiaStreamChunk {
-    choices?: { delta?: { content?: string; reasoning_content?: string } }[];
+    choices?: {
+        delta?: {
+            content?: string | null;
+            reasoning_content?: string;
+            tool_calls?: NvidiaToolCallPart[];
+        };
+        finish_reason?: string | null;
+    }[];
 }
 
 /** Try to extract a human-readable error from the API response body. */
@@ -30,15 +49,40 @@ function parseApiError(status: number, body: string): string {
     return `NVIDIA API error (${status})`;
 }
 
+/** Convert a native tool_calls response into an AiChatResponse. */
+function toolCallToResponse(tc: NvidiaToolCallPart): AiChatResponse {
+    const name = tc.function?.name ?? "";
+    const id = tc.id ?? `tc_${Date.now()}`;
+    let args: Record<string, unknown> = {};
+    try {
+        args = JSON.parse(tc.function?.arguments ?? "{}");
+    } catch {
+        logger.warn("[AI/NVIDIA] Failed to parse tool_call arguments", { raw: tc.function?.arguments });
+    }
+    return { type: "tool_call", id, name, arguments: args };
+}
+
 export const nvidiaProvider: AiProvider = {
     id: "nvidia",
     supportsStreaming: true,
+    supportsToolCalling: true,
 
-    async chat(config: AiProviderConfig, messages: ChatMessage[]): Promise<string> {
+    async chat(config: AiProviderConfig, messages: ChatMessage[], options?: ChatOptions): Promise<AiChatResponse> {
         const baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
         const model = config.model || DEFAULT_MODEL;
 
-        logger.info("[AI/NVIDIA] Sending chat request", { baseUrl, model });
+        logger.info("[AI/NVIDIA] Sending chat request", { baseUrl, model, hasTools: !!options?.tools });
+
+        const body: Record<string, unknown> = {
+            model,
+            messages,
+            temperature: 0.3,
+            max_tokens: 4096,
+        };
+        if (options?.tools?.length) {
+            body.tools = options.tools;
+            body.tool_choice = "auto";
+        }
 
         const res = await fetch(`${baseUrl}/chat/completions`, {
             method: "POST",
@@ -46,50 +90,69 @@ export const nvidiaProvider: AiProvider = {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${config.apiKey}`,
             },
-            body: JSON.stringify({
-                model,
-                messages,
-                temperature: 0.3,
-                max_tokens: 4096,
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {
-            const body = await res.text().catch(() => "");
-            logger.error("[AI/NVIDIA] Request failed", { status: res.status, body });
-            throw new Error(parseApiError(res.status, body));
+            const respBody = await res.text().catch(() => "");
+            logger.error("[AI/NVIDIA] Request failed", { status: res.status, body: respBody });
+            throw new Error(parseApiError(res.status, respBody));
         }
 
         const data: NvidiaChatResponse = await res.json();
-        const content = data.choices?.[0]?.message?.content;
+        const choice = data.choices?.[0]?.message;
 
+        // Check for native tool calls first
+        if (choice?.tool_calls?.length) {
+            return toolCallToResponse(choice.tool_calls[0]);
+        }
+
+        const content = choice?.content;
         if (!content) {
             throw new Error("NVIDIA API returned an empty response");
         }
 
-        return content;
+        return { type: "text", content };
     },
 
     async chatStream(
         config: AiProviderConfig,
         messages: ChatMessage[],
         callbacks: StreamCallbacks,
-        signal?: AbortSignal,
-    ): Promise<string> {
+        options?: ChatOptions,
+    ): Promise<AiChatResponse> {
         const baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
         const model = config.model || DEFAULT_MODEL;
 
-        logger.info("[AI/NVIDIA] Sending streaming chat request", { baseUrl, model });
+        logger.info("[AI/NVIDIA] Sending streaming chat request", { baseUrl, model, hasTools: !!options?.tools });
         callbacks.onStatus("connecting");
+
+        const body: Record<string, unknown> = {
+            model,
+            messages,
+            temperature: 0.3,
+            max_tokens: 4096,
+            stream: true,
+        };
+        if (options?.tools?.length) {
+            body.tools = options.tools;
+            body.tool_choice = "auto";
+        }
 
         // React Native's fetch doesn't support ReadableStream on res.body,
         // so we use XMLHttpRequest with onprogress for SSE streaming.
-        return new Promise<string>((resolve, reject) => {
+        return new Promise<AiChatResponse>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             let accumulated = "";
             let processedLength = 0;
             let hasContent = false;
             let settled = false;
+
+            // Accumulate streamed tool_call fragments
+            let toolCallId = "";
+            let toolCallName = "";
+            let toolCallArgs = "";
+            let isToolCall = false;
 
             function settle(fn: () => void) {
                 if (!settled) {
@@ -98,6 +161,7 @@ export const nvidiaProvider: AiProvider = {
                 }
             }
 
+            const signal = options?.signal;
             if (signal) {
                 signal.addEventListener("abort", () => {
                     xhr.abort();
@@ -110,10 +174,6 @@ export const nvidiaProvider: AiProvider = {
             xhr.setRequestHeader("Authorization", `Bearer ${config.apiKey}`);
 
             xhr.onreadystatechange = () => {
-                // HEADERS_RECEIVED — check status early
-                if (xhr.readyState === 2 && xhr.status !== 0 && xhr.status !== 200) {
-                    // Let onerror / onload handle the body
-                }
                 // LOADING — process incremental data
                 if (xhr.readyState === 3 || xhr.readyState === 4) {
                     const text = xhr.responseText;
@@ -135,6 +195,19 @@ export const nvidiaProvider: AiProvider = {
 
                                 if (delta?.reasoning_content) {
                                     callbacks.onStatus("thinking");
+                                    continue;
+                                }
+
+                                // Handle streamed tool_calls deltas
+                                if (delta?.tool_calls?.length) {
+                                    const tc = delta.tool_calls[0];
+                                    if (!isToolCall) {
+                                        isToolCall = true;
+                                        callbacks.onStatus("generating");
+                                    }
+                                    if (tc.id) toolCallId = tc.id;
+                                    if (tc.function?.name) toolCallName += tc.function.name;
+                                    if (tc.function?.arguments) toolCallArgs += tc.function.arguments;
                                     continue;
                                 }
 
@@ -163,13 +236,31 @@ export const nvidiaProvider: AiProvider = {
                     return;
                 }
 
+                // If we accumulated a tool call, return it
+                if (isToolCall && toolCallName) {
+                    let args: Record<string, unknown> = {};
+                    try {
+                        args = JSON.parse(toolCallArgs || "{}");
+                    } catch {
+                        logger.warn("[AI/NVIDIA] Failed to parse streamed tool_call arguments", { raw: toolCallArgs });
+                    }
+                    callbacks.onStatus("done");
+                    settle(() => resolve({
+                        type: "tool_call",
+                        id: toolCallId || `tc_${Date.now()}`,
+                        name: toolCallName,
+                        arguments: args,
+                    }));
+                    return;
+                }
+
                 if (!accumulated) {
                     settle(() => reject(new Error("NVIDIA API returned an empty streaming response")));
                     return;
                 }
 
                 callbacks.onStatus("done");
-                settle(() => resolve(accumulated));
+                settle(() => resolve({ type: "text", content: accumulated }));
             };
 
             xhr.onerror = () => {
@@ -182,13 +273,7 @@ export const nvidiaProvider: AiProvider = {
             };
 
             callbacks.onStatus("thinking");
-            xhr.send(JSON.stringify({
-                model,
-                messages,
-                temperature: 0.3,
-                max_tokens: 4096,
-                stream: true,
-            }));
+            xhr.send(JSON.stringify(body));
         });
     },
 };
