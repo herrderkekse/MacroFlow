@@ -25,6 +25,8 @@ import {
     type NativeSyntheticEvent,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import AiChatOverlay, { CHAT_BAR_TOTAL_HEIGHT } from "./AiChatOverlay";
 import DailyProgressBar from "./DailyProgressBar";
 import DateSelectorBar from "./DateSelectorBar";
 import EntryModal from "./EntryModal";
@@ -193,6 +195,8 @@ export default function LogScreen() {
 
     const carouselRef = useRef<ScrollView>(null);
     const isSettling = useRef(false);
+    const tabBarHeight = useBottomTabBarHeight();
+    const [chatBarVisible, setChatBarVisible] = useState(false);
 
     const [grouped, setGrouped] = useState<Record<MealType, EntryWithFood[]>>({
         breakfast: [],
@@ -560,6 +564,7 @@ export default function LogScreen() {
             <Pressable
                 style={({ pressed }) => [
                     styles.fab,
+                    { bottom: chatBarVisible ? CHAT_BAR_TOTAL_HEIGHT + 8 : 24 },
                     pressed && styles.fabPressed,
                 ]}
                 onPress={() => {
@@ -623,13 +628,19 @@ export default function LogScreen() {
                 onConfirm={handleMoveCopy}
                 initialDate={selectedDate}
             />
+
+            <AiChatOverlay
+                tabBarHeight={tabBarHeight}
+                onVisibilityChange={setChatBarVisible}
+                onDataChanged={() => loadAllDays(selectedDate)}
+            />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     dayPage: { width: SCREEN_WIDTH },
-    content: { padding: spacing.md, paddingBottom: 100 },
+    content: { padding: spacing.md, paddingBottom: 160 },
 });
 
 function createStyles(colors: ThemeColors) {
@@ -639,7 +650,6 @@ function createStyles(colors: ThemeColors) {
         carousel: { flex: 1 },
         fab: {
             position: "absolute",
-            bottom: 24,
             right: 24,
             width: 56,
             height: 56,

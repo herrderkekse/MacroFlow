@@ -290,6 +290,20 @@ const de = {
         importSuccess: "{{count}} Einträge wurden zum Log hinzugefügt.",
         importFailed: "Import fehlgeschlagen",
     },
+    chat: {
+        title: "KI-Assistent",
+        placeholder: "Frag deinen KI-Assistenten…",
+        thinking: "Denkt nach…",
+        emptyHint: "Frag mich, einen Essensplan zu erstellen oder dir bei deiner Ernährung zu helfen!",
+        toolPermission: "Die KI möchte das Tool \"{{tool}}\" verwenden. Erlauben?",
+        allow: "Erlauben",
+        deny: "Ablehnen",
+        error: "Etwas ist schiefgelaufen: {{message}}",
+        mealPlanPreview: "Essensplan-Vorschau",
+        importMealPlan: "In Log importieren",
+        mealPlanImported: "{{count}} Einträge in dein Log importiert.",
+        mealPlanDismissed: "Essensplan verworfen.",
+    },
 } as const;
 
 export default de;
