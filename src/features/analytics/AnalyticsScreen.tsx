@@ -258,6 +258,13 @@ export default function AnalyticsScreen() {
             if (dailyAvg.length === 0) return null;
 
             const conversionFactor = isImperial ? KG_TO_LB : 1;
+            const weightValues = dailyAvg.map(d => d.avg * conversionFactor);
+            const minWeight = Math.min(...weightValues);
+            const maxWeight = Math.max(...weightValues);
+            const range = maxWeight - minWeight;
+            const padding = range > 0 ? Math.min(minWeight, 0.1 * range) : minWeight * 0.01 || 1;
+            const yAxisOffset = Math.max(0, Math.floor(minWeight - padding));
+
             const weightPoints = dailyAvg.map((d, i) => {
                 return {
                     value: d.avg * conversionFactor,
@@ -265,7 +272,7 @@ export default function AnalyticsScreen() {
                 };
             });
 
-            return { type: "weight" as const, weightPoints };
+            return { type: "weight" as const, weightPoints, yAxisOffset };
         }
 
         logger.warn("[UI] Unknown metric type for analytics chart", { metric });
@@ -619,6 +626,7 @@ export default function AnalyticsScreen() {
                                 startOpacity1={START_OPACITY}
                                 endOpacity1={END_OPACITY}
                                 yAxisLabelSuffix={isImperial ? " lb" : " kg"}
+                                yAxisOffset={chartConfig.yAxisOffset}
                                 // chart type independent props
                                 width={chartWidthProp}
                                 height={220}
