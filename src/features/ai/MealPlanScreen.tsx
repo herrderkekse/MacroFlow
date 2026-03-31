@@ -2,11 +2,8 @@ import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import { addEntry, getAllFoods, getAllRecipes, getGoals, getRecipeItems } from "@/src/db/queries";
 import {
-    buildMealPlanPrompt,
-    getProvider,
+    generateMealPlan,
     loadAiConfig,
-    parseMealPlanResponse,
-    parsePartialEntries,
 } from "@/src/services/ai";
 import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "@/src/services/ai/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -47,6 +44,7 @@ export default function MealPlanScreen() {
             case "connecting": return t("ai.statusConnecting");
             case "thinking": return t("ai.statusThinking");
             case "generating": return t("ai.statusGenerating");
+            case "refining": return t("ai.statusRefining");
             default: return t("ai.generating");
         }
     }, [streamStatus, t]);
@@ -114,41 +112,20 @@ export default function MealPlanScreen() {
             setStreamStatus(null);
             setResult(null);
 
-            const messages = buildMealPlanPrompt(foodPayload, recipePayload, goalsPayload, {
-                likedFoods,
-                dislikedFoods,
-                days: numDays,
+            const validIds = new Set(allFoods.map((f) => f.id));
+
+            const plan = await generateMealPlan({
+                config,
+                foods: foodPayload,
+                recipes: recipePayload,
+                goals: goalsPayload,
+                prefs: { likedFoods, dislikedFoods, days: numDays },
+                validFoodIds: validIds,
+                onStatus: (status) => setStreamStatus(status),
+                onPartialEntries: (entries) => setResult(entries),
+                signal: abort.signal,
             });
 
-            const provider = getProvider(config.provider);
-            const validIds = new Set(allFoods.map((f) => f.id));
-            let raw: string;
-
-            if (provider.supportsStreaming && provider.chatStream) {
-                const response = await provider.chatStream(
-                    config,
-                    messages,
-                    {
-                        onStatus: (status) => setStreamStatus(status),
-                        onToken: (accumulated) => {
-                            // Extract complete entries from partial JSON as they stream in
-                            const partial = parsePartialEntries(accumulated, validIds);
-                            if (partial.length > 0) {
-                                setResult(partial);
-                            }
-                        },
-                    },
-                    { signal: abort.signal },
-                );
-                raw = response.type === "text" ? response.content : "";
-            } else {
-                setStreamStatus("connecting");
-                const response = await provider.chat(config, messages);
-                raw = response.type === "text" ? response.content : "";
-            }
-
-            // Final parse with the complete response
-            const plan = parseMealPlanResponse(raw, validIds, goalsPayload, foodPayload);
             setResult(plan.entries);
         } catch (e: any) {
             if (e.name === "AbortError") return;

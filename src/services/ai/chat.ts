@@ -1,4 +1,4 @@
-import { getProvider, loadAiConfig, parseMealPlanResponse, parsePartialEntries } from "./index";
+import { generateMealPlan, getProvider, loadAiConfig } from "./index";
 import { buildNativeToolSystemPrompt, buildToolSystemPrompt, executeTool, parseToolCall, toOpenAiTools, toolNeedsApproval } from "./tools";
 import type { AiChatResponse, AiProviderConfig, AiMealPlanEntry, ChatMessage, StreamCallbacks } from "./types";
 import type { AiToolCall, AiToolResult } from "./tools";
@@ -345,7 +345,7 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
     // Execute the tool
     const result = executeTool(toolCall);
 
-    // Special handling for meal plan tool: generate plan, return entries for UI preview
+    // Special handling for meal plan tool: generate plan with refinement, return entries for UI preview
     if (toolCall.name === "create_meal_plan" && result.success && result.data) {
         const planData = result.data as {
             type: string;
@@ -353,27 +353,28 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
             validFoodIds: number[];
             goals: any;
             foods: any;
+            recipes: any;
+            prefs: any;
         };
 
         if (planData.type === "meal_plan_request") {
             const validIds = new Set(planData.validFoodIds);
 
-            // Make a separate AI call WITHOUT tools (expects pure JSON output)
-            const planResponse = await callAiRaw(config, planData.messages, {
-                ...opts,
-                onStreamToken: (accumulated) => {
-                    // Parse partial entries and forward to UI for live preview
-                    const partial = parsePartialEntries(accumulated, validIds);
-                    if (partial.length > 0) {
-                        opts.onStreamingToolData?.({ mealPlanEntries: partial });
-                    }
-                },
-            });
-
             try {
-                const plan = parseMealPlanResponse(planResponse, validIds, planData.goals, planData.foods);
+                const plan = await generateMealPlan({
+                    config,
+                    foods: planData.foods,
+                    recipes: planData.recipes,
+                    goals: planData.goals,
+                    prefs: planData.prefs,
+                    validFoodIds: validIds,
+                    onStatus: (status) => opts.onStreamStatus?.(status),
+                    onPartialEntries: (entries) => {
+                        opts.onStreamingToolData?.({ mealPlanEntries: entries });
+                    },
+                    signal: opts.signal,
+                });
 
-                // Return entries as data so the UI can preview before importing
                 const toolResultMsg: UiChatMessage = {
                     id: nextId(),
                     role: "tool-result",
@@ -513,30 +514,4 @@ async function callAi(
         }
     }
     return response;
-}
-
-/**
- * Call the AI and return raw text only (no tool support).
- * Used for secondary calls like meal plan generation that expect pure text/JSON output.
- */
-async function callAiRaw(
-    config: AiProviderConfig,
-    messages: ChatMessage[],
-    opts: { onStreamStatus?: (s: string) => void; onStreamToken?: (t: string) => void; signal?: AbortSignal },
-): Promise<string> {
-    const provider = getProvider(config.provider);
-
-    if (provider.supportsStreaming && provider.chatStream) {
-        const callbacks: StreamCallbacks = {
-            onStatus: (status) => opts.onStreamStatus?.(status),
-            onToken: (accumulated) => opts.onStreamToken?.(accumulated),
-        };
-        const response = await provider.chatStream(config, messages, callbacks, { signal: opts.signal });
-        return response.type === "text" ? response.content : "";
-    }
-
-    opts.onStreamStatus?.("connecting");
-    const response = await provider.chat(config, messages);
-    opts.onStreamStatus?.("done");
-    return response.type === "text" ? response.content : "";
 }
