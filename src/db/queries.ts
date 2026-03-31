@@ -177,6 +177,19 @@ export function getEntriesByDate(date: Date) {
         .all();
 }
 
+export function getEntriesByDateRange(startDate: Date, endDate: Date) {
+    const startKey = formatDateKey(startDate);
+    const endKey = formatDateKey(endDate);
+
+    return db
+        .select()
+        .from(entries)
+        .leftJoin(foods, eq(entries.food_id, foods.id))
+        .where(and(gte(entries.date, startKey), lte(entries.date, endKey)))
+        .orderBy(entries.date, entries.timestamp)
+        .all();
+}
+
 export function deleteEntry(id: number) {
     db.delete(entries).where(eq(entries.id, id)).run();
 }

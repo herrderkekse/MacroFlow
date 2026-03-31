@@ -4,6 +4,7 @@ import {
     getAllFoods,
     getAllRecipes,
     getEntriesByDate,
+    getEntriesByDateRange,
     getEntryById,
     getFoodById,
     getGoals,
@@ -12,6 +13,7 @@ import {
     searchRecipesByName,
     updateEntry,
 } from "@/src/db/queries";
+import { shiftCalendarDate } from "@/src/utils/date";
 import { formatDateKey, parseDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
 import { buildMealPlanPrompt } from "./index";
@@ -216,6 +218,42 @@ const searchTemplatesTool: AiToolDefinition = {
     },
 };
 
+const readRecentEntriesTool: AiToolDefinition = {
+    name: "read_recent_entries",
+    description:
+        "Read all food log entries for the last X days (including today). Returns entry details grouped by date. " +
+        "Use this to see what the user ate recently.",
+    needsApproval: false,
+    parameters: {
+        type: "object",
+        properties: {
+            days: {
+                type: "number",
+                description: "Number of days to look back (1-30). 1 means today only.",
+            },
+        },
+        required: ["days"],
+    },
+};
+
+const readRecentMacrosTool: AiToolDefinition = {
+    name: "read_recent_macros",
+    description:
+        "Read the total macro sums for each of the last X days (including today). Returns daily totals only, not individual food entries. " +
+        "Use this for a quick overview of recent nutrition.",
+    needsApproval: false,
+    parameters: {
+        type: "object",
+        properties: {
+            days: {
+                type: "number",
+                description: "Number of days to look back (1-30). 1 means today only.",
+            },
+        },
+        required: ["days"],
+    },
+};
+
 export const AI_TOOLS: AiToolDefinition[] = [
     createMealPlanTool,
     readEntriesTool,
@@ -224,6 +262,8 @@ export const AI_TOOLS: AiToolDefinition[] = [
     updateEntryTool,
     removeEntryTool,
     searchTemplatesTool,
+    readRecentEntriesTool,
+    readRecentMacrosTool,
 ];
 
 /** Convert internal tool definitions to the OpenAI-compatible tools format. */
@@ -501,6 +541,77 @@ function executeSearchTemplates(args: Record<string, unknown>): AiToolResult {
     };
 }
 
+function executeReadRecentEntries(args: Record<string, unknown>): AiToolResult {
+    const days = Math.max(1, Math.min(30, Math.round(Number(args.days) || 1)));
+    const today = new Date();
+    const startDate = shiftCalendarDate(today, -(days - 1));
+
+    const rows = getEntriesByDateRange(startDate, today);
+    const grouped: Record<string, unknown[]> = {};
+
+    for (const row of rows) {
+        const date = row.entries.date;
+        if (!grouped[date]) grouped[date] = [];
+        grouped[date].push({
+            entry_id: row.entries.id,
+            food_id: row.entries.food_id,
+            food_name: row.foods?.name ?? "Unknown",
+            quantity_grams: row.entries.quantity_grams,
+            meal_type: row.entries.meal_type,
+            calories: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.calories_per_100g).toFixed(1) : 0,
+            protein: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.protein_per_100g).toFixed(1) : 0,
+            carbs: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.carbs_per_100g).toFixed(1) : 0,
+            fat: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.fat_per_100g).toFixed(1) : 0,
+        });
+    }
+
+    return {
+        success: true,
+        summary: `Found ${rows.length} entries across ${Object.keys(grouped).length} day(s).`,
+        data: grouped,
+    };
+}
+
+function executeReadRecentMacros(args: Record<string, unknown>): AiToolResult {
+    const days = Math.max(1, Math.min(30, Math.round(Number(args.days) || 1)));
+    const today = new Date();
+    const startDate = shiftCalendarDate(today, -(days - 1));
+
+    const rows = getEntriesByDateRange(startDate, today);
+    const dailyTotals: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
+
+    for (const row of rows) {
+        const date = row.entries.date;
+        if (!dailyTotals[date]) dailyTotals[date] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        if (row.foods) {
+            const q = row.entries.quantity_grams / 100;
+            dailyTotals[date].calories += q * row.foods.calories_per_100g;
+            dailyTotals[date].protein += q * row.foods.protein_per_100g;
+            dailyTotals[date].carbs += q * row.foods.carbs_per_100g;
+            dailyTotals[date].fat += q * row.foods.fat_per_100g;
+        }
+    }
+
+    // Round the totals
+    const result = Object.fromEntries(
+        Object.entries(dailyTotals).map(([date, totals]) => [
+            date,
+            {
+                calories: +totals.calories.toFixed(1),
+                protein: +totals.protein.toFixed(1),
+                carbs: +totals.carbs.toFixed(1),
+                fat: +totals.fat.toFixed(1),
+            },
+        ]),
+    );
+
+    return {
+        success: true,
+        summary: `Macro totals for ${Object.keys(result).length} day(s).`,
+        data: result,
+    };
+}
+
 const toolExecutors: Record<string, ToolExecutor> = {
     create_meal_plan: executeCreateMealPlan,
     read_entries: executeReadEntries,
@@ -509,6 +620,8 @@ const toolExecutors: Record<string, ToolExecutor> = {
     update_entry: executeUpdateEntry,
     remove_entry: executeRemoveEntry,
     search_templates: executeSearchTemplates,
+    read_recent_entries: executeReadRecentEntries,
+    read_recent_macros: executeReadRecentMacros,
 };
 
 // ── Public API ────────────────────────────────────────────
