@@ -62,12 +62,30 @@ export interface ChatMessage {
     content: string;
 }
 
+/** Status phases during streaming generation. */
+export type StreamStatus = "connecting" | "thinking" | "generating" | "done";
+
+/** Callbacks for streaming chat responses. */
+export interface StreamCallbacks {
+    onStatus: (status: StreamStatus) => void;
+    onToken: (accumulated: string) => void;
+}
+
 /** Abstract AI provider interface. */
 export interface AiProvider {
     readonly id: AiProviderId;
+    /** Whether this provider supports streaming responses. */
+    readonly supportsStreaming?: boolean;
     /** Send a chat completion request and return the assistant's text. */
     chat(
         config: AiProviderConfig,
         messages: ChatMessage[],
+    ): Promise<string>;
+    /** Stream a chat completion, calling back with status updates and tokens. */
+    chatStream?(
+        config: AiProviderConfig,
+        messages: ChatMessage[],
+        callbacks: StreamCallbacks,
+        signal?: AbortSignal,
     ): Promise<string>;
 }
