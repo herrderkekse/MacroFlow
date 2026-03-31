@@ -167,7 +167,7 @@ export default function EntryModal({
 
     const savedUnit = customServingUnit ? customServingUnit.name : unit;
 
-    function handleSave() {
+    function handleSave(isScheduled = 0) {
         if (!food || qty <= 0) return;
 
         if (entry) {
@@ -194,6 +194,7 @@ export default function EntryModal({
                 date: formatDateKey(selectedDate),
                 meal_type: mealType,
                 recipe_log_id: selectedGroup?.recipeLogId,
+                is_scheduled: isScheduled,
             });
             logger.info("[DB] Added entry", {
                 foodId: food.id,
@@ -202,6 +203,7 @@ export default function EntryModal({
                 date: formatDateKey(selectedDate),
                 mealType: mealType,
                 recipeLogId: selectedGroup?.recipeLogId,
+                isScheduled,
             });
 
             // Persist last logged amount/unit/meal on the food for future defaults
@@ -412,12 +414,47 @@ export default function EntryModal({
                         </>
                     )}
 
-                    <Button
-                        title={t("log.saveEntry")}
-                        onPress={handleSave}
-                        disabled={qty <= 0}
-                        style={styles.saveButton}
-                    />
+                    {entry ? (
+                        <Button
+                            title={t("log.saveEntry")}
+                            onPress={() => handleSave()}
+                            disabled={qty <= 0}
+                            style={styles.saveButton}
+                        />
+                    ) : selectedGroup ? (
+                        selectedGroup.isScheduled ? (
+                            <Button
+                                title={t("log.saveEntryAsScheduled")}
+                                onPress={() => handleSave(1)}
+                                disabled={qty <= 0}
+                                style={styles.saveButton}
+                                variant="outline"
+                            />
+                        ) : (
+                            <Button
+                                title={t("log.saveEntry")}
+                                onPress={() => handleSave()}
+                                disabled={qty <= 0}
+                                style={styles.saveButton}
+                            />
+                        )
+                    ) : (
+                        <>
+                            <Button
+                                title={t("log.saveEntry")}
+                                onPress={() => handleSave()}
+                                disabled={qty <= 0}
+                                style={styles.saveButton}
+                            />
+                            <Button
+                                title={t("log.saveEntryAsScheduled")}
+                                onPress={() => handleSave(1)}
+                                disabled={qty <= 0}
+                                style={styles.scheduledButton}
+                                variant="outline"
+                            />
+                        </>
+                    )}
                 </ScrollView>
             </KeyboardAvoidingView>
         </Modal>
@@ -518,5 +555,6 @@ function createStyles(colors: ThemeColors) {
             marginTop: spacing.xs,
         },
         saveButton: { marginTop: spacing.lg },
+        scheduledButton: { marginTop: spacing.sm },
     });
 }

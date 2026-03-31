@@ -79,16 +79,17 @@ export default function RecipeLogModal({
         return sum + (food.calories_per_100g * row.recipe_items.quantity_grams) / 100;
     }, 0) * portion;
 
-    function handleSave() {
+    function handleSave(isScheduled = 0) {
         if (!recipe || portion <= 0) return;
-        logRecipeToMeal(recipe.id, mealType, formatDateKey(selectedDate), portion);
+        logRecipeToMeal(recipe.id, mealType, formatDateKey(selectedDate), portion, isScheduled);
         logger.info("[DB] Logged recipe to meal", {
             recipeId: recipe.id,
             mealType,
             date: formatDateKey(selectedDate),
             portionMultiplier: portion,
+            isScheduled,
         });
-        cancelMealReminderIfLogged(mealType);
+        if (!isScheduled) cancelMealReminderIfLogged(mealType);
         onSaved();
     }
 
@@ -178,7 +179,8 @@ export default function RecipeLogModal({
                         ))}
                     </View>
 
-                    <Button title={t("log.addToLog")} onPress={handleSave} style={styles.saveBtn} />
+                    <Button title={t("log.addToLog")} onPress={() => handleSave()} style={styles.saveBtn} />
+                    <Button title={t("log.addToLogAsScheduled")} onPress={() => handleSave(1)} style={styles.scheduledBtn} variant="outline" />
                 </ScrollView>
             </View>
         </Modal>
@@ -260,6 +262,7 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
             fontWeight: "600",
         },
         saveBtn: { marginTop: spacing.md },
+        scheduledBtn: { marginTop: spacing.sm },
         portionRow: {
             flexDirection: "row",
             alignItems: "center",

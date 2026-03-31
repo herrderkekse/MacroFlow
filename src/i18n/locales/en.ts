@@ -145,6 +145,9 @@ const en = {
         weight: "Weight",
         noWeightsLogged: "No weight logged yet",
         weightDaysAgo: "{{count}}d ago",
+        saveEntryAsScheduled: "Save Entry as Scheduled",
+        addToLogAsScheduled: "Add to Log as Scheduled",
+        confirmScheduled: "Confirm scheduled entry",
     },
     templates: {
         title: "Templates",
