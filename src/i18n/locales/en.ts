@@ -289,6 +289,20 @@ const en = {
         importSuccess: "{{count}} entries added to your log.",
         importFailed: "Import failed",
     },
+    chat: {
+        title: "AI Assistant",
+        placeholder: "Ask your AI assistant…",
+        thinking: "Thinking…",
+        emptyHint: "Ask me to create a meal plan or help with your nutrition!",
+        toolPermission: "The AI wants to use the \"{{tool}}\" tool. Allow?",
+        allow: "Allow",
+        deny: "Deny",
+        error: "Something went wrong: {{message}}",
+        mealPlanPreview: "Meal Plan Preview",
+        importMealPlan: "Import to Log",
+        mealPlanImported: "{{count}} entries imported to your log.",
+        mealPlanDismissed: "Meal plan dismissed.",
+    },
 } as const;
 
 export default en;
