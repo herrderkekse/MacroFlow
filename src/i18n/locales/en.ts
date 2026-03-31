@@ -284,6 +284,7 @@ const en = {
         statusConnecting: "Connecting to AI provider…",
         statusThinking: "AI is thinking…",
         statusGenerating: "Generating meal plan…",
+        statusRefining: "Refining macro targets…",
         noStreamingHint: "Generating — this might take a while. Please wait.",
         planPreview: "PLAN PREVIEW",
         importPlan: "Import to Log",

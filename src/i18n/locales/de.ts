@@ -285,6 +285,7 @@ const de = {
         statusConnecting: "Verbindung zum KI-Anbieter…",
         statusThinking: "KI denkt nach…",
         statusGenerating: "Essensplan wird generiert…",
+        statusRefining: "Makroziele werden verfeinert…",
         noStreamingHint: "Wird generiert — das kann etwas dauern. Bitte warten.",
         planPreview: "PLAN-VORSCHAU",
         importPlan: "In Log importieren",

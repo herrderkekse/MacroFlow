@@ -97,7 +97,7 @@ export type AiChatResponse =
     | { type: "tool_call"; id: string; name: string; arguments: Record<string, unknown> };
 
 /** Status phases during streaming generation. */
-export type StreamStatus = "connecting" | "thinking" | "generating" | "done";
+export type StreamStatus = "connecting" | "thinking" | "generating" | "refining" | "done";
 
 /** Callbacks for streaming chat responses. */
 export interface StreamCallbacks {

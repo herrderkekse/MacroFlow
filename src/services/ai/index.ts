@@ -246,3 +246,168 @@ export function parseMealPlanResponse(
 
     return { entries };
 }
+
+/** Check if daily macro totals are within tolerance. Returns issues for days that aren't. */
+export function validateMealPlanMacros(
+    entries: AiMealPlanEntry[],
+    goals: AiGoalsPayload,
+    foods: AiFoodPayload[],
+    tolerance = 0.15,
+): { isValid: boolean; issues: string[] } {
+    const foodMap = new Map(foods.map((f) => [f.id, f]));
+    const dailyTotals = new Map<string, { cal: number; p: number; c: number; f: number }>();
+
+    for (const entry of entries) {
+        const food = foodMap.get(entry.food_id);
+        if (!food) continue;
+        const factor = entry.quantity_grams / 100;
+        const day = dailyTotals.get(entry.date) ?? { cal: 0, p: 0, c: 0, f: 0 };
+        day.cal += food.calories_per_100g * factor;
+        day.p += food.protein_per_100g * factor;
+        day.c += food.carbs_per_100g * factor;
+        day.f += food.fat_per_100g * factor;
+        dailyTotals.set(entry.date, day);
+    }
+
+    const issues: string[] = [];
+    for (const [date, totals] of dailyTotals) {
+        const dayIssues: string[] = [];
+        if (goals.calories > 0 && Math.abs(totals.cal - goals.calories) / goals.calories > tolerance) {
+            dayIssues.push(`calories: got ${Math.round(totals.cal)} kcal, target ${goals.calories} kcal`);
+        }
+        if (goals.protein > 0 && Math.abs(totals.p - goals.protein) / goals.protein > tolerance) {
+            dayIssues.push(`protein: got ${Math.round(totals.p)}g, target ${goals.protein}g`);
+        }
+        if (goals.carbs > 0 && Math.abs(totals.c - goals.carbs) / goals.carbs > tolerance) {
+            dayIssues.push(`carbs: got ${Math.round(totals.c)}g, target ${goals.carbs}g`);
+        }
+        if (goals.fat > 0 && Math.abs(totals.f - goals.fat) / goals.fat > tolerance) {
+            dayIssues.push(`fat: got ${Math.round(totals.f)}g, target ${goals.fat}g`);
+        }
+        if (dayIssues.length > 0) {
+            issues.push(`${date}: ${dayIssues.join(", ")}`);
+        }
+    }
+
+    return { isValid: issues.length === 0, issues };
+}
+
+/** Build a refinement message asking the AI to correct macro mismatches. */
+export function buildRefinementMessage(
+    previousResponse: string,
+    issues: string[],
+): ChatMessage {
+    return {
+        role: "user",
+        content: [
+            "Your previous meal plan has macro mismatches. Please fix the following issues by adjusting quantities or swapping foods:",
+            "",
+            ...issues,
+            "",
+            "Return the COMPLETE corrected meal plan in the same JSON format. Respond with ONLY valid JSON, no explanation.",
+        ].join("\n"),
+    };
+}
+
+// ── High-level meal plan generation with refinement ───────
+
+const MAX_REFINEMENTS = 2;
+
+export interface GenerateMealPlanOptions {
+    config: AiProviderConfig;
+    foods: AiFoodPayload[];
+    recipes: AiRecipePayload[];
+    goals: AiGoalsPayload;
+    prefs: MealPlanPreferences;
+    validFoodIds: Set<number>;
+    onStatus?: (status: import("./types").StreamStatus) => void;
+    onPartialEntries?: (entries: AiMealPlanEntry[]) => void;
+    signal?: AbortSignal;
+}
+
+/**
+ * Generate a meal plan with automatic refinement.
+ * After the initial generation, validates daily macros against goals.
+ * If mismatches are found, sends them back to the AI for correction (up to 2 rounds).
+ * Streaming preview (onPartialEntries) remains active during refinements.
+ */
+export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<AiMealPlanResponse> {
+    const { config, foods, recipes, goals, prefs, validFoodIds, onStatus, onPartialEntries, signal } = opts;
+
+    const messages = buildMealPlanPrompt(foods, recipes, goals, prefs);
+    const provider = getProvider(config.provider);
+
+    // Initial generation
+    let raw: string;
+    if (provider.supportsStreaming && provider.chatStream) {
+        const response = await provider.chatStream(
+            config,
+            messages,
+            {
+                onStatus: (status) => onStatus?.(status),
+                onToken: (accumulated) => {
+                    const partial = parsePartialEntries(accumulated, validFoodIds);
+                    if (partial.length > 0) onPartialEntries?.(partial);
+                },
+            },
+            { signal },
+        );
+        raw = response.type === "text" ? response.content : "";
+    } else {
+        onStatus?.("connecting");
+        const response = await provider.chat(config, messages);
+        raw = response.type === "text" ? response.content : "";
+    }
+
+    let plan = parseMealPlanResponse(raw, validFoodIds, goals, foods);
+    onPartialEntries?.(plan.entries);
+
+    // Refinement loop
+    const conversationHistory: ChatMessage[] = [...messages, { role: "assistant", content: raw }];
+
+    for (let i = 0; i < MAX_REFINEMENTS; i++) {
+        if (signal?.aborted) break;
+
+        const validation = validateMealPlanMacros(plan.entries, goals, foods);
+        if (validation.isValid) break;
+
+        logger.info("[AI] Meal plan refinement round", { round: i + 1, issues: validation.issues.length });
+        onStatus?.("refining");
+
+        const refinementMsg = buildRefinementMessage(raw, validation.issues);
+        conversationHistory.push(refinementMsg);
+
+        let refinedRaw: string;
+        if (provider.supportsStreaming && provider.chatStream) {
+            const response = await provider.chatStream(
+                config,
+                conversationHistory,
+                {
+                    onStatus: () => onStatus?.("refining"),
+                    onToken: (accumulated) => {
+                        const partial = parsePartialEntries(accumulated, validFoodIds);
+                        if (partial.length > 0) onPartialEntries?.(partial);
+                    },
+                },
+                { signal },
+            );
+            refinedRaw = response.type === "text" ? response.content : "";
+        } else {
+            const response = await provider.chat(config, conversationHistory);
+            refinedRaw = response.type === "text" ? response.content : "";
+        }
+
+        try {
+            const refinedPlan = parseMealPlanResponse(refinedRaw, validFoodIds, goals, foods);
+            plan = refinedPlan;
+            raw = refinedRaw;
+            conversationHistory.push({ role: "assistant", content: refinedRaw });
+            onPartialEntries?.(plan.entries);
+        } catch {
+            logger.warn("[AI] Refinement parse failed, keeping previous result", { round: i + 1 });
+            break;
+        }
+    }
+
+    return plan;
+}

@@ -344,6 +344,8 @@ function executeCreateMealPlan(args: Record<string, unknown>): AiToolResult {
             validFoodIds: allFoods.map((f) => f.id),
             goals: goalsPayload,
             foods: foodPayload,
+            recipes: recipePayload,
+            prefs: { likedFoods, dislikedFoods, days },
         },
     };
 }
