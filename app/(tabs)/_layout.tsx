@@ -1,10 +1,10 @@
 import { getStreak } from "@/src/db/queries";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { Tabs, useFocusEffect, useRouter, useSegments } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, View } from "react-native";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 
 const icons: Record<string, string> = {
     index: 'create',
@@ -12,10 +12,36 @@ const icons: Record<string, string> = {
     more: 'ellipsis-horizontal'
 };
 
+const HIDDEN_TABS = new Set(["analytics", "goals", "backup", "settings", "ai-settings", "meal-plan"]);
+
 export default function TabsLayout() {
     const { t } = useTranslation();
     const colors = useThemeColors();
+    const router = useRouter();
+    const segments = useSegments();
     const [streak, setStreak] = useState(0);
+    const prevVisibleTab = useRef("more");
+
+    // segments = ["(tabs)"] for index, ["(tabs)", "analytics"] for sub-screens, etc.
+    const currentTab = segments[1] ?? "index";
+
+    // Remember the last visible (non-hidden) tab the user was on
+    useEffect(() => {
+        if (!HIDDEN_TABS.has(currentTab)) {
+            prevVisibleTab.current = currentTab;
+        }
+    }, [currentTab]);
+
+    // Intercept back press on hidden tabs to navigate back to the previous visible tab
+    useEffect(() => {
+        if (!HIDDEN_TABS.has(currentTab)) return;
+
+        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+            router.replace(`/(tabs)/${prevVisibleTab.current === "index" ? "" : prevVisibleTab.current}` as any);
+            return true;
+        });
+        return () => sub.remove();
+    }, [currentTab, router]);
 
     const styles = StyleSheet.create({
         iconContainer: {
