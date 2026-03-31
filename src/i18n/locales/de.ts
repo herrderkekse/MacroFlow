@@ -144,6 +144,9 @@ const de = {
         weight: "Gewicht",
         noWeightsLogged: "Noch kein Gewicht erfasst",
         weightDaysAgo: "vor {{count}}T",
+        saveEntryAsScheduled: "Eintrag als geplant speichern",
+        addToLogAsScheduled: "Als geplant hinzufügen",
+        confirmScheduled: "Geplanten Eintrag bestätigen",
     },
     templates: {
         title: "Vorlagen",

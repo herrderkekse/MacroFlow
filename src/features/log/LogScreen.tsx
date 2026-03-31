@@ -1,6 +1,6 @@
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
-import { addWeightLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getGoals, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type Entry, type Food, type Goals, type WeightLog } from "@/src/db/queries";
+import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getGoals, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type Entry, type Food, type Goals, type WeightLog } from "@/src/db/queries";
 import { useAppStore } from "@/src/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/types";
 import { diffCalendarDays, diffDateKeys, parseDateKey, shiftCalendarDate } from "@/src/utils/date";
@@ -77,20 +77,26 @@ function loadGrouped(date: Date) {
 
 function computeTotals(grouped: Record<MealType, EntryWithFood[]>) {
     const all = Object.values(grouped).flat();
-    return all.reduce(
-        (acc, row) => {
-            const qty = row.entries.quantity_grams;
-            const food = row.foods;
-            if (!food) return acc;
-            return {
-                calories: acc.calories + (food.calories_per_100g * qty) / 100,
-                protein: acc.protein + (food.protein_per_100g * qty) / 100,
-                carbs: acc.carbs + (food.carbs_per_100g * qty) / 100,
-                fat: acc.fat + (food.fat_per_100g * qty) / 100,
-            };
-        },
-        { calories: 0, protein: 0, carbs: 0, fat: 0 },
-    );
+    const actual = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    const scheduled = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    for (const row of all) {
+        const qty = row.entries.quantity_grams;
+        const food = row.foods;
+        if (!food) continue;
+        const target = row.entries.is_scheduled === 1 ? scheduled : actual;
+        target.calories += (food.calories_per_100g * qty) / 100;
+        target.protein += (food.protein_per_100g * qty) / 100;
+        target.carbs += (food.carbs_per_100g * qty) / 100;
+        target.fat += (food.fat_per_100g * qty) / 100;
+    }
+    return {
+        calories: actual.calories + scheduled.calories,
+        protein: actual.protein + scheduled.protein,
+        carbs: actual.carbs + scheduled.carbs,
+        fat: actual.fat + scheduled.fat,
+        actual,
+        scheduled,
+    };
 }
 
 function DayPage({
@@ -101,6 +107,8 @@ function DayPage({
     onEdit,
     onEditRecipeGroup,
     onDeleteRecipeLog,
+    onConfirmEntry,
+    onConfirmRecipeLog,
     selectionMode,
     selectedEntryIds,
     onToggleEntries,
@@ -120,6 +128,8 @@ function DayPage({
     onEdit: (row: EntryWithFood) => void;
     onEditRecipeGroup: (group: RecipeGroup, multiplier: number) => void;
     onDeleteRecipeLog: (recipeLogId: number) => void;
+    onConfirmEntry?: (id: number) => void;
+    onConfirmRecipeLog?: (recipeLogId: number) => void;
     selectionMode?: boolean;
     selectedEntryIds?: Set<number>;
     onToggleEntries?: (entryIds: number[]) => void;
@@ -132,6 +142,7 @@ function DayPage({
     onAddWeight?: (weightKg: number) => void;
     onDeleteWeight?: (id: number) => void;
 }) {
+    const totals = computeTotals(grouped);
     return (
         <View style={styles.dayPage}>
             <ScrollView
@@ -139,7 +150,7 @@ function DayPage({
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
             >
-                <DailyProgressBar totals={computeTotals(grouped)} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
+                <DailyProgressBar totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
                 {MEAL_TYPES.map((meal) => (
                     <MealSection
                         key={meal.key}
@@ -151,6 +162,8 @@ function DayPage({
                         onEdit={onEdit}
                         onEditRecipeGroup={onEditRecipeGroup}
                         onDeleteRecipeLog={onDeleteRecipeLog}
+                        onConfirmEntry={onConfirmEntry}
+                        onConfirmRecipeLog={onConfirmRecipeLog}
                         selectionMode={selectionMode}
                         selectedEntryIds={selectedEntryIds}
                         onToggleEntries={onToggleEntries}
@@ -318,6 +331,18 @@ export default function LogScreen() {
         loadAllDays(selectedDate);
     }
 
+    function handleConfirmEntry(id: number) {
+        confirmEntry(id);
+        logger.info("[DB] Confirmed scheduled entry", { id });
+        loadAllDays(selectedDate);
+    }
+
+    function handleConfirmRecipeLog(recipeLogId: number) {
+        confirmRecipeLog(recipeLogId);
+        logger.info("[DB] Confirmed scheduled recipe log", { recipeLogId });
+        loadAllDays(selectedDate);
+    }
+
     function handleAddWeight(weightKg: number) {
         addWeightLog(weightKg, selectedDate);
         logger.info("[DB] Logged weight", { weight_kg: weightKg });
@@ -477,6 +502,8 @@ export default function LogScreen() {
                     onEdit={handleEdit}
                     onEditRecipeGroup={handleEditRecipeGroup}
                     onDeleteRecipeLog={handleDeleteRecipeLog}
+                    onConfirmEntry={handleConfirmEntry}
+                    onConfirmRecipeLog={handleConfirmRecipeLog}
                     meanWeightKg={meanWeightKg}
                     weightTrend={weightTrend}
                     weightDaysAgo={weightDaysAgo}
@@ -489,6 +516,8 @@ export default function LogScreen() {
                     onEdit={handleEdit}
                     onEditRecipeGroup={handleEditRecipeGroup}
                     onDeleteRecipeLog={handleDeleteRecipeLog}
+                    onConfirmEntry={handleConfirmEntry}
+                    onConfirmRecipeLog={handleConfirmRecipeLog}
                     selectionMode={selectionMode}
                     selectedEntryIds={selectedEntryIds}
                     onToggleEntries={handleToggleEntries}
@@ -509,6 +538,8 @@ export default function LogScreen() {
                     onEdit={handleEdit}
                     onEditRecipeGroup={handleEditRecipeGroup}
                     onDeleteRecipeLog={handleDeleteRecipeLog}
+                    onConfirmEntry={handleConfirmEntry}
+                    onConfirmRecipeLog={handleConfirmRecipeLog}
                     meanWeightKg={meanWeightKg}
                     weightTrend={weightTrend}
                     weightDaysAgo={weightDaysAgo}

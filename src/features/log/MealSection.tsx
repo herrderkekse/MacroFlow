@@ -23,6 +23,8 @@ interface MealSectionProps {
     onEdit?: (row: EntryWithFood) => void;
     onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
     onDeleteRecipeLog?: (recipeLogId: number) => void;
+    onConfirmEntry?: (id: number) => void;
+    onConfirmRecipeLog?: (recipeLogId: number) => void;
     selectionMode?: boolean;
     selectedEntryIds?: Set<number>;
     onToggleEntries?: (entryIds: number[]) => void;
@@ -96,6 +98,8 @@ export default function MealSection({
     onEdit,
     onEditRecipeGroup,
     onDeleteRecipeLog,
+    onConfirmEntry,
+    onConfirmRecipeLog,
     selectionMode,
     selectedEntryIds,
     onToggleEntries,
@@ -196,6 +200,7 @@ export default function MealSection({
                                 onDeleteEntry={onDeleteEntry}
                                 onEditRecipeGroup={onEditRecipeGroup}
                                 onDeleteRecipeLog={onDeleteRecipeLog}
+                                onConfirmRecipeLog={onConfirmRecipeLog}
                                 allMealSelected={allMealSelected}
                             />
                         ))}
@@ -206,6 +211,7 @@ export default function MealSection({
                                 row={row}
                                 onEdit={onEdit}
                                 onDeleteEntry={onDeleteEntry}
+                                onConfirmEntry={onConfirmEntry}
                                 allMealSelected={allMealSelected}
                             />
                         ))}
@@ -220,6 +226,7 @@ function EntryRow({
     row,
     onEdit,
     onDeleteEntry,
+    onConfirmEntry,
     isChild = false,
     allMealSelected,
     allGroupSelected,
@@ -227,6 +234,7 @@ function EntryRow({
     row: EntryWithFood;
     onEdit?: (row: EntryWithFood) => void;
     onDeleteEntry: (id: number) => void;
+    onConfirmEntry?: (id: number) => void;
     isChild?: boolean;
     allMealSelected?: boolean;
     allGroupSelected?: boolean;
@@ -242,6 +250,7 @@ function EntryRow({
     const cals = food ? Math.round((food.calories_per_100g * qty) / 100) : 0;
     const selectionMode = selection?.selectionMode ?? false;
     const isSelected = selection?.selectedEntryIds.has(row.entries.id) ?? false;
+    const isScheduled = row.entries.is_scheduled === 1;
 
     return (
         <Pressable
@@ -249,6 +258,7 @@ function EntryRow({
                 styles.entryRow,
                 isChild && styles.childEntryRow,
                 selectionMode && isSelected && !allMealSelected && !allGroupSelected && styles.selectedEntry,
+                isScheduled && styles.scheduledEntry,
             ]}
             onPress={() => {
                 if (selectionMode) selection?.toggleEntries([row.entries.id]);
@@ -263,25 +273,36 @@ function EntryRow({
             {isChild && <View style={styles.childConnector} />}
             <View style={styles.entryInfo}>
                 <View style={styles.entryNameRow}>
-                    <Text style={styles.entryName} numberOfLines={1}>
+                    <Text style={[styles.entryName, isScheduled && styles.scheduledText]} numberOfLines={1}>
                         {food?.name ?? t("log.unknownFood")}
                     </Text>
-                    {row.entries.is_scheduled === 1 && (
-                        <Ionicons name="calendar-outline" size={14} color={colors.primary} style={{ marginLeft: 4 }} />
+                    {isScheduled && (
+                        <Ionicons name="calendar-outline" size={14} color={colors.disabled} style={{ marginLeft: 4 }} />
                     )}
                 </View>
-                <Text style={styles.entryDetail}>
+                <Text style={[styles.entryDetail, isScheduled && styles.scheduledText]}>
                     {formatEntryQuantity(qty, entryUnit, servingGrams)} · {cals} {t("common.cal")}
                 </Text>
             </View>
             {!selectionMode && (
-                <Pressable onPress={() => onDeleteEntry(row.entries.id)} hitSlop={8}>
-                    <Ionicons
-                        name="close-circle-outline"
-                        size={20}
-                        color={colors.textTertiary}
-                    />
-                </Pressable>
+                <View style={styles.entryActions}>
+                    {isScheduled && !isChild && onConfirmEntry && (
+                        <Pressable onPress={() => onConfirmEntry(row.entries.id)} hitSlop={8} style={{ marginRight: spacing.sm }}>
+                            <Ionicons
+                                name="checkmark-circle-outline"
+                                size={20}
+                                color={colors.success}
+                            />
+                        </Pressable>
+                    )}
+                    <Pressable onPress={() => onDeleteEntry(row.entries.id)} hitSlop={8}>
+                        <Ionicons
+                            name="close-circle-outline"
+                            size={20}
+                            color={colors.textTertiary}
+                        />
+                    </Pressable>
+                </View>
             )}
         </Pressable>
     );
@@ -293,6 +314,7 @@ function RecipeGroupRow({
     onDeleteEntry,
     onEditRecipeGroup,
     onDeleteRecipeLog,
+    onConfirmRecipeLog,
     allMealSelected,
 }: {
     group: RecipeGroup;
@@ -300,6 +322,7 @@ function RecipeGroupRow({
     onDeleteEntry: (id: number) => void;
     onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
     onDeleteRecipeLog?: (recipeLogId: number) => void;
+    onConfirmRecipeLog?: (recipeLogId: number) => void;
     allMealSelected?: boolean;
 }) {
     const { t } = useTranslation();
@@ -340,11 +363,13 @@ function RecipeGroupRow({
         : group.recipeName;
 
     const allGroupEntryIds = group.rows.map(r => r.entries.id);
+    const isGroupScheduled = group.rows.length > 0 && group.rows.every(r => r.entries.is_scheduled === 1);
 
     return (
         <View style={[
             styles.recipeGroup,
             allGroupSelected && !allMealSelected && styles.selectedGroup,
+            isGroupScheduled && styles.scheduledEntry,
         ]}>
             <Pressable
                 style={styles.recipeHeader}
@@ -366,22 +391,31 @@ function RecipeGroupRow({
                 <Ionicons
                     name={expanded ? "chevron-down" : "chevron-forward"}
                     size={16}
-                    color={colors.textSecondary}
+                    color={isGroupScheduled ? colors.disabled : colors.textSecondary}
                 />
                 <Ionicons
                     name={isModified ? "create-outline" : "book-outline"}
                     size={16}
-                    color={isModified ? colors.textSecondary : colors.primary}
+                    color={isGroupScheduled ? colors.disabled : (isModified ? colors.textSecondary : colors.primary)}
                     style={{ marginLeft: 4 }}
                 />
-                <Text style={styles.recipeName} numberOfLines={1}>
+                <Text style={[styles.recipeName, isGroupScheduled && styles.scheduledText]} numberOfLines={1}>
                     {displayName}
                 </Text>
-                <Text style={styles.recipeDetail}>
+                <Text style={[styles.recipeDetail, isGroupScheduled && styles.scheduledText]}>
                     {t("common.itemCount", { count: group.rows.length })} · {Math.round(totalCals)} {t("common.cal")}
                 </Text>
                 {!selectionMode && (
                     <>
+                        {isGroupScheduled && onConfirmRecipeLog && (
+                            <Pressable
+                                onPress={() => onConfirmRecipeLog(group.recipeLogId)}
+                                hitSlop={8}
+                                style={{ marginRight: spacing.xs }}
+                            >
+                                <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
+                            </Pressable>
+                        )}
                         {onEditRecipeGroup && (
                             <Pressable
                                 onPress={() => onEditRecipeGroup(group, multiplier)}
@@ -560,6 +594,16 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.xs,
             color: colors.textSecondary,
             marginRight: spacing.sm,
+        },
+        scheduledEntry: {
+            opacity: 0.6,
+        },
+        scheduledText: {
+            color: colors.disabled,
+        },
+        entryActions: {
+            flexDirection: "row",
+            alignItems: "center",
         },
     });
 }

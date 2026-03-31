@@ -181,6 +181,14 @@ export function deleteEntry(id: number) {
     db.delete(entries).where(eq(entries.id, id)).run();
 }
 
+export function confirmEntry(id: number) {
+    db.update(entries).set({ is_scheduled: 0 }).where(eq(entries.id, id)).run();
+}
+
+export function confirmRecipeLog(recipeLogId: number) {
+    db.update(entries).set({ is_scheduled: 0 }).where(eq(entries.recipe_log_id, recipeLogId)).run();
+}
+
 export function updateEntry(id: number, values: Partial<NewEntry>) {
     db.update(entries).set(values).where(eq(entries.id, id)).run();
 }
@@ -294,6 +302,7 @@ export interface LoggedRecipeGroup {
     recipeId: number;
     recipeName: string;
     portion: number;
+    isScheduled: boolean;
 }
 
 export function getLoggedRecipeGroups(date: string, mealType: string): LoggedRecipeGroup[] {
@@ -314,11 +323,19 @@ export function getLoggedRecipeGroups(date: string, mealType: string): LoggedRec
 
     return rows.map((row) => {
         const recipe = getRecipeById(row.recipeId);
+        // Check if all entries in this group are scheduled
+        const groupEntries = db
+            .select({ is_scheduled: entries.is_scheduled })
+            .from(entries)
+            .where(eq(entries.recipe_log_id, row.recipeLogId))
+            .all();
+        const isScheduled = groupEntries.length > 0 && groupEntries.every((e) => e.is_scheduled === 1);
         return {
             recipeLogId: row.recipeLogId,
             recipeId: row.recipeId,
             recipeName: recipe?.name ?? "Recipe",
             portion: row.portion,
+            isScheduled,
         };
     });
 }
@@ -332,6 +349,7 @@ export function logRecipeToMeal(
     mealType: string,
     date: string,
     portionMultiplier = 1,
+    isScheduled = 0,
 ): number {
     const recipeLog = db
         .insert(recipeLogs)
@@ -357,6 +375,7 @@ export function logRecipeToMeal(
                 date,
                 meal_type: mealType,
                 recipe_log_id: recipeLog.id,
+                is_scheduled: isScheduled,
             })
             .run();
     }
@@ -471,6 +490,7 @@ export function copyEntriesToDate(
                     date: targetDate,
                     meal_type: targetMealType ?? entry.meal_type,
                     recipe_log_id: newRl.id,
+                    is_scheduled: entry.is_scheduled,
                 })
                 .run();
         }
@@ -486,6 +506,7 @@ export function copyEntriesToDate(
                 timestamp: ts,
                 date: targetDate,
                 meal_type: targetMealType ?? entry.meal_type,
+                is_scheduled: entry.is_scheduled,
             })
             .run();
     }
