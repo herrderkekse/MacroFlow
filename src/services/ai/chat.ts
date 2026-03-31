@@ -1,5 +1,5 @@
 import { getProvider, loadAiConfig, parseMealPlanResponse, parsePartialEntries } from "./index";
-import { buildToolSystemPrompt, executeTool, parseToolCall } from "./tools";
+import { buildToolSystemPrompt, executeTool, parseToolCall, toolNeedsApproval } from "./tools";
 import type { AiProviderConfig, AiMealPlanEntry, ChatMessage, StreamCallbacks } from "./types";
 import type { AiToolCall, AiToolResult } from "./tools";
 
@@ -111,15 +111,80 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
     // Check if the AI wants to call a tool
     const toolCall = parseToolCall(response);
     if (toolCall) {
-        // Emit a tool-request message for the user to approve
-        const toolRequestMsg: UiChatMessage = {
+        if (toolNeedsApproval(toolCall.name)) {
+            // Emit a tool-request message for the user to approve
+            const toolRequestMsg: UiChatMessage = {
+                id: nextId(),
+                role: "tool-request",
+                content: `Wants to use: **${toolCall.name}**`,
+                toolCall,
+                timestamp: Date.now(),
+            };
+            opts.onMessage(toolRequestMsg);
+            return;
+        }
+
+        // Auto-execute tools that don't need approval
+        const result = executeTool(toolCall);
+        const toolResultMsg: UiChatMessage = {
             id: nextId(),
-            role: "tool-request",
-            content: `Wants to use: **${toolCall.name}**`,
-            toolCall,
+            role: "tool-result",
+            content: result.summary,
+            toolResult: result,
             timestamp: Date.now(),
         };
-        opts.onMessage(toolRequestMsg);
+        opts.onMessage(toolResultMsg);
+
+        // Feed result back to AI for a follow-up response
+        const allMessagesWithResult = [...allMessages, toolResultMsg];
+        const apiMessagesWithResult = toApiMessages(allMessagesWithResult);
+        const followUp = await callAi(config, apiMessagesWithResult, opts);
+
+        // The follow-up may itself contain another tool call
+        const followUpToolCall = parseToolCall(followUp);
+        if (followUpToolCall) {
+            if (toolNeedsApproval(followUpToolCall.name)) {
+                const toolRequestMsg: UiChatMessage = {
+                    id: nextId(),
+                    role: "tool-request",
+                    content: `Wants to use: **${followUpToolCall.name}**`,
+                    toolCall: followUpToolCall,
+                    timestamp: Date.now(),
+                };
+                opts.onMessage(toolRequestMsg);
+                return;
+            }
+
+            // Chain auto-execute for another non-approval tool
+            const result2 = executeTool(followUpToolCall);
+            const toolResultMsg2: UiChatMessage = {
+                id: nextId(),
+                role: "tool-result",
+                content: result2.summary,
+                toolResult: result2,
+                timestamp: Date.now(),
+            };
+            opts.onMessage(toolResultMsg2);
+
+            const apiMessages3 = toApiMessages([...allMessagesWithResult, toolResultMsg2]);
+            const finalResponse = await callAi(config, apiMessages3, opts);
+            const finalMsg: UiChatMessage = {
+                id: nextId(),
+                role: "assistant",
+                content: finalResponse,
+                timestamp: Date.now(),
+            };
+            opts.onMessage(finalMsg);
+            return;
+        }
+
+        const followUpMsg: UiChatMessage = {
+            id: nextId(),
+            role: "assistant",
+            content: followUp,
+            timestamp: Date.now(),
+        };
+        opts.onMessage(followUpMsg);
         return;
     }
 

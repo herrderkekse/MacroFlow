@@ -193,6 +193,15 @@ export function updateEntry(id: number, values: Partial<NewEntry>) {
     db.update(entries).set(values).where(eq(entries.id, id)).run();
 }
 
+export function getEntryById(id: number) {
+    return db
+        .select()
+        .from(entries)
+        .leftJoin(foods, eq(entries.food_id, foods.id))
+        .where(eq(entries.id, id))
+        .get();
+}
+
 // ── Goals ──────────────────────────────────────────────────
 
 export function getGoals(): Goals | undefined {

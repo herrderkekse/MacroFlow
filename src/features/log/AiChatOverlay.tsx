@@ -110,9 +110,13 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         if (msg.role === "tool-request" && msg.toolCall) {
             setPendingToolCall(msg.toolCall);
         }
+        // Notify parent when a data-modifying tool executed successfully
+        if (msg.role === "tool-result" && msg.toolResult?.success) {
+            onDataChanged?.();
+        }
         setMessages((prev) => [...prev, msg]);
         setStreamingText("");
-    }, []);
+    }, [onDataChanged]);
 
     const handleSend = useCallback(async () => {
         const text = inputText.trim();
