@@ -6,15 +6,17 @@ import {
     getProvider,
     loadAiConfig,
     parseMealPlanResponse,
+    parsePartialEntries,
 } from "@/src/services/ai";
-import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload } from "@/src/services/ai/types";
+import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "@/src/services/ai/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+    ActivityIndicator,
     Alert,
     Pressable,
     ScrollView,
@@ -35,8 +37,23 @@ export default function MealPlanScreen() {
     const [dislikedFoods, setDislikedFoods] = useState("");
     const [days, setDays] = useState("3");
     const [generating, setGenerating] = useState(false);
+    const [streamStatus, setStreamStatus] = useState<StreamStatus | null>(null);
     const [result, setResult] = useState<AiMealPlanEntry[] | null>(null);
     const [importing, setImporting] = useState(false);
+    const abortRef = useRef<AbortController | null>(null);
+
+    const statusLabel = useMemo(() => {
+        switch (streamStatus) {
+            case "connecting": return t("ai.statusConnecting");
+            case "thinking": return t("ai.statusThinking");
+            case "generating": return t("ai.statusGenerating");
+            default: return t("ai.generating");
+        }
+    }, [streamStatus, t]);
+
+    const handleCancel = useCallback(() => {
+        abortRef.current?.abort();
+    }, []);
 
     async function handleGenerate() {
         const config = await loadAiConfig();
@@ -89,8 +106,12 @@ export default function MealPlanScreen() {
             fat: goals.fat,
         };
 
+        const abort = new AbortController();
+        abortRef.current = abort;
+
         try {
             setGenerating(true);
+            setStreamStatus(null);
             setResult(null);
 
             const messages = buildMealPlanPrompt(foodPayload, recipePayload, goalsPayload, {
@@ -100,16 +121,40 @@ export default function MealPlanScreen() {
             });
 
             const provider = getProvider(config.provider);
-            const raw = await provider.chat(config, messages);
-
             const validIds = new Set(allFoods.map((f) => f.id));
-            const plan = parseMealPlanResponse(raw, validIds, goalsPayload, foodPayload);
+            let raw: string;
 
+            if (provider.supportsStreaming && provider.chatStream) {
+                raw = await provider.chatStream(
+                    config,
+                    messages,
+                    {
+                        onStatus: (status) => setStreamStatus(status),
+                        onToken: (accumulated) => {
+                            // Extract complete entries from partial JSON as they stream in
+                            const partial = parsePartialEntries(accumulated, validIds);
+                            if (partial.length > 0) {
+                                setResult(partial);
+                            }
+                        },
+                    },
+                    abort.signal,
+                );
+            } else {
+                setStreamStatus("connecting");
+                raw = await provider.chat(config, messages);
+            }
+
+            // Final parse with the complete response
+            const plan = parseMealPlanResponse(raw, validIds, goalsPayload, foodPayload);
             setResult(plan.entries);
         } catch (e: any) {
+            if (e.name === "AbortError") return;
             Alert.alert(t("ai.generationFailed"), e.message ?? t("common.unknownError"));
         } finally {
             setGenerating(false);
+            setStreamStatus(null);
+            abortRef.current = null;
         }
     }
 
@@ -208,8 +253,28 @@ export default function MealPlanScreen() {
                 title={generating ? t("ai.generating") : t("ai.generatePlan")}
                 onPress={handleGenerate}
                 loading={generating}
+                disabled={generating}
                 style={styles.generateBtn}
             />
+
+            {/* Streaming status indicator */}
+            {generating && streamStatus && (
+                <View style={styles.statusRow}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.statusText}>{statusLabel}</Text>
+                    <Pressable onPress={handleCancel} hitSlop={8}>
+                        <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                    </Pressable>
+                </View>
+            )}
+
+            {/* Non-streaming hint */}
+            {generating && !streamStatus && (
+                <View style={styles.statusRow}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.statusText}>{t("ai.noStreamingHint")}</Text>
+                </View>
+            )}
 
             {/* Results preview */}
             {grouped && grouped.length > 0 && (
@@ -234,6 +299,7 @@ export default function MealPlanScreen() {
                         title={t("ai.importPlan")}
                         onPress={handleImport}
                         loading={importing}
+                        disabled={generating}
                         style={styles.importBtn}
                     />
                 </>
@@ -268,6 +334,18 @@ function createStyles(colors: ThemeColors) {
         },
         field: { marginBottom: spacing.md },
         generateBtn: { marginTop: spacing.sm },
+        statusRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            marginTop: spacing.md,
+            paddingHorizontal: spacing.sm,
+        },
+        statusText: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
         dayCard: {
             backgroundColor: colors.surface,
             borderRadius: borderRadius.lg,

@@ -15,7 +15,7 @@ import type {
     MealPlanPreferences,
 } from "./types";
 
-export type { AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences } from "./types";
+export type { AiFoodPayload, AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences, StreamCallbacks, StreamStatus } from "./types";
 
 // ── Provider registry ─────────────────────────────────────
 const providers: Record<AiProviderId, AiProvider> = {
@@ -108,6 +108,70 @@ export function buildMealPlanPrompt(
     const user: ChatMessage = { role: "user", content: userContent.join("\n") };
 
     return [system, user];
+}
+
+/**
+ * Extract complete entry objects from a partial/streaming JSON response.
+ * Uses brace-counting to find each finished `{ ... }` inside the entries array,
+ * then validates the required fields loosely (no macro checks).
+ */
+export function parsePartialEntries(
+    partial: string,
+    validFoodIds: Set<number>,
+): AiMealPlanEntry[] {
+    // Find the start of the entries array
+    const arrStart = partial.indexOf('[');
+    if (arrStart === -1) return [];
+
+    const validMeals = new Set(["breakfast", "lunch", "dinner", "snack"]);
+    const entries: AiMealPlanEntry[] = [];
+    let i = arrStart + 1;
+
+    while (i < partial.length) {
+        // Find the next opening brace
+        const objStart = partial.indexOf('{', i);
+        if (objStart === -1) break;
+
+        // Count braces to find the matching close
+        let depth = 0;
+        let objEnd = -1;
+        for (let j = objStart; j < partial.length; j++) {
+            if (partial[j] === '{') depth++;
+            else if (partial[j] === '}') {
+                depth--;
+                if (depth === 0) {
+                    objEnd = j;
+                    break;
+                }
+            }
+        }
+
+        // Incomplete object — stop here
+        if (objEnd === -1) break;
+
+        try {
+            const obj = JSON.parse(partial.slice(objStart, objEnd + 1));
+            if (
+                obj.date && /^\d{4}-\d{2}-\d{2}$/.test(obj.date) &&
+                validMeals.has(obj.meal_type) &&
+                validFoodIds.has(obj.food_id) &&
+                typeof obj.quantity_grams === "number" && obj.quantity_grams > 0
+            ) {
+                entries.push({
+                    date: obj.date,
+                    meal_type: obj.meal_type,
+                    food_id: obj.food_id,
+                    quantity_grams: obj.quantity_grams,
+                });
+            }
+        } catch {
+            // Malformed object fragment, skip
+        }
+
+        i = objEnd + 1;
+    }
+
+    return entries;
 }
 
 /** Parse and validate the AI response into a meal plan. */
