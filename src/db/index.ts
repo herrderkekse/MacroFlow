@@ -89,6 +89,25 @@ export function initDB() {
       weight_time TEXT NOT NULL DEFAULT '07:30'
     );
 
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL DEFAULT 'New Chat',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL REFERENCES chat_sessions(id),
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      tool_call_json TEXT,
+      tool_result_json TEXT,
+      tool_result_data_json TEXT,
+      tool_call_id TEXT,
+      timestamp INTEGER NOT NULL
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
     INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
   `);
