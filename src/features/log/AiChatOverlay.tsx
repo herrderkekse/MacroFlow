@@ -135,6 +135,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     useEffect(() => {
         const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
             setKeyboardHeight(e.endCoordinates.height);
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
         });
         const hideSub = Keyboard.addListener("keyboardDidHide", () => {
             setKeyboardHeight(0);
@@ -641,7 +642,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                     style={styles.messageList}
                     contentContainerStyle={[
                         styles.messageListContent,
-                        { paddingBottom: INPUT_BAR_HEIGHT + spacing.lg },
+                        { paddingBottom: INPUT_BAR_HEIGHT + spacing.lg + (keyboardHeight > 0 ? keyboardHeight - visibleTabBarHeight : 0) },
                     ]}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
