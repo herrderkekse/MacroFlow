@@ -13,6 +13,7 @@ import type { AiMealPlanEntry } from "@/src/services/ai/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -96,14 +97,17 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         ? keyboardHeight - visibleTabBarHeight + INPUT_BAR_MARGIN
         : INPUT_BAR_MARGIN;
 
-    // Check if AI is configured
-    useEffect(() => {
-        loadAiConfig().then((config) => {
-            const visible = !!config?.apiKey;
-            setHasAiConfig(visible);
-            onVisibilityChange?.(visible);
-        });
-    }, [onVisibilityChange]);
+    // Check if AI is configured; re-run every time the screen comes into focus
+    // so the chat bar appears immediately after credentials are saved.
+    useFocusEffect(
+        useCallback(() => {
+            loadAiConfig().then((config) => {
+                const visible = !!config?.apiKey;
+                setHasAiConfig(visible);
+                onVisibilityChange?.(visible);
+            });
+        }, [onVisibilityChange]),
+    );
 
     // Scroll to bottom when messages change
     useEffect(() => {
