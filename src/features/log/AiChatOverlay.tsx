@@ -1,15 +1,15 @@
-import Button from "@/src/components/Button";
 import BottomSheet, { type BottomSheetRef } from "@/src/components/BottomSheet";
+import Button from "@/src/components/Button";
+import { loadAiConfig } from "@/src/services/ai";
 import type { UiChatMessage } from "@/src/services/ai/chat";
 import {
     declineToolCall,
     executeApprovedTool,
     sendChatMessage,
 } from "@/src/services/ai/chat";
-import { loadAiConfig } from "@/src/services/ai";
-import type { AiMealPlanEntry } from "@/src/services/ai/types";
 import type { AiToolCall } from "@/src/services/ai/tools";
 import { importMealPlanEntries } from "@/src/services/ai/tools";
+import type { AiMealPlanEntry } from "@/src/services/ai/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +26,7 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MealPlanToolResult, ToolResultContainer } from "./tool-results";
 
 // ── Constants ─────────────────────────────────────────────
@@ -49,6 +50,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
 
     const [hasAiConfig, setHasAiConfig] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
@@ -71,7 +73,28 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const sheetOpenHeight = Math.round(screenHeight * 0.9);
     const snapPoints = useMemo(() => [1, sheetOpenHeight], [sheetOpenHeight]);
 
-    const inputBottom = INPUT_BAR_MARGIN;
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    useEffect(() => {
+        const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+            setKeyboardHeight(0);
+        });
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
+
+    // tabBarHeight includes the bottom safe area inset, but on Android the keyboard
+    // height is measured from above the gesture bar — subtract only the visible
+    // tab bar height to avoid double-counting the safe area.
+    const visibleTabBarHeight = tabBarHeight - insets.bottom;
+    const inputBottom = keyboardHeight > 0
+        ? keyboardHeight - visibleTabBarHeight + INPUT_BAR_MARGIN
+        : INPUT_BAR_MARGIN;
 
     // Check if AI is configured
     useEffect(() => {
@@ -243,10 +266,10 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             return prev.map((m) =>
                 m.id === msgId
                     ? {
-                          ...m,
-                          toolResultData: { ...m.toolResultData!, imported: true },
-                          content: t("chat.mealPlanImported", { count }),
-                      }
+                        ...m,
+                        toolResultData: { ...m.toolResultData!, imported: true },
+                        content: t("chat.mealPlanImported", { count }),
+                    }
                     : m,
             );
         });
@@ -257,10 +280,10 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             prev.map((m) =>
                 m.id === msgId
                     ? {
-                          ...m,
-                          toolResultData: { ...m.toolResultData!, dismissed: true },
-                          content: t("chat.mealPlanDismissed"),
-                      }
+                        ...m,
+                        toolResultData: { ...m.toolResultData!, dismissed: true },
+                        content: t("chat.mealPlanDismissed"),
+                    }
                     : m,
             ),
         );
