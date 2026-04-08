@@ -165,7 +165,9 @@ export const nvidiaProvider: AiProvider = {
             if (signal) {
                 signal.addEventListener("abort", () => {
                     xhr.abort();
-                    settle(() => reject(new DOMException("Aborted", "AbortError")));
+                    const err = new Error("Aborted");
+                    err.name = "AbortError";
+                    settle(() => reject(err));
                 });
             }
 
