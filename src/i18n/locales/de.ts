@@ -310,6 +310,10 @@ const de = {
         deleteSessionConfirm: "Diese Chat-Sitzung löschen?",
         cancel: "Abbrechen",
         latest: "Aktuell",
+        stop: "Stopp",
+        copy: "Kopieren",
+        copied: "Kopiert!",
+        retry: "Wiederholen",
     },
 } as const;
 
