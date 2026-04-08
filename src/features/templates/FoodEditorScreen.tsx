@@ -11,7 +11,7 @@ export default function FoodEditorScreen() {
     const colors = useThemeColors();
 
     return (
-        <View style={styles.flex}>
+        <View style={[styles.flex, { backgroundColor: colors.background }]}>
             <Stack.Screen
                 options={{
                     headerShown: true,
