@@ -24,8 +24,8 @@ import type { AiMealPlanEntry } from "@/src/services/ai/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -815,7 +815,7 @@ function MessageBubble({
                     ? { backgroundColor: colors.primary }
                     : isToolRequest || isToolResult
                         ? { backgroundColor: colors.primaryLight, borderColor: colors.border, borderWidth: 1 }
-                        : { backgroundColor: colors.surface },
+                        : { backgroundColor: colors.surface, borderColor: colors.primary, borderWidth: 1 },
             ]}
         >
             {(isToolRequest || isToolResult) && (
@@ -1001,6 +1001,8 @@ function createStyles(colors: ThemeColors) {
         bubbleAssistant: {
             alignSelf: "flex-start",
             backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
         },
         bubbleText: {
             fontSize: fontSize.md,
