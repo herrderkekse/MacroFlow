@@ -202,11 +202,15 @@ export default function RecipeEditorScreen() {
     // ── Item editing ──────────────────────────────────────
     function handleModalSaved(itemId: number, quantityGrams: number, unit: string) {
         setItems((prev) =>
-            prev.map((i) =>
-                i.recipeItem.id === itemId
-                    ? { ...i, recipeItem: { ...i.recipeItem, quantity_grams: quantityGrams, quantity_unit: unit } }
-                    : i,
-            ),
+            prev.map((i) => {
+                if (i.recipeItem.id !== itemId) return i;
+                const freshServingUnits = i.food ? getServingUnits(i.food.id) : i.servingUnits;
+                return {
+                    ...i,
+                    recipeItem: { ...i.recipeItem, quantity_grams: quantityGrams, quantity_unit: unit },
+                    servingUnits: freshServingUnits,
+                };
+            }),
         );
         setEditingItem(null);
     }
