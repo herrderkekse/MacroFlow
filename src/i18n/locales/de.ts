@@ -309,6 +309,7 @@ const de = {
         deleteSession: "Chat löschen",
         deleteSessionConfirm: "Diese Chat-Sitzung löschen?",
         cancel: "Abbrechen",
+        latest: "Aktuell",
     },
 } as const;
 

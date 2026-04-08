@@ -114,6 +114,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     // ── Session state ─────────────────────────────────────
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+    const [isAtLatestSession, setIsAtLatestSession] = useState(true);
     const sessionListRef = useRef<FlatList>(null);
 
     const scrollRef = useRef<ScrollView>(null);
@@ -162,18 +163,27 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         }, [onVisibilityChange]),
     );
 
-    // On mount: always start with a fresh session (issue #156 requirement).
-    // Load existing sessions for the selector.
+    // On mount: reuse the most recent session if it is empty, otherwise create a
+    // fresh one. This prevents a pile-up of empty sessions across app restarts.
     useEffect(() => {
         const existing = getAllChatSessions();
-        const fresh = createChatSession(t("chat.newSession"));
-        setSessions([fresh, ...existing]);
-        setActiveSessionId(fresh.id);
+        const newest = existing[0];
+        const newestIsEmpty = newest ? getChatMessages(newest.id).length === 0 : false;
+
+        if (newestIsEmpty && newest) {
+            setSessions(existing);
+            setActiveSessionId(newest.id);
+        } else {
+            const fresh = createChatSession(t("chat.newSession"));
+            setSessions([fresh, ...existing]);
+            setActiveSessionId(fresh.id);
+        }
         setMessages([]);
+        setIsAtLatestSession(true);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     /** Switch to a different session, loading its messages from the DB. */
-    const switchSession = useCallback((sessionId: number) => {
+    const switchSession = useCallback((sessionId: number, allSessions?: ChatSession[]) => {
         if (sessionId === activeSessionId || loading) return;
         setPendingToolCall(null);
         setPendingToolCallId(undefined);
@@ -182,11 +192,19 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         setActiveSessionId(sessionId);
         const rows = getChatMessages(sessionId);
         setMessages(rows.map(rowToUiMessage));
-    }, [activeSessionId, loading]);
+        const list = allSessions ?? sessions;
+        setIsAtLatestSession(list.length === 0 || list[0].id === sessionId);
+    }, [activeSessionId, loading, sessions]);
 
-    /** Create a new session and switch to it. */
+    /** Create a new session and switch to it. Reuses the current session if it is empty. */
     const handleNewSession = useCallback(() => {
         if (loading) return;
+        // Don't pile up empty sessions — reuse active one if it has no messages
+        if (messages.length === 0 && activeSessionId != null) {
+            setIsAtLatestSession(true);
+            setTimeout(() => sessionListRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
+            return;
+        }
         const fresh = createChatSession(t("chat.newSession"));
         setSessions((prev) => [fresh, ...prev]);
         setActiveSessionId(fresh.id);
@@ -195,8 +213,9 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         setPendingToolCallId(undefined);
         setStreamingText("");
         setStreamingToolData(null);
+        setIsAtLatestSession(true);
         setTimeout(() => sessionListRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
-    }, [loading, t]);
+    }, [loading, t, messages.length, activeSessionId]);
 
     /** Long-press to delete a session. */
     const handleDeleteSession = useCallback((session: ChatSession) => {
@@ -489,6 +508,17 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                             </Pressable>
                         )}
                     />
+                    {/* Jump-to-latest button — shown only when an older session is active */}
+                    {!isAtLatestSession && (
+                        <Pressable
+                            onPress={handleNewSession}
+                            style={[styles.scrollToLatestBtn, { backgroundColor: colors.primary }]}
+                            hitSlop={8}
+                        >
+                            <Ionicons name="arrow-back" size={14} color="#fff" />
+                            <Text style={styles.scrollToLatestText}>{t("chat.latest")}</Text>
+                        </Pressable>
+                    )}
                 </View>
 
                 {/* Messages */}
@@ -737,6 +767,23 @@ function createStyles(colors: ThemeColors) {
         sessionChipText: {
             fontSize: fontSize.xs,
             fontWeight: "500",
+        },
+        scrollToLatestBtn: {
+            flexDirection: "row",
+            alignItems: "center",
+            alignSelf: "flex-end",
+            gap: 4,
+            marginHorizontal: spacing.md,
+            marginTop: spacing.xs,
+            marginBottom: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.xs,
+            borderRadius: borderRadius.sm,
+        },
+        scrollToLatestText: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+            color: "#fff",
         },
         messageList: {
             flex: 1,
