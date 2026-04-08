@@ -24,6 +24,7 @@ import type { AiMealPlanEntry } from "@/src/services/ai/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -123,6 +124,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const sheetRef = useRef<BottomSheetRef>(null);
     const messagesRef = useRef<UiChatMessage[]>([]);
     messagesRef.current = messages;
+    const streamingTextRef = useRef("");
 
     const screenHeight = Dimensions.get("window").height;
     const sheetOpenHeight = Math.round(screenHeight * 0.9);
@@ -317,11 +319,26 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                 messages: messagesRef.current,
                 userText: text,
                 onMessage: addMessage,
-                onStreamToken: (accumulated) => setStreamingText(accumulated),
+                onStreamToken: (accumulated) => {
+                    setStreamingText(accumulated);
+                    streamingTextRef.current = accumulated;
+                },
                 signal: abort.signal,
             });
         } catch (e: any) {
-            if (e.name === "AbortError") return;
+            if (e.name === "AbortError") {
+                // Save partial text as a message when user stops generation
+                const partial = streamingTextRef.current.trim();
+                if (partial) {
+                    addMessage({
+                        id: `stop_${Date.now()}`,
+                        role: "assistant",
+                        content: partial,
+                        timestamp: Date.now(),
+                    });
+                }
+                return;
+            }
             addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
@@ -331,6 +348,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         } finally {
             setLoading(false);
             setStreamingText("");
+            streamingTextRef.current = "";
             abortRef.current = null;
         }
     }, [inputText, loading, isOpen, openSheet, addMessage, t]);
@@ -353,7 +371,10 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                 toolCall,
                 toolCallId,
                 onMessage: addMessage,
-                onStreamToken: (accumulated) => setStreamingText(accumulated),
+                onStreamToken: (accumulated) => {
+                    setStreamingText(accumulated);
+                    streamingTextRef.current = accumulated;
+                },
                 onStreamingToolData: (data) => {
                     if (data.mealPlanEntries && data.mealPlanEntries.length > 0) {
                         setStreamingToolData(data.mealPlanEntries);
@@ -362,7 +383,18 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                 signal: abort.signal,
             });
         } catch (e: any) {
-            if (e.name === "AbortError") return;
+            if (e.name === "AbortError") {
+                const partial = streamingTextRef.current.trim();
+                if (partial) {
+                    addMessage({
+                        id: `stop_${Date.now()}`,
+                        role: "assistant",
+                        content: partial,
+                        timestamp: Date.now(),
+                    });
+                }
+                return;
+            }
             addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
@@ -372,6 +404,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         } finally {
             setLoading(false);
             setStreamingText("");
+            streamingTextRef.current = "";
             setStreamingToolData(null);
             abortRef.current = null;
         }
@@ -395,11 +428,25 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                 toolCall,
                 toolCallId,
                 onMessage: addMessage,
-                onStreamToken: (accumulated) => setStreamingText(accumulated),
+                onStreamToken: (accumulated) => {
+                    setStreamingText(accumulated);
+                    streamingTextRef.current = accumulated;
+                },
                 signal: abort.signal,
             });
         } catch (e: any) {
-            if (e.name === "AbortError") return;
+            if (e.name === "AbortError") {
+                const partial = streamingTextRef.current.trim();
+                if (partial) {
+                    addMessage({
+                        id: `stop_${Date.now()}`,
+                        role: "assistant",
+                        content: partial,
+                        timestamp: Date.now(),
+                    });
+                }
+                return;
+            }
             addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
@@ -409,6 +456,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         } finally {
             setLoading(false);
             setStreamingText("");
+            streamingTextRef.current = "";
             abortRef.current = null;
         }
     }, [pendingToolCall, pendingToolCallId, loading, addMessage, t]);
@@ -446,6 +494,72 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             ),
         );
     }, [t]);
+
+    /** Stop the current AI generation. */
+    const handleStop = useCallback(() => {
+        abortRef.current?.abort();
+    }, []);
+
+    /** Copy a message's content to clipboard. */
+    const handleCopy = useCallback(async (text: string) => {
+        await Clipboard.setStringAsync(text);
+    }, []);
+
+    /** Retry: remove all AI messages after the last user message, then re-send. */
+    const handleRetry = useCallback(async () => {
+        if (loading) return;
+
+        // Find the last user message index
+        let lastUserIdx = -1;
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === "user") {
+                lastUserIdx = i;
+                break;
+            }
+        }
+        if (lastUserIdx < 0) return;
+
+        const lastUserMsg = messages[lastUserIdx];
+        // Keep messages up to (but not including) the last user message
+        const kept = messages.slice(0, lastUserIdx);
+        setMessages(kept);
+        messagesRef.current = kept;
+
+        setLoading(true);
+        setStreamingText("");
+        const abort = new AbortController();
+        abortRef.current = abort;
+
+        try {
+            await sendChatMessage({
+                messages: kept,
+                userText: lastUserMsg.content,
+                onMessage: addMessage,
+                onStreamToken: (accumulated) => setStreamingText(accumulated),
+                signal: abort.signal,
+            });
+        } catch (e: any) {
+            if (e.name === "AbortError") return;
+            addMessage({
+                id: `err_${Date.now()}`,
+                role: "assistant",
+                content: t("chat.error", { message: e.message ?? t("common.unknownError") }),
+                timestamp: Date.now(),
+            });
+        } finally {
+            setLoading(false);
+            setStreamingText("");
+            abortRef.current = null;
+        }
+    }, [loading, messages, addMessage, t]);
+
+    /** Find the index of the last assistant message that should show action buttons. */
+    const lastAssistantActionIdx = useMemo(() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === "assistant") return i;
+        }
+        return -1;
+    }, [messages]);
 
     if (!hasAiConfig) return null;
 
@@ -539,9 +653,15 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                         </View>
                     )}
 
-                    {messages.map((msg) => (
+                    {messages.map((msg, idx) => (
                         <React.Fragment key={msg.id}>
-                            <MessageBubble message={msg} colors={colors} />
+                            <MessageBubble
+                                message={msg}
+                                colors={colors}
+                                showActions={!loading && idx === lastAssistantActionIdx}
+                                onCopy={handleCopy}
+                                onRetry={handleRetry}
+                            />
                             {msg.toolResultData &&
                                 !msg.toolResultData.imported &&
                                 !msg.toolResultData.dismissed && (
@@ -564,12 +684,17 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                         />
                     )}
 
-                    {/* Streaming text preview */}
+                    {/* Streaming text preview with stop button */}
                     {loading && !streamingToolData && streamingText ? (
                         <View style={[styles.bubble, styles.bubbleAssistant]}>
                             <Text style={[styles.bubbleText, { color: colors.text }]}>
                                 {streamingText}
                             </Text>
+                            <View style={styles.streamingActions}>
+                                <Pressable onPress={handleStop} hitSlop={8} style={styles.actionBtn}>
+                                    <Ionicons name="stop-circle-outline" size={18} color={colors.textSecondary} />
+                                </Pressable>
+                            </View>
                         </View>
                     ) : loading && !streamingToolData ? (
                         <View style={[styles.bubble, styles.bubbleAssistant, styles.loadingBubble]}>
@@ -577,6 +702,10 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
                                 {t("chat.thinking")}
                             </Text>
+                            <View style={{ flex: 1 }} />
+                            <Pressable onPress={handleStop} hitSlop={8} style={styles.actionBtn}>
+                                <Ionicons name="stop-circle-outline" size={18} color={colors.textSecondary} />
+                            </Pressable>
                         </View>
                     ) : null}
 
@@ -652,10 +781,30 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
 
 // ── Message Bubble ────────────────────────────────────────
 
-function MessageBubble({ message, colors }: { message: UiChatMessage; colors: ThemeColors }) {
+function MessageBubble({
+    message,
+    colors,
+    showActions,
+    onCopy,
+    onRetry,
+}: {
+    message: UiChatMessage;
+    colors: ThemeColors;
+    showActions?: boolean;
+    onCopy?: (text: string) => Promise<void>;
+    onRetry?: () => void;
+}) {
+    const { t } = useTranslation();
+    const [copied, setCopied] = useState(false);
     const isUser = message.role === "user";
     const isToolRequest = message.role === "tool-request";
     const isToolResult = message.role === "tool-result";
+
+    const handleCopy = useCallback(async () => {
+        await onCopy?.(message.content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    }, [onCopy, message.content]);
 
     return (
         <View
@@ -689,6 +838,26 @@ function MessageBubble({ message, colors }: { message: UiChatMessage; colors: Th
             >
                 {message.content}
             </Text>
+            {showActions && !isUser && message.content.length > 0 && (
+                <View style={mbStyles.actions}>
+                    <Pressable onPress={handleCopy} hitSlop={8} style={mbStyles.actionBtn}>
+                        <Ionicons
+                            name={copied ? "checkmark" : "copy-outline"}
+                            size={15}
+                            color={copied ? colors.success : colors.textTertiary}
+                        />
+                        <Text style={[mbStyles.actionText, { color: copied ? colors.success : colors.textTertiary }]}>
+                            {copied ? t("chat.copied") : t("chat.copy")}
+                        </Text>
+                    </Pressable>
+                    <Pressable onPress={onRetry} hitSlop={8} style={mbStyles.actionBtn}>
+                        <Ionicons name="refresh-outline" size={15} color={colors.textTertiary} />
+                        <Text style={[mbStyles.actionText, { color: colors.textTertiary }]}>
+                            {t("chat.retry")}
+                        </Text>
+                    </Pressable>
+                </View>
+            )}
         </View>
     );
 }
@@ -720,6 +889,25 @@ const mbStyles = StyleSheet.create({
     toolLabelText: {
         fontSize: fontSize.xs,
         fontWeight: "600",
+    },
+    actions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+        marginTop: spacing.xs,
+        paddingTop: spacing.xs,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: "rgba(0,0,0,0.08)",
+    },
+    actionBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 3,
+        paddingVertical: 2,
+    },
+    actionText: {
+        fontSize: fontSize.xs,
+        fontWeight: "500",
     },
 });
 
@@ -825,6 +1013,14 @@ function createStyles(colors: ThemeColors) {
         },
         loadingText: {
             fontSize: fontSize.sm,
+        },
+        streamingActions: {
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            marginTop: spacing.xs,
+        },
+        actionBtn: {
+            padding: 4,
         },
         toolApproval: {
             backgroundColor: colors.primaryLight,

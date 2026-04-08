@@ -309,6 +309,10 @@ const en = {
         deleteSessionConfirm: "Delete this chat session?",
         cancel: "Cancel",
         latest: "Latest",
+        stop: "Stop",
+        copy: "Copy",
+        copied: "Copied!",
+        retry: "Retry",
     },
 } as const;
 
