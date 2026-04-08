@@ -304,6 +304,10 @@ const en = {
         importMealPlan: "Import to Log",
         mealPlanImported: "{{count}} entries imported to your log.",
         mealPlanDismissed: "Meal plan dismissed.",
+        newSession: "New Chat",
+        deleteSession: "Delete Chat",
+        deleteSessionConfirm: "Delete this chat session?",
+        cancel: "Cancel",
     },
 } as const;
 

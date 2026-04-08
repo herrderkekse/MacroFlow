@@ -1,5 +1,16 @@
 import BottomSheet, { type BottomSheetRef } from "@/src/components/BottomSheet";
 import Button from "@/src/components/Button";
+import {
+    addChatMessage,
+    createChatSession,
+    deleteChatSession,
+    getAllChatSessions,
+    getChatMessages,
+    touchChatSession,
+    updateChatSessionTitle,
+    type ChatMessageRow,
+    type ChatSession,
+} from "@/src/db/queries";
 import { loadAiConfig } from "@/src/services/ai";
 import type { UiChatMessage } from "@/src/services/ai/chat";
 import {
@@ -18,7 +29,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
+    Alert,
     Dimensions,
+    FlatList,
     Keyboard,
     Pressable,
     ScrollView,
@@ -37,6 +50,41 @@ const INPUT_BAR_MARGIN = spacing.sm;
 
 /** Total vertical space consumed by the floating chat input bar. */
 export const CHAT_BAR_TOTAL_HEIGHT = INPUT_BAR_HEIGHT + INPUT_BAR_MARGIN * 2;
+
+// ── DB ↔ UiChatMessage conversion ────────────────────────
+
+function rowToUiMessage(row: ChatMessageRow): UiChatMessage {
+    return {
+        id: `db_${row.id}`,
+        role: row.role as UiChatMessage["role"],
+        content: row.content,
+        toolCall: row.tool_call_json ? JSON.parse(row.tool_call_json) : undefined,
+        toolResult: row.tool_result_json ? JSON.parse(row.tool_result_json) : undefined,
+        toolResultData: row.tool_result_data_json ? JSON.parse(row.tool_result_data_json) : undefined,
+        toolCallId: row.tool_call_id ?? undefined,
+        timestamp: row.timestamp,
+    };
+}
+
+function persistMessage(sessionId: number, msg: UiChatMessage) {
+    addChatMessage({
+        session_id: sessionId,
+        role: msg.role,
+        content: msg.content,
+        tool_call_json: msg.toolCall ? JSON.stringify(msg.toolCall) : null,
+        tool_result_json: msg.toolResult ? JSON.stringify(msg.toolResult) : null,
+        tool_result_data_json: msg.toolResultData ? JSON.stringify(msg.toolResultData) : null,
+        tool_call_id: msg.toolCallId ?? null,
+        timestamp: msg.timestamp,
+    });
+    touchChatSession(sessionId);
+}
+
+/** Derive a short title from the first user message. */
+function deriveSessionTitle(text: string): string {
+    const trimmed = text.trim();
+    return trimmed.length > 30 ? `${trimmed.slice(0, 30)}…` : trimmed;
+}
 
 interface AiChatOverlayProps {
     /** Height of the bottom tab bar so we can position above it. */
@@ -62,6 +110,11 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const [pendingToolCall, setPendingToolCall] = useState<AiToolCall | null>(null);
     const [pendingToolCallId, setPendingToolCallId] = useState<string | undefined>(undefined);
     const [streamingToolData, setStreamingToolData] = useState<AiMealPlanEntry[] | null>(null);
+
+    // ── Session state ─────────────────────────────────────
+    const [sessions, setSessions] = useState<ChatSession[]>([]);
+    const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+    const sessionListRef = useRef<FlatList>(null);
 
     const scrollRef = useRef<ScrollView>(null);
     const abortRef = useRef<AbortController | null>(null);
@@ -109,6 +162,71 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         }, [onVisibilityChange]),
     );
 
+    // On mount: always start with a fresh session (issue #156 requirement).
+    // Load existing sessions for the selector.
+    useEffect(() => {
+        const existing = getAllChatSessions();
+        const fresh = createChatSession(t("chat.newSession"));
+        setSessions([fresh, ...existing]);
+        setActiveSessionId(fresh.id);
+        setMessages([]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    /** Switch to a different session, loading its messages from the DB. */
+    const switchSession = useCallback((sessionId: number) => {
+        if (sessionId === activeSessionId || loading) return;
+        setPendingToolCall(null);
+        setPendingToolCallId(undefined);
+        setStreamingText("");
+        setStreamingToolData(null);
+        setActiveSessionId(sessionId);
+        const rows = getChatMessages(sessionId);
+        setMessages(rows.map(rowToUiMessage));
+    }, [activeSessionId, loading]);
+
+    /** Create a new session and switch to it. */
+    const handleNewSession = useCallback(() => {
+        if (loading) return;
+        const fresh = createChatSession(t("chat.newSession"));
+        setSessions((prev) => [fresh, ...prev]);
+        setActiveSessionId(fresh.id);
+        setMessages([]);
+        setPendingToolCall(null);
+        setPendingToolCallId(undefined);
+        setStreamingText("");
+        setStreamingToolData(null);
+        setTimeout(() => sessionListRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
+    }, [loading, t]);
+
+    /** Long-press to delete a session. */
+    const handleDeleteSession = useCallback((session: ChatSession) => {
+        if (loading) return;
+        Alert.alert(
+            t("chat.deleteSession"),
+            t("chat.deleteSessionConfirm"),
+            [
+                { text: t("chat.cancel"), style: "cancel" },
+                {
+                    text: t("chat.deleteSession"),
+                    style: "destructive",
+                    onPress: () => {
+                        deleteChatSession(session.id);
+                        setSessions((prev) => prev.filter((s) => s.id !== session.id));
+                        // If the deleted session was active, switch to the first remaining or create a new one
+                        if (session.id === activeSessionId) {
+                            const remaining = sessions.filter((s) => s.id !== session.id);
+                            if (remaining.length > 0) {
+                                switchSession(remaining[0].id);
+                            } else {
+                                handleNewSession();
+                            }
+                        }
+                    },
+                },
+            ],
+        );
+    }, [loading, t, activeSessionId, sessions, switchSession, handleNewSession]);
+
     // Scroll to bottom when messages change
     useEffect(() => {
         if (messages.length > 0 || streamingText) {
@@ -143,9 +261,26 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         if (msg.role === "tool-result" && msg.toolResult?.success) {
             onDataChanged?.();
         }
+        // Persist to DB
+        if (activeSessionId != null) {
+            persistMessage(activeSessionId, msg);
+            // Auto-title the session from the first user message
+            if (msg.role === "user") {
+                setMessages((prev) => {
+                    if (prev.every((m) => m.role !== "user")) {
+                        const title = deriveSessionTitle(msg.content);
+                        updateChatSessionTitle(activeSessionId, title);
+                        setSessions((s) => s.map((sess) => sess.id === activeSessionId ? { ...sess, title, updated_at: Date.now() } : sess));
+                    }
+                    return [...prev, msg];
+                });
+                setStreamingText("");
+                return;
+            }
+        }
         setMessages((prev) => [...prev, msg]);
         setStreamingText("");
-    }, [onDataChanged]);
+    }, [onDataChanged, activeSessionId]);
 
     const handleSend = useCallback(async () => {
         const text = inputText.trim();
@@ -311,6 +446,49 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                     <Pressable onPress={closeSheet} hitSlop={8}>
                         <Ionicons name="chevron-down" size={22} color={colors.textSecondary} />
                     </Pressable>
+                </View>
+
+                {/* Session selector */}
+                <View style={styles.sessionBar}>
+                    <FlatList
+                        ref={sessionListRef}
+                        horizontal
+                        data={sessions}
+                        keyExtractor={(s) => String(s.id)}
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.sessionListContent}
+                        ListHeaderComponent={
+                            <Pressable
+                                onPress={handleNewSession}
+                                style={[styles.sessionChip, styles.sessionNewChip, { borderColor: colors.primary }]}
+                            >
+                                <Ionicons name="add" size={16} color={colors.primary} />
+                            </Pressable>
+                        }
+                        renderItem={({ item }) => (
+                            <Pressable
+                                onPress={() => switchSession(item.id)}
+                                onLongPress={() => handleDeleteSession(item)}
+                                style={[
+                                    styles.sessionChip,
+                                    {
+                                        backgroundColor: item.id === activeSessionId ? colors.primary : colors.surface,
+                                        borderColor: item.id === activeSessionId ? colors.primary : colors.border,
+                                    },
+                                ]}
+                            >
+                                <Text
+                                    style={[
+                                        styles.sessionChipText,
+                                        { color: item.id === activeSessionId ? "#fff" : colors.text },
+                                    ]}
+                                    numberOfLines={1}
+                                >
+                                    {item.title}
+                                </Text>
+                            </Pressable>
+                        )}
+                    />
                 </View>
 
                 {/* Messages */}
@@ -533,6 +711,32 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.lg,
             fontWeight: "600",
             color: colors.text,
+        },
+        sessionBar: {
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            paddingVertical: spacing.xs,
+        },
+        sessionListContent: {
+            paddingHorizontal: spacing.md,
+            gap: spacing.xs,
+        },
+        sessionChip: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.xs + 2,
+            borderRadius: borderRadius.lg,
+            borderWidth: 1,
+            maxWidth: 160,
+        },
+        sessionNewChip: {
+            backgroundColor: "transparent",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: spacing.sm,
+        },
+        sessionChipText: {
+            fontSize: fontSize.xs,
+            fontWeight: "500",
         },
         messageList: {
             flex: 1,

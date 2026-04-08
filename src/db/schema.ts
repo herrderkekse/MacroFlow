@@ -92,3 +92,22 @@ export const notificationSettings = sqliteTable("notification_settings", {
     snack_enabled: integer("snack_enabled").notNull().default(1),
     weight_enabled: integer("weight_enabled").notNull().default(1),
 });
+
+export const chatSessions = sqliteTable("chat_sessions", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    title: text("title").notNull().default("New Chat"),
+    created_at: integer("created_at").notNull(),
+    updated_at: integer("updated_at").notNull(),
+});
+
+export const chatMessages = sqliteTable("chat_messages", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    session_id: integer("session_id").notNull().references(() => chatSessions.id),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    tool_call_json: text("tool_call_json"),
+    tool_result_json: text("tool_result_json"),
+    tool_result_data_json: text("tool_result_data_json"),
+    tool_call_id: text("tool_call_id"),
+    timestamp: integer("timestamp").notNull(),
+});
