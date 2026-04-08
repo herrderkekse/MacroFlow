@@ -86,7 +86,9 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         };
     }, []);
 
-    const inputBottom = keyboardHeight > 0 ? keyboardHeight + INPUT_BAR_MARGIN : INPUT_BAR_MARGIN;
+    const inputBottom = keyboardHeight > 0
+        ? keyboardHeight - tabBarHeight + INPUT_BAR_MARGIN
+        : INPUT_BAR_MARGIN;
 
     // Check if AI is configured
     useEffect(() => {
