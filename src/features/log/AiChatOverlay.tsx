@@ -26,6 +26,7 @@ import {
     TextInput,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MealPlanToolResult, ToolResultContainer } from "./tool-results";
 
 // ── Constants ─────────────────────────────────────────────
@@ -49,6 +50,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
 
     const [hasAiConfig, setHasAiConfig] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
@@ -86,8 +88,12 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
         };
     }, []);
 
+    // tabBarHeight includes the bottom safe area inset, but on Android the keyboard
+    // height is measured from above the gesture bar — subtract only the visible
+    // tab bar height to avoid double-counting the safe area.
+    const visibleTabBarHeight = tabBarHeight - insets.bottom;
     const inputBottom = keyboardHeight > 0
-        ? keyboardHeight - tabBarHeight + INPUT_BAR_MARGIN
+        ? keyboardHeight - visibleTabBarHeight + INPUT_BAR_MARGIN
         : INPUT_BAR_MARGIN;
 
     // Check if AI is configured
