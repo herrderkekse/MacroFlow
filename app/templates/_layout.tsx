@@ -1,4 +1,4 @@
-import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Stack } from "expo-router";
 
 export default function RecipesLayout() {

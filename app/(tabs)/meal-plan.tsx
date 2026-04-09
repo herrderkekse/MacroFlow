@@ -1,1 +1,1 @@
-export { default } from "@/src/features/ai/MealPlanScreen";
+export { default } from "@/src/features/ai/screens/MealPlanScreen";

@@ -1,5 +1,5 @@
-import { getStreak } from "@/src/db/queries";
-import { useThemeColors } from "@/src/utils/ThemeProvider";
+import { getStreak } from "@/src/features/log/services/logDb";
+import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useFocusEffect, useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";

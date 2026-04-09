@@ -1,1 +1,1 @@
-export { default } from "../src/features/db/DbTestScreen";
+export { default } from "@/src/features/db/screens/DbTestScreen";

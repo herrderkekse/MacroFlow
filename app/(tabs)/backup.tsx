@@ -1,1 +1,1 @@
-export { default } from "@/src/features/settings/BackupScreen";
+export { default } from "@/src/features/settings/screens/BackupScreen";

@@ -1,1 +1,1 @@
-export { default } from "@/src/features/ai/AiSettingsScreen";
+export { default } from "@/src/features/ai/screens/AiSettingsScreen";

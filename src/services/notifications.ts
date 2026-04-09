@@ -1,9 +1,11 @@
+import i18n from "@/src/i18n";
+import { notificationSettings } from "@/src/services/db/schema";
+import type { MealType } from "@/src/shared/types";
+import logger from "@/src/utils/logger";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { getEntriesByDate, getNotificationSettings, getWeightLogsForDate } from "../db/queries";
-import i18n from "../i18n";
-import type { MealType } from "../types";
-import logger from "../utils/logger";
+
+export type NotifSettings = typeof notificationSettings.$inferSelect | null | undefined;
 
 const MEAL_LABEL_KEYS: Record<MealType, string> = {
     breakfast: "settings.notificationBreakfast",
@@ -50,7 +52,7 @@ export async function cancelAllReminders() {
     const ids = [...Object.values(MEAL_IDS), WEIGHT_ID];
     for (const id of ids) {
         for (let day = 0; day < SCHEDULE_DAYS_AHEAD; day++) {
-            await Notifications.cancelScheduledNotificationAsync(`${id}-${day}`).catch(() => {});
+            await Notifications.cancelScheduledNotificationAsync(`${id}-${day}`).catch(() => { });
         }
     }
     logger.info("[Notifications] Cancelled all reminders");
@@ -113,12 +115,16 @@ async function scheduleWeightReminder(time: string, label: string) {
 }
 
 /**
- * Reads notification settings from DB and schedules reminders for
- * SCHEDULE_DAYS_AHEAD days into the future. Call on app start and
- * whenever settings change.
+ * Schedules reminders for SCHEDULE_DAYS_AHEAD days and syncs today's state.
+ * Call on app start and whenever settings change.
  */
-export async function scheduleAllReminders(mealLabels: Record<MealType, string>, weightLabel: string) {
-    const settings = getNotificationSettings();
+export async function scheduleAllReminders(
+    mealLabels: Record<MealType, string>,
+    weightLabel: string,
+    settings: NotifSettings,
+    loggedMealTypes: Set<MealType>,
+    hasWeightLog: boolean,
+) {
     if (!settings?.enabled) {
         await cancelAllReminders();
         return;
@@ -135,29 +141,19 @@ export async function scheduleAllReminders(mealLabels: Record<MealType, string>,
     await Promise.all(tasks);
 
     // Cancel today's reminders for meals / weight already logged
-    await syncTodayMealReminders();
-    await cancelWeightReminderIfLogged();
+    await syncTodayMealReminders(settings, loggedMealTypes);
+    await cancelWeightReminderIfLogged(hasWeightLog);
 
     logger.info("[Notifications] Scheduled reminders for the next week");
 }
 
 /**
- * Cancel today's reminder for a specific meal if the user has already logged
- * food for it.
+ * Cancel today's reminder for a specific meal if the user has already logged food for it.
  */
-export async function cancelMealReminderIfLogged(mealType: MealType) {
-    const settings = getNotificationSettings();
-    if (!settings?.enabled) return;
-
-    const today = new Date();
-    const entries = getEntriesByDate(today);
-    const hasEntry = entries.some((r) => r.entries.meal_type === mealType);
-
-    if (hasEntry) {
-        // Day 0 is today's notification
-        await Notifications.cancelScheduledNotificationAsync(`${MEAL_IDS[mealType]}-0`).catch(() => {});
-        logger.info(`[Notifications] Cancelled today's ${mealType} reminder (food logged)`);
-    }
+export async function cancelMealReminderIfLogged(mealType: MealType, hasEntry: boolean) {
+    if (!hasEntry) return;
+    await Notifications.cancelScheduledNotificationAsync(`${MEAL_IDS[mealType]}-0`).catch(() => { });
+    logger.info(`[Notifications] Cancelled today's ${mealType} reminder (food logged)`);
 }
 
 /**
@@ -165,23 +161,20 @@ export async function cancelMealReminderIfLogged(mealType: MealType) {
  * Cancels reminders for meals that have entries, and re-schedules
  * reminders for meals that are now empty (e.g. after deleting a food).
  */
-export async function syncTodayMealReminders() {
-    const settings = getNotificationSettings();
+export async function syncTodayMealReminders(settings: NotifSettings, loggedMealTypes: Set<MealType>) {
     if (!settings?.enabled) return;
 
     const now = new Date();
-    const todayEntries = getEntriesByDate(now);
-
     const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
     for (const mealType of mealTypes) {
         const enabledKey = `${mealType}_enabled` as keyof typeof settings;
         if (settings[enabledKey] === 0) continue;
 
-        const hasEntry = todayEntries.some((r) => r.entries.meal_type === mealType);
+        const hasEntry = loggedMealTypes.has(mealType);
         const id = `${MEAL_IDS[mealType]}-0`;
 
         if (hasEntry) {
-            await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+            await Notifications.cancelScheduledNotificationAsync(id).catch(() => { });
         } else {
             // Re-schedule today's reminder if the time hasn't passed
             const timeKey = `${mealType}_time` as keyof typeof settings;
@@ -214,31 +207,22 @@ export async function syncTodayMealReminders() {
 /**
  * Cancel today's weight reminder if the user has already logged weight.
  */
-export async function cancelWeightReminderIfLogged() {
-    const settings = getNotificationSettings();
-    if (!settings?.enabled) return;
-
-    const today = new Date();
-    const logs = getWeightLogsForDate(today);
-    if (logs.length > 0) {
-        await Notifications.cancelScheduledNotificationAsync(`${WEIGHT_ID}-0`).catch(() => {});
-        logger.info("[Notifications] Cancelled today's weight reminder (weight logged)");
-    }
+export async function cancelWeightReminderIfLogged(hasWeightLog: boolean) {
+    if (!hasWeightLog) return;
+    await Notifications.cancelScheduledNotificationAsync(`${WEIGHT_ID}-0`).catch(() => { });
+    logger.info("[Notifications] Cancelled today's weight reminder (weight logged)");
 }
 
 /**
  * Sync today's weight reminder with the current log state.
  * Re-schedules the reminder if no weight has been logged today.
  */
-export async function syncTodayWeightReminder() {
-    const settings = getNotificationSettings();
+export async function syncTodayWeightReminder(settings: NotifSettings, hasWeightLog: boolean) {
     if (!settings?.enabled || settings.weight_enabled === 0) return;
 
     const now = new Date();
-    const logs = getWeightLogsForDate(now);
-
-    if (logs.length > 0) {
-        await Notifications.cancelScheduledNotificationAsync(`${WEIGHT_ID}-0`).catch(() => {});
+    if (hasWeightLog) {
+        await Notifications.cancelScheduledNotificationAsync(`${WEIGHT_ID}-0`).catch(() => { });
     } else {
         const { hour, minute } = parseTime(settings.weight_time);
         const triggerDate = new Date(now);
@@ -250,7 +234,7 @@ export async function syncTodayWeightReminder() {
                 identifier: `${WEIGHT_ID}-0`,
                 content: {
                     title: "MacroFlow",
-                    body: `\u2696\uFE0F ${weightLabel}`,
+                    body: `⚖️ ${weightLabel}`,
                     ...(Platform.OS === "android" ? { channelId: "reminders" } : {}),
                 },
                 trigger: {
