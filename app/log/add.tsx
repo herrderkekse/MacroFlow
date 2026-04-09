@@ -1,1 +1,1 @@
-export { default } from "@/src/features/log/AddFoodScreen";
+export { default } from "@/src/features/log/screens/AddFoodScreen";

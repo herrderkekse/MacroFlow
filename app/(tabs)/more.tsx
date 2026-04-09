@@ -1,1 +1,1 @@
-export { default } from "@/src/features/more/MoreScreen";
+export { default } from "@/src/features/more/screens/MoreScreen";

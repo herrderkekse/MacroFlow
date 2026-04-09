@@ -1,14 +1,16 @@
+import { getGoals } from "@/src/features/settings/services/settingsDb";
+import { getNotificationSettings } from "@/src/features/settings/services/settingsDb";
+import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
+import "@/src/i18n";
+import i18n from "@/src/i18n";
+import { initDB } from "@/src/services/db";
+import { scheduleAllReminders } from "@/src/services/notifications";
+import { ThemeProvider, useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { useAppStore } from "@/src/shared/store/useAppStore";
+import type { AppearanceMode, Language, MealType, UnitSystem } from "@/src/shared/types";
 import { Stack } from "expo-router";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { initDB } from "../src/db";
-import { getGoals } from "../src/db/queries";
-import "../src/i18n";
-import i18n from "../src/i18n";
-import { useAppStore } from "../src/store/useAppStore";
-import type { AppearanceMode, Language, MealType, UnitSystem } from "../src/types";
-import { ThemeProvider, useThemeColors } from "../src/utils/ThemeProvider";
 import { useEffect } from "react";
-import { scheduleAllReminders } from "../src/services/notifications";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 initDB();
 
@@ -39,7 +41,7 @@ function InnerLayout() {
       dinner: i18n.t("settings.notificationDinner"),
       snack: i18n.t("settings.notificationSnack"),
     };
-    scheduleAllReminders(mealLabels, i18n.t("settings.notificationWeight"));
+    scheduleAllReminders(mealLabels, i18n.t("settings.notificationWeight"), getNotificationSettings() ?? null, new Set(getEntriesByDate(new Date()).map(e => e.entries.meal_type as MealType)), getWeightLogsForDate(new Date()).length > 0);
   }, []);
 
   return (

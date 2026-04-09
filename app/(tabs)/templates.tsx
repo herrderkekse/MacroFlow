@@ -1,1 +1,1 @@
-export { default } from "@/src/features/templates/TemplatesScreen";
+export { default } from "@/src/features/templates/screens/TemplatesScreen";

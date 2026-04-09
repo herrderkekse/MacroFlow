@@ -1,1 +1,1 @@
-export { default } from "../../src/features/analytics/AnalyticsScreen";
+export { default } from "@/src/features/analytics/screens/AnalyticsScreen";

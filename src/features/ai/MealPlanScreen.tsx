@@ -1,16 +1,16 @@
-import Button from "@/src/components/Button";
-import Input from "@/src/components/Input";
-import { addEntry, getAllFoods, getAllRecipes, getGoals, getRecipeItems } from "@/src/db/queries";
-import {
-    generateMealPlan,
-    loadAiConfig,
-} from "@/src/services/ai";
-import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "@/src/services/ai/types";
+import { loadAiConfig } from "@/src/features/ai/services/aiConfig";
+import { generateMealPlan } from "@/src/features/ai/services/mealPlanService";
+import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "@/src/features/ai/types";
+import { addEntry } from "@/src/features/log/services/logDb";
+import { getGoals } from "@/src/features/settings/services/settingsDb";
+import { getAllFoods, getAllRecipes, getRecipeItems } from "@/src/features/templates/services/templateDb";
+import Button from "@/src/shared/atoms/Button";
+import Input from "@/src/shared/atoms/Input";
+import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { useThemeColors } from "@/src/utils/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
