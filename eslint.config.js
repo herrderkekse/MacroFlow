@@ -69,10 +69,17 @@ module.exports = defineConfig([
           mode: 'full',
           capture: ['featureName'],
         },
-        // Feature types file (single file per feature)
+        // Feature types: single file (types.ts) or folder (types/*.ts)
         {
           type: 'feature-types',
-          pattern: 'src/features/*/types.ts',
+          pattern: ['src/features/*/types.ts', 'src/features/*/types/**'],
+          mode: 'full',
+          capture: ['featureName'],
+        },
+        // Feature constants: single file (constants.ts) or folder (constants/*.ts)
+        {
+          type: 'feature-constants',
+          pattern: ['src/features/*/constants.ts', 'src/features/*/constants/**'],
           mode: 'full',
           capture: ['featureName'],
         },
@@ -117,6 +124,7 @@ module.exports = defineConfig([
                 { type: 'feature-hook', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-service' },   // any feature's services are fine
                 { type: 'feature-helper', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'shared' },
                 { type: 'app-service' },
@@ -135,6 +143,7 @@ module.exports = defineConfig([
                 { type: 'feature-hook', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-service' },
                 { type: 'feature-helper', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'shared' },
                 { type: 'app-service' },
@@ -152,6 +161,7 @@ module.exports = defineConfig([
                 { type: 'feature-hook', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-service' },
                 { type: 'feature-helper', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'shared' },
                 { type: 'app-service' },
@@ -168,7 +178,9 @@ module.exports = defineConfig([
             allow: {
               to: [
                 { type: 'feature-service' },   // cross-feature service imports OK
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-helper', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'shared' },
                 { type: 'app-service' },
                 { type: 'util' },
@@ -184,7 +196,9 @@ module.exports = defineConfig([
             allow: {
               to: [
                 { type: 'feature-service', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-helper', captured: { featureName: '{{ from.captured.featureName }}' } },
                 { type: 'shared' },
                 { type: 'util' },
                 { type: 'i18n' },
@@ -192,10 +206,28 @@ module.exports = defineConfig([
             },
           },
 
-          // Feature types: may only reference shared types.
+          // Feature types: may only reference shared types, same-feature types and constants
           {
             from: { type: 'feature-types' },
-            allow: { to: { type: 'shared' } },
+            allow: {
+              to: [
+                { type: 'shared' },
+                { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
+              ]
+            },
+          },
+
+          // Feature constants: may only reference shared types, same-feature types and constants
+          {
+            from: { type: 'feature-constants' },
+            allow: {
+              to: [
+                { type: 'shared' },
+                { type: 'feature-types', captured: { featureName: '{{ from.captured.featureName }}' } },
+                { type: 'feature-constants', captured: { featureName: '{{ from.captured.featureName }}' } },
+              ]
+            },
           },
 
           // Shared (atoms, components, providers, store): no feature imports.
