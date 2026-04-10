@@ -251,6 +251,7 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
         role: "tool-result",
         content: "The user declined this action.",
         toolResult: { success: false, summary: "User declined" },
+        toolCall: opts.toolCall,
         toolCallId: opts.toolCallId,
         timestamp: Date.now(),
     };
