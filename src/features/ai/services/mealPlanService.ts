@@ -1,3 +1,5 @@
+import { streamText } from "ai";
+import type { CoreMessage } from "ai";
 import { formatDateKey as formatLocalDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
 import type {
@@ -7,11 +9,10 @@ import type {
     AiMealPlanResponse,
     AiProviderConfig,
     AiRecipePayload,
-    ChatMessage,
     MealPlanPreferences,
     StreamStatus,
 } from "../types";
-import { getProvider } from "./aiConfig";
+import { createModelFromConfig } from "./providers";
 
 // ── Meal plan prompt & validation ─────────────────────────
 
@@ -20,8 +21,8 @@ export function buildMealPlanPrompt(
     recipes: AiRecipePayload[],
     goals: AiGoalsPayload,
     prefs: MealPlanPreferences,
-): ChatMessage[] {
-    const system: ChatMessage = {
+): CoreMessage[] {
+    const system: CoreMessage = {
         role: "system",
         content: [
             "You are a meal planning assistant. You generate structured meal plans in JSON format.",
@@ -62,7 +63,7 @@ export function buildMealPlanPrompt(
         userContent.push(`Foods I don't like: ${prefs.dislikedFoods}`);
     }
 
-    const user: ChatMessage = { role: "user", content: userContent.join("\n") };
+    const user: CoreMessage = { role: "user", content: userContent.join("\n") };
 
     return [system, user];
 }
@@ -239,7 +240,7 @@ export function validateMealPlanMacros(
 export function buildRefinementMessage(
     previousResponse: string,
     issues: string[],
-): ChatMessage {
+): CoreMessage {
     return {
         role: "user",
         content: [
@@ -272,33 +273,30 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
     const { config, foods, recipes, goals, prefs, validFoodIds, onStatus, onPartialEntries, signal } = opts;
 
     const messages = buildMealPlanPrompt(foods, recipes, goals, prefs);
-    const provider = getProvider(config.provider);
+    const model = createModelFromConfig(config);
 
-    let raw: string;
-    if (provider.supportsStreaming && provider.chatStream) {
-        const response = await provider.chatStream(
-            config,
-            messages,
-            {
-                onStatus: (status) => onStatus?.(status),
-                onToken: (accumulated) => {
-                    const partial = parsePartialEntries(accumulated, validFoodIds);
-                    if (partial.length > 0) onPartialEntries?.(partial);
-                },
-            },
-            { signal },
-        );
-        raw = response.type === "text" ? response.content : "";
-    } else {
-        onStatus?.("connecting");
-        const response = await provider.chat(config, messages);
-        raw = response.type === "text" ? response.content : "";
+    onStatus?.("connecting");
+
+    const result = streamText({
+        model,
+        messages,
+        abortSignal: signal,
+    });
+
+    let raw = "";
+    for await (const part of result.fullStream) {
+        if (part.type === "text-delta") {
+            raw += part.text;
+            onStatus?.("generating");
+            const partial = parsePartialEntries(raw, validFoodIds);
+            if (partial.length > 0) onPartialEntries?.(partial);
+        }
     }
 
     let plan = parseMealPlanResponse(raw, validFoodIds, goals, foods);
     onPartialEntries?.(plan.entries);
 
-    const conversationHistory: ChatMessage[] = [...messages, { role: "assistant", content: raw }];
+    const conversationHistory: CoreMessage[] = [...messages, { role: "assistant" as const, content: raw }];
 
     for (let i = 0; i < MAX_REFINEMENTS; i++) {
         if (signal?.aborted) break;
@@ -312,24 +310,20 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
         const refinementMsg = buildRefinementMessage(raw, validation.issues);
         conversationHistory.push(refinementMsg);
 
-        let refinedRaw: string;
-        if (provider.supportsStreaming && provider.chatStream) {
-            const response = await provider.chatStream(
-                config,
-                conversationHistory,
-                {
-                    onStatus: () => onStatus?.("refining"),
-                    onToken: (accumulated) => {
-                        const partial = parsePartialEntries(accumulated, validFoodIds);
-                        if (partial.length > 0) onPartialEntries?.(partial);
-                    },
-                },
-                { signal },
-            );
-            refinedRaw = response.type === "text" ? response.content : "";
-        } else {
-            const response = await provider.chat(config, conversationHistory);
-            refinedRaw = response.type === "text" ? response.content : "";
+        const refinedResult = streamText({
+            model,
+            messages: conversationHistory,
+            abortSignal: signal,
+        });
+
+        let refinedRaw = "";
+        for await (const part of refinedResult.fullStream) {
+            if (part.type === "text-delta") {
+                refinedRaw += part.text;
+                onStatus?.("refining");
+                const partial = parsePartialEntries(refinedRaw, validFoodIds);
+                if (partial.length > 0) onPartialEntries?.(partial);
+            }
         }
 
         try {
@@ -344,5 +338,6 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
         }
     }
 
+    onStatus?.("done");
     return plan;
 }
