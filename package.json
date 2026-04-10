@@ -12,10 +12,14 @@
     "gen-assets": "node ./scripts/generate-images.js"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.41",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "@stardazed/streams-text-encoding": "^1.0.2",
+    "@ungap/structured-clone": "^1.3.0",
+    "ai": "^6.0.156",
     "drizzle-orm": "^0.45.1",
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",

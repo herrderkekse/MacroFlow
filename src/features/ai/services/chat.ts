@@ -1,14 +1,24 @@
+import { streamText } from "ai";
+import type { CoreMessage } from "ai";
+import type { AiProviderConfig } from "../types";
+import { createModelFromConfig, generateMealPlan, loadAiConfig } from "./aiConfig";
+import { toApiMessages } from "./chatConverters";
+import type { ChatSendOptions, ToolApprovalOptions, UiChatMessage } from "./chatTypes";
+import { nextId } from "./chatTypes";
+import { executeTool, toAiSdkTools, toolNeedsApproval } from "./tools";
+
 // Re-export types & converters so existing consumers keep working
-export { formatToolResultForAi, responseToToolCall, toFallbackApiMessages, toNativeApiMessages } from "./chatConverters";
+export { formatToolResultForAi, toApiMessages } from "./chatConverters";
 export { nextId } from "./chatTypes";
 export type { ChatRole, ChatSendOptions, ToolApprovalOptions, ToolResultData, UiChatMessage } from "./chatTypes";
 
-import type { AiChatResponse, AiProviderConfig, ChatMessage, StreamCallbacks } from "../types";
-import { generateMealPlan, getProvider, loadAiConfig } from "./aiConfig";
-import { responseToToolCall, toFallbackApiMessages, toNativeApiMessages } from "./chatConverters";
-import type { ChatSendOptions, ToolApprovalOptions, UiChatMessage } from "./chatTypes";
-import { nextId } from "./chatTypes";
-import { executeTool, parseToolCall, toOpenAiTools, toolNeedsApproval } from "./tools";
+// ── Internal types ────────────────────────────────────────
+
+interface AiCallResult {
+    text: string;
+    toolCall?: { name: string; arguments: Record<string, unknown> };
+    toolCallId?: string;
+}
 
 // ── Public API ────────────────────────────────────────────
 
@@ -28,35 +38,32 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
     opts.onMessage(userMsg);
 
     const allMessages = [...opts.messages, userMsg];
-    const provider = getProvider(config.provider);
-    const useNative = !!provider.supportsToolCalling;
-    const apiMessages = useNative ? toNativeApiMessages(allMessages) : toFallbackApiMessages(allMessages);
+    const apiMessages = toApiMessages(allMessages);
 
-    const response = await callAi(config, apiMessages, opts, useNative);
+    const response = await callAi(config, apiMessages, opts);
 
-    const toolCall = responseToToolCall(response);
-    if (toolCall) {
-        if (toolNeedsApproval(toolCall.name)) {
+    if (response.toolCall) {
+        if (toolNeedsApproval(response.toolCall.name)) {
             const toolRequestMsg: UiChatMessage = {
                 id: nextId(),
                 role: "tool-request",
-                content: `Wants to use: **${toolCall.name}**`,
-                toolCall,
-                toolCallId: toolCall.toolCallId,
+                content: `Wants to use: **${response.toolCall.name}**`,
+                toolCall: response.toolCall,
+                toolCallId: response.toolCallId,
                 timestamp: Date.now(),
             };
             opts.onMessage(toolRequestMsg);
             return;
         }
 
-        const result = executeTool(toolCall);
+        const result = executeTool(response.toolCall);
 
         const syntheticToolRequest: UiChatMessage = {
             id: nextId(),
             role: "tool-request",
             content: "",
-            toolCall,
-            toolCallId: toolCall.toolCallId,
+            toolCall: response.toolCall,
+            toolCallId: response.toolCallId,
             timestamp: Date.now(),
         };
 
@@ -65,41 +72,38 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
             role: "tool-result",
             content: result.summary,
             toolResult: result,
-            toolCall,
-            toolCallId: toolCall.toolCallId,
+            toolCall: response.toolCall,
+            toolCallId: response.toolCallId,
             timestamp: Date.now(),
         };
         opts.onMessage(toolResultMsg);
 
         const allMessagesWithResult = [...allMessages, syntheticToolRequest, toolResultMsg];
-        const apiMessagesWithResult = useNative
-            ? toNativeApiMessages(allMessagesWithResult)
-            : toFallbackApiMessages(allMessagesWithResult);
-        const followUp = await callAi(config, apiMessagesWithResult, opts, useNative);
+        const apiMessagesWithResult = toApiMessages(allMessagesWithResult);
+        const followUp = await callAi(config, apiMessagesWithResult, opts);
 
-        const followUpToolCall = responseToToolCall(followUp);
-        if (followUpToolCall) {
-            if (toolNeedsApproval(followUpToolCall.name)) {
+        if (followUp.toolCall) {
+            if (toolNeedsApproval(followUp.toolCall.name)) {
                 const toolRequestMsg: UiChatMessage = {
                     id: nextId(),
                     role: "tool-request",
-                    content: `Wants to use: **${followUpToolCall.name}**`,
-                    toolCall: followUpToolCall,
-                    toolCallId: followUpToolCall.toolCallId,
+                    content: `Wants to use: **${followUp.toolCall.name}**`,
+                    toolCall: followUp.toolCall,
+                    toolCallId: followUp.toolCallId,
                     timestamp: Date.now(),
                 };
                 opts.onMessage(toolRequestMsg);
                 return;
             }
 
-            const result2 = executeTool(followUpToolCall);
+            const result2 = executeTool(followUp.toolCall);
 
             const syntheticToolRequest2: UiChatMessage = {
                 id: nextId(),
                 role: "tool-request",
                 content: "",
-                toolCall: followUpToolCall,
-                toolCallId: followUpToolCall.toolCallId,
+                toolCall: followUp.toolCall,
+                toolCallId: followUp.toolCallId,
                 timestamp: Date.now(),
             };
 
@@ -108,44 +112,39 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
                 role: "tool-result",
                 content: result2.summary,
                 toolResult: result2,
-                toolCall: followUpToolCall,
-                toolCallId: followUpToolCall.toolCallId,
+                toolCall: followUp.toolCall,
+                toolCallId: followUp.toolCallId,
                 timestamp: Date.now(),
             };
             opts.onMessage(toolResultMsg2);
 
             const allMessages3 = [...allMessagesWithResult, syntheticToolRequest2, toolResultMsg2];
-            const apiMessages3 = useNative
-                ? toNativeApiMessages(allMessages3)
-                : toFallbackApiMessages(allMessages3);
-            const finalResponse = await callAi(config, apiMessages3, opts, useNative);
-            const finalContent = finalResponse.type === "text" ? finalResponse.content : "";
+            const apiMessages3 = toApiMessages(allMessages3);
+            const finalResponse = await callAi(config, apiMessages3, opts);
             const finalMsg: UiChatMessage = {
                 id: nextId(),
                 role: "assistant",
-                content: finalContent,
+                content: finalResponse.text,
                 timestamp: Date.now(),
             };
             opts.onMessage(finalMsg);
             return;
         }
 
-        const followUpContent = followUp.type === "text" ? followUp.content : "";
         const followUpMsg: UiChatMessage = {
             id: nextId(),
             role: "assistant",
-            content: followUpContent,
+            content: followUp.text,
             timestamp: Date.now(),
         };
         opts.onMessage(followUpMsg);
         return;
     }
 
-    const textContent = response.type === "text" ? response.content : "";
     const assistantMsg: UiChatMessage = {
         id: nextId(),
         role: "assistant",
-        content: textContent,
+        content: response.text,
         timestamp: Date.now(),
     };
     opts.onMessage(assistantMsg);
@@ -164,7 +163,6 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
     if (toolCall.name === "create_meal_plan" && result.success && result.data) {
         const planData = result.data as {
             type: string;
-            messages: ChatMessage[];
             validFoodIds: number[];
             goals: any;
             foods: any;
@@ -228,17 +226,14 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
 
     if (!result.success) return;
 
-    const provider = getProvider(config.provider);
-    const useNative = !!provider.supportsToolCalling;
     const allMessages = [...opts.messages, toolResultMsg];
-    const apiMessages = useNative ? toNativeApiMessages(allMessages) : toFallbackApiMessages(allMessages);
+    const apiMessages = toApiMessages(allMessages);
 
-    const followUp = await callAi(config, apiMessages, opts, useNative);
-    const followUpContent = followUp.type === "text" ? followUp.content : "";
+    const followUp = await callAi(config, apiMessages, opts);
     const followUpMsg: UiChatMessage = {
         id: nextId(),
         role: "assistant",
-        content: followUpContent,
+        content: followUp.text,
         timestamp: Date.now(),
     };
     opts.onMessage(followUpMsg);
@@ -261,21 +256,18 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
     };
     opts.onMessage(declineMsg);
 
-    const provider = getProvider(config.provider);
-    const useNative = !!provider.supportsToolCalling;
     const allMessages = [...opts.messages, declineMsg];
-    const apiMessages = useNative ? toNativeApiMessages(allMessages) : toFallbackApiMessages(allMessages);
+    const apiMessages = toApiMessages(allMessages);
     apiMessages.push({
         role: "user",
         content: "I declined the tool use. Please suggest an alternative or ask what I'd like instead.",
     });
 
-    const followUp = await callAi(config, apiMessages, opts, useNative);
-    const followUpContent = followUp.type === "text" ? followUp.content : "";
+    const followUp = await callAi(config, apiMessages, opts);
     const followUpMsg: UiChatMessage = {
         id: nextId(),
         role: "assistant",
-        content: followUpContent,
+        content: followUp.text,
         timestamp: Date.now(),
     };
     opts.onMessage(followUpMsg);
@@ -285,39 +277,41 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
 
 async function callAi(
     config: AiProviderConfig,
-    messages: ChatMessage[],
+    messages: CoreMessage[],
     opts: { onStreamStatus?: (s: string) => void; onStreamToken?: (t: string) => void; signal?: AbortSignal },
-    useNativeTools: boolean,
-): Promise<AiChatResponse> {
-    const provider = getProvider(config.provider);
-    const tools = useNativeTools ? toOpenAiTools() : undefined;
-    const chatOptions = { tools, signal: opts.signal };
-
-    if (provider.supportsStreaming && provider.chatStream) {
-        const callbacks: StreamCallbacks = {
-            onStatus: (status) => opts.onStreamStatus?.(status),
-            onToken: (accumulated) => opts.onStreamToken?.(accumulated),
-        };
-        const response = await provider.chatStream(config, messages, callbacks, chatOptions);
-
-        if (!useNativeTools && response.type === "text") {
-            const parsed = parseToolCall(response.content);
-            if (parsed) {
-                return { type: "tool_call", id: `fallback_${Date.now()}`, name: parsed.name, arguments: parsed.arguments };
-            }
-        }
-        return response;
-    }
+): Promise<AiCallResult> {
+    const model = createModelFromConfig(config);
+    const tools = toAiSdkTools();
 
     opts.onStreamStatus?.("connecting");
-    const response = await provider.chat(config, messages, chatOptions);
-    opts.onStreamStatus?.("done");
 
-    if (!useNativeTools && response.type === "text") {
-        const parsed = parseToolCall(response.content);
-        if (parsed) {
-            return { type: "tool_call", id: `fallback_${Date.now()}`, name: parsed.name, arguments: parsed.arguments };
+    const result = streamText({
+        model,
+        messages,
+        tools,
+        abortSignal: opts.signal,
+    });
+
+    let accumulated = "";
+    for await (const part of result.fullStream) {
+        if (part.type === "text-delta") {
+            accumulated += part.textDelta;
+            opts.onStreamToken?.(accumulated);
+            opts.onStreamStatus?.("generating");
         }
     }
-    return response;
+
+    opts.onStreamStatus?.("done");
+
+    const toolCalls = await result.toolCalls;
+    if (toolCalls.length > 0) {
+        const tc = toolCalls[0];
+        return {
+            text: accumulated,
+            toolCall: { name: tc.toolName, arguments: tc.args as Record<string, unknown> },
+            toolCallId: tc.toolCallId,
+        };
+    }
+
+    return { text: accumulated };
 }

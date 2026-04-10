@@ -1,29 +1,20 @@
 import * as SecureStore from "expo-secure-store";
 import type {
-    AiProvider,
     AiProviderConfig,
     AiProviderId,
 } from "../types";
-import { NVIDIA_DEFAULT_BASE_URL, NVIDIA_DEFAULT_MODEL, nvidiaProvider } from "./nvidia";
+import { PROVIDER_DEFAULTS } from "./providers";
 
-export type { AiFoodPayload, AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences, StreamCallbacks, StreamStatus } from "../types";
+export type { AiFoodPayload, AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences, StreamStatus } from "../types";
+
+// Re-export model factory so existing consumers keep working
+export { createModelFromConfig } from "./providers";
 
 // Re-export meal plan functions so existing consumers keep working
 export {
     buildMealPlanPrompt, buildRefinementMessage,
     generateMealPlan, parseMealPlanResponse, parsePartialEntries, validateMealPlanMacros, type GenerateMealPlanOptions
 } from "./mealPlanService";
-
-// ── Provider registry ─────────────────────────────────────
-const providers: Record<AiProviderId, AiProvider> = {
-    nvidia: nvidiaProvider,
-};
-
-export function getProvider(id: AiProviderId): AiProvider {
-    const p = providers[id];
-    if (!p) throw new Error(`Unknown AI provider: ${id}`);
-    return p;
-}
 
 // ── Secure config persistence ─────────────────────────────
 const STORE_KEY = "ai_provider_config";
@@ -48,8 +39,7 @@ export async function deleteAiConfig(): Promise<void> {
 
 // ── Defaults per provider ─────────────────────────────────
 export function getProviderDefaults(id: AiProviderId): { baseUrl: string; model: string } {
-    switch (id) {
-        case "nvidia":
-            return { baseUrl: NVIDIA_DEFAULT_BASE_URL, model: NVIDIA_DEFAULT_MODEL };
-    }
+    const defaults = PROVIDER_DEFAULTS[id];
+    if (!defaults) throw new Error(`Unknown AI provider: ${id}`);
+    return defaults;
 }

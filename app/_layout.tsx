@@ -1,3 +1,4 @@
+import "@/polyfills";
 import { getGoals } from "@/src/features/settings/services/settingsDb";
 import { getNotificationSettings } from "@/src/features/settings/services/settingsDb";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
