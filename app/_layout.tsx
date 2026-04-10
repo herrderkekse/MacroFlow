@@ -1,17 +1,29 @@
 import "@/polyfills";
-import { getGoals } from "@/src/features/settings/services/settingsDb";
-import { getNotificationSettings } from "@/src/features/settings/services/settingsDb";
+import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
+import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
-import "@/src/i18n";
 import i18n from "@/src/i18n";
 import { initDB } from "@/src/services/db";
 import { scheduleAllReminders } from "@/src/services/notifications";
 import { ThemeProvider, useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import type { AppearanceMode, Language, MealType, UnitSystem } from "@/src/shared/types";
+import Constants from "expo-constants";
 import { Stack } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+const LAST_SEEN_VERSION_KEY = "last_seen_app_version";
+const currentVersion = Constants.expoConfig?.version ?? "0.0.0";
+const lastSeenVersion = SecureStore.getItem(LAST_SEEN_VERSION_KEY);
+
+if (lastSeenVersion !== currentVersion) {
+  try {
+    createAutoBackup();
+  } catch { /* best-effort */ }
+  SecureStore.setItem(LAST_SEEN_VERSION_KEY, currentVersion);
+}
 
 initDB();
 
@@ -43,7 +55,7 @@ function InnerLayout() {
       snack: i18n.t("settings.notificationSnack"),
     };
     scheduleAllReminders(mealLabels, i18n.t("settings.notificationWeight"), getNotificationSettings() ?? null, new Set(getEntriesByDate(new Date()).map(e => e.entries.meal_type as MealType)), getWeightLogsForDate(new Date()).length > 0);
-  }, []);
+  }, [setLanguage, setAppearanceMode, setUnitSystem]);
 
   return (
     <Stack
