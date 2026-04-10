@@ -1,5 +1,5 @@
-import { streamText } from "ai";
 import type { CoreMessage } from "ai";
+import { streamText } from "ai";
 import type { AiProviderConfig } from "../types";
 import { createModelFromConfig, generateMealPlan, loadAiConfig } from "./aiConfig";
 import { toApiMessages } from "./chatConverters";
@@ -284,6 +284,8 @@ async function callAi(
     const tools = toAiSdkTools();
 
     opts.onStreamStatus?.("connecting");
+
+    // console.log("API messages:", JSON.stringify(messages));
 
     const result = streamText({
         model,

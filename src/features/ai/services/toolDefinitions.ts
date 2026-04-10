@@ -38,7 +38,11 @@ const createMealPlanTool: AiToolDefinition = {
     name: "create_meal_plan",
     description:
         "Generate a meal plan for the user based on their food library, macro goals, and preferences. " +
-        "The plan entries will be added as scheduled entries to the user's log.",
+        "The plan entries will be added as scheduled entries to the user's log. " +
+        "Use this ONLY for ENTIRE days and only from today. E.g. for \"today and next 3 days\", NOT for \"tomorrow's dinner\". " +
+        "NEVER use the create_meal_plan tool for partial days. It's only for creating entire days of meal plans, starting from today. " +
+        "\"Recommend a meal for tomorrow's dinner\" is NOT an appropriate use of create_meal_plan. " +
+        "Instead, recommend a meal using your own knowledge or the search_templates tool, and then log it with create_entry.",
     needsApproval: true,
     parameters: {
         type: "object",
@@ -136,7 +140,9 @@ const searchTemplatesTool: AiToolDefinition = {
     name: "search_templates",
     description:
         "Search the user's food library and recipes by name. Returns matching foods with their IDs, macros, and serving info. " +
-        "Use this to find food_id values before creating entries.",
+        "Use this to find food_id values before creating entries. " +
+        "Its a simple text inclusion search, so searching for 'chicken' will match 'grilled chicken breast' and 'chicken salad' (if they exist), etc." +
+        "Searching for something like \"dinner\" or \"healty recipes\" will most likely NOT return relevant results, so DONT use it for that.",
     needsApproval: false,
     parameters: {
         type: "object",
