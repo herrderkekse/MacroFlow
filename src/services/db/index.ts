@@ -4,7 +4,7 @@ import * as schema from "./schema";
 
 const DB_NAME = "macroflow.db";
 
-const expoDb = openDatabaseSync(DB_NAME);
+export const expoDb = openDatabaseSync(DB_NAME);
 export const db = drizzle(expoDb, { schema });
 
 export function initDB() {

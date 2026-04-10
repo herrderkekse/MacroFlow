@@ -9,6 +9,8 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AutoBackupItem from "../components/AutoBackupItem";
+import { useAutoBackups } from "../hooks/useAutoBackups";
 import { exportData, importData } from "../services/importExport";
 import { getGoals } from "../services/settingsDb";
 
@@ -24,6 +26,8 @@ export default function BackupScreen() {
 
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
+
+    const { backups, share, restore, restoringUri, sharingUri } = useAutoBackups();
 
     async function handleExport() {
         try {
@@ -73,6 +77,31 @@ export default function BackupScreen() {
         }
     }
 
+    function handleRestoreConfirm(uri: string) {
+        Alert.alert(
+            t("settings.autoBackupRestoreTitle"),
+            t("settings.autoBackupRestoreWarning"),
+            [
+                { text: t("common.cancel"), style: "cancel" },
+                {
+                    text: t("settings.autoBackupRestore"),
+                    style: "destructive",
+                    onPress: () => {
+                        try {
+                            restore(uri);
+                            Alert.alert(
+                                t("settings.autoBackupRestoreComplete"),
+                                t("settings.autoBackupRestoreCompleteMessage"),
+                            );
+                        } catch (e: any) {
+                            Alert.alert(t("settings.autoBackupRestoreFailed"), e.message ?? t("common.unknownError"));
+                        }
+                    },
+                },
+            ],
+        );
+    }
+
     return (
         <ScrollView
             style={styles.screen}
@@ -104,6 +133,24 @@ export default function BackupScreen() {
                     style={{ flex: 1 }}
                 />
             </View>
+
+            <Text style={styles.sectionLabel}>{t("settings.autoBackups")}</Text>
+            <Text style={styles.subLabel}>{t("settings.autoBackupsDescription")}</Text>
+
+            {backups.length === 0 ? (
+                <Text style={styles.emptyLabel}>{t("settings.autoBackupsEmpty")}</Text>
+            ) : (
+                backups.map((item) => (
+                    <AutoBackupItem
+                        key={item.uri}
+                        item={item}
+                        isSharingThis={sharingUri === item.uri}
+                        isRestoringThis={restoringUri === item.uri}
+                        onShare={() => share(item.uri)}
+                        onRestore={() => handleRestoreConfirm(item.uri)}
+                    />
+                ))
+            )}
         </ScrollView>
     );
 }
@@ -140,6 +187,11 @@ function createStyles(colors: ThemeColors) {
         row: {
             flexDirection: "row",
             gap: spacing.sm,
+        },
+        emptyLabel: {
+            fontSize: fontSize.sm,
+            color: colors.textTertiary,
+            fontStyle: "italic",
         },
     });
 }
