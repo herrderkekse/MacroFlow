@@ -1,5 +1,5 @@
 /** Supported AI provider identifiers. */
-export type AiProviderId = "nvidia";
+export type AiProviderId = "nvidia" | "openai";
 
 /** Configuration needed to connect to an AI provider. */
 export interface AiProviderConfig {

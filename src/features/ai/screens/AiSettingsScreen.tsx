@@ -5,8 +5,9 @@ import {
     getProviderDefaults,
     loadAiConfig,
     saveAiConfig,
-    getProvider,
+    createModelFromConfig,
 } from "../services/aiConfig";
+import { generateText } from "ai";
 import type { AiProviderId } from "../services/aiConfig";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
@@ -26,7 +27,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PROVIDER_OPTIONS: { key: AiProviderId; label: string }[] = [
     { key: "nvidia", label: "NVIDIA" },
+    { key: "openai", label: "OpenAI" },
 ];
+
+const API_KEY_PLACEHOLDERS: Record<AiProviderId, string> = {
+    nvidia: "nvapi-...",
+    openai: "sk-...",
+};
 
 export default function AiSettingsScreen() {
     const { t } = useTranslation();
@@ -89,11 +96,16 @@ export default function AiSettingsScreen() {
         }
         try {
             setTesting(true);
-            const p = getProvider(provider);
-            await p.chat(
-                { provider, apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() },
-                [{ role: "user", content: "Reply with: OK" }],
-            );
+            const modelInstance = createModelFromConfig({
+                provider,
+                apiKey: apiKey.trim(),
+                baseUrl: baseUrl.trim(),
+                model: model.trim(),
+            });
+            await generateText({
+                model: modelInstance,
+                messages: [{ role: "user", content: "Reply with: OK" }],
+            });
             Alert.alert(t("ai.settings"), t("ai.connectionSuccess"));
         } catch (e: any) {
             Alert.alert(t("ai.connectionFailed"), e.message ?? t("common.unknownError"));
@@ -165,7 +177,7 @@ export default function AiSettingsScreen() {
                 label={t("ai.apiKey")}
                 value={apiKey}
                 onChangeText={setApiKey}
-                placeholder="nvapi-..."
+                placeholder={API_KEY_PLACEHOLDERS[provider]}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
