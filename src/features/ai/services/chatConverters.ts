@@ -64,7 +64,7 @@ export function toApiMessages(uiMessages: UiChatMessage[]): CoreMessage[] {
                             type: "tool-result",
                             toolCallId: m.toolCallId,
                             toolName: m.toolCall.name,
-                            output: formatToolResultForAi(m),
+                            output: { type: "text", value: formatToolResultForAi(m) },
                         }],
                     });
                 } else {
