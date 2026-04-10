@@ -1,14 +1,17 @@
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import {
-    deleteAiConfig,
+    deleteProviderSettings,
     getProviderDefaults,
-    loadAiConfig,
-    saveAiConfig,
+    loadActiveProvider,
+    loadProviderSettings,
+    saveActiveProvider,
+    saveProviderSettings,
     createModelFromConfig,
+    type AiProviderId,
+    type ProviderSettings,
 } from "../services/aiConfig";
 import { generateText } from "ai";
-import type { AiProviderId } from "../services/aiConfig";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,44 +46,49 @@ export default function AiSettingsScreen() {
     const router = useRouter();
 
     const [provider, setProvider] = useState<AiProviderId>("nvidia");
-    const [apiKey, setApiKey] = useState("");
-    const [baseUrl, setBaseUrl] = useState("");
-    const [model, setModel] = useState("");
+    const [configs, setConfigs] = useState<Partial<Record<AiProviderId, ProviderSettings>>>({});
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [loaded, setLoaded] = useState(false);
 
+    const current: ProviderSettings = configs[provider] ?? { apiKey: "", ...getProviderDefaults(provider) };
+
     useEffect(() => {
-        loadAiConfig().then((cfg) => {
-            if (cfg) {
-                setProvider(cfg.provider);
-                setApiKey(cfg.apiKey);
-                setBaseUrl(cfg.baseUrl);
-                setModel(cfg.model);
-            } else {
-                const defaults = getProviderDefaults("nvidia");
-                setBaseUrl(defaults.baseUrl);
-                setModel(defaults.model);
+        async function init() {
+            const active = await loadActiveProvider();
+            const drafts: Partial<Record<AiProviderId, ProviderSettings>> = {};
+            for (const opt of PROVIDER_OPTIONS) {
+                const saved = await loadProviderSettings(opt.key);
+                const defaults = getProviderDefaults(opt.key);
+                drafts[opt.key] = saved ?? { apiKey: "", baseUrl: defaults.baseUrl, model: defaults.model };
             }
+            setProvider(active);
+            setConfigs(drafts);
             setLoaded(true);
-        });
+        }
+        init();
     }, []);
+
+    function updateField(field: keyof ProviderSettings, value: string) {
+        setConfigs((prev) => ({
+            ...prev,
+            [provider]: { ...prev[provider]!, [field]: value },
+        }));
+    }
 
     function handleProviderChange(id: AiProviderId) {
         setProvider(id);
-        const defaults = getProviderDefaults(id);
-        setBaseUrl(defaults.baseUrl);
-        setModel(defaults.model);
     }
 
     async function handleSave() {
-        if (!apiKey.trim()) {
+        if (!current.apiKey.trim()) {
             Alert.alert(t("ai.settings"), t("ai.apiKeyRequired"));
             return;
         }
         try {
             setSaving(true);
-            await saveAiConfig({ provider, apiKey: apiKey.trim(), baseUrl: baseUrl.trim(), model: model.trim() });
+            await saveProviderSettings(provider, { apiKey: current.apiKey.trim(), baseUrl: current.baseUrl.trim(), model: current.model.trim() });
+            await saveActiveProvider(provider);
             Alert.alert(t("ai.settings"), t("ai.configSaved"));
         } catch {
             Alert.alert(t("ai.settings"), t("common.unknownError"));
@@ -90,7 +98,7 @@ export default function AiSettingsScreen() {
     }
 
     async function handleTest() {
-        if (!apiKey.trim()) {
+        if (!current.apiKey.trim()) {
             Alert.alert(t("ai.settings"), t("ai.apiKeyRequired"));
             return;
         }
@@ -98,9 +106,9 @@ export default function AiSettingsScreen() {
             setTesting(true);
             const modelInstance = createModelFromConfig({
                 provider,
-                apiKey: apiKey.trim(),
-                baseUrl: baseUrl.trim(),
-                model: model.trim(),
+                apiKey: current.apiKey.trim(),
+                baseUrl: current.baseUrl.trim(),
+                model: current.model.trim(),
             });
             await generateText({
                 model: modelInstance,
@@ -124,11 +132,12 @@ export default function AiSettingsScreen() {
                     text: t("common.delete"),
                     style: "destructive",
                     onPress: async () => {
-                        await deleteAiConfig();
-                        setApiKey("");
+                        await deleteProviderSettings(provider);
                         const defaults = getProviderDefaults(provider);
-                        setBaseUrl(defaults.baseUrl);
-                        setModel(defaults.model);
+                        setConfigs((prev) => ({
+                            ...prev,
+                            [provider]: { apiKey: "", baseUrl: defaults.baseUrl, model: defaults.model },
+                        }));
                     },
                 },
             ],
@@ -175,8 +184,8 @@ export default function AiSettingsScreen() {
             {/* API Key */}
             <Input
                 label={t("ai.apiKey")}
-                value={apiKey}
-                onChangeText={setApiKey}
+                value={current.apiKey}
+                onChangeText={(v) => updateField("apiKey", v)}
                 placeholder={API_KEY_PLACEHOLDERS[provider]}
                 secureTextEntry
                 autoCapitalize="none"
@@ -187,9 +196,9 @@ export default function AiSettingsScreen() {
             {/* Base URL */}
             <Input
                 label={t("ai.baseUrl")}
-                value={baseUrl}
-                onChangeText={setBaseUrl}
-                placeholder="https://integrate.api.nvidia.com/v1"
+                value={current.baseUrl}
+                onChangeText={(v) => updateField("baseUrl", v)}
+                placeholder={getProviderDefaults(provider).baseUrl}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
@@ -199,9 +208,9 @@ export default function AiSettingsScreen() {
             {/* Model */}
             <Input
                 label={t("ai.model")}
-                value={model}
-                onChangeText={setModel}
-                placeholder="meta/llama-3.1-70b-instruct"
+                value={current.model}
+                onChangeText={(v) => updateField("model", v)}
+                placeholder={getProviderDefaults(provider).model}
                 autoCapitalize="none"
                 autoCorrect={false}
                 containerStyle={styles.field}
@@ -224,7 +233,7 @@ export default function AiSettingsScreen() {
                 />
             </View>
 
-            {apiKey.trim().length > 0 && (
+            {current.apiKey.trim().length > 0 && (
                 <Button
                     title={t("ai.deleteConfig")}
                     variant="ghost"
