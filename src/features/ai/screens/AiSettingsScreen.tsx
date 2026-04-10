@@ -1,20 +1,9 @@
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
-import {
-    deleteProviderSettings,
-    getProviderDefaults,
-    loadActiveProvider,
-    loadProviderSettings,
-    saveActiveProvider,
-    saveProviderSettings,
-    createModelFromConfig,
-    type AiProviderId,
-    type ProviderSettings,
-} from "../services/aiConfig";
-import { generateText } from "ai";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
+import { generateText } from "ai";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,6 +16,17 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { createModelFromConfig } from "../helpers/createModelFromConfig";
+import {
+    deleteProviderSettings,
+    getProviderDefaults,
+    loadActiveProvider,
+    loadProviderSettings,
+    saveActiveProvider,
+    saveProviderSettings,
+    type AiProviderId,
+    type ProviderSettings,
+} from "../services/aiConfig";
 
 const PROVIDER_OPTIONS: { key: AiProviderId; label: string }[] = [
     { key: "nvidia", label: "NVIDIA" },

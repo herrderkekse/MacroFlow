@@ -1,34 +1,4 @@
-import { jsonSchema } from "ai";
-
-// ── Tool definition types ─────────────────────────────────
-
-export interface ToolParameterProperty {
-    type: string;
-    description: string;
-    enum?: string[];
-}
-
-export interface AiToolDefinition {
-    name: string;
-    description: string;
-    needsApproval: boolean;
-    parameters: {
-        type: "object";
-        properties: Record<string, ToolParameterProperty>;
-        required: string[];
-    };
-}
-
-export interface AiToolCall {
-    name: string;
-    arguments: Record<string, unknown>;
-}
-
-export interface AiToolResult {
-    success: boolean;
-    summary: string;
-    data?: unknown;
-}
+import type { AiToolDefinition } from "../types/toolDefinitionTypes";
 
 // ── Tool definitions ──────────────────────────────────────
 
@@ -194,14 +164,3 @@ export const AI_TOOLS: AiToolDefinition[] = [
     readRecentEntriesTool,
     readRecentMacrosTool,
 ];
-
-export function toAiSdkTools(): Record<string, { description: string; parameters: ReturnType<typeof jsonSchema> }> {
-    const tools: Record<string, { description: string; inputSchema: ReturnType<typeof jsonSchema> }> = {};
-    for (const tool of AI_TOOLS) {
-        tools[tool.name] = {
-            description: tool.description,
-            inputSchema: jsonSchema(tool.parameters),
-        };
-    }
-    return tools;
-}

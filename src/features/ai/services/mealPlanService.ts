@@ -1,7 +1,9 @@
-import { streamText } from "ai";
-import type { CoreMessage } from "ai";
+import { addEntry } from "@/src/features/log/services/logDb";
 import { formatDateKey as formatLocalDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
+import type { CoreMessage } from "ai";
+import { streamText } from "ai";
+import { createModelFromConfig } from "../helpers/createModelFromConfig";
 import type {
     AiFoodPayload,
     AiGoalsPayload,
@@ -11,8 +13,7 @@ import type {
     AiRecipePayload,
     MealPlanPreferences,
     StreamStatus,
-} from "../types";
-import { createModelFromConfig } from "./providers";
+} from "../types/types";
 
 // ── Meal plan prompt & validation ─────────────────────────
 
@@ -340,4 +341,18 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
 
     onStatus?.("done");
     return plan;
+}
+
+export function importMealPlanEntries(entries: AiMealPlanEntry[]): number {
+    const ts = Date.now();
+    let count = 0;
+    for (const entry of entries) {
+        addEntry({
+            food_id: entry.food_id, quantity_grams: entry.quantity_grams, quantity_unit: "g",
+            timestamp: ts, date: entry.date, meal_type: entry.meal_type, is_scheduled: 1,
+        });
+        count++;
+    }
+    logger.info("[AI/Tools] Imported meal plan entries", { count });
+    return count;
 }

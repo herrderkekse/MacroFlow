@@ -1,20 +1,11 @@
 import * as SecureStore from "expo-secure-store";
+import { PROVIDER_DEFAULTS } from "../constants/providerDefaults";
 import type {
     AiProviderConfig,
     AiProviderId,
-} from "../types";
-import { PROVIDER_DEFAULTS } from "./providers";
+} from "../types/types";
 
-export type { AiFoodPayload, AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences, StreamStatus } from "../types";
-
-// Re-export model factory so existing consumers keep working
-export { createModelFromConfig } from "./providers";
-
-// Re-export meal plan functions so existing consumers keep working
-export {
-    buildMealPlanPrompt, buildRefinementMessage,
-    generateMealPlan, parseMealPlanResponse, parsePartialEntries, validateMealPlanMacros, type GenerateMealPlanOptions
-} from "./mealPlanService";
+export type { AiFoodPayload, AiMealPlanEntry, AiMealPlanResponse, AiProviderConfig, AiProviderId, MealPlanPreferences, StreamStatus } from "../types/types";
 
 // ── Per-provider settings type ────────────────────────────
 export type ProviderSettings = { apiKey: string; baseUrl: string; model: string };

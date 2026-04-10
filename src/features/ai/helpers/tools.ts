@@ -1,9 +1,9 @@
 import { formatDateKey } from "@/src/utils/date";
-import { AI_TOOLS } from "./toolDefinitions";
+import { jsonSchema } from "ai";
+import { AI_TOOLS } from "../constants/toolDefinitions";
 
 // Re-export everything so existing consumers keep working
-export { AI_TOOLS, toAiSdkTools, VALID_MEAL_TYPES, type AiToolCall, type AiToolDefinition, type AiToolResult, type ToolParameterProperty } from "./toolDefinitions";
-export { executeTool, importMealPlanEntries } from "./toolExecutors";
+export type { AiToolCall, AiToolDefinition, AiToolResult, ToolParameterProperty } from "../types/toolDefinitionTypes";
 
 // ── Approval gating ───────────────────────────────────────
 
@@ -34,4 +34,18 @@ export function buildToolSystemPrompt(): string {
         "- Before modifying or removing an entry, ALWAYS use read_entries first to find the correct entry_id.",
         "- When the user says 'today', use the date provided above. Calculate other relative dates from it.",
     ].join("\n");
+}
+
+
+// ── Converters ────────────────────────────────────────────
+
+export function toAiSdkTools(): Record<string, { description: string; parameters: ReturnType<typeof jsonSchema> }> {
+    const tools: Record<string, { description: string; inputSchema: ReturnType<typeof jsonSchema> }> = {};
+    for (const tool of AI_TOOLS) {
+        tools[tool.name] = {
+            description: tool.description,
+            inputSchema: jsonSchema(tool.parameters),
+        };
+    }
+    return tools;
 }

@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import type { AiMealPlanEntry } from "../types";
+import type { AiMealPlanEntry } from "../types/types";
 
 interface MealPlanToolResultProps {
     entries: AiMealPlanEntry[];

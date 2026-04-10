@@ -1,25 +1,17 @@
-import logger from "@/src/utils/logger";
-import type { CoreMessage } from "ai";
-import { streamText } from "ai";
-import type { AiProviderConfig } from "../types";
-import { createModelFromConfig, generateMealPlan, loadAiConfig } from "./aiConfig";
-import { toApiMessages } from "./chatConverters";
-import type { ChatSendOptions, ToolApprovalOptions, UiChatMessage } from "./chatTypes";
-import { nextId } from "./chatTypes";
-import { executeTool, toAiSdkTools, toolNeedsApproval } from "./tools";
+import { callAi, toApiMessages } from "../helpers/chat";
+import { createModelFromConfig } from "../helpers/createModelFromConfig";
+import { toolNeedsApproval } from "../helpers/tools";
+import type { ChatSendOptions, ToolApprovalOptions, UiChatMessage } from "../types/chatTypes";
+import { nextId } from "../types/chatTypes";
+import { AiMealPlanEntry, loadAiConfig, StreamStatus } from "./aiConfig";
+import { generateMealPlan } from "./mealPlanService";
+import { executeTool } from "./toolExecutors";
+export { executeTool } from "./toolExecutors";
 
 // Re-export types & converters so existing consumers keep working
-export { formatToolResultForAi, toApiMessages } from "./chatConverters";
-export { nextId } from "./chatTypes";
-export type { ChatRole, ChatSendOptions, ToolApprovalOptions, ToolResultData, UiChatMessage } from "./chatTypes";
-
-// ── Internal types ────────────────────────────────────────
-
-interface AiCallResult {
-    text: string;
-    toolCall?: { name: string; arguments: Record<string, unknown> };
-    toolCallId?: string;
-}
+export { formatToolResultForAi, toApiMessages } from "../helpers/chat";
+export { nextId } from "../types/chatTypes";
+export type { ChatRole, ChatSendOptions, ToolApprovalOptions, ToolResultData, UiChatMessage } from "../types/chatTypes";
 
 // ── Public API ────────────────────────────────────────────
 
@@ -41,7 +33,8 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
     const allMessages = [...opts.messages, userMsg];
     const apiMessages = toApiMessages(allMessages);
 
-    const response = await callAi(config, apiMessages, opts);
+    const model = createModelFromConfig(config);
+    const response = await callAi(config, apiMessages, opts, model);
 
     if (response.toolCall) {
         if (toolNeedsApproval(response.toolCall.name)) {
@@ -81,7 +74,9 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
 
         const allMessagesWithResult = [...allMessages, syntheticToolRequest, toolResultMsg];
         const apiMessagesWithResult = toApiMessages(allMessagesWithResult);
-        const followUp = await callAi(config, apiMessagesWithResult, opts);
+
+        const model = createModelFromConfig(config);
+        const followUp = await callAi(config, apiMessagesWithResult, opts, model);
 
         if (followUp.toolCall) {
             if (toolNeedsApproval(followUp.toolCall.name)) {
@@ -121,7 +116,8 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
 
             const allMessages3 = [...allMessagesWithResult, syntheticToolRequest2, toolResultMsg2];
             const apiMessages3 = toApiMessages(allMessages3);
-            const finalResponse = await callAi(config, apiMessages3, opts);
+            const model = createModelFromConfig(config);
+            const finalResponse = await callAi(config, apiMessages3, opts, model);
             const finalMsg: UiChatMessage = {
                 id: nextId(),
                 role: "assistant",
@@ -182,8 +178,8 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
                     goals: planData.goals,
                     prefs: planData.prefs,
                     validFoodIds: validIds,
-                    onStatus: (status) => opts.onStreamStatus?.(status),
-                    onPartialEntries: (entries) => {
+                    onStatus: (status: StreamStatus) => opts.onStreamStatus?.(status),
+                    onPartialEntries: (entries: AiMealPlanEntry[]) => {
                         opts.onStreamingToolData?.({ mealPlanEntries: entries });
                     },
                     signal: opts.signal,
@@ -229,8 +225,9 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
 
     const allMessages = [...opts.messages, toolResultMsg];
     const apiMessages = toApiMessages(allMessages);
+    const model = createModelFromConfig(config);
 
-    const followUp = await callAi(config, apiMessages, opts);
+    const followUp = await callAi(config, apiMessages, opts, model);
     const followUpMsg: UiChatMessage = {
         id: nextId(),
         role: "assistant",
@@ -265,7 +262,8 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
         content: "I declined the tool use. Please suggest an alternative or ask what I'd like instead.",
     });
 
-    const followUp = await callAi(config, apiMessages, opts);
+    const model = createModelFromConfig(config);
+    const followUp = await callAi(config, apiMessages, opts, model);
     const followUpMsg: UiChatMessage = {
         id: nextId(),
         role: "assistant",
@@ -273,50 +271,4 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
         timestamp: Date.now(),
     };
     opts.onMessage(followUpMsg);
-}
-
-// ── Internal helpers ──────────────────────────────────────
-
-async function callAi(
-    config: AiProviderConfig,
-    messages: CoreMessage[],
-    opts: { onStreamStatus?: (s: string) => void; onStreamToken?: (t: string) => void; signal?: AbortSignal },
-): Promise<AiCallResult> {
-    const model = createModelFromConfig(config);
-    const tools = toAiSdkTools();
-
-    opts.onStreamStatus?.("connecting");
-
-    // console.log("API messages:", JSON.stringify(messages));
-    logger.info("Sending messages to AI", { provider: config.provider, model: config.model, messageCount: messages.length });
-
-    const result = streamText({
-        model,
-        messages,
-        tools,
-        abortSignal: opts.signal,
-    });
-
-    let accumulated = "";
-    for await (const part of result.fullStream) {
-        if (part.type === "text-delta") {
-            accumulated += part.text;
-            opts.onStreamToken?.(accumulated);
-            opts.onStreamStatus?.("generating");
-        }
-    }
-
-    opts.onStreamStatus?.("done");
-
-    const toolCalls = await result.toolCalls;
-    if (toolCalls.length > 0) {
-        const tc = toolCalls[0];
-        return {
-            text: accumulated,
-            toolCall: { name: tc.toolName, arguments: tc.input as Record<string, unknown> },
-            toolCallId: tc.toolCallId,
-        };
-    }
-
-    return { text: accumulated };
 }

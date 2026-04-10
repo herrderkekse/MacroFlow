@@ -1,5 +1,5 @@
-import type { AiMealPlanEntry } from "../types";
-import type { AiToolCall, AiToolResult } from "./toolDefinitions";
+import type { AiToolCall, AiToolResult } from "./toolDefinitionTypes";
+import type { AiMealPlanEntry } from "./types";
 
 // ── Chat message types for the UI ─────────────────────────
 

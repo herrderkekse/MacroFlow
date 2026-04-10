@@ -56,7 +56,12 @@ export interface AiMealPlanResponse {
     entries: AiMealPlanEntry[];
 }
 
-// ── AI status types ───────────────────────────────────────
-
 /** Status phases during streaming generation. */
 export type StreamStatus = "connecting" | "thinking" | "generating" | "refining" | "done";
+
+/** Result of an AI call, including optional tool call info. */
+export interface AiCallResult {
+    text: string;
+    toolCall?: { name: string; arguments: Record<string, unknown> };
+    toolCallId?: string;
+}

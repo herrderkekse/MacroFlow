@@ -1,14 +1,14 @@
 import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import type { AiToolCall } from "../helpers/tools";
 import type { UiChatMessage } from "../services/chat";
 import {
     declineToolCall,
     executeApprovedTool,
     sendChatMessage,
 } from "../services/chat";
-import type { AiToolCall } from "../services/tools";
-import { importMealPlanEntries } from "../services/tools";
-import type { AiMealPlanEntry } from "../types";
+import { importMealPlanEntries } from "../services/mealPlanService";
+import type { AiMealPlanEntry } from "../types/types";
 
 interface UseChatActionsOptions {
     messagesRef: React.MutableRefObject<UiChatMessage[]>;

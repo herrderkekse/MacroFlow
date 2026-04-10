@@ -19,11 +19,9 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-    generateMealPlan,
-    loadAiConfig,
-} from "../services/aiConfig";
-import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "../types";
+import { loadAiConfig } from "../services/aiConfig";
+import { generateMealPlan } from "../services/mealPlanService";
+import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "../types/types";
 
 export default function MealPlanScreen() {
     const { t } = useTranslation();

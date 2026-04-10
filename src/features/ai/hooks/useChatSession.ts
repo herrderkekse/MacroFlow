@@ -3,6 +3,7 @@ import * as Clipboard from "expo-clipboard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, FlatList, Keyboard, type ScrollView, type TextInput } from "react-native";
+import type { AiToolCall } from "../helpers/tools";
 import { loadAiConfig } from "../services/aiConfig";
 import type { UiChatMessage } from "../services/chat";
 import {
@@ -16,8 +17,7 @@ import {
     type ChatMessageRow,
     type ChatSession,
 } from "../services/chatDb";
-import type { AiToolCall } from "../services/tools";
-import type { AiMealPlanEntry } from "../types";
+import type { AiMealPlanEntry } from "../types/types";
 import { useChatActions } from "./useChatActions";
 
 // ── DB ↔ UiChatMessage conversion ────────────────────────

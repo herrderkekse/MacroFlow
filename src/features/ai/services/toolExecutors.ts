@@ -3,9 +3,10 @@ import { getGoals } from "@/src/features/settings/services/settingsDb";
 import { getAllFoods, getAllRecipes, getFoodById, getRecipeItems, searchFoodsByName, searchRecipesByName } from "@/src/features/templates/services/templateDb";
 import { parseDateKey, shiftCalendarDate } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
-import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload } from "../types";
-import { buildMealPlanPrompt } from "./aiConfig";
-import { type AiToolCall, type AiToolResult, VALID_MEAL_TYPES } from "./toolDefinitions";
+import { VALID_MEAL_TYPES } from "../constants/toolDefinitions";
+import type { AiToolCall, AiToolResult } from "../types/toolDefinitionTypes";
+import type { AiFoodPayload, AiGoalsPayload, AiRecipePayload } from "../types/types";
+import { buildMealPlanPrompt } from "./mealPlanService";
 
 // ── Validators ────────────────────────────────────────────
 
@@ -252,18 +253,4 @@ export function executeTool(call: AiToolCall): AiToolResult {
     }
     logger.info("[AI/Tools] Executing tool", { name: call.name, args: call.arguments });
     return executor(call.arguments);
-}
-
-export function importMealPlanEntries(entries: AiMealPlanEntry[]): number {
-    const ts = Date.now();
-    let count = 0;
-    for (const entry of entries) {
-        addEntry({
-            food_id: entry.food_id, quantity_grams: entry.quantity_grams, quantity_unit: "g",
-            timestamp: ts, date: entry.date, meal_type: entry.meal_type, is_scheduled: 1,
-        });
-        count++;
-    }
-    logger.info("[AI/Tools] Imported meal plan entries", { count });
-    return count;
 }
