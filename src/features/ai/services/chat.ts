@@ -1,3 +1,4 @@
+import logger from "@/src/utils/logger";
 import type { CoreMessage } from "ai";
 import { streamText } from "ai";
 import type { AiProviderConfig } from "../types";
@@ -287,6 +288,7 @@ async function callAi(
     opts.onStreamStatus?.("connecting");
 
     // console.log("API messages:", JSON.stringify(messages));
+    logger.info("Sending messages to AI", { provider: config.provider, model: config.model, messageCount: messages.length });
 
     const result = streamText({
         model,

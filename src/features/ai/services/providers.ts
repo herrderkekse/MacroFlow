@@ -12,7 +12,7 @@ export const PROVIDER_DEFAULTS: Record<AiProviderId, { baseUrl: string; model: s
     },
     openai: {
         baseUrl: "https://api.openai.com/v1",
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
     },
 };
 
