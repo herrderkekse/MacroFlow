@@ -36,7 +36,7 @@ export function toApiMessages(uiMessages: UiChatMessage[]): CoreMessage[] {
                             type: "tool-call",
                             toolCallId: m.toolCallId,
                             toolName: m.toolCall.name,
-                            args: m.toolCall.arguments,
+                            input: m.toolCall.arguments,
                         }],
                     });
                 } else {
@@ -54,7 +54,7 @@ export function toApiMessages(uiMessages: UiChatMessage[]): CoreMessage[] {
                                 type: "tool-call",
                                 toolCallId: m.toolCallId,
                                 toolName: m.toolCall.name,
-                                args: m.toolCall.arguments,
+                                input: m.toolCall.arguments,
                             }],
                         });
                     }
@@ -64,7 +64,7 @@ export function toApiMessages(uiMessages: UiChatMessage[]): CoreMessage[] {
                             type: "tool-result",
                             toolCallId: m.toolCallId,
                             toolName: m.toolCall.name,
-                            result: formatToolResultForAi(m),
+                            output: formatToolResultForAi(m),
                         }],
                     });
                 } else {

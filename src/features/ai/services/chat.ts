@@ -295,7 +295,7 @@ async function callAi(
     let accumulated = "";
     for await (const part of result.fullStream) {
         if (part.type === "text-delta") {
-            accumulated += part.textDelta;
+            accumulated += part.text;
             opts.onStreamToken?.(accumulated);
             opts.onStreamStatus?.("generating");
         }
@@ -308,7 +308,7 @@ async function callAi(
         const tc = toolCalls[0];
         return {
             text: accumulated,
-            toolCall: { name: tc.toolName, arguments: tc.args as Record<string, unknown> },
+            toolCall: { name: tc.toolName, arguments: tc.input as Record<string, unknown> },
             toolCallId: tc.toolCallId,
         };
     }

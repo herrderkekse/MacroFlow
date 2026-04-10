@@ -190,11 +190,11 @@ export const AI_TOOLS: AiToolDefinition[] = [
 ];
 
 export function toAiSdkTools(): Record<string, { description: string; parameters: ReturnType<typeof jsonSchema> }> {
-    const tools: Record<string, { description: string; parameters: ReturnType<typeof jsonSchema> }> = {};
+    const tools: Record<string, { description: string; inputSchema: ReturnType<typeof jsonSchema> }> = {};
     for (const tool of AI_TOOLS) {
         tools[tool.name] = {
             description: tool.description,
-            parameters: jsonSchema(tool.parameters),
+            inputSchema: jsonSchema(tool.parameters),
         };
     }
     return tools;

@@ -286,7 +286,7 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
     let raw = "";
     for await (const part of result.fullStream) {
         if (part.type === "text-delta") {
-            raw += part.textDelta;
+            raw += part.text;
             onStatus?.("generating");
             const partial = parsePartialEntries(raw, validFoodIds);
             if (partial.length > 0) onPartialEntries?.(partial);
@@ -319,7 +319,7 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
         let refinedRaw = "";
         for await (const part of refinedResult.fullStream) {
             if (part.type === "text-delta") {
-                refinedRaw += part.textDelta;
+                refinedRaw += part.text;
                 onStatus?.("refining");
                 const partial = parsePartialEntries(refinedRaw, validFoodIds);
                 if (partial.length > 0) onPartialEntries?.(partial);
