@@ -7,17 +7,35 @@ import {
     getRecipeById,
     getRecipeItemById,
     getRecipeItems,
+    searchFoodsByName,
+    searchRecipesByName,
     softDeleteFood,
     softDeleteRecipe,
     updateFood,
     updateRecipe,
     type NewFood,
 } from "@/src/features/templates/services/templateDb";
-import type { AiToolResult } from "../types/toolDefinitionTypes";
+import type { AiToolResult } from "../../types/toolDefinitionTypes";
 
-// ── Types ─────────────────────────────────────────────────
+type ToolExecutor = (args: Record<string, unknown>) => AiToolResult;
 
-type TemplateToolExecutor = (args: Record<string, unknown>) => AiToolResult;
+// ── Library search ────────────────────────────────────────
+
+function executeSearchLibrary(args: Record<string, unknown>): AiToolResult {
+    const query = String(args.query ?? "").trim();
+    if (!query) return { success: false, summary: "Search query cannot be empty." };
+
+    const matchedFoods = searchFoodsByName(query).map((f) => ({
+        type: "food" as const, id: f.id, name: f.name,
+        calories_per_100g: f.calories_per_100g, protein_per_100g: f.protein_per_100g,
+        carbs_per_100g: f.carbs_per_100g, fat_per_100g: f.fat_per_100g,
+        default_unit: f.default_unit, serving_size: f.serving_size,
+    }));
+    const matchedRecipes = searchRecipesByName(query).map((r) => ({ type: "recipe" as const, id: r.id, name: r.name }));
+    const results = [...matchedFoods, ...matchedRecipes];
+
+    return { success: true, summary: `Found ${matchedFoods.length} food(s) and ${matchedRecipes.length} recipe(s) matching "${query}".`, data: results };
+}
 
 // ── Food template executors ───────────────────────────────
 
@@ -57,7 +75,7 @@ function executeUpdateFoodTemplate(args: Record<string, unknown>): AiToolResult 
     if (!foodId || isNaN(foodId)) return { success: false, summary: "Invalid food_id." };
 
     const food = getFoodById(foodId);
-    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_templates to find valid food IDs.` };
+    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_library to find valid food IDs.` };
 
     const updates: Partial<NewFood> = {};
     if (args.name != null) {
@@ -111,7 +129,7 @@ function executeDeleteFoodTemplate(args: Record<string, unknown>): AiToolResult 
     if (!foodId || isNaN(foodId)) return { success: false, summary: "Invalid food_id." };
 
     const food = getFoodById(foodId);
-    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_templates to find valid food IDs.` };
+    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_library to find valid food IDs.` };
 
     softDeleteFood(foodId);
     return {
@@ -142,7 +160,7 @@ function executeUpdateRecipeTemplate(args: Record<string, unknown>): AiToolResul
     if (!name) return { success: false, summary: "Recipe name cannot be empty." };
 
     const recipe = getRecipeById(recipeId);
-    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_templates to find valid recipe IDs.` };
+    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_library to find valid recipe IDs.` };
 
     updateRecipe(recipeId, name);
     return {
@@ -157,7 +175,7 @@ function executeDeleteRecipeTemplate(args: Record<string, unknown>): AiToolResul
     if (!recipeId || isNaN(recipeId)) return { success: false, summary: "Invalid recipe_id." };
 
     const recipe = getRecipeById(recipeId);
-    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_templates to find valid recipe IDs.` };
+    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_library to find valid recipe IDs.` };
 
     softDeleteRecipe(recipeId);
     return {
@@ -172,7 +190,7 @@ function executeReadRecipeTemplate(args: Record<string, unknown>): AiToolResult 
     if (!recipeId || isNaN(recipeId)) return { success: false, summary: "Invalid recipe_id." };
 
     const recipe = getRecipeById(recipeId);
-    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_templates to find valid recipe IDs.` };
+    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_library to find valid recipe IDs.` };
 
     const items = getRecipeItems(recipeId).map((row) => ({
         item_id: row.recipe_items.id,
@@ -200,10 +218,10 @@ function executeAddRecipeItem(args: Record<string, unknown>): AiToolResult {
     if (!quantityGrams || quantityGrams <= 0) return { success: false, summary: "quantity_grams must be a positive number." };
 
     const recipe = getRecipeById(recipeId);
-    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_templates to find valid recipe IDs.` };
+    if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_library to find valid recipe IDs.` };
 
     const food = getFoodById(foodId);
-    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_templates to find valid food IDs.` };
+    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_library to find valid food IDs.` };
 
     const item = addRecipeItem({ recipe_id: recipeId, food_id: foodId, quantity_grams: quantityGrams, quantity_unit: "g" });
     return {
@@ -229,9 +247,8 @@ function executeRemoveRecipeItem(args: Record<string, unknown>): AiToolResult {
     };
 }
 
-// ── Registry ──────────────────────────────────────────────
-
-export const templateToolExecutors: Record<string, TemplateToolExecutor> = {
+export const templateToolExecutors: Record<string, ToolExecutor> = {
+    search_library: executeSearchLibrary,
     create_food_template: executeCreateFoodTemplate,
     update_food_template: executeUpdateFoodTemplate,
     delete_food_template: executeDeleteFoodTemplate,

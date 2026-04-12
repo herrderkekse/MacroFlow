@@ -1,4 +1,23 @@
-import type { AiToolDefinition } from "../types/toolDefinitionTypes";
+import type { AiToolDefinition } from "../../types/toolDefinitionTypes";
+
+// ── Library search ────────────────────────────────────────
+
+const searchLibraryTool: AiToolDefinition = {
+    name: "search_library",
+    description:
+        "Search the user's food library and recipes by name. Returns matching foods with their IDs, macros, and serving info. " +
+        "Use this to find food_id values before logging food or managing templates. " +
+        "It's a simple text inclusion search, so searching for 'chicken' will match 'grilled chicken breast' and 'chicken salad' (if they exist), etc. " +
+        "Searching for something like \"dinner\" or \"healthy recipes\" will most likely NOT return relevant results, so DON'T use it for that.",
+    needsApproval: false,
+    parameters: {
+        type: "object",
+        properties: {
+            query: { type: "string", description: "Search term to match against food and recipe names." },
+        },
+        required: ["query"],
+    },
+};
 
 // ── Food template tools ───────────────────────────────────
 
@@ -27,7 +46,7 @@ const updateFoodTemplateTool: AiToolDefinition = {
     name: "update_food_template",
     description:
         "Update an existing food item's name or nutritional values. " +
-        "Use search_templates to get the food_id first. Only the provided fields will be changed.",
+        "Use search_library to get the food_id first. Only the provided fields will be changed.",
     needsApproval: true,
     parameters: {
         type: "object",
@@ -48,7 +67,7 @@ const updateFoodTemplateTool: AiToolDefinition = {
 const deleteFoodTemplateTool: AiToolDefinition = {
     name: "delete_food_template",
     description:
-        "Remove a food item from the user's food library. Use search_templates to get the food_id first. " +
+        "Remove a food item from the user's food library. Use search_library to get the food_id first. " +
         "Existing log entries that used this food are not affected.",
     needsApproval: true,
     parameters: {
@@ -67,7 +86,7 @@ const createRecipeTemplateTool: AiToolDefinition = {
     description:
         "Create a new empty recipe in the user's recipe library. " +
         "After creating the recipe, use add_recipe_item to populate it with food ingredients. " +
-        "Use search_templates to find food_ids before adding items.",
+        "Use search_library to find food_ids before adding items.",
     needsApproval: true,
     parameters: {
         type: "object",
@@ -81,7 +100,7 @@ const createRecipeTemplateTool: AiToolDefinition = {
 const updateRecipeTemplateTool: AiToolDefinition = {
     name: "update_recipe_template",
     description:
-        "Rename an existing recipe. Use search_templates to find the recipe_id first.",
+        "Rename an existing recipe. Use search_library to find the recipe_id first.",
     needsApproval: true,
     parameters: {
         type: "object",
@@ -97,7 +116,7 @@ const deleteRecipeTemplateTool: AiToolDefinition = {
     name: "delete_recipe_template",
     description:
         "Remove a recipe and all its ingredient items from the user's recipe library. " +
-        "Use search_templates to find the recipe_id first.",
+        "Use search_library to find the recipe_id first.",
     needsApproval: true,
     parameters: {
         type: "object",
@@ -129,7 +148,7 @@ const addRecipeItemTool: AiToolDefinition = {
     name: "add_recipe_item",
     description:
         "Add a food ingredient to an existing recipe. " +
-        "Use search_templates to find the food_id and recipe_id first.",
+        "Use search_library to find the food_id and recipe_id first.",
     needsApproval: true,
     parameters: {
         type: "object",
@@ -158,6 +177,7 @@ const removeRecipeItemTool: AiToolDefinition = {
 };
 
 export const TEMPLATE_TOOLS: AiToolDefinition[] = [
+    searchLibraryTool,
     createFoodTemplateTool,
     updateFoodTemplateTool,
     deleteFoodTemplateTool,
