@@ -240,6 +240,17 @@ const en = {
         backup: "Backup Data",
         aiSettings: "AI Settings",
         mealPlan: "AI Meal Plan",
+        aiMemories: "AI Memories",
+    },
+    memory: {
+        title: "AI Memories",
+        description: "The AI remembers these facts about you across all conversations. Keep it concise to avoid overwhelming the AI.",
+        empty: "No memories yet — the AI will save things you tell it here.",
+        addNew: "ADD MEMORY",
+        addPlaceholder: "e.g. I dislike fish and broccoli",
+        add: "Add Memory",
+        deleteTitle: "Delete Memory",
+        deleteConfirm: "Remove this memory?",
     },
     dbTest: {
         title: "DB End-to-End Test",

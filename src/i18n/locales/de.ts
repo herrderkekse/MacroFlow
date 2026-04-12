@@ -241,6 +241,17 @@ const de = {
         backup: "Datensicherung",
         aiSettings: "KI-Einstellungen",
         mealPlan: "KI-Essensplan",
+        aiMemories: "KI-Erinnerungen",
+    },
+    memory: {
+        title: "KI-Erinnerungen",
+        description: "Die KI merkt sich diese Informationen über dich in allen Gesprächen. Sei präzise und kurz, um die AI nicht zu überladen.",
+        empty: "Noch keine Erinnerungen — die KI speichert hier, was du ihr erzählst.",
+        addNew: "ERINNERUNG HINZUFÜGEN",
+        addPlaceholder: "z.B. Ich mag keinen Fisch und keinen Brokkoli",
+        add: "Erinnerung hinzufügen",
+        deleteTitle: "Erinnerung löschen",
+        deleteConfirm: "Diese Erinnerung entfernen?",
     },
     dbTest: {
         title: "DB-Ende-zu-Ende-Test",

@@ -1,6 +1,7 @@
 import logger from "@/src/utils/logger";
 import type { CoreMessage, LanguageModel } from "ai";
 import { streamText } from "ai";
+import { getAllMemories } from "../services/aiMemoriesDb";
 import type { UiChatMessage } from "../types/chatTypes";
 import type { AiCallResult, AiProviderConfig } from "../types/types";
 import { buildToolSystemPrompt, toAiSdkTools } from "./tools";
@@ -64,7 +65,7 @@ export function formatToolResultForAi(msg: UiChatMessage): string {
 export function toApiMessages(uiMessages: UiChatMessage[]): CoreMessage[] {
     const systemMsg: CoreMessage = {
         role: "system",
-        content: buildToolSystemPrompt(),
+        content: buildToolSystemPrompt(getAllMemories().map((m) => m.content)),
     };
 
     const history: CoreMessage[] = [];
