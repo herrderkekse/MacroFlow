@@ -34,6 +34,12 @@ export function buildToolSystemPrompt(memories: string[] = []): string {
         "- Before modifying or removing an entry, ALWAYS use read_entries first to find the correct entry_id.",
         "- When the user says 'today', use the date provided above. Calculate other relative dates from it.",
         "- When the user shares new preferences or personal information, use the save_memory tool to store it.",
+        "",
+        "UNITS:",
+        "- When logging or updating food entries you can use any standard unit (g, ml, oz, fl_oz, cup, tbsp, tsp, lb) or a custom serving unit defined on the food.",
+        "- Use search_library to see which units are available for a food (serving_units field).",
+        "- Prefer the food's custom serving units or default_unit when they make sense (e.g. '1 piece' instead of guessing grams).",
+        "- If no custom unit fits, use a standard unit that is natural for the food (e.g. ml for liquids, g for solids).",
     ];
 
     if (memories.length > 0) {

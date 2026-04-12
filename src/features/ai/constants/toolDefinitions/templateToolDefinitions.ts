@@ -5,8 +5,8 @@ import type { AiToolDefinition } from "../../types/toolDefinitionTypes";
 const searchLibraryTool: AiToolDefinition = {
     name: "search_library",
     description:
-        "Search the user's food library and recipes by name. Returns matching foods with their IDs, macros, and serving info. " +
-        "Use this to find food_id values before logging food or managing templates. " +
+        "Search the user's food library and recipes by name. Returns matching foods with their IDs, macros, serving info, and available serving units. " +
+        "Use this to find food_id values and unit options before logging food or managing templates. " +
         "It's a simple text inclusion search, so searching for 'chicken' will match 'grilled chicken breast' and 'chicken salad' (if they exist), etc. " +
         "Searching for something like \"dinner\" or \"healthy recipes\" will most likely NOT return relevant results, so DON'T use it for that.",
     needsApproval: false,
@@ -155,9 +155,15 @@ const addRecipeItemTool: AiToolDefinition = {
         properties: {
             recipe_id: { type: "number", description: "The ID of the recipe to add the ingredient to." },
             food_id: { type: "number", description: "The ID of the food to add as an ingredient." },
-            quantity_grams: { type: "number", description: "The amount of this ingredient in grams." },
+            quantity: { type: "number", description: "The amount of this ingredient in the specified unit." },
+            unit: {
+                type: "string",
+                description:
+                    "The unit for the quantity. Can be a standard unit (g, ml, oz, fl_oz, cup, tbsp, tsp, lb) " +
+                    "or a custom serving unit name. Defaults to the food's default_unit if omitted.",
+            },
         },
-        required: ["recipe_id", "food_id", "quantity_grams"],
+        required: ["recipe_id", "food_id", "quantity"],
     },
 };
 
