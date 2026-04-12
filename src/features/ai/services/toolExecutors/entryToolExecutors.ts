@@ -1,0 +1,185 @@
+import { addEntry, deleteEntry, getEntriesByDate, getEntriesByDateRange, getEntryById, updateEntry } from "@/src/features/log/services/logDb";
+import { getFoodById } from "@/src/features/templates/services/templateDb";
+import { parseDateKey, shiftCalendarDate } from "@/src/utils/date";
+import { VALID_MEAL_TYPES } from "../../constants/toolDefinitions/entryToolDefinitions";
+import type { AiToolResult } from "../../types/toolDefinitionTypes";
+
+type ToolExecutor = (args: Record<string, unknown>) => AiToolResult;
+
+// ── Validators ────────────────────────────────────────────
+
+export function isValidDateKey(date: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(parseDateKey(date).getTime());
+}
+
+export function isValidMealType(meal: unknown): meal is typeof VALID_MEAL_TYPES[number] {
+    return typeof meal === "string" && VALID_MEAL_TYPES.includes(meal as any);
+}
+
+// ── Executors ─────────────────────────────────────────────
+
+function executeReadLogEntries(args: Record<string, unknown>): AiToolResult {
+    const date = String(args.date ?? "");
+    if (!isValidDateKey(date)) return { success: false, summary: "Invalid date format. Use YYYY-MM-DD." };
+
+    const rows = getEntriesByDate(parseDateKey(date));
+    const result = rows.map((row) => ({
+        entry_id: row.entries.id, food_id: row.entries.food_id,
+        food_name: row.foods?.name ?? "Unknown", quantity_grams: row.entries.quantity_grams,
+        quantity_unit: row.entries.quantity_unit, meal_type: row.entries.meal_type,
+        is_scheduled: row.entries.is_scheduled,
+        calories: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.calories_per_100g).toFixed(1) : 0,
+        protein: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.protein_per_100g).toFixed(1) : 0,
+        carbs: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.carbs_per_100g).toFixed(1) : 0,
+        fat: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.fat_per_100g).toFixed(1) : 0,
+    }));
+
+    return { success: true, summary: `Found ${result.length} entries for ${date}.`, data: result };
+}
+
+function executeReadRecentLogEntries(args: Record<string, unknown>): AiToolResult {
+    const days = Math.max(1, Math.min(30, Math.round(Number(args.days) || 1)));
+    const today = new Date();
+    const startDate = shiftCalendarDate(today, -(days - 1));
+    const rows = getEntriesByDateRange(startDate, today);
+    const grouped: Record<string, unknown[]> = {};
+
+    for (const row of rows) {
+        const date = row.entries.date;
+        if (!grouped[date]) grouped[date] = [];
+        grouped[date].push({
+            entry_id: row.entries.id, food_id: row.entries.food_id,
+            food_name: row.foods?.name ?? "Unknown", quantity_grams: row.entries.quantity_grams,
+            meal_type: row.entries.meal_type,
+            calories: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.calories_per_100g).toFixed(1) : 0,
+            protein: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.protein_per_100g).toFixed(1) : 0,
+            carbs: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.carbs_per_100g).toFixed(1) : 0,
+            fat: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.fat_per_100g).toFixed(1) : 0,
+        });
+    }
+
+    return { success: true, summary: `Found ${rows.length} entries across ${Object.keys(grouped).length} day(s).`, data: grouped };
+}
+
+function executeReadRecentMacros(args: Record<string, unknown>): AiToolResult {
+    const days = Math.max(1, Math.min(30, Math.round(Number(args.days) || 1)));
+    const today = new Date();
+    const startDate = shiftCalendarDate(today, -(days - 1));
+    const rows = getEntriesByDateRange(startDate, today);
+    const dailyTotals: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
+
+    for (const row of rows) {
+        const date = row.entries.date;
+        if (!dailyTotals[date]) dailyTotals[date] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        if (row.foods) {
+            const q = row.entries.quantity_grams / 100;
+            dailyTotals[date].calories += q * row.foods.calories_per_100g;
+            dailyTotals[date].protein += q * row.foods.protein_per_100g;
+            dailyTotals[date].carbs += q * row.foods.carbs_per_100g;
+            dailyTotals[date].fat += q * row.foods.fat_per_100g;
+        }
+    }
+
+    const result = Object.fromEntries(
+        Object.entries(dailyTotals).map(([date, totals]) => [
+            date, { calories: +totals.calories.toFixed(1), protein: +totals.protein.toFixed(1), carbs: +totals.carbs.toFixed(1), fat: +totals.fat.toFixed(1) },
+        ]),
+    );
+
+    return { success: true, summary: `Macro totals for ${Object.keys(result).length} day(s).`, data: result };
+}
+
+function executeLogFood(args: Record<string, unknown>): AiToolResult {
+    const foodId = Number(args.food_id);
+    const quantityGrams = Number(args.quantity_grams);
+    const date = String(args.date ?? "");
+    const mealType = String(args.meal_type ?? "");
+
+    if (!foodId || isNaN(foodId)) return { success: false, summary: "Invalid food_id." };
+    if (!quantityGrams || quantityGrams <= 0) return { success: false, summary: "quantity_grams must be a positive number." };
+    if (!isValidDateKey(date)) return { success: false, summary: "Invalid date format. Use YYYY-MM-DD." };
+    if (!isValidMealType(mealType)) return { success: false, summary: `Invalid meal_type. Must be one of: ${VALID_MEAL_TYPES.join(", ")}.` };
+
+    const food = getFoodById(foodId);
+    if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_library to find valid food IDs.` };
+
+    const entry = addEntry({
+        food_id: foodId, quantity_grams: quantityGrams, quantity_unit: "g",
+        timestamp: Date.now(), date, meal_type: mealType,
+    });
+
+    return {
+        success: true,
+        summary: `Added ${quantityGrams}g of "${food.name}" to ${mealType} on ${date}.`,
+        data: { entry_id: entry.id, food_name: food.name, quantity_grams: quantityGrams, date, meal_type: mealType },
+    };
+}
+
+function executeMoveLogEntry(args: Record<string, unknown>): AiToolResult {
+    const entryId = Number(args.entry_id);
+    const targetDate = args.target_date != null ? String(args.target_date) : undefined;
+    const targetMealType = args.target_meal_type != null ? String(args.target_meal_type) : undefined;
+
+    if (!entryId || isNaN(entryId)) return { success: false, summary: "Invalid entry_id." };
+    if (!targetDate && !targetMealType) return { success: false, summary: "Provide at least target_date or target_meal_type." };
+    if (targetDate && !isValidDateKey(targetDate)) return { success: false, summary: "Invalid target_date format. Use YYYY-MM-DD." };
+    if (targetMealType && !isValidMealType(targetMealType)) return { success: false, summary: `Invalid target_meal_type. Must be one of: ${VALID_MEAL_TYPES.join(", ")}.` };
+
+    const row = getEntryById(entryId);
+    if (!row) return { success: false, summary: `Entry with id ${entryId} not found. Use read_log_entries to find valid entry IDs.` };
+
+    const updates: Record<string, unknown> = {};
+    if (targetDate) updates.date = targetDate;
+    if (targetMealType) updates.meal_type = targetMealType;
+    updateEntry(entryId, updates);
+
+    const newDate = targetDate ?? row.entries.date;
+    const newMeal = targetMealType ?? row.entries.meal_type;
+    return {
+        success: true,
+        summary: `Moved entry ${entryId} ("${row.foods?.name ?? "Unknown"}") to ${newMeal} on ${newDate}.`,
+        data: { entry_id: entryId, food_name: row.foods?.name, date: newDate, meal_type: newMeal },
+    };
+}
+
+function executeUpdateLogEntry(args: Record<string, unknown>): AiToolResult {
+    const entryId = Number(args.entry_id);
+    const quantityGrams = Number(args.quantity_grams);
+    if (!entryId || isNaN(entryId)) return { success: false, summary: "Invalid entry_id." };
+    if (!quantityGrams || quantityGrams <= 0) return { success: false, summary: "quantity_grams must be a positive number." };
+
+    const row = getEntryById(entryId);
+    if (!row) return { success: false, summary: `Entry with id ${entryId} not found. Use read_log_entries to find valid entry IDs.` };
+
+    updateEntry(entryId, { quantity_grams: quantityGrams });
+    return {
+        success: true,
+        summary: `Updated entry ${entryId} ("${row.foods?.name ?? "Unknown"}") to ${quantityGrams}g.`,
+        data: { entry_id: entryId, food_name: row.foods?.name, quantity_grams: quantityGrams },
+    };
+}
+
+function executeDeleteLogEntry(args: Record<string, unknown>): AiToolResult {
+    const entryId = Number(args.entry_id);
+    if (!entryId || isNaN(entryId)) return { success: false, summary: "Invalid entry_id." };
+
+    const row = getEntryById(entryId);
+    if (!row) return { success: false, summary: `Entry with id ${entryId} not found. Use read_log_entries to find valid entry IDs.` };
+
+    deleteEntry(entryId);
+    return {
+        success: true,
+        summary: `Removed entry ${entryId} ("${row.foods?.name ?? "Unknown"}", ${row.entries.quantity_grams}g from ${row.entries.meal_type} on ${row.entries.date}).`,
+        data: { entry_id: entryId, food_name: row.foods?.name },
+    };
+}
+
+export const entryToolExecutors: Record<string, ToolExecutor> = {
+    read_log_entries: executeReadLogEntries,
+    read_recent_log_entries: executeReadRecentLogEntries,
+    read_recent_macros: executeReadRecentMacros,
+    log_food: executeLogFood,
+    move_log_entry: executeMoveLogEntry,
+    update_log_entry: executeUpdateLogEntry,
+    delete_log_entry: executeDeleteLogEntry,
+};
