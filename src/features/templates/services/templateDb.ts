@@ -201,3 +201,7 @@ export function deleteRecipeItem(id: number) {
 export function getRecipeById(id: number): Recipe | undefined {
     return db.select().from(recipes).where(eq(recipes.id, id)).get();
 }
+
+export function getRecipeItemById(id: number): RecipeItem | undefined {
+    return db.select().from(recipeItems).where(eq(recipeItems.id, id)).get();
+}

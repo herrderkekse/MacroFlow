@@ -8,6 +8,7 @@ import type { AiToolCall, AiToolResult } from "../types/toolDefinitionTypes";
 import type { AiFoodPayload, AiGoalsPayload, AiRecipePayload } from "../types/types";
 import { addMemory } from "./aiMemoriesDb";
 import { buildMealPlanPrompt } from "./mealPlanService";
+import { templateToolExecutors } from "./templateToolExecutors";
 
 // ── Validators ────────────────────────────────────────────
 
@@ -254,6 +255,7 @@ const toolExecutors: Record<string, ToolExecutor> = {
     read_recent_entries: executeReadRecentEntries,
     read_recent_macros: executeReadRecentMacros,
     save_memory: executeSaveMemory,
+    ...templateToolExecutors,
 };
 
 export function executeTool(call: AiToolCall): AiToolResult {

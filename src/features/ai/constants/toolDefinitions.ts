@@ -1,4 +1,5 @@
 import type { AiToolDefinition } from "../types/toolDefinitionTypes";
+import { TEMPLATE_TOOLS } from "./templateToolDefinitions";
 
 // ── Tool definitions ──────────────────────────────────────
 
@@ -181,4 +182,5 @@ export const AI_TOOLS: AiToolDefinition[] = [
     readRecentEntriesTool,
     readRecentMacrosTool,
     saveMemoryTool,
+    ...TEMPLATE_TOOLS,
 ];
