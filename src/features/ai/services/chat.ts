@@ -191,6 +191,7 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
                     content: `Meal plan generated with ${plan.entries.length} entries. Review below:`,
                     toolResult: { success: true, summary: `${plan.entries.length} entries ready` },
                     toolResultData: { mealPlanEntries: plan.entries },
+                    toolCall: opts.toolCall,
                     toolCallId: opts.toolCallId,
                     timestamp: Date.now(),
                 };
@@ -202,6 +203,7 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
                     role: "tool-result",
                     content: `Failed to parse meal plan: ${e.message}`,
                     toolResult: { success: false, summary: e.message },
+                    toolCall: opts.toolCall,
                     toolCallId: opts.toolCallId,
                     timestamp: Date.now(),
                 };
@@ -216,6 +218,7 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
         role: "tool-result",
         content: result.summary,
         toolResult: result,
+        toolCall: opts.toolCall,
         toolCallId: opts.toolCallId,
         timestamp: Date.now(),
     };
