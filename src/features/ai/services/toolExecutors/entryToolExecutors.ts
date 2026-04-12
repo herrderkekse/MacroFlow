@@ -2,6 +2,7 @@ import { addEntry, deleteEntry, getEntriesByDate, getEntriesByDateRange, getEntr
 import { getFoodById } from "@/src/features/templates/services/templateDb";
 import { parseDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { VALID_MEAL_TYPES } from "../../constants/toolDefinitions/entryToolDefinitions";
+import { displayQuantity, resolveQuantityToGrams } from "../unitResolution";
 import type { AiToolResult } from "../../types/toolDefinitionTypes";
 
 type ToolExecutor = (args: Record<string, unknown>) => AiToolResult;
@@ -23,16 +24,18 @@ function executeReadLogEntries(args: Record<string, unknown>): AiToolResult {
     if (!isValidDateKey(date)) return { success: false, summary: "Invalid date format. Use YYYY-MM-DD." };
 
     const rows = getEntriesByDate(parseDateKey(date));
-    const result = rows.map((row) => ({
-        entry_id: row.entries.id, food_id: row.entries.food_id,
-        food_name: row.foods?.name ?? "Unknown", quantity_grams: row.entries.quantity_grams,
-        quantity_unit: row.entries.quantity_unit, meal_type: row.entries.meal_type,
-        is_scheduled: row.entries.is_scheduled,
-        calories: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.calories_per_100g).toFixed(1) : 0,
-        protein: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.protein_per_100g).toFixed(1) : 0,
-        carbs: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.carbs_per_100g).toFixed(1) : 0,
-        fat: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.fat_per_100g).toFixed(1) : 0,
-    }));
+    const result = rows.map((row) => {
+        const display = displayQuantity(row.entries.quantity_grams, row.entries.quantity_unit, row.entries.food_id);
+        return {
+            entry_id: row.entries.id, food_id: row.entries.food_id,
+            food_name: row.foods?.name ?? "Unknown", quantity: display.quantity, unit: display.unit,
+            meal_type: row.entries.meal_type, is_scheduled: row.entries.is_scheduled,
+            calories: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.calories_per_100g).toFixed(1) : 0,
+            protein: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.protein_per_100g).toFixed(1) : 0,
+            carbs: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.carbs_per_100g).toFixed(1) : 0,
+            fat: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.fat_per_100g).toFixed(1) : 0,
+        };
+    });
 
     return { success: true, summary: `Found ${result.length} entries for ${date}.`, data: result };
 }
@@ -47,9 +50,10 @@ function executeReadRecentLogEntries(args: Record<string, unknown>): AiToolResul
     for (const row of rows) {
         const date = row.entries.date;
         if (!grouped[date]) grouped[date] = [];
+        const display = displayQuantity(row.entries.quantity_grams, row.entries.quantity_unit, row.entries.food_id);
         grouped[date].push({
             entry_id: row.entries.id, food_id: row.entries.food_id,
-            food_name: row.foods?.name ?? "Unknown", quantity_grams: row.entries.quantity_grams,
+            food_name: row.foods?.name ?? "Unknown", quantity: display.quantity, unit: display.unit,
             meal_type: row.entries.meal_type,
             calories: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.calories_per_100g).toFixed(1) : 0,
             protein: row.foods ? +(row.entries.quantity_grams / 100 * row.foods.protein_per_100g).toFixed(1) : 0,
@@ -91,27 +95,31 @@ function executeReadRecentMacros(args: Record<string, unknown>): AiToolResult {
 
 function executeLogFood(args: Record<string, unknown>): AiToolResult {
     const foodId = Number(args.food_id);
-    const quantityGrams = Number(args.quantity_grams);
+    const quantity = Number(args.quantity);
     const date = String(args.date ?? "");
     const mealType = String(args.meal_type ?? "");
 
     if (!foodId || isNaN(foodId)) return { success: false, summary: "Invalid food_id." };
-    if (!quantityGrams || quantityGrams <= 0) return { success: false, summary: "quantity_grams must be a positive number." };
+    if (!quantity || quantity <= 0) return { success: false, summary: "quantity must be a positive number." };
     if (!isValidDateKey(date)) return { success: false, summary: "Invalid date format. Use YYYY-MM-DD." };
     if (!isValidMealType(mealType)) return { success: false, summary: `Invalid meal_type. Must be one of: ${VALID_MEAL_TYPES.join(", ")}.` };
 
     const food = getFoodById(foodId);
     if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_library to find valid food IDs.` };
 
+    const unit = args.unit != null ? String(args.unit).trim() : food.default_unit;
+    const resolved = resolveQuantityToGrams(quantity, unit, foodId);
+    if ("error" in resolved) return { success: false, summary: resolved.error };
+
     const entry = addEntry({
-        food_id: foodId, quantity_grams: quantityGrams, quantity_unit: "g",
+        food_id: foodId, quantity_grams: resolved.grams, quantity_unit: unit,
         timestamp: Date.now(), date, meal_type: mealType,
     });
 
     return {
         success: true,
-        summary: `Added ${quantityGrams}g of "${food.name}" to ${mealType} on ${date}.`,
-        data: { entry_id: entry.id, food_name: food.name, quantity_grams: quantityGrams, date, meal_type: mealType },
+        summary: `Added ${quantity} ${unit} of "${food.name}" to ${mealType} on ${date}.`,
+        data: { entry_id: entry.id, food_name: food.name, quantity, unit, date, meal_type: mealType },
     };
 }
 
@@ -144,18 +152,25 @@ function executeMoveLogEntry(args: Record<string, unknown>): AiToolResult {
 
 function executeUpdateLogEntry(args: Record<string, unknown>): AiToolResult {
     const entryId = Number(args.entry_id);
-    const quantityGrams = Number(args.quantity_grams);
+    const quantity = Number(args.quantity);
     if (!entryId || isNaN(entryId)) return { success: false, summary: "Invalid entry_id." };
-    if (!quantityGrams || quantityGrams <= 0) return { success: false, summary: "quantity_grams must be a positive number." };
+    if (!quantity || quantity <= 0) return { success: false, summary: "quantity must be a positive number." };
 
     const row = getEntryById(entryId);
     if (!row) return { success: false, summary: `Entry with id ${entryId} not found. Use read_log_entries to find valid entry IDs.` };
 
-    updateEntry(entryId, { quantity_grams: quantityGrams });
+    const unit = args.unit != null ? String(args.unit).trim() : row.entries.quantity_unit;
+    const foodId = row.entries.food_id;
+    if (!foodId) return { success: false, summary: "Entry has no associated food." };
+
+    const resolved = resolveQuantityToGrams(quantity, unit, foodId);
+    if ("error" in resolved) return { success: false, summary: resolved.error };
+
+    updateEntry(entryId, { quantity_grams: resolved.grams, quantity_unit: unit });
     return {
         success: true,
-        summary: `Updated entry ${entryId} ("${row.foods?.name ?? "Unknown"}") to ${quantityGrams}g.`,
-        data: { entry_id: entryId, food_name: row.foods?.name, quantity_grams: quantityGrams },
+        summary: `Updated entry ${entryId} ("${row.foods?.name ?? "Unknown"}") to ${quantity} ${unit}.`,
+        data: { entry_id: entryId, food_name: row.foods?.name, quantity, unit },
     };
 }
 

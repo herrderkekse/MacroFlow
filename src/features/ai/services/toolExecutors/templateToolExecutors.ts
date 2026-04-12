@@ -7,6 +7,7 @@ import {
     getRecipeById,
     getRecipeItemById,
     getRecipeItems,
+    getServingUnits,
     searchFoodsByName,
     searchRecipesByName,
     softDeleteFood,
@@ -15,6 +16,7 @@ import {
     updateRecipe,
     type NewFood,
 } from "@/src/features/templates/services/templateDb";
+import { resolveQuantityToGrams } from "../unitResolution";
 import type { AiToolResult } from "../../types/toolDefinitionTypes";
 
 type ToolExecutor = (args: Record<string, unknown>) => AiToolResult;
@@ -25,12 +27,16 @@ function executeSearchLibrary(args: Record<string, unknown>): AiToolResult {
     const query = String(args.query ?? "").trim();
     if (!query) return { success: false, summary: "Search query cannot be empty." };
 
-    const matchedFoods = searchFoodsByName(query).map((f) => ({
-        type: "food" as const, id: f.id, name: f.name,
-        calories_per_100g: f.calories_per_100g, protein_per_100g: f.protein_per_100g,
-        carbs_per_100g: f.carbs_per_100g, fat_per_100g: f.fat_per_100g,
-        default_unit: f.default_unit, serving_size: f.serving_size,
-    }));
+    const matchedFoods = searchFoodsByName(query).map((f) => {
+        const servingUnits = getServingUnits(f.id).map((u) => ({ name: u.name, grams: u.grams }));
+        return {
+            type: "food" as const, id: f.id, name: f.name,
+            calories_per_100g: f.calories_per_100g, protein_per_100g: f.protein_per_100g,
+            carbs_per_100g: f.carbs_per_100g, fat_per_100g: f.fat_per_100g,
+            default_unit: f.default_unit, serving_size: f.serving_size,
+            serving_units: servingUnits,
+        };
+    });
     const matchedRecipes = searchRecipesByName(query).map((r) => ({ type: "recipe" as const, id: r.id, name: r.name }));
     const results = [...matchedFoods, ...matchedRecipes];
 
@@ -211,11 +217,11 @@ function executeReadRecipeTemplate(args: Record<string, unknown>): AiToolResult 
 function executeAddRecipeItem(args: Record<string, unknown>): AiToolResult {
     const recipeId = Number(args.recipe_id);
     const foodId = Number(args.food_id);
-    const quantityGrams = Number(args.quantity_grams);
+    const quantity = Number(args.quantity);
 
     if (!recipeId || isNaN(recipeId)) return { success: false, summary: "Invalid recipe_id." };
     if (!foodId || isNaN(foodId)) return { success: false, summary: "Invalid food_id." };
-    if (!quantityGrams || quantityGrams <= 0) return { success: false, summary: "quantity_grams must be a positive number." };
+    if (!quantity || quantity <= 0) return { success: false, summary: "quantity must be a positive number." };
 
     const recipe = getRecipeById(recipeId);
     if (!recipe) return { success: false, summary: `Recipe with id ${recipeId} not found. Use search_library to find valid recipe IDs.` };
@@ -223,11 +229,15 @@ function executeAddRecipeItem(args: Record<string, unknown>): AiToolResult {
     const food = getFoodById(foodId);
     if (!food) return { success: false, summary: `Food with id ${foodId} not found. Use search_library to find valid food IDs.` };
 
-    const item = addRecipeItem({ recipe_id: recipeId, food_id: foodId, quantity_grams: quantityGrams, quantity_unit: "g" });
+    const unit = args.unit != null ? String(args.unit).trim() : food.default_unit;
+    const resolved = resolveQuantityToGrams(quantity, unit, foodId);
+    if ("error" in resolved) return { success: false, summary: resolved.error };
+
+    const item = addRecipeItem({ recipe_id: recipeId, food_id: foodId, quantity_grams: resolved.grams, quantity_unit: unit });
     return {
         success: true,
-        summary: `Added ${quantityGrams}g of "${food.name}" to recipe "${recipe.name}".`,
-        data: { item_id: item.id, recipe_id: recipeId, food_id: foodId, food_name: food.name, quantity_grams: quantityGrams },
+        summary: `Added ${quantity} ${unit} of "${food.name}" to recipe "${recipe.name}".`,
+        data: { item_id: item.id, recipe_id: recipeId, food_id: foodId, food_name: food.name, quantity, unit },
     };
 }
 

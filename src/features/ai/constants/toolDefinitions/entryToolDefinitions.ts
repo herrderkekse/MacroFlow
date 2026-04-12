@@ -55,17 +55,24 @@ const logFoodTool: AiToolDefinition = {
     name: "log_food",
     description:
         "Log a food entry to the user's diary. Requires a valid food_id from the user's food library. " +
-        "Use search_library first to find the correct food_id.",
+        "Use search_library first to find the correct food_id and available units.",
     needsApproval: true,
     parameters: {
         type: "object",
         properties: {
             food_id: { type: "number", description: "The ID of the food from the user's library." },
-            quantity_grams: { type: "number", description: "Amount in grams." },
+            quantity: { type: "number", description: "The amount in the specified unit." },
+            unit: {
+                type: "string",
+                description:
+                    "The unit for the quantity. Can be a standard unit (g, ml, oz, fl_oz, cup, tbsp, tsp, lb) " +
+                    "or a custom serving unit name from the food's serving_units (as returned by search_library). " +
+                    "Defaults to the food's default_unit if omitted.",
+            },
             date: { type: "string", description: "The date for the entry, in YYYY-MM-DD format." },
             meal_type: { type: "string", description: "The meal type.", enum: ["breakfast", "lunch", "dinner", "snack"] },
         },
-        required: ["food_id", "quantity_grams", "date", "meal_type"],
+        required: ["food_id", "quantity", "date", "meal_type"],
     },
 };
 
@@ -96,9 +103,15 @@ const updateLogEntryTool: AiToolDefinition = {
         type: "object",
         properties: {
             entry_id: { type: "number", description: "The ID of the entry to update." },
-            quantity_grams: { type: "number", description: "The new amount in grams." },
+            quantity: { type: "number", description: "The new amount in the specified unit." },
+            unit: {
+                type: "string",
+                description:
+                    "The unit for the quantity. Can be a standard unit (g, ml, oz, fl_oz, cup, tbsp, tsp, lb) " +
+                    "or a custom serving unit name. If omitted, the entry's current unit is kept.",
+            },
         },
-        required: ["entry_id", "quantity_grams"],
+        required: ["entry_id", "quantity"],
     },
 };
 
