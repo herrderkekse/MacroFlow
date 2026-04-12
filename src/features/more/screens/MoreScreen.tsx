@@ -28,6 +28,7 @@ export default function MoreScreen() {
         { icon: "archive", labelKey: "more.backup", route: "/(tabs)/backup", color: "#4ECDC4" },
         { icon: "sparkles", labelKey: "more.mealPlan", route: "/(tabs)/meal-plan", color: "#A855F7" },
         { icon: "hardware-chip", labelKey: "more.aiSettings", route: "/(tabs)/ai-settings", color: "#F59E0B" },
+        { icon: "bookmark", labelKey: "more.aiMemories", route: "/(tabs)/ai-memories", color: "#10B981" },
     ];
 
     return (

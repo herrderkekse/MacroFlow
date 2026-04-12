@@ -14,10 +14,10 @@ export function toolNeedsApproval(toolName: string): boolean {
 
 // ── System prompt for AI SDK native tool calling ──────────
 
-export function buildToolSystemPrompt(): string {
+export function buildToolSystemPrompt(memories: string[] = []): string {
     const today = formatDateKey(new Date());
 
-    return [
+    const parts = [
         "You are a helpful nutrition and meal planning assistant inside a food tracking app called MacroFlow.",
         "You can help users with their diet by using the provided tools or your own knowledge.",
         "",
@@ -33,7 +33,18 @@ export function buildToolSystemPrompt(): string {
         "- Before creating an entry, ALWAYS use search_templates first to find the correct food_id. Never guess IDs.",
         "- Before modifying or removing an entry, ALWAYS use read_entries first to find the correct entry_id.",
         "- When the user says 'today', use the date provided above. Calculate other relative dates from it.",
-    ].join("\n");
+        "- When the user shares new preferences or personal information, use the save_memory tool to store it.",
+    ];
+
+    if (memories.length > 0) {
+        parts.push(
+            "",
+            "MEMORIES (things you know about this user):",
+            ...memories.map((m) => `- ${m}`),
+        );
+    }
+
+    return parts.join("\n");
 }
 
 

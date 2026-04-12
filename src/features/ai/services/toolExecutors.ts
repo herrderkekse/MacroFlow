@@ -6,6 +6,7 @@ import logger from "@/src/utils/logger";
 import { VALID_MEAL_TYPES } from "../constants/toolDefinitions";
 import type { AiToolCall, AiToolResult } from "../types/toolDefinitionTypes";
 import type { AiFoodPayload, AiGoalsPayload, AiRecipePayload } from "../types/types";
+import { addMemory } from "./aiMemoriesDb";
 import { buildMealPlanPrompt } from "./mealPlanService";
 
 // ── Validators ────────────────────────────────────────────
@@ -233,6 +234,15 @@ function executeReadRecentMacros(args: Record<string, unknown>): AiToolResult {
 
 // ── Registry + public API ─────────────────────────────────
 
+function executeSaveMemory(args: Record<string, unknown>): AiToolResult {
+    const content = String(args.content ?? "").trim();
+    if (!content) return { success: false, summary: "Memory content cannot be empty." };
+    if (content.length > 500) return { success: false, summary: "Memory content is too long. Max 500 characters." };
+
+    addMemory(content);
+    return { success: true, summary: `Memory saved: "${content}"` };
+}
+
 const toolExecutors: Record<string, ToolExecutor> = {
     create_meal_plan: executeCreateMealPlan,
     read_entries: executeReadEntries,
@@ -243,6 +253,7 @@ const toolExecutors: Record<string, ToolExecutor> = {
     search_templates: executeSearchTemplates,
     read_recent_entries: executeReadRecentEntries,
     read_recent_macros: executeReadRecentMacros,
+    save_memory: executeSaveMemory,
 };
 
 export function executeTool(call: AiToolCall): AiToolResult {

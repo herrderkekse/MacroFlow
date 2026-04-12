@@ -111,3 +111,9 @@ export const chatMessages = sqliteTable("chat_messages", {
     tool_call_id: text("tool_call_id"),
     timestamp: integer("timestamp").notNull(),
 });
+
+export const aiMemories = sqliteTable("ai_memories", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    content: text("content").notNull(),
+    created_at: integer("created_at").notNull(),
+});

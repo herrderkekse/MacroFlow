@@ -100,6 +100,7 @@ export default function TabsLayout() {
             <Tabs.Screen name="settings" options={{ href: null }} />
             <Tabs.Screen name="ai-settings" options={{ href: null }} />
             <Tabs.Screen name="meal-plan" options={{ href: null }} />
+            <Tabs.Screen name="ai-memories" options={{ href: null }} />
         </Tabs>
     );
 }

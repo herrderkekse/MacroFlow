@@ -108,6 +108,12 @@ export function initDB() {
       timestamp INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS ai_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
     INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
   `);
