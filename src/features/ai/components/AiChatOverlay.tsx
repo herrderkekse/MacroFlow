@@ -1,4 +1,3 @@
-import Button from "@/src/shared/atoms/Button";
 import BottomSheet, { type BottomSheetRef } from "@/src/shared/components/BottomSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -21,6 +20,7 @@ import { useChatSession } from "../hooks/useChatSession";
 import ChatBubble from "./ChatBubble";
 import ChatInputBar, { INPUT_BAR_HEIGHT } from "./ChatInputBar";
 import MealPlanToolResult from "./MealPlanToolResult";
+import ToolApprovalBanner from "./ToolApprovalBanner";
 import ToolResultContainer from "./ToolResultContainer";
 
 // ── Constants ─────────────────────────────────────────────
@@ -224,25 +224,12 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                     ) : null}
 
                     {chat.pendingToolCall && !chat.loading && (
-                        <View style={styles.toolApproval}>
-                            <Text style={styles.toolApprovalText}>
-                                {t("chat.toolPermission", { tool: chat.pendingToolCall.name })}
-                            </Text>
-                            <View style={styles.toolApprovalButtons}>
-                                <Button
-                                    title={t("chat.allow")}
-                                    onPress={chat.handleApproveTool}
-                                    variant="primary"
-                                    style={styles.toolBtn}
-                                />
-                                <Button
-                                    title={t("chat.deny")}
-                                    onPress={chat.handleDeclineTool}
-                                    variant="outline"
-                                    style={styles.toolBtn}
-                                />
-                            </View>
-                        </View>
+                        <ToolApprovalBanner
+                            toolCall={chat.pendingToolCall}
+                            colors={colors}
+                            onApprove={chat.handleApproveTool}
+                            onDeny={chat.handleDeclineTool}
+                        />
                     )}
                 </ScrollView>
             </BottomSheet>
@@ -375,26 +362,6 @@ function createStyles(colors: ThemeColors) {
         },
         actionBtn: {
             padding: 4,
-        },
-        toolApproval: {
-            backgroundColor: colors.primaryLight,
-            borderRadius: borderRadius.md,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-        },
-        toolApprovalText: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-            marginBottom: spacing.sm,
-        },
-        toolApprovalButtons: {
-            flexDirection: "row",
-            gap: spacing.sm,
-        },
-        toolBtn: {
-            flex: 1,
         },
     });
 }

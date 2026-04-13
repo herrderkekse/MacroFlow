@@ -1,11 +1,13 @@
 import { callAi, toApiMessages } from "../helpers/chat";
 import { createModelFromConfig } from "../helpers/createModelFromConfig";
+import { buildToolRequestContent } from "../services/toolMessages";
 import { toolNeedsApproval } from "../helpers/tools";
 import type { ChatSendOptions, ToolApprovalOptions, UiChatMessage } from "../types/chatTypes";
 import { nextId } from "../types/chatTypes";
 import { AiMealPlanEntry, loadAiConfig, StreamStatus } from "./aiConfig";
 import { generateMealPlan } from "./mealPlanService";
 import { executeTool } from "./toolExecutors";
+import i18n from "@/src/i18n";
 export { executeTool } from "./toolExecutors";
 
 // Re-export types & converters so existing consumers keep working
@@ -41,7 +43,7 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
             const toolRequestMsg: UiChatMessage = {
                 id: nextId(),
                 role: "tool-request",
-                content: `Wants to use: **${response.toolCall.name}**`,
+                content: buildToolRequestContent(response.toolCall.name, response.toolCall.arguments),
                 toolCall: response.toolCall,
                 toolCallId: response.toolCallId,
                 timestamp: Date.now(),
@@ -83,7 +85,7 @@ export async function sendChatMessage(opts: ChatSendOptions): Promise<void> {
                 const toolRequestMsg: UiChatMessage = {
                     id: nextId(),
                     role: "tool-request",
-                    content: `Wants to use: **${followUp.toolCall.name}**`,
+                    content: buildToolRequestContent(followUp.toolCall.name, followUp.toolCall.arguments),
                     toolCall: followUp.toolCall,
                     toolCallId: followUp.toolCallId,
                     timestamp: Date.now(),
@@ -188,7 +190,7 @@ export async function executeApprovedTool(opts: ToolApprovalOptions): Promise<vo
                 const toolResultMsg: UiChatMessage = {
                     id: nextId(),
                     role: "tool-result",
-                    content: `Meal plan generated with ${plan.entries.length} entries. Review below:`,
+                    content: i18n.t("chat.toolResult.mealPlanGenerated", { count: plan.entries.length }),
                     toolResult: { success: true, summary: `${plan.entries.length} entries ready` },
                     toolResultData: { mealPlanEntries: plan.entries },
                     toolCall: opts.toolCall,
@@ -250,7 +252,7 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
     const declineMsg: UiChatMessage = {
         id: nextId(),
         role: "tool-result",
-        content: "The user declined this action.",
+        content: i18n.t("chat.declinedAction"),
         toolResult: { success: false, summary: "User declined" },
         toolCall: opts.toolCall,
         toolCallId: opts.toolCallId,
@@ -260,6 +262,7 @@ export async function declineToolCall(opts: ToolApprovalOptions): Promise<void> 
 
     const allMessages = [...opts.messages, declineMsg];
     const apiMessages = toApiMessages(allMessages);
+    // Send English to the AI so it can understand and respond appropriately
     apiMessages.push({
         role: "user",
         content: "I declined the tool use. Please suggest an alternative or ask what I'd like instead.",

@@ -16,6 +16,7 @@ import {
     updateRecipe,
     type NewFood,
 } from "@/src/features/templates/services/templateDb";
+import i18n from "@/src/i18n";
 import { resolveQuantityToGrams } from "../unitResolution";
 import type { AiToolResult } from "../../types/toolDefinitionTypes";
 
@@ -40,7 +41,7 @@ function executeSearchLibrary(args: Record<string, unknown>): AiToolResult {
     const matchedRecipes = searchRecipesByName(query).map((r) => ({ type: "recipe" as const, id: r.id, name: r.name }));
     const results = [...matchedFoods, ...matchedRecipes];
 
-    return { success: true, summary: `Found ${matchedFoods.length} food(s) and ${matchedRecipes.length} recipe(s) matching "${query}".`, data: results };
+    return { success: true, summary: i18n.t("chat.toolResult.searchLibrary", { foodCount: matchedFoods.length, recipeCount: matchedRecipes.length, query }), data: results };
 }
 
 // ── Food template executors ───────────────────────────────
@@ -71,7 +72,7 @@ function executeCreateFoodTemplate(args: Record<string, unknown>): AiToolResult 
 
     return {
         success: true,
-        summary: `Created food "${food.name}" (id: ${food.id}) with ${caloriesPer100g} kcal, ${proteinPer100g}g protein, ${carbsPer100g}g carbs, ${fatPer100g}g fat per 100g.`,
+        summary: i18n.t("chat.toolResult.createFood", { name: food.name }),
         data: { food_id: food.id, name: food.name },
     };
 }
@@ -125,7 +126,7 @@ function executeUpdateFoodTemplate(args: Record<string, unknown>): AiToolResult 
     updateFood(foodId, updates);
     return {
         success: true,
-        summary: `Updated food "${food.name}" (id: ${foodId}).`,
+        summary: i18n.t("chat.toolResult.updateFood", { name: food.name }),
         data: { food_id: foodId, updated_fields: Object.keys(updates) },
     };
 }
@@ -140,7 +141,7 @@ function executeDeleteFoodTemplate(args: Record<string, unknown>): AiToolResult 
     softDeleteFood(foodId);
     return {
         success: true,
-        summary: `Deleted food "${food.name}" (id: ${foodId}) from the library.`,
+        summary: i18n.t("chat.toolResult.deleteFood", { name: food.name }),
         data: { food_id: foodId, name: food.name },
     };
 }
@@ -154,7 +155,7 @@ function executeCreateRecipeTemplate(args: Record<string, unknown>): AiToolResul
     const recipe = addRecipe(name);
     return {
         success: true,
-        summary: `Created recipe "${recipe.name}" (id: ${recipe.id}). Use add_recipe_item to add ingredients.`,
+        summary: i18n.t("chat.toolResult.createRecipe", { name: recipe.name }),
         data: { recipe_id: recipe.id, name: recipe.name },
     };
 }
@@ -171,7 +172,7 @@ function executeUpdateRecipeTemplate(args: Record<string, unknown>): AiToolResul
     updateRecipe(recipeId, name);
     return {
         success: true,
-        summary: `Renamed recipe from "${recipe.name}" to "${name}" (id: ${recipeId}).`,
+        summary: i18n.t("chat.toolResult.updateRecipe", { name }),
         data: { recipe_id: recipeId, name },
     };
 }
@@ -186,7 +187,7 @@ function executeDeleteRecipeTemplate(args: Record<string, unknown>): AiToolResul
     softDeleteRecipe(recipeId);
     return {
         success: true,
-        summary: `Deleted recipe "${recipe.name}" (id: ${recipeId}) from the library.`,
+        summary: i18n.t("chat.toolResult.deleteRecipe", { name: recipe.name }),
         data: { recipe_id: recipeId, name: recipe.name },
     };
 }
@@ -207,7 +208,7 @@ function executeReadRecipeTemplate(args: Record<string, unknown>): AiToolResult 
 
     return {
         success: true,
-        summary: `Recipe "${recipe.name}" has ${items.length} ingredient(s).`,
+        summary: i18n.t("chat.toolResult.readRecipe", { name: recipe.name, count: items.length }),
         data: { recipe_id: recipe.id, name: recipe.name, items },
     };
 }
@@ -236,7 +237,7 @@ function executeAddRecipeItem(args: Record<string, unknown>): AiToolResult {
     const item = addRecipeItem({ recipe_id: recipeId, food_id: foodId, quantity_grams: resolved.grams, quantity_unit: unit });
     return {
         success: true,
-        summary: `Added ${quantity} ${unit} of "${food.name}" to recipe "${recipe.name}".`,
+        summary: i18n.t("chat.toolResult.addRecipeItem", { quantity, unit, food: food.name, recipe: recipe.name }),
         data: { item_id: item.id, recipe_id: recipeId, food_id: foodId, food_name: food.name, quantity, unit },
     };
 }
@@ -252,7 +253,7 @@ function executeRemoveRecipeItem(args: Record<string, unknown>): AiToolResult {
     deleteRecipeItem(itemId);
     return {
         success: true,
-        summary: `Removed "${food?.name ?? "Unknown"}" (item id: ${itemId}) from the recipe.`,
+        summary: i18n.t("chat.toolResult.removeRecipeItem", { food: food?.name ?? "Unknown" }),
         data: { item_id: itemId },
     };
 }
