@@ -1,5 +1,6 @@
 import { getGoals } from "@/src/features/settings/services/settingsDb";
 import { getAllFoods, getAllRecipes, getRecipeItems } from "@/src/features/templates/services/templateDb";
+import i18n from "@/src/i18n";
 import type { AiToolResult } from "../../types/toolDefinitionTypes";
 import type { AiFoodPayload, AiGoalsPayload, AiRecipePayload } from "../../types/types";
 import { buildMealPlanPrompt } from "../mealPlanService";
@@ -34,7 +35,7 @@ function executeCreateMealPlan(args: Record<string, unknown>): AiToolResult {
 
     return {
         success: true,
-        summary: `Prepared meal plan request for ${days} day(s).`,
+        summary: i18n.t("chat.toolResult.prepareMealPlan", { count: days }),
         data: {
             type: "meal_plan_request", messages, validFoodIds: allFoods.map((f) => f.id),
             goals: goalsPayload, foods: foodPayload, recipes: recipePayload,

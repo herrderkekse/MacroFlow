@@ -49,7 +49,7 @@ export default function ChatBubble({ message, colors, showActions, onCopy, onRet
                         color={colors.primary}
                     />
                     <Text style={[styles.toolLabelText, { color: colors.primary }]}>
-                        {isToolRequest ? "Tool" : "Result"}
+                        {isToolRequest ? t("chat.toolLabel") : t("chat.resultLabel")}
                     </Text>
                 </View>
             )}

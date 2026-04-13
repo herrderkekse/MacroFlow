@@ -1,5 +1,6 @@
 import { addEntry, deleteEntry, getEntriesByDate, getEntriesByDateRange, getEntryById, updateEntry } from "@/src/features/log/services/logDb";
 import { getFoodById } from "@/src/features/templates/services/templateDb";
+import i18n from "@/src/i18n";
 import { parseDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { VALID_MEAL_TYPES } from "../../constants/toolDefinitions/entryToolDefinitions";
 import { displayQuantity, resolveQuantityToGrams } from "../unitResolution";
@@ -37,7 +38,7 @@ function executeReadLogEntries(args: Record<string, unknown>): AiToolResult {
         };
     });
 
-    return { success: true, summary: `Found ${result.length} entries for ${date}.`, data: result };
+    return { success: true, summary: i18n.t("chat.toolResult.readLogEntries", { count: result.length, date }), data: result };
 }
 
 function executeReadRecentLogEntries(args: Record<string, unknown>): AiToolResult {
@@ -62,7 +63,7 @@ function executeReadRecentLogEntries(args: Record<string, unknown>): AiToolResul
         });
     }
 
-    return { success: true, summary: `Found ${rows.length} entries across ${Object.keys(grouped).length} day(s).`, data: grouped };
+    return { success: true, summary: i18n.t("chat.toolResult.readRecentLogEntries", { count: rows.length, dayCount: Object.keys(grouped).length }), data: grouped };
 }
 
 function executeReadRecentMacros(args: Record<string, unknown>): AiToolResult {
@@ -90,7 +91,7 @@ function executeReadRecentMacros(args: Record<string, unknown>): AiToolResult {
         ]),
     );
 
-    return { success: true, summary: `Macro totals for ${Object.keys(result).length} day(s).`, data: result };
+    return { success: true, summary: i18n.t("chat.toolResult.readRecentMacros", { count: Object.keys(result).length }), data: result };
 }
 
 function executeLogFood(args: Record<string, unknown>): AiToolResult {
@@ -118,7 +119,7 @@ function executeLogFood(args: Record<string, unknown>): AiToolResult {
 
     return {
         success: true,
-        summary: `Added ${quantity} ${unit} of "${food.name}" to ${mealType} on ${date}.`,
+        summary: i18n.t("chat.toolResult.logFood", { quantity, unit, food: food.name, meal: mealType, date }),
         data: { entry_id: entry.id, food_name: food.name, quantity, unit, date, meal_type: mealType },
     };
 }
@@ -145,7 +146,7 @@ function executeMoveLogEntry(args: Record<string, unknown>): AiToolResult {
     const newMeal = targetMealType ?? row.entries.meal_type;
     return {
         success: true,
-        summary: `Moved entry ${entryId} ("${row.foods?.name ?? "Unknown"}") to ${newMeal} on ${newDate}.`,
+        summary: i18n.t("chat.toolResult.moveLogEntry", { food: row.foods?.name ?? "Unknown", meal: newMeal, date: newDate }),
         data: { entry_id: entryId, food_name: row.foods?.name, date: newDate, meal_type: newMeal },
     };
 }
@@ -169,7 +170,7 @@ function executeUpdateLogEntry(args: Record<string, unknown>): AiToolResult {
     updateEntry(entryId, { quantity_grams: resolved.grams, quantity_unit: unit });
     return {
         success: true,
-        summary: `Updated entry ${entryId} ("${row.foods?.name ?? "Unknown"}") to ${quantity} ${unit}.`,
+        summary: i18n.t("chat.toolResult.updateLogEntry", { food: row.foods?.name ?? "Unknown", quantity, unit }),
         data: { entry_id: entryId, food_name: row.foods?.name, quantity, unit },
     };
 }
@@ -184,7 +185,7 @@ function executeDeleteLogEntry(args: Record<string, unknown>): AiToolResult {
     deleteEntry(entryId);
     return {
         success: true,
-        summary: `Removed entry ${entryId} ("${row.foods?.name ?? "Unknown"}", ${row.entries.quantity_grams}g from ${row.entries.meal_type} on ${row.entries.date}).`,
+        summary: i18n.t("chat.toolResult.deleteLogEntry", { food: row.foods?.name ?? "Unknown", meal: row.entries.meal_type, date: row.entries.date }),
         data: { entry_id: entryId, food_name: row.foods?.name },
     };
 }
