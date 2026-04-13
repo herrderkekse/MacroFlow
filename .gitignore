@@ -4,6 +4,9 @@
 # internal instructions
 SPECS.md
 .github/copilot-instructions.md
+.github/skills/
+.claude
+CLAUDE.local.md
 
 # dev data files
 macroflow-backup.json
