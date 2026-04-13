@@ -60,20 +60,7 @@ The recommended approach is to:
 
 ## Step-by-Step Release Process
 
-### 1. Open a GitHub Issue
-
-Before starting, open a tracking issue:
-
-```
-Title:  release: vX.Y.Z-suffix
-Body:   List notable changes included in this release.
-```
-
-Note the issue number — you'll reference it in the PR and close it in the GitHub release.
-
----
-
-### 2. Pull Latest `main`
+### 1. Pull Latest `main`
 
 ```bash
 git checkout main
@@ -82,7 +69,7 @@ git pull
 
 ---
 
-### 3. Create the Release Branch
+### 2. Create the Release Branch
 
 ```bash
 git checkout -b release/X.Y.Z
@@ -90,7 +77,7 @@ git checkout -b release/X.Y.Z
 
 ---
 
-### 4. Bump the Version
+### 3. Bump the Version
 
 Edit **two files**:
 
@@ -107,7 +94,7 @@ git push --set-upstream origin release/X.Y.Z
 
 ---
 
-### 5. Open a Pull Request
+### 4. Open a Pull Request
 
 ```bash
 gh pr create \
@@ -122,7 +109,7 @@ Wait for review, then merge to `main`. Keep history linear — use a regular mer
 
 ---
 
-### 6. Tag the Release on `main`
+### 5. Tag the Release on `main`
 
 After the PR is merged:
 
@@ -138,7 +125,7 @@ git push origin vX.Y.Z-alpha
 
 ---
 
-### 7. Trigger the EAS Build
+### 6. Trigger the EAS Build
 
 | Release type | EAS profile  | Output                       |
 | ------------ | ------------ | ---------------------------- |
@@ -158,7 +145,7 @@ The command prints a build URL. Keep it — you'll need it in the next step.
 
 ---
 
-### 8. Download the APK (Alpha / Beta)
+### 7. Download the APK (Alpha / Beta)
 
 Once the build finishes, retrieve the download URL and download the APK:
 
@@ -174,27 +161,19 @@ For production AAB releases the bundle is submitted directly to the store in ste
 
 ---
 
-### 9a. Create the GitHub Release (Alpha / Beta)
+### 8a. Create the GitHub Release (Alpha / Beta)
 
 ```bash
 gh release create vX.Y.Z-alpha \
   --prerelease \
+  --generate-notes \
   --title "vX.Y.Z-alpha — Short Description" \
-  --notes "## What's Changed
-
-### Features
-- ...
-
-### Fixes
-- ...
-
-**Full Changelog:** https://github.com/herrderkekse/MacroFlow/compare/vX.Y.Z-PREV-alpha...vX.Y.Z-alpha" \
   macroflow-vX.Y.Z-alpha.apk
 ```
 
 The APK is attached as a release asset so testers can sideload it directly.
 
-### 9b. Submit to Store (Production only)
+### 8b. Submit to Store (Production only)
 
 ```bash
 eas submit --platform android --latest
@@ -223,7 +202,6 @@ git branch -d release/X.Y.Z
 
 ### Alpha Release Checklist
 
-- [ ] Issue opened in GitHub
 - [ ] `release/X.Y.Z` branch created from `main`
 - [ ] Version bumped in `app.json` and `package.json`
 - [ ] `chore(release): bump version to X.Y.Z` commit pushed
@@ -242,6 +220,10 @@ git branch -d release/X.Y.Z
 - [ ] Store listing reviewed and published
 
 ---
+
+## Rollback Strategy
+- Never delete production releases
+- Fix forward with PATCH version
 
 ## Notes
 
