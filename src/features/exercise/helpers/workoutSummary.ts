@@ -30,13 +30,16 @@ function formatWeightSets(sets: ExerciseSet[]): string {
         groups.set(key, (groups.get(key) ?? 0) + 1);
     }
 
-    return Array.from(groups.entries())
+    const base = Array.from(groups.entries())
         .map(([key, count]) => {
             const match = key.match(/^(\d+)@([\d.]+)(.+)$/);
             if (!match) return key;
             return `${count}×${match[1]} @ ${match[2]}${match[3]}`;
         })
         .join(", ");
+
+    const rir = formatRirRange(sets);
+    return rir ? `${base} ${rir}` : base;
 }
 
 function formatCardioSets(sets: ExerciseSet[]): string {
@@ -52,9 +55,12 @@ function formatBodyweightSets(sets: ExerciseSet[]): string {
         if (s.reps === null) continue;
         groups.set(s.reps, (groups.get(s.reps) ?? 0) + 1);
     }
-    return Array.from(groups.entries())
+    const base = Array.from(groups.entries())
         .map(([reps, count]) => `${count}×${reps}`)
         .join(", ");
+
+    const rir = formatRirRange(sets);
+    return rir ? `${base} ${rir}` : base;
 }
 
 function formatDuration(seconds: number): string {

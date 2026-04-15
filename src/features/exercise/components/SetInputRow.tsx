@@ -239,7 +239,13 @@ function ReadOnlyCells({ set, exerciseType, textColor, styles }: {
                 </>
             )}
             {exerciseType !== "cardio" && (
-                <Text style={[styles.setCell, styles.rirCol, { color: textColor }]}>{set.rir ?? "—"}</Text>
+                <Text style={[
+                    styles.setCell, styles.rirCol,
+                    { color: set.rir != null && set.rir <= 1 ? "#ef4444" : textColor },
+                    set.rir != null && set.rir <= 1 && { fontWeight: "700" },
+                ]}>
+                    {set.rir ?? "—"}
+                </Text>
             )}
         </>
     );
