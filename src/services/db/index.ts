@@ -114,6 +114,54 @@ export function initDB() {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS exercise_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      muscle_group TEXT,
+      equipment TEXT,
+      resistance_mode TEXT NOT NULL DEFAULT 'resistance',
+      default_weight_unit TEXT NOT NULL DEFAULT 'kg',
+      notes TEXT,
+      deleted INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS workouts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      title TEXT,
+      started_at INTEGER NOT NULL,
+      ended_at INTEGER,
+      notes TEXT,
+      is_scheduled INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS workout_exercises (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workout_id INTEGER NOT NULL REFERENCES workouts(id),
+      exercise_template_id INTEGER NOT NULL REFERENCES exercise_templates(id),
+      sort_order INTEGER NOT NULL,
+      notes TEXT,
+      started_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS exercise_sets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workout_exercise_id INTEGER NOT NULL REFERENCES workout_exercises(id),
+      set_order INTEGER NOT NULL,
+      type TEXT NOT NULL DEFAULT 'working',
+      weight REAL,
+      weight_unit TEXT NOT NULL DEFAULT 'kg',
+      reps INTEGER,
+      duration_seconds INTEGER,
+      distance_meters REAL,
+      rir INTEGER,
+      rest_seconds INTEGER,
+      completed_at INTEGER,
+      is_scheduled INTEGER NOT NULL DEFAULT 0
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
     INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
   `);

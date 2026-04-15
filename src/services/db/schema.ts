@@ -117,3 +117,51 @@ export const aiMemories = sqliteTable("ai_memories", {
     content: text("content").notNull(),
     created_at: integer("created_at").notNull(),
 });
+
+export const exerciseTemplates = sqliteTable("exercise_templates", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    muscle_group: text("muscle_group"),
+    equipment: text("equipment"),
+    resistance_mode: text("resistance_mode").notNull().default("resistance"),
+    default_weight_unit: text("default_weight_unit").notNull().default("kg"),
+    notes: text("notes"),
+    deleted: integer("deleted").notNull().default(0),
+    created_at: integer("created_at").notNull(),
+});
+
+export const workouts = sqliteTable("workouts", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    date: text("date").notNull(),
+    title: text("title"),
+    started_at: integer("started_at").notNull(),
+    ended_at: integer("ended_at"),
+    notes: text("notes"),
+    is_scheduled: integer("is_scheduled").notNull().default(0),
+});
+
+export const workoutExercises = sqliteTable("workout_exercises", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workout_id: integer("workout_id").notNull().references(() => workouts.id),
+    exercise_template_id: integer("exercise_template_id").notNull().references(() => exerciseTemplates.id),
+    sort_order: integer("sort_order").notNull(),
+    notes: text("notes"),
+    started_at: integer("started_at"),
+});
+
+export const exerciseSets = sqliteTable("exercise_sets", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workout_exercise_id: integer("workout_exercise_id").notNull().references(() => workoutExercises.id),
+    set_order: integer("set_order").notNull(),
+    type: text("type").notNull().default("working"),
+    weight: real("weight"),
+    weight_unit: text("weight_unit").notNull().default("kg"),
+    reps: integer("reps"),
+    duration_seconds: integer("duration_seconds"),
+    distance_meters: real("distance_meters"),
+    rir: integer("rir"),
+    rest_seconds: integer("rest_seconds"),
+    completed_at: integer("completed_at"),
+    is_scheduled: integer("is_scheduled").notNull().default(0),
+});
