@@ -290,6 +290,11 @@ export function removeExerciseFromWorkout(id: number) {
     exerciseDbSupport.normalizeExerciseSortOrder(workoutExercise.workout_id);
 }
 
+export function updateWorkoutExercise(id: number, data: Partial<NewWorkoutExercise>) {
+    exerciseDbSupport.getWorkoutExerciseOrThrow(id);
+    db.update(workoutExercises).set(data).where(eq(workoutExercises.id, id)).run();
+}
+
 export function getExercisesForWorkout(workoutId: number): WorkoutExerciseWithSets[] {
     exerciseDbSupport.getWorkoutOrThrow(workoutId);
     return listWorkoutExercisesForWorkout(workoutId);
