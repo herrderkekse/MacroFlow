@@ -72,9 +72,10 @@ function WorkoutSummaryCard({ workout, exercises, onDelete }: WorkoutSummaryProp
 interface WorkoutSummarySectionProps {
     date: string;
     refreshKey?: number;
+    onQuickAdd?: () => void;
 }
 
-export default function WorkoutSummarySection({ date, refreshKey }: WorkoutSummarySectionProps) {
+export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd }: WorkoutSummarySectionProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -127,6 +128,11 @@ export default function WorkoutSummarySection({ date, refreshKey }: WorkoutSumma
                 <Pressable onPress={handleStartWorkout} hitSlop={8}>
                     <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
                 </Pressable>
+                {onQuickAdd && (
+                    <Pressable onPress={onQuickAdd} hitSlop={8}>
+                        <Ionicons name="flash-outline" size={22} color={colors.primary} />
+                    </Pressable>
+                )}
             </View>
 
             {workoutsData.length === 0 ? (
