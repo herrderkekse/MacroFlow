@@ -54,7 +54,28 @@ export default function WorkoutScreen() {
     }
 
     function handleBack() {
-        router.back();
+        const isInProgress = workout.data?.workout && !workout.data.workout.ended_at;
+        if (!isInProgress) {
+            router.back();
+            return;
+        }
+
+        Alert.alert(
+            t("exercise.workout.leaveTitle"),
+            t("exercise.workout.leaveMessage"),
+            [
+                { text: t("exercise.workout.leaveContinue"), style: "cancel" },
+                {
+                    text: t("exercise.workout.leaveFinish"),
+                    onPress: () => { workout.finishCurrentWorkout(); router.back(); },
+                },
+                {
+                    text: t("exercise.workout.leaveWithout"),
+                    style: "destructive",
+                    onPress: () => router.back(),
+                },
+            ],
+        );
     }
 
     function handleNoteChange(workoutExerciseId: number, note: string) {
