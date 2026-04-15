@@ -6,10 +6,9 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
+import type { ExerciseType } from "../types";
 import RestTimer from "./RestTimer";
 import SetInputRow, { type SetValues } from "./SetInputRow";
-
-type ExerciseType = "weight" | "bodyweight" | "cardio";
 
 interface ExerciseCardProps {
     item: WorkoutExerciseWithSets;
@@ -49,8 +48,7 @@ export default function ExerciseCard({
 
     const template = item.exerciseTemplate;
     const name = template?.name ?? "?";
-    const exerciseType: ExerciseType = template?.type === "cardio" ? "cardio"
-        : template?.type === "bodyweight" ? "bodyweight" : "weight";
+    const exerciseType: ExerciseType = (template?.type as ExerciseType) ?? "weight";
 
     function handleRemove() {
         Alert.alert(

@@ -6,8 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { convertWeight } from "../helpers/exerciseUnits";
 import type { ExerciseSet } from "../services/exerciseDb";
-
-type ExerciseType = "weight" | "bodyweight" | "cardio";
+import type { ExerciseType } from "../types";
 
 const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
 type SetType = (typeof SET_TYPES)[number];
