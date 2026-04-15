@@ -3,7 +3,7 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Alert, StyleSheet, Text, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
@@ -31,10 +31,12 @@ export default function WorkoutScreen() {
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
 
-    // Auto-start workout if none loaded
-    if (!workout.data && !workoutId) {
-        workout.startWorkout();
-    }
+    // Auto-start workout if none loaded (must run in effect, not during render)
+    useEffect(() => {
+        if (!workout.data && !workoutId && !workout.isResumed) {
+            workout.startWorkout();
+        }
+    }, [workout.data, workoutId, workout.isResumed, workout.startWorkout]);
 
     const isFinished = !!workout.data?.workout.ended_at;
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
