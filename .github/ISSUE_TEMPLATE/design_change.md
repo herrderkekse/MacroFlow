@@ -1,0 +1,69 @@
+name: 🎨 Design Change
+description: Propose a design improvement or modification
+title: "[Design]: "
+labels: ["design", "enhancement"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎨 Design Change Proposal
+        Thanks for taking the time to suggest a design improvement!
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: Briefly describe the design change
+      placeholder: e.g. Update button styles to match new branding
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this design change solve?
+      placeholder: Describe the current issue or limitation
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Design
+      description: Describe your proposed design solution
+      placeholder: Include layout, colors, typography, interactions, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative designs or approaches?
+      placeholder: Describe other options you thought about
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What areas of the app/system are affected?
+      placeholder: UI components, pages, performance, accessibility, etc.
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Mockups / Screenshots
+      description: Add images, sketches, or links to designs (Figma, etc.)
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked for existing design change requests
+          required: true
+        - label: This change aligns with the project's design guidelines
+        - label: I am willing to help implement this change
