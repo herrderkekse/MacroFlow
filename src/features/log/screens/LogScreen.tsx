@@ -3,6 +3,8 @@
 // Tracked in: https://github.com/BenniG82/macroflow/issues (search "AiChatOverlay boundary")
 // eslint-disable-next-line boundaries/dependencies
 import AiChatOverlay, { CHAT_BAR_TOTAL_HEIGHT } from "@/src/features/ai/components/AiChatOverlay";
+// eslint-disable-next-line boundaries/dependencies
+import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSummarySection";
 import type { Goals } from "@/src/features/settings/services/settingsDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
@@ -24,6 +26,7 @@ import WeightSection from "../components/WeightSection";
 import { computeTotals, type EntryWithFood } from "../helpers/logHelpers";
 import { useLogData } from "../hooks/useLogData";
 import type { WeightLog } from "../services/logDb";
+import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -34,6 +37,7 @@ function DayPage({
     onConfirmEntry, onConfirmRecipeLog,
     selectionMode, selectedEntryIds, onToggleEntries, onActivateSelection, onActivateSelectionMultiple,
     meanWeightKg, weightTrend, weightDaysAgo, weightLogs, onAddWeight, onDeleteWeight,
+    dateKey,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
@@ -55,6 +59,7 @@ function DayPage({
     weightLogs?: WeightLog[];
     onAddWeight?: (weightKg: number) => void;
     onDeleteWeight?: (id: number) => void;
+    dateKey?: string;
 }) {
     const totals = computeTotals(grouped);
     return (
@@ -73,6 +78,7 @@ function DayPage({
                     />
                 ))}
                 <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />
+                {dateKey && <WorkoutSummarySection date={dateKey} />}
             </ScrollView>
         </View>
     );
@@ -110,7 +116,8 @@ export default function LogScreen() {
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
-                    meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo} />
+                    meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
+                    dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, -1))} />
                 <DayPage grouped={d.grouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
@@ -119,12 +126,14 @@ export default function LogScreen() {
                     onToggleEntries={d.handleToggleEntries} onActivateSelection={d.handleActivateSelection}
                     onActivateSelectionMultiple={d.handleActivateSelectionMultiple}
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
-                    weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight} />
+                    weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight}
+                    dateKey={formatDateKey(d.selectedDate)} />
                 <DayPage grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
-                    meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo} />
+                    meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
+                    dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, +1))} />
             </ScrollView>
 
             <EntryModal food={d.editingEntry?.foods ?? null} entry={d.editingEntry?.entries ?? null}
