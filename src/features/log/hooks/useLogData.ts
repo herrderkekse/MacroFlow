@@ -8,9 +8,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
-import type { RecipeGroup } from "../services/logDb";
 import { computeWeightTrend, loadGrouped, type EntryWithFood } from "../helpers/logHelpers";
-import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type WeightLog } from "../services/logDb";
+import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -169,6 +168,10 @@ export function useLogData() {
         router.push({ pathname: "/log/add", params: mealType ? { mealType } : undefined });
     };
 
+    const navigateToWorkout = () => {
+        router.push("/workout");
+    };
+
     function exitSelectionMode() { setSelectionMode(false); setSelectedEntryIds(new Set()); }
 
     function handleToggleEntries(entryIds: number[]) {
@@ -237,7 +240,7 @@ export function useLogData() {
         handleConfirmEntry, handleConfirmRecipeLog,
         handleAddWeight, handleDeleteWeight,
         handleEdit, handleEditRecipeGroup, handleSavePortionMultiplier,
-        navigateToAdd, exitSelectionMode,
+        navigateToAdd, navigateToWorkout, exitSelectionMode,
         handleToggleEntries, handleActivateSelection, handleActivateSelectionMultiple,
         handleMoveCopy, handleDateChange,
         loadAllDays, SCREEN_WIDTH,

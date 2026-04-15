@@ -138,6 +138,15 @@ export default function LogScreen() {
                 <Ionicons name={d.selectionMode ? "move-outline" : "add"} size={28} color="#fff" />
             </Pressable>
 
+            {!d.selectionMode && (
+                <Pressable
+                    style={({ pressed }) => [styles.fabSecondary, { bottom: d.chatBarVisible ? CHAT_BAR_TOTAL_HEIGHT + 8 : 24 }, pressed && styles.fabPressed]}
+                    onPress={d.navigateToWorkout}
+                >
+                    <Ionicons name="barbell-outline" size={24} color="#fff" />
+                </Pressable>
+            )}
+
             <Modal visible={!!d.editingRecipeGroup} transparent animationType="fade" onRequestClose={() => d.setEditingRecipeGroup(null)}>
                 <Pressable style={styles.overlay} onPress={() => d.setEditingRecipeGroup(null)}>
                     <Pressable style={styles.portionModal} onPress={() => { }}>
@@ -183,6 +192,12 @@ function createStyles(colors: ThemeColors) {
         fab: {
             position: "absolute", right: 24, width: 56, height: 56, borderRadius: 28,
             backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
+            elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25, shadowRadius: 4,
+        },
+        fabSecondary: {
+            position: "absolute", right: 92, width: 48, height: 48, borderRadius: 24,
+            backgroundColor: colors.weight, alignItems: "center", justifyContent: "center",
             elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25, shadowRadius: 4,
         },
