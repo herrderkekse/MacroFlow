@@ -380,6 +380,7 @@ const en = {
             leaveContinue: "Continue Workout",
             leaveFinish: "Save & Finish",
             leaveWithout: "Leave without Finishing",
+            editTimes: "Edit Workout Times",
         },
         restTimer: {
             rest: "Rest",

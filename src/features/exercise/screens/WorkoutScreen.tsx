@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { FlatList, Alert, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
+import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
 import ExerciseCard from "../components/ExerciseCard";
 import WorkoutHeader from "../components/WorkoutHeader";
 import { useRestTimer } from "../hooks/useRestTimer";
@@ -36,6 +37,7 @@ export default function WorkoutScreen() {
     const actions = useWorkoutActions(workout, restTimer);
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
+    const [showTimesModal, setShowTimesModal] = useState(false);
 
     // Focus state: which exercise is expanded (null = none)
     const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -80,6 +82,11 @@ export default function WorkoutScreen() {
     function handleFinish() {
         workout.finishCurrentWorkout();
         router.back();
+    }
+
+    function handleSaveTimes(startEpoch: number, endEpoch: number | null) {
+        workout.updateStartTime(startEpoch);
+        if (endEpoch != null) workout.updateEndTime(endEpoch);
     }
 
     function handleBack() {
@@ -141,6 +148,7 @@ export default function WorkoutScreen() {
                 onTitleChange={workout.updateTitle}
                 onFinish={handleFinish}
                 onBack={handleBack}
+                onTimerPress={() => setShowTimesModal(true)}
             />
 
             <FlatList
@@ -193,6 +201,22 @@ export default function WorkoutScreen() {
                     targetWorkoutId={workout.data.workout.id}
                     onClose={() => setShowCopySheet(false)}
                     onCopied={workout.reload}
+                />
+            )}
+
+            {workout.data?.workout && (
+                <EditWorkoutTimesModal
+                    visible={showTimesModal}
+                    onClose={() => setShowTimesModal(false)}
+                    startedAt={workout.data.workout.started_at}
+                    endedAt={workout.data.workout.ended_at}
+                    onSave={handleSaveTimes}
+                    labels={{
+                        title: t("exercise.workout.editTimes"),
+                        startLabel: t("exercise.workout.startedAt"),
+                        endLabel: t("exercise.workout.endedAt"),
+                        save: t("common.save"),
+                    }}
                 />
             )}
         </View>

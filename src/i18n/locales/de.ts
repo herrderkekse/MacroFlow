@@ -382,6 +382,7 @@ const de = {
             leaveContinue: "Training fortsetzen",
             leaveFinish: "Speichern & Beenden",
             leaveWithout: "Ohne Beenden verlassen",
+            editTimes: "Trainingszeiten bearbeiten",
         },
         restTimer: {
             rest: "Pause",
