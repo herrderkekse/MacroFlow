@@ -14,11 +14,12 @@ interface WorkoutHeaderProps {
     onTitleChange: (title: string) => void;
     onFinish: () => void;
     onBack: () => void;
+    onTimerPress: () => void;
 }
 
 export default function WorkoutHeader({
     title, elapsedMs, isFinished, hasUnfinishedSets,
-    onTitleChange, onFinish, onBack,
+    onTitleChange, onFinish, onBack, onTimerPress,
 }: WorkoutHeaderProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -84,10 +85,10 @@ export default function WorkoutHeader({
                 </Pressable>
             )}
 
-            <View style={styles.timerWrap}>
+            <Pressable style={styles.timerWrap} onPress={onTimerPress} hitSlop={8}>
                 <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.timer}>{formatElapsed(elapsedMs)}</Text>
-            </View>
+            </Pressable>
 
             {!isFinished && (
                 <Pressable onPress={handleFinish} style={styles.finishBtn} hitSlop={8}>

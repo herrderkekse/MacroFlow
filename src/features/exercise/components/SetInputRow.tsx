@@ -95,14 +95,13 @@ export default function SetInputRow({
     }, [isCompleted, set.id, buildValues, onUpdate]);
 
     const handleLongPressSetNum = useCallback(() => {
-        if (isCompleted || isFinished) return;
+        if (isCompleted) return;
         const currentIdx = SET_TYPES.indexOf(set.type as SetType);
         const nextIdx = (currentIdx + 1) % SET_TYPES.length;
         onTypeChange(set.id, SET_TYPES[nextIdx]);
-    }, [set.id, set.type, isCompleted, isFinished, onTypeChange]);
+    }, [set.id, set.type, isCompleted, onTypeChange]);
 
     const handleDelete = useCallback(() => {
-        if (isFinished) return;
         Alert.alert(
             t("exercise.exerciseCard.deleteSet"),
             t("exercise.exerciseCard.deleteSetConfirm"),
@@ -111,7 +110,7 @@ export default function SetInputRow({
                 { text: t("common.delete"), style: "destructive", onPress: () => onDelete(set.id) },
             ],
         );
-    }, [set.id, isFinished, onDelete, t]);
+    }, [set.id, onDelete, t]);
 
     // Scheduled / pending — display-only dim row
     if (isScheduled && !isActive) {
@@ -121,15 +120,9 @@ export default function SetInputRow({
                     {typeLabel}{index + 1}
                 </Text>
                 <ScheduledCells set={set} exerciseType={exerciseType} textColor={colors.textTertiary} styles={styles} />
-                {isFinished ? (
-                    <View style={styles.checkCol}>
-                        <Ionicons name="ellipse-outline" size={20} color={colors.border} />
-                    </View>
-                ) : (
-                    <Pressable style={styles.checkCol} onPress={handleDelete}>
-                        <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
-                    </Pressable>
-                )}
+                <Pressable style={styles.checkCol} onPress={handleDelete}>
+                    <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+                </Pressable>
             </Pressable>
         );
     }
@@ -160,11 +153,10 @@ export default function SetInputRow({
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         selectTextOnFocus
-                        editable={!isFinished}
                         onFocus={() => setFocusedField("weight")}
                         onBlur={() => handleBlurSave("weight")}
                     />
-                    <Pressable onPress={!isFinished ? handleToggleUnit : undefined} style={styles.unitToggle}>
+                    <Pressable onPress={handleToggleUnit} style={styles.unitToggle}>
                         <Text style={[styles.unitText, { color: colors.primary }]}>{unit}</Text>
                     </Pressable>
                 </View>
@@ -179,7 +171,6 @@ export default function SetInputRow({
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="number-pad"
                     selectTextOnFocus
-                    editable={!isFinished}
                     onFocus={() => setFocusedField("reps")}
                     onBlur={() => handleBlurSave("reps")}
                 />
@@ -195,7 +186,6 @@ export default function SetInputRow({
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="number-pad"
                         selectTextOnFocus
-                        editable={!isFinished}
                         onFocus={() => setFocusedField("duration")}
                         onBlur={() => handleBlurSave("duration")}
                     />
@@ -207,7 +197,6 @@ export default function SetInputRow({
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         selectTextOnFocus
-                        editable={!isFinished}
                         onFocus={() => setFocusedField("distance")}
                         onBlur={() => handleBlurSave("distance")}
                     />
@@ -223,7 +212,6 @@ export default function SetInputRow({
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="number-pad"
                     selectTextOnFocus
-                    editable={!isFinished}
                     onFocus={() => setFocusedField("rir")}
                     onBlur={() => handleBlurSave("rir")}
                 />
@@ -233,12 +221,10 @@ export default function SetInputRow({
                 <Pressable style={styles.checkCol} onPress={handleConfirm}>
                     <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                 </Pressable>
-            ) : !isFinished ? (
+            ) : (
                 <Pressable style={styles.checkCol} onPress={handleDelete}>
                     <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
                 </Pressable>
-            ) : (
-                <View style={styles.checkCol} />
             )}
         </View>
     );

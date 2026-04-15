@@ -164,11 +164,9 @@ export function ExpandedExerciseCard({
             )}
 
             {/* + Add Set button */}
-            {!isFinished && (
-                <Pressable style={styles.addSetBtn} onPress={() => onAddSet(item.workoutExercise.id)}>
-                    <Text style={styles.addSetText}>{t("exercise.exerciseCard.addSet")}</Text>
-                </Pressable>
-            )}
+            <Pressable style={styles.addSetBtn} onPress={() => onAddSet(item.workoutExercise.id)}>
+                <Text style={styles.addSetText}>{t("exercise.exerciseCard.addSet")}</Text>
+            </Pressable>
 
             <ExerciseCardMenu
                 visible={menuOpen}

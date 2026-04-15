@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { FlatList, Alert, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
+import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
 import ExerciseCard from "../components/ExerciseCard";
 import WorkoutHeader from "../components/WorkoutHeader";
 import { useRestTimer } from "../hooks/useRestTimer";
@@ -36,6 +37,7 @@ export default function WorkoutScreen() {
     const actions = useWorkoutActions(workout, restTimer);
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
+    const [showTimesModal, setShowTimesModal] = useState(false);
 
     // Focus state: which exercise is expanded (null = none)
     const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -82,6 +84,11 @@ export default function WorkoutScreen() {
         router.back();
     }
 
+    function handleSaveTimes(startEpoch: number, endEpoch: number | null) {
+        workout.updateStartTime(startEpoch);
+        if (endEpoch != null) workout.updateEndTime(endEpoch);
+    }
+
     function handleBack() {
         const isInProgress = workout.data?.workout && !workout.data.workout.ended_at;
         if (!isInProgress) { router.back(); return; }
@@ -100,7 +107,7 @@ export default function WorkoutScreen() {
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
         const tid = item.workoutExercise.exercise_template_id;
         const timerActive = restTimer.isRunning && restTimer.workoutExerciseId === item.workoutExercise.id;
-        const isExpanded = isFinished || expandedId === item.workoutExercise.id;
+        const isExpanded = expandedId === item.workoutExercise.id;
         return (
             <ExerciseCard
                 item={item}
@@ -141,6 +148,7 @@ export default function WorkoutScreen() {
                 onTitleChange={workout.updateTitle}
                 onFinish={handleFinish}
                 onBack={handleBack}
+                onTimerPress={() => setShowTimesModal(true)}
             />
 
             <FlatList
@@ -153,27 +161,23 @@ export default function WorkoutScreen() {
                     <View style={styles.emptyWrap}>
                         <Ionicons name="barbell-outline" size={48} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
-                        {!isFinished && (
-                            <>
-                                <Button
-                                    title={t("exercise.workout.addExercise")}
-                                    variant="outline"
-                                    icon={<Ionicons name="add" size={18} color={colors.text} />}
-                                    onPress={() => setShowAddExercise(true)}
-                                    style={styles.addBtn}
-                                />
-                                <Button
-                                    title={t("exercise.workout.copyFromHistory")}
-                                    variant="ghost"
-                                    icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
-                                    onPress={() => setShowCopySheet(true)}
-                                />
-                            </>
-                        )}
+                        <Button
+                            title={t("exercise.workout.addExercise")}
+                            variant="outline"
+                            icon={<Ionicons name="add" size={18} color={colors.text} />}
+                            onPress={() => setShowAddExercise(true)}
+                            style={styles.addBtn}
+                        />
+                        <Button
+                            title={t("exercise.workout.copyFromHistory")}
+                            variant="ghost"
+                            icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
+                            onPress={() => setShowCopySheet(true)}
+                        />
                     </View>
                 }
                 ListFooterComponent={
-                    !isFinished && !isEmpty ? (
+                    !isEmpty ? (
                         <Button
                             title={t("exercise.workout.addExercise")}
                             variant="outline"
@@ -197,6 +201,22 @@ export default function WorkoutScreen() {
                     targetWorkoutId={workout.data.workout.id}
                     onClose={() => setShowCopySheet(false)}
                     onCopied={workout.reload}
+                />
+            )}
+
+            {workout.data?.workout && (
+                <EditWorkoutTimesModal
+                    visible={showTimesModal}
+                    onClose={() => setShowTimesModal(false)}
+                    startedAt={workout.data.workout.started_at}
+                    endedAt={workout.data.workout.ended_at}
+                    onSave={handleSaveTimes}
+                    labels={{
+                        title: t("exercise.workout.editTimes"),
+                        startLabel: t("exercise.workout.startedAt"),
+                        endLabel: t("exercise.workout.endedAt"),
+                        save: t("common.save"),
+                    }}
                 />
             )}
         </View>

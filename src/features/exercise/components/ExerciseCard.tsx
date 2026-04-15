@@ -2,10 +2,11 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { bestSetSummary, createCollapsedCardStyles } from "./ExerciseCardHelpers";
+import { ExerciseCardMenu, ExerciseNoteModal } from "./ExerciseCardModals";
 import { ExpandedExerciseCard } from "./ExpandedExerciseCard";
 import type { SetValues } from "./SetInputRow";
 
@@ -40,6 +41,7 @@ export default function ExerciseCard({
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
+    const { t } = useTranslation();
     const template = item.exerciseTemplate;
     const name = template?.name ?? "?";
     const exerciseType: ExerciseType = (template?.type as ExerciseType) ?? "weight";
@@ -48,15 +50,69 @@ export default function ExerciseCard({
     const [noteOpen, setNoteOpen] = useState(false);
     const [noteDraft, setNoteDraft] = useState(item.workoutExercise.notes ?? "");
 
-    // Show collapsed card for non-expanded, non-finished exercises
-    if (!isExpanded && !isFinished) {
+    function handleRemove() {
+        Alert.alert(
+            t("exercise.exerciseCard.remove"),
+            t("exercise.exerciseCard.removeConfirm"),
+            [
+                { text: t("common.cancel"), style: "cancel" },
+                { text: t("common.delete"), style: "destructive", onPress: () => onRemove(item.workoutExercise.id) },
+            ],
+        );
+        setMenuOpen(false);
+    }
+
+    function handleSaveNote() {
+        onNoteChange(item.workoutExercise.id, noteDraft.trim());
+        setNoteOpen(false);
+    }
+
+    // Show collapsed card for non-expanded exercises
+    if (!isExpanded) {
         return (
-            <CollapsedExerciseCard
-                item={item}
-                index={index}
-                name={name}
-                onExpand={onExpand}
-            />
+            <>
+                <CollapsedExerciseCard
+                    item={item}
+                    index={index}
+                    name={name}
+                    onExpand={onExpand}
+                    onLongPress={() => setMenuOpen(true)}
+                />
+                <ExerciseCardMenu
+                    visible={menuOpen}
+                    onClose={() => setMenuOpen(false)}
+                    index={index}
+                    totalExercises={totalExercises}
+                    isFinished={isFinished}
+                    hasNote={!!item.workoutExercise.notes}
+                    hasTemplate={!!template}
+                    onMoveUp={() => { onMoveUp(item.workoutExercise.id); setMenuOpen(false); }}
+                    onMoveDown={() => { onMoveDown(item.workoutExercise.id); setMenuOpen(false); }}
+                    onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
+                    onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
+                    onRemove={handleRemove}
+                    labels={{
+                        moveUp: t("exercise.exerciseCard.moveUp"),
+                        moveDown: t("exercise.exerciseCard.moveDown"),
+                        editNote: t("exercise.exerciseCard.editNote"),
+                        addNote: t("exercise.exerciseCard.addNote"),
+                        copyFromLast: t("exercise.exerciseCard.copyFromLast"),
+                        remove: t("exercise.exerciseCard.remove"),
+                    }}
+                />
+                <ExerciseNoteModal
+                    visible={noteOpen}
+                    onClose={() => setNoteOpen(false)}
+                    value={noteDraft}
+                    onChangeText={setNoteDraft}
+                    onSave={handleSaveNote}
+                    labels={{
+                        title: t("exercise.exerciseCard.note"),
+                        placeholder: t("exercise.exerciseCard.notePlaceholder"),
+                        save: t("common.save"),
+                    }}
+                />
+            </>
         );
     }
 
@@ -102,9 +158,10 @@ interface CollapsedProps {
     index: number;
     name: string;
     onExpand: () => void;
+    onLongPress: () => void;
 }
 
-function CollapsedExerciseCard({ item, index, name, onExpand }: CollapsedProps) {
+function CollapsedExerciseCard({ item, index, name, onExpand, onLongPress }: CollapsedProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createCollapsedCardStyles(colors), [colors]);
@@ -121,7 +178,7 @@ function CollapsedExerciseCard({ item, index, name, onExpand }: CollapsedProps) 
     }
 
     return (
-        <Pressable style={styles.card} onPress={onExpand}>
+        <Pressable style={styles.card} onPress={onExpand} onLongPress={onLongPress}>
             <Text style={styles.orderNum}>{index + 1}.</Text>
             <Text style={styles.name} numberOfLines={1}>{name}</Text>
 
