@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { convertWeight } from "../helpers/exerciseUnits";
 import type { ExerciseSet } from "../services/exerciseDb";
 
 type ExerciseType = "weight" | "bodyweight" | "cardio";
@@ -59,9 +60,18 @@ export default function SetInputRow({
     const [rir, setRir] = useState(set.rir != null ? String(set.rir) : "");
     const [duration, setDuration] = useState(set.duration_seconds != null ? String(set.duration_seconds) : "");
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
-    const [unit] = useState(set.weight_unit ?? "kg");
+    const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
 
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";
+
+    const handleToggleUnit = useCallback(() => {
+        const newUnit = unit === "kg" ? "lb" : "kg";
+        if (weight) {
+            const converted = convertWeight(parseFloat(weight), unit, newUnit);
+            setWeight(String(converted));
+        }
+        setUnit(newUnit);
+    }, [unit, weight]);
 
     const handleConfirm = useCallback(() => {
         const vals: SetValues = {
@@ -122,15 +132,20 @@ export default function SetInputRow({
                     </Text>
                 </Pressable>
                 {exerciseType === "weight" && (
-                    <TextInput
-                        style={[styles.input, styles.valueCol, { color: textColor }]}
-                        value={weight}
-                        onChangeText={setWeight}
-                        placeholder={prefillWeight != null ? String(prefillWeight) : "—"}
-                        placeholderTextColor={colors.textTertiary}
-                        keyboardType="decimal-pad"
-                        selectTextOnFocus
-                    />
+                    <View style={styles.weightInputGroup}>
+                        <TextInput
+                            style={[styles.input, { flex: 1, color: textColor }]}
+                            value={weight}
+                            onChangeText={setWeight}
+                            placeholder={prefillWeight != null ? String(prefillWeight) : "—"}
+                            placeholderTextColor={colors.textTertiary}
+                            keyboardType="decimal-pad"
+                            selectTextOnFocus
+                        />
+                        <Pressable onPress={handleToggleUnit} style={styles.unitToggle}>
+                            <Text style={[styles.unitText, { color: colors.primary }]}>{unit}</Text>
+                        </Pressable>
+                    </View>
                 )}
                 {exerciseType !== "cardio" && (
                     <TextInput
@@ -206,7 +221,9 @@ function ReadOnlyCells({ set, exerciseType, textColor, styles }: {
     return (
         <>
             {exerciseType === "weight" && (
-                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>{set.weight ?? "—"}</Text>
+                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
+                    {set.weight != null ? `${set.weight} ${set.weight_unit}` : "—"}
+                </Text>
             )}
             {exerciseType !== "cardio" && (
                 <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>{set.reps ?? "—"}</Text>
@@ -258,6 +275,19 @@ function createStyles(colors: ThemeColors) {
             borderBottomColor: colors.border,
             paddingVertical: 2,
             marginHorizontal: 2,
+        },
+        weightInputGroup: {
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+        },
+        unitToggle: {
+            paddingHorizontal: 4,
+            paddingVertical: 2,
+        },
+        unitText: {
+            fontSize: fontSize.xs,
+            fontWeight: "700",
         },
     });
 }
