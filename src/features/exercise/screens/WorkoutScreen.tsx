@@ -97,7 +97,9 @@ export default function WorkoutScreen() {
     }, [workout]);
 
     const handleAddSet = useCallback((workoutExerciseId: number) => {
-        addSet({ workout_exercise_id: workoutExerciseId });
+        const ex = workout.data?.exercises.find((e) => e.workoutExercise.id === workoutExerciseId);
+        const defaultUnit = ex?.exerciseTemplate?.default_weight_unit ?? "kg";
+        addSet({ workout_exercise_id: workoutExerciseId, weight_unit: defaultUnit });
         workout.reload();
     }, [workout]);
 
