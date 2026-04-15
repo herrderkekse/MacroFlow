@@ -5,6 +5,8 @@
 import AiChatOverlay, { CHAT_BAR_TOTAL_HEIGHT } from "@/src/features/ai/components/AiChatOverlay";
 // eslint-disable-next-line boundaries/dependencies
 import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSummarySection";
+// eslint-disable-next-line boundaries/dependencies
+import QuickExerciseModal from "@/src/features/exercise/components/QuickExerciseModal";
 import type { Goals } from "@/src/features/settings/services/settingsDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
@@ -13,7 +15,7 @@ import { MEAL_TYPES, type MealType } from "@/src/shared/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,7 +39,7 @@ function DayPage({
     onConfirmEntry, onConfirmRecipeLog,
     selectionMode, selectedEntryIds, onToggleEntries, onActivateSelection, onActivateSelectionMultiple,
     meanWeightKg, weightTrend, weightDaysAgo, weightLogs, onAddWeight, onDeleteWeight,
-    dateKey,
+    dateKey, onQuickAdd,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
@@ -60,6 +62,7 @@ function DayPage({
     onAddWeight?: (weightKg: number) => void;
     onDeleteWeight?: (id: number) => void;
     dateKey?: string;
+    onQuickAdd?: () => void;
 }) {
     const totals = computeTotals(grouped);
     return (
@@ -78,7 +81,7 @@ function DayPage({
                     />
                 ))}
                 <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />
-                {dateKey && <WorkoutSummarySection date={dateKey} />}
+                {dateKey && <WorkoutSummarySection date={dateKey} onQuickAdd={onQuickAdd} />}
             </ScrollView>
         </View>
     );
@@ -98,6 +101,7 @@ export default function LogScreen() {
     const insets = useSafeAreaInsets();
     const tabBarHeight = useBottomTabBarHeight();
     const d = useLogData();
+    const [showQuickExercise, setShowQuickExercise] = useState(false);
 
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -127,7 +131,8 @@ export default function LogScreen() {
                     onActivateSelectionMultiple={d.handleActivateSelectionMultiple}
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
                     weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight}
-                    dateKey={formatDateKey(d.selectedDate)} />
+                    dateKey={formatDateKey(d.selectedDate)}
+                    onQuickAdd={() => setShowQuickExercise(true)} />
                 <DayPage grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
@@ -187,6 +192,13 @@ export default function LogScreen() {
 
             <AiChatOverlay tabBarHeight={tabBarHeight} onVisibilityChange={d.setChatBarVisible}
                 onDataChanged={() => d.loadAllDays(d.selectedDate)} />
+
+            <QuickExerciseModal
+                visible={showQuickExercise}
+                date={d.selectedDate}
+                onClose={() => setShowQuickExercise(false)}
+                onSaved={() => d.loadAllDays(d.selectedDate)}
+            />
         </View>
     );
 }
