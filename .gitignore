@@ -5,6 +5,7 @@
 SPECS.md
 .github/copilot-instructions.md
 .github/skills/
+.github/agents/
 .claude
 CLAUDE.local.md
 .ai-context/
