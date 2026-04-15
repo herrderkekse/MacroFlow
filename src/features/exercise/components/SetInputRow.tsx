@@ -1,7 +1,7 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { convertWeight } from "../helpers/exerciseUnits";
@@ -61,6 +61,16 @@ export default function SetInputRow({
     const [duration, setDuration] = useState(set.duration_seconds != null ? String(set.duration_seconds) : "");
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
     const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
+
+    // Sync local state when set prop changes externally (e.g. copy from last, type change)
+    useEffect(() => {
+        setWeight(set.weight != null ? String(set.weight) : "");
+        setReps(set.reps != null ? String(set.reps) : "");
+        setRir(set.rir != null ? String(set.rir) : "");
+        setDuration(set.duration_seconds != null ? String(set.duration_seconds) : "");
+        setDistance(set.distance_meters != null ? String(set.distance_meters) : "");
+        setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
+    }, [set.id, set.weight, set.reps, set.rir, set.duration_seconds, set.distance_meters, set.weight_unit]);
 
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";
 
