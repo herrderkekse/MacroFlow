@@ -358,6 +358,7 @@ const de = {
             exercises: "{{count}} Übungen",
             deleteConfirm:
                 "Dieses Training und alle Daten löschen?",
+            moreExercises: "+{{count}} weitere",
         },
         workout: {
             title: "Training",
