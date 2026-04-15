@@ -326,6 +326,8 @@ const de = {
             noHistory: "Keine vorherige Einheit gefunden",
             note: "Notiz",
             notePlaceholder: "Übungsnotizen…",
+            deleteSet: "Satz löschen",
+            deleteSetConfirm: "Diesen Satz löschen?",
         },
         addExercise: {
             title: "Übung hinzufügen",
