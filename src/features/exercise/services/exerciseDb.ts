@@ -334,6 +334,21 @@ export function getSetsForExercise(workoutExerciseId: number): ExerciseSet[] {
     return exerciseDbSupport.listSetsForExercise(workoutExerciseId);
 }
 
+/** Returns completed sets from the most recent finished workout that used this template. */
+export function getLastCompletedSetsForTemplate(templateId: number): ExerciseSet[] {
+    const rows = db
+        .select({ weId: workoutExercises.id })
+        .from(workoutExercises)
+        .innerJoin(workouts, eq(workoutExercises.workout_id, workouts.id))
+        .where(and(eq(workoutExercises.exercise_template_id, templateId), isNotNull(workouts.ended_at)))
+        .orderBy(desc(workouts.date), desc(workoutExercises.id))
+        .limit(1)
+        .all();
+
+    if (rows.length === 0) return [];
+    return exerciseDbSupport.listSetsForExercise(rows[0].weId).filter((s) => !!s.completed_at);
+}
+
 export function copyWorkoutAsScheduled(sourceWorkoutId: number, targetWorkoutId: number): void {
     const sourceExercises = listWorkoutExercisesForWorkout(sourceWorkoutId);
     const sourceWorkout = exerciseDbSupport.getWorkoutOrThrow(sourceWorkoutId);
