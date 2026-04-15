@@ -115,7 +115,7 @@ export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd }: 
     }
 
     function handleStartWorkout() {
-        router.push("/workout");
+        router.push({ pathname: "/workout", params: { date } });
     }
 
     return (
