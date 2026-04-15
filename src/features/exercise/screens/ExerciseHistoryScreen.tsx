@@ -8,6 +8,7 @@ import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
+import { kgToLb } from "../helpers/exerciseUnits";
 import { formatRirRange, formatSetSummary } from "../helpers/workoutSummary";
 
 export default function ExerciseHistoryScreen() {
@@ -24,11 +25,14 @@ export default function ExerciseHistoryScreen() {
     const { history, e1rmSeries, personalBest, isLoading } = useExerciseHistory(parsedId);
 
     const isAssistance = template?.resistance_mode === "assistance";
+    const displayUnit = (template?.default_weight_unit as "kg" | "lb") ?? "kg";
+    const toDisplayUnit = (kgValue: number) =>
+        displayUnit === "lb" ? kgToLb(kgValue) : Math.round(kgValue * 10) / 10;
 
     const chartData = useMemo(() => {
         if (e1rmSeries.length === 0) return [];
         return e1rmSeries.map((point, i) => ({
-            value: Math.round(point.e1rm * 10) / 10,
+            value: toDisplayUnit(point.e1rm),
             label: i % Math.max(1, Math.floor(e1rmSeries.length / 6)) === 0
                 ? point.date.slice(5)
                 : "",
@@ -36,9 +40,9 @@ export default function ExerciseHistoryScreen() {
         }));
     }, [e1rmSeries, colors.textSecondary]);
 
-    const pbE1rm = personalBest ? Math.round(personalBest.e1rm * 10) / 10 : null;
+    const pbE1rm = personalBest ? toDisplayUnit(personalBest.e1rm) : null;
     const currentE1rm = e1rmSeries.length > 0
-        ? Math.round(e1rmSeries[e1rmSeries.length - 1].e1rm * 10) / 10
+        ? toDisplayUnit(e1rmSeries[e1rmSeries.length - 1].e1rm)
         : null;
 
     if (isLoading) {
@@ -71,12 +75,12 @@ export default function ExerciseHistoryScreen() {
                                 <View style={styles.statsRow}>
                                     {currentE1rm !== null && (
                                         <Text style={styles.statText}>
-                                            {t("exercise.history.current")}: {currentE1rm} kg
+                                            {t("exercise.history.current")}: {currentE1rm} {displayUnit}
                                         </Text>
                                     )}
                                     {pbE1rm !== null && (
                                         <Text style={[styles.statText, { color: colors.success }]}>
-                                            {t("exercise.history.personalBest")}: {pbE1rm} kg
+                                            {t("exercise.history.personalBest")}: {pbE1rm} {displayUnit}
                                         </Text>
                                     )}
                                 </View>
