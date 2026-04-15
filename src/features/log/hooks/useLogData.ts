@@ -169,7 +169,7 @@ export function useLogData() {
     };
 
     const navigateToWorkout = () => {
-        router.push("/workout");
+        router.push({ pathname: "/workout", params: { date: formatDateKey(selectedDate) } });
     };
 
     function exitSelectionMode() { setSelectionMode(false); setSelectedEntryIds(new Set()); }

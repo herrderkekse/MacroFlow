@@ -1,5 +1,6 @@
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { parseDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,10 +24,11 @@ export default function WorkoutScreen() {
     const { t } = useTranslation();
     const styles = useMemo(() => createWorkoutScreenStyles(colors), [colors]);
     const router = useRouter();
-    const params = useLocalSearchParams<{ workoutId?: string }>();
+    const params = useLocalSearchParams<{ workoutId?: string; date?: string }>();
     const workoutId = params.workoutId ? Number(params.workoutId) : undefined;
+    const workoutDate = params.date ? parseDateKey(params.date) : undefined;
 
-    const workout = useWorkout({ workoutId });
+    const workout = useWorkout({ workoutId, date: workoutDate });
     const restTimer = useRestTimer();
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
@@ -34,9 +36,9 @@ export default function WorkoutScreen() {
     // Auto-start workout if none loaded (must run in effect, not during render)
     useEffect(() => {
         if (!workout.data && !workoutId && !workout.isResumed) {
-            workout.startWorkout();
+            workout.startWorkout(workoutDate);
         }
-    }, [workout.data, workoutId, workout.isResumed, workout.startWorkout]);
+    }, [workout.data, workoutId, workout.isResumed, workout.startWorkout, workoutDate]);
 
     const isFinished = !!workout.data?.workout.ended_at;
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
