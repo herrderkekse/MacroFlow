@@ -5,7 +5,7 @@ import type { ExerciseSet } from "../services/exerciseDb";
 
 type ExerciseType = "weight" | "bodyweight" | "cardio";
 
-export function ReadOnlyCells({ set, exerciseType, textColor, styles }: {
+export function ScheduledCells({ set, exerciseType, textColor, styles }: {
     set: ExerciseSet; exerciseType: ExerciseType; textColor: string;
     styles: ReturnType<typeof createSetInputStyles>;
 }) {
@@ -17,7 +17,9 @@ export function ReadOnlyCells({ set, exerciseType, textColor, styles }: {
                 </Text>
             )}
             {exerciseType !== "cardio" && (
-                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>{set.reps ?? "—"}</Text>
+                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
+                    {set.reps ?? "—"}
+                </Text>
             )}
             {exerciseType === "cardio" && (
                 <>
@@ -30,11 +32,7 @@ export function ReadOnlyCells({ set, exerciseType, textColor, styles }: {
                 </>
             )}
             {exerciseType !== "cardio" && (
-                <Text style={[
-                    styles.setCell, styles.rirCol,
-                    { color: set.rir != null && set.rir <= 1 ? "#ef4444" : textColor },
-                    set.rir != null && set.rir <= 1 && { fontWeight: "700" },
-                ]}>
+                <Text style={[styles.setCell, styles.rirCol, { color: textColor }]}>
                     {set.rir ?? "—"}
                 </Text>
             )}
@@ -47,7 +45,7 @@ export function createSetInputStyles(colors: ThemeColors) {
         setRow: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: 4,
+            paddingVertical: spacing.sm,
         },
         activeRow: {
             backgroundColor: colors.surfaceVariant ?? colors.background,
@@ -73,14 +71,27 @@ export function createSetInputStyles(colors: ThemeColors) {
             paddingVertical: 2,
             marginHorizontal: 2,
         },
+        inlineInput: {
+            fontSize: fontSize.sm,
+            textAlign: "center",
+            paddingVertical: 2,
+            marginHorizontal: 2,
+        },
         weightInputGroup: {
             flex: 1,
             flexDirection: "row",
             alignItems: "center",
+            justifyContent: "center",
+        },
+        weightInput: {
+            textAlign: "right",
+            minWidth: 48,
         },
         unitToggle: {
-            paddingHorizontal: 4,
+            paddingLeft: 2,
+            paddingRight: spacing.xs,
             paddingVertical: 2,
+            minWidth: 28,
         },
         unitText: {
             fontSize: fontSize.xs,

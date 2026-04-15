@@ -22,6 +22,7 @@ interface ExerciseCardProps {
     onMoveDown: (workoutExerciseId: number) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
+    onUpdateSet: (setId: number, values: SetValues) => void;
     onDeleteSet: (setId: number) => void;
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
@@ -36,7 +37,7 @@ interface ExerciseCardProps {
 export default function ExerciseCard({
     item, index, totalExercises, isFinished, isExpanded, onExpand, lastWorkoutSets,
     onRemove, onMoveUp, onMoveDown, onNoteChange,
-    onConfirmSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
+    onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
     const template = item.exerciseTemplate;
@@ -80,6 +81,7 @@ export default function ExerciseCard({
             onMoveDown={onMoveDown}
             onNoteChange={onNoteChange}
             onConfirmSet={onConfirmSet}
+            onUpdateSet={onUpdateSet}
             onDeleteSet={onDeleteSet}
             onSetTypeChange={onSetTypeChange}
             onAddSet={onAddSet}
