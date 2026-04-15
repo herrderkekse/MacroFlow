@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Alert, StyleSheet, Text, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import ExerciseCard from "../components/ExerciseCard";
@@ -14,7 +14,7 @@ import WorkoutHeader from "../components/WorkoutHeader";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
 import {
-    addSet, completeSet, deleteSet, getLastCompletedSetsForTemplate, updateSet,
+    addSet, completeSet, copySetsFromLastSession, deleteSet, getLastCompletedSetsForTemplate, updateSet,
     updateWorkoutExercise, type ExerciseSet, type ExerciseTemplate, type WorkoutExerciseWithSets,
 } from "../services/exerciseDb";
 
@@ -40,7 +40,9 @@ export default function WorkoutScreen() {
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
 
     function handleExerciseSelected(template: ExerciseTemplate) {
-        workout.addExercise(template.id);
+        const weId = workout.addExercise(template.id);
+        if (weId) copySetsFromLastSession(template.id, weId);
+        workout.reload();
         setShowAddExercise(false);
     }
 
@@ -114,6 +116,14 @@ export default function WorkoutScreen() {
         workout.reload();
     }, [workout]);
 
+    const handleCopyFromLast = useCallback((workoutExerciseId: number, templateId: number) => {
+        const count = copySetsFromLastSession(templateId, workoutExerciseId);
+        if (count === 0) {
+            Alert.alert(t("exercise.exerciseCard.noHistory"));
+        }
+        workout.reload();
+    }, [workout, t]);
+
     /** Cache of last-workout sets per template. */
     const lastSetsCache = useMemo(() => {
         const cache = new Map<number, ExerciseSet[]>();
@@ -144,6 +154,7 @@ export default function WorkoutScreen() {
                 onDeleteSet={handleDeleteSet}
                 onSetTypeChange={handleSetTypeChange}
                 onAddSet={handleAddSet}
+                onCopyFromLast={handleCopyFromLast}
                 restTimerActive={timerActive}
                 restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
                 restTimerTarget={timerActive ? restTimer.targetSeconds : 0}

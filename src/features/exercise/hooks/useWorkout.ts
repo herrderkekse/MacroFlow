@@ -28,7 +28,7 @@ export interface UseWorkoutReturn {
     updateTitle: (title: string) => void;
     updateStartTime: (epoch: number) => void;
     updateEndTime: (epoch: number) => void;
-    addExercise: (templateId: number) => void;
+    addExercise: (templateId: number) => number | undefined;
     removeExercise: (workoutExerciseId: number) => void;
     moveExercise: (workoutExerciseId: number, newOrder: number) => void;
     reload: () => void;
@@ -139,14 +139,15 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
 
     const addExercise = useCallback(
         (templateId: number) => {
-            if (!data?.workout) return;
-            addExerciseToWorkout({
+            if (!data?.workout) return undefined;
+            const we = addExerciseToWorkout({
                 workout_id: data.workout.id,
                 exercise_template_id: templateId,
                 sort_order: data.exercises.length + 1,
             });
             const exercises = getExercisesForWorkout(data.workout.id);
             setData((prev) => (prev ? { ...prev, exercises } : null));
+            return we.id;
         },
         [data?.workout, data?.exercises.length],
     );

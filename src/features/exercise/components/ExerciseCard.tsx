@@ -25,6 +25,7 @@ interface ExerciseCardProps {
     onDeleteSet: (setId: number) => void;
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
+    onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     restTimerActive: boolean;
     restTimerElapsed: number;
     restTimerTarget: number;
@@ -35,7 +36,7 @@ interface ExerciseCardProps {
 export default function ExerciseCard({
     item, index, totalExercises, isFinished, lastWorkoutSets,
     onRemove, onMoveUp, onMoveDown, onNoteChange,
-    onConfirmSet, onDeleteSet, onSetTypeChange, onAddSet,
+    onConfirmSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
     const colors = useThemeColors();
@@ -181,6 +182,10 @@ export default function ExerciseCard({
                             label={item.workoutExercise.notes ? t("exercise.exerciseCard.editNote") : t("exercise.exerciseCard.addNote")}
                             icon="create-outline"
                             onPress={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }} colors={colors} />
+                        {!isFinished && template && (
+                            <MenuItem label={t("exercise.exerciseCard.copyFromLast")} icon="copy-outline"
+                                onPress={() => { onCopyFromLast(item.workoutExercise.id, template.id); setMenuOpen(false); }} colors={colors} />
+                        )}
                         {!isFinished && (
                             <MenuItem label={t("exercise.exerciseCard.remove")} icon="trash-outline"
                                 onPress={handleRemove} colors={colors} destructive />
