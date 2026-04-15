@@ -7,6 +7,7 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
+import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import ExerciseCard from "../components/ExerciseCard";
 import WorkoutHeader from "../components/WorkoutHeader";
 import { useWorkout } from "../hooks/useWorkout";
@@ -22,6 +23,7 @@ export default function WorkoutScreen() {
 
     const workout = useWorkout({ workoutId });
     const [showAddExercise, setShowAddExercise] = useState(false);
+    const [showCopySheet, setShowCopySheet] = useState(false);
 
     // Auto-start workout if none loaded
     if (!workout.data && !workoutId) {
@@ -29,6 +31,7 @@ export default function WorkoutScreen() {
     }
 
     const isFinished = !!workout.data?.workout.ended_at;
+    const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
 
     function handleExerciseSelected(template: ExerciseTemplate) {
         workout.addExercise(template.id);
@@ -103,10 +106,18 @@ export default function WorkoutScreen() {
                     <View style={styles.emptyWrap}>
                         <Ionicons name="barbell-outline" size={48} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
+                        {!isFinished && (
+                            <Button
+                                title={t("exercise.workout.copyFromHistory")}
+                                variant="ghost"
+                                icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
+                                onPress={() => setShowCopySheet(true)}
+                            />
+                        )}
                     </View>
                 }
                 ListFooterComponent={
-                    !isFinished ? (
+                    !isFinished && !isEmpty ? (
                         <Button
                             title={t("exercise.workout.addExercise")}
                             variant="outline"
@@ -123,6 +134,15 @@ export default function WorkoutScreen() {
                 onClose={() => setShowAddExercise(false)}
                 onSelect={handleExerciseSelected}
             />
+
+            {workout.data?.workout.id && (
+                <CopyWorkoutSheet
+                    visible={showCopySheet}
+                    targetWorkoutId={workout.data.workout.id}
+                    onClose={() => setShowCopySheet(false)}
+                    onCopied={workout.reload}
+                />
+            )}
         </View>
     );
 }
