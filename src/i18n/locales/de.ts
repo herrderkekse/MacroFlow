@@ -371,6 +371,11 @@ const de = {
             copyFromHistory: "Aus Verlauf starten",
             startedAt: "Gestartet um",
             endedAt: "Beendet um",
+            leaveTitle: "Training läuft",
+            leaveMessage: "Du hast ein aktives Training. Was möchtest du tun?",
+            leaveContinue: "Training fortsetzen",
+            leaveFinish: "Speichern & Beenden",
+            leaveWithout: "Ohne Beenden verlassen",
         },
         restTimer: {
             rest: "Pause",

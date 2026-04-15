@@ -369,6 +369,11 @@ const en = {
             copyFromHistory: "Start from History",
             startedAt: "Started at",
             endedAt: "Ended at",
+            leaveTitle: "Workout in Progress",
+            leaveMessage: "You have an active workout. What would you like to do?",
+            leaveContinue: "Continue Workout",
+            leaveFinish: "Save & Finish",
+            leaveWithout: "Leave without Finishing",
         },
         restTimer: {
             rest: "Rest",
