@@ -185,6 +185,34 @@ export function getWorkoutsByDate(date: string): Workout[] {
         .all();
 }
 
+export function getUnfinishedWorkoutByDate(date: string): WorkoutWithExercises | undefined {
+    const workout = db
+        .select()
+        .from(workouts)
+        .where(and(eq(workouts.date, date), sql`${workouts.ended_at} IS NULL`))
+        .orderBy(desc(workouts.started_at))
+        .get();
+
+    if (!workout) return undefined;
+    return { workout, exercises: listWorkoutExercisesForWorkout(workout.id) };
+}
+
+export function hasUnfinishedScheduledSets(workoutId: number): boolean {
+    const row = db
+        .select({ count: sql<number>`count(*)` })
+        .from(exerciseSets)
+        .innerJoin(workoutExercises, eq(exerciseSets.workout_exercise_id, workoutExercises.id))
+        .where(
+            and(
+                eq(workoutExercises.workout_id, workoutId),
+                eq(exerciseSets.is_scheduled, 1),
+                sql`${exerciseSets.completed_at} IS NULL`,
+            ),
+        )
+        .get();
+    return (row?.count ?? 0) > 0;
+}
+
 export function getRecentWorkouts(limit = DEFAULT_RECENT_LIMIT): Workout[] {
     return db
         .select()
