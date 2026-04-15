@@ -3,15 +3,19 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import ExerciseCard from "../components/ExerciseCard";
+import type { SetValues } from "../components/SetInputRow";
 import WorkoutHeader from "../components/WorkoutHeader";
 import { useWorkout } from "../hooks/useWorkout";
-import { updateWorkoutExercise, type ExerciseTemplate, type WorkoutExerciseWithSets } from "../services/exerciseDb";
+import {
+    addSet, completeSet, deleteSet, getLastCompletedSetsForTemplate, updateSet,
+    updateWorkoutExercise, type ExerciseSet, type ExerciseTemplate, type WorkoutExerciseWithSets,
+} from "../services/exerciseDb";
 
 export default function WorkoutScreen() {
     const colors = useThemeColors();
@@ -68,17 +72,64 @@ export default function WorkoutScreen() {
         }
     }
 
+    const handleConfirmSet = useCallback((setId: number, values: SetValues) => {
+        updateSet(setId, {
+            weight: values.weight,
+            weight_unit: values.weight_unit,
+            reps: values.reps,
+            rir: values.rir,
+            duration_seconds: values.duration_seconds,
+            distance_meters: values.distance_meters,
+            type: values.type,
+        });
+        completeSet(setId);
+        workout.reload();
+    }, [workout]);
+
+    const handleDeleteSet = useCallback((setId: number) => {
+        deleteSet(setId);
+        workout.reload();
+    }, [workout]);
+
+    const handleSetTypeChange = useCallback((setId: number, type: string) => {
+        updateSet(setId, { type });
+        workout.reload();
+    }, [workout]);
+
+    const handleAddSet = useCallback((workoutExerciseId: number) => {
+        addSet({ workout_exercise_id: workoutExerciseId });
+        workout.reload();
+    }, [workout]);
+
+    /** Cache of last-workout sets per template. */
+    const lastSetsCache = useMemo(() => {
+        const cache = new Map<number, ExerciseSet[]>();
+        for (const ex of workout.data?.exercises ?? []) {
+            const tid = ex.workoutExercise.exercise_template_id;
+            if (tid && !cache.has(tid)) {
+                cache.set(tid, getLastCompletedSetsForTemplate(tid));
+            }
+        }
+        return cache;
+    }, [workout.data?.exercises]);
+
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
+        const tid = item.workoutExercise.exercise_template_id;
         return (
             <ExerciseCard
                 item={item}
                 index={index}
                 totalExercises={workout.data?.exercises.length ?? 0}
                 isFinished={isFinished}
+                lastWorkoutSets={tid ? (lastSetsCache.get(tid) ?? []) : []}
                 onRemove={workout.removeExercise}
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 onNoteChange={handleNoteChange}
+                onConfirmSet={handleConfirmSet}
+                onDeleteSet={handleDeleteSet}
+                onSetTypeChange={handleSetTypeChange}
+                onAddSet={handleAddSet}
             />
         );
     }
