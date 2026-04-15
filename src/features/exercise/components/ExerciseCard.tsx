@@ -48,8 +48,8 @@ export default function ExerciseCard({
     const [noteOpen, setNoteOpen] = useState(false);
     const [noteDraft, setNoteDraft] = useState(item.workoutExercise.notes ?? "");
 
-    // Show collapsed card for non-expanded, non-finished exercises
-    if (!isExpanded && !isFinished) {
+    // Show collapsed card for non-expanded exercises
+    if (!isExpanded) {
         return (
             <CollapsedExerciseCard
                 item={item}

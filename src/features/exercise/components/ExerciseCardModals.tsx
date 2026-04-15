@@ -73,12 +73,10 @@ export function ExerciseCardMenu({
                         icon="create-outline"
                         onPress={onEditNote} colors={colors}
                     />
-                    {!isFinished && hasTemplate && (
+                    {hasTemplate && (
                         <MenuItem label={labels.copyFromLast} icon="copy-outline" onPress={onCopyFromLast} colors={colors} />
                     )}
-                    {!isFinished && (
-                        <MenuItem label={labels.remove} icon="trash-outline" onPress={onRemove} colors={colors} destructive />
-                    )}
+                    <MenuItem label={labels.remove} icon="trash-outline" onPress={onRemove} colors={colors} destructive />
                 </View>
             </Pressable>
         </Modal>

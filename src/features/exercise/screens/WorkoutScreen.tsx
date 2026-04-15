@@ -100,7 +100,7 @@ export default function WorkoutScreen() {
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
         const tid = item.workoutExercise.exercise_template_id;
         const timerActive = restTimer.isRunning && restTimer.workoutExerciseId === item.workoutExercise.id;
-        const isExpanded = isFinished || expandedId === item.workoutExercise.id;
+        const isExpanded = expandedId === item.workoutExercise.id;
         return (
             <ExerciseCard
                 item={item}
@@ -153,27 +153,23 @@ export default function WorkoutScreen() {
                     <View style={styles.emptyWrap}>
                         <Ionicons name="barbell-outline" size={48} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
-                        {!isFinished && (
-                            <>
-                                <Button
-                                    title={t("exercise.workout.addExercise")}
-                                    variant="outline"
-                                    icon={<Ionicons name="add" size={18} color={colors.text} />}
-                                    onPress={() => setShowAddExercise(true)}
-                                    style={styles.addBtn}
-                                />
-                                <Button
-                                    title={t("exercise.workout.copyFromHistory")}
-                                    variant="ghost"
-                                    icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
-                                    onPress={() => setShowCopySheet(true)}
-                                />
-                            </>
-                        )}
+                        <Button
+                            title={t("exercise.workout.addExercise")}
+                            variant="outline"
+                            icon={<Ionicons name="add" size={18} color={colors.text} />}
+                            onPress={() => setShowAddExercise(true)}
+                            style={styles.addBtn}
+                        />
+                        <Button
+                            title={t("exercise.workout.copyFromHistory")}
+                            variant="ghost"
+                            icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
+                            onPress={() => setShowCopySheet(true)}
+                        />
                     </View>
                 }
                 ListFooterComponent={
-                    !isFinished && !isEmpty ? (
+                    !isEmpty ? (
                         <Button
                             title={t("exercise.workout.addExercise")}
                             variant="outline"
