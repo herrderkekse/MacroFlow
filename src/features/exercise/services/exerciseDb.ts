@@ -235,13 +235,15 @@ export function updateWorkout(id: number, data: Partial<NewWorkout>) {
 export function deleteWorkout(id: number) {
     exerciseDbSupport.getWorkoutOrThrow(id);
 
-    const exercises = db.select().from(workoutExercises).where(eq(workoutExercises.workout_id, id)).all();
-    for (const exercise of exercises) {
-        db.delete(exerciseSets).where(eq(exerciseSets.workout_exercise_id, exercise.id)).run();
-    }
+    db.transaction((tx) => {
+        const exercises = tx.select().from(workoutExercises).where(eq(workoutExercises.workout_id, id)).all();
+        for (const exercise of exercises) {
+            tx.delete(exerciseSets).where(eq(exerciseSets.workout_exercise_id, exercise.id)).run();
+        }
 
-    db.delete(workoutExercises).where(eq(workoutExercises.workout_id, id)).run();
-    db.delete(workouts).where(eq(workouts.id, id)).run();
+        tx.delete(workoutExercises).where(eq(workoutExercises.workout_id, id)).run();
+        tx.delete(workouts).where(eq(workouts.id, id)).run();
+    });
 }
 
 export function addExerciseToWorkout(data: NewWorkoutExercise): WorkoutExercise {
@@ -285,8 +287,10 @@ export function reorderExercise(id: number, newOrder: number) {
 
 export function removeExerciseFromWorkout(id: number) {
     const workoutExercise = exerciseDbSupport.getWorkoutExerciseOrThrow(id);
-    db.delete(exerciseSets).where(eq(exerciseSets.workout_exercise_id, id)).run();
-    db.delete(workoutExercises).where(eq(workoutExercises.id, id)).run();
+    db.transaction((tx) => {
+        tx.delete(exerciseSets).where(eq(exerciseSets.workout_exercise_id, id)).run();
+        tx.delete(workoutExercises).where(eq(workoutExercises.id, id)).run();
+    });
     exerciseDbSupport.normalizeExerciseSortOrder(workoutExercise.workout_id);
 }
 
@@ -382,40 +386,42 @@ export function copyWorkoutAsScheduled(sourceWorkoutId: number, targetWorkoutId:
     const sourceWorkout = exerciseDbSupport.getWorkoutOrThrow(sourceWorkoutId);
     const targetWorkout = exerciseDbSupport.getWorkoutOrThrow(targetWorkoutId);
 
-    if (sourceWorkout.title) {
-        db.update(workouts).set({ title: sourceWorkout.title }).where(eq(workouts.id, targetWorkoutId)).run();
-    }
-
-    for (const ex of sourceExercises) {
-        const newWe = db
-            .insert(workoutExercises)
-            .values({
-                workout_id: targetWorkoutId,
-                exercise_template_id: ex.workoutExercise.exercise_template_id,
-                sort_order: ex.workoutExercise.sort_order,
-                notes: ex.workoutExercise.notes,
-            })
-            .returning()
-            .get();
-
-        for (const set of ex.sets) {
-            db.insert(exerciseSets)
-                .values({
-                    workout_exercise_id: newWe.id,
-                    set_order: set.set_order,
-                    type: set.type,
-                    weight: set.weight,
-                    weight_unit: set.weight_unit,
-                    reps: set.reps,
-                    duration_seconds: set.duration_seconds,
-                    distance_meters: set.distance_meters,
-                    rir: set.rir,
-                    rest_seconds: set.rest_seconds,
-                    is_scheduled: 1,
-                })
-                .run();
+    db.transaction((tx) => {
+        if (sourceWorkout.title) {
+            tx.update(workouts).set({ title: sourceWorkout.title }).where(eq(workouts.id, targetWorkoutId)).run();
         }
-    }
+
+        for (const ex of sourceExercises) {
+            const newWe = tx
+                .insert(workoutExercises)
+                .values({
+                    workout_id: targetWorkoutId,
+                    exercise_template_id: ex.workoutExercise.exercise_template_id,
+                    sort_order: ex.workoutExercise.sort_order,
+                    notes: ex.workoutExercise.notes,
+                })
+                .returning()
+                .get();
+
+            for (const set of ex.sets) {
+                tx.insert(exerciseSets)
+                    .values({
+                        workout_exercise_id: newWe.id,
+                        set_order: set.set_order,
+                        type: set.type,
+                        weight: set.weight,
+                        weight_unit: set.weight_unit,
+                        reps: set.reps,
+                        duration_seconds: set.duration_seconds,
+                        distance_meters: set.distance_meters,
+                        rir: set.rir,
+                        rest_seconds: set.rest_seconds,
+                        is_scheduled: 1,
+                    })
+                    .run();
+            }
+        }
+    });
 }
 
 export function getExerciseHistory(templateId: number, limit = DEFAULT_RECENT_LIMIT): WorkoutExerciseWithSets[] {
