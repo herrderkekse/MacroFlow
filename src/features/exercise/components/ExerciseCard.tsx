@@ -2,10 +2,11 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
+import RestTimer from "./RestTimer";
 import SetInputRow, { type SetValues } from "./SetInputRow";
 
 type ExerciseType = "weight" | "bodyweight" | "cardio";
@@ -24,12 +25,18 @@ interface ExerciseCardProps {
     onDeleteSet: (setId: number) => void;
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
+    restTimerActive: boolean;
+    restTimerElapsed: number;
+    restTimerTarget: number;
+    restTimerReached: boolean;
+    onRestTimerSkip: () => void;
 }
 
 export default function ExerciseCard({
     item, index, totalExercises, isFinished, lastWorkoutSets,
     onRemove, onMoveUp, onMoveDown, onNoteChange,
     onConfirmSet, onDeleteSet, onSetTypeChange, onAddSet,
+    restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -115,23 +122,34 @@ export default function ExerciseCard({
             {/* Set rows */}
             {item.sets.map((set, si) => {
                 const prefill = getPrefillForSet(si, item.sets, lastWorkoutSets);
+                const isActive = isActiveSet(set, si, item.sets);
                 return (
-                    <SetInputRow
-                        key={set.id}
-                        set={set}
-                        index={si}
-                        exerciseType={exerciseType}
-                        isActive={isActiveSet(set, si, item.sets)}
-                        isFinished={isFinished}
-                        prefillWeight={prefill.weight}
-                        prefillReps={prefill.reps}
-                        prefillRir={prefill.rir}
-                        prefillDuration={prefill.duration}
-                        prefillDistance={prefill.distance}
-                        onConfirm={onConfirmSet}
-                        onDelete={onDeleteSet}
-                        onTypeChange={onSetTypeChange}
-                    />
+                    <React.Fragment key={set.id}>
+                        {/* Rest timer between last completed set and active input */}
+                        {isActive && restTimerActive && (
+                            <RestTimer
+                                elapsedSeconds={restTimerElapsed}
+                                targetSeconds={restTimerTarget}
+                                isTargetReached={restTimerReached}
+                                onSkip={onRestTimerSkip}
+                            />
+                        )}
+                        <SetInputRow
+                            set={set}
+                            index={si}
+                            exerciseType={exerciseType}
+                            isActive={isActive}
+                            isFinished={isFinished}
+                            prefillWeight={prefill.weight}
+                            prefillReps={prefill.reps}
+                            prefillRir={prefill.rir}
+                            prefillDuration={prefill.duration}
+                            prefillDistance={prefill.distance}
+                            onConfirm={onConfirmSet}
+                            onDelete={onDeleteSet}
+                            onTypeChange={onSetTypeChange}
+                        />
+                    </React.Fragment>
                 );
             })}
 

@@ -11,6 +11,7 @@ import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import ExerciseCard from "../components/ExerciseCard";
 import type { SetValues } from "../components/SetInputRow";
 import WorkoutHeader from "../components/WorkoutHeader";
+import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
 import {
     addSet, completeSet, deleteSet, getLastCompletedSetsForTemplate, updateSet,
@@ -26,6 +27,7 @@ export default function WorkoutScreen() {
     const workoutId = params.workoutId ? Number(params.workoutId) : undefined;
 
     const workout = useWorkout({ workoutId });
+    const restTimer = useRestTimer();
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
 
@@ -83,8 +85,17 @@ export default function WorkoutScreen() {
             type: values.type,
         });
         completeSet(setId);
+
+        // Find which workout exercise this set belongs to & start rest timer
+        for (const ex of workout.data?.exercises ?? []) {
+            if (ex.sets.some((s) => s.id === setId)) {
+                restTimer.start(ex.workoutExercise.id, values.type);
+                break;
+            }
+        }
+
         workout.reload();
-    }, [workout]);
+    }, [workout, restTimer]);
 
     const handleDeleteSet = useCallback((setId: number) => {
         deleteSet(setId);
@@ -117,6 +128,7 @@ export default function WorkoutScreen() {
 
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
         const tid = item.workoutExercise.exercise_template_id;
+        const timerActive = restTimer.isRunning && restTimer.workoutExerciseId === item.workoutExercise.id;
         return (
             <ExerciseCard
                 item={item}
@@ -132,6 +144,11 @@ export default function WorkoutScreen() {
                 onDeleteSet={handleDeleteSet}
                 onSetTypeChange={handleSetTypeChange}
                 onAddSet={handleAddSet}
+                restTimerActive={timerActive}
+                restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
+                restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
+                restTimerReached={timerActive ? restTimer.isTargetReached : false}
+                onRestTimerSkip={restTimer.skip}
             />
         );
     }
