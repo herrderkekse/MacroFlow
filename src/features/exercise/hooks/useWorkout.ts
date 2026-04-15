@@ -12,7 +12,7 @@ import {
     type WorkoutWithExercises,
 } from "@/src/features/exercise/services/exerciseDb";
 import { formatDateKey } from "@/src/utils/date";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface UseWorkoutOptions {
     workoutId?: number;
@@ -172,9 +172,10 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         [data?.workout],
     );
 
-    const hasUnfinishedSets = data?.workout
-        ? hasUnfinishedScheduledSets(data.workout.id)
-        : false;
+    const hasUnfinishedSets = useMemo(
+        () => data?.workout ? hasUnfinishedScheduledSets(data.workout.id) : false,
+        [data?.workout?.id, data?.exercises],
+    );
 
     return {
         data,
