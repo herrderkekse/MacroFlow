@@ -74,7 +74,7 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         if (data?.workout && !data.workout.ended_at) {
             const tick = () => setElapsedMs(Date.now() - data.workout.started_at);
             tick();
-            timerRef.current = setInterval(tick, 1000);
+            timerRef.current = setInterval(tick, 60000);
         } else {
             setElapsedMs(
                 data?.workout.ended_at && data?.workout.started_at

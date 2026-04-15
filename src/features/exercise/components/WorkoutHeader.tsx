@@ -28,12 +28,13 @@ export default function WorkoutHeader({
     const [draft, setDraft] = useState(title);
 
     function formatElapsed(ms: number): string {
-        const totalSec = Math.floor(ms / 1000);
-        const h = Math.floor(totalSec / 3600);
-        const m = Math.floor((totalSec % 3600) / 60);
-        const s = totalSec % 60;
-        const pad = (n: number) => String(n).padStart(2, "0");
-        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+        const totalMin = Math.floor(ms / 60000);
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        if (h > 0) {
+            return `${h}:${String(m).padStart(2, "0")}`;
+        }
+        return `${m} min`;
     }
 
     function handleFinish() {
