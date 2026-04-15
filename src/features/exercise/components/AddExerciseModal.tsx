@@ -18,53 +18,14 @@ import { MUSCLE_GROUPS } from "../constants";
 import { type ExerciseTemplate } from "../services/exerciseDb";
 import type { MuscleGroup } from "../types";
 import CreateExerciseModal from "./CreateExerciseModal";
+import ChipSelect from "./ChipSelect";
+import ExerciseRow from "./ExerciseRow";
 import { useExerciseSearch } from "../hooks/useExerciseSearch";
 
 interface AddExerciseModalProps {
     visible: boolean;
     onClose: () => void;
     onSelect: (template: ExerciseTemplate) => void;
-}
-
-interface ExerciseRowProps {
-    template: ExerciseTemplate;
-    onPress: () => void;
-}
-
-function ExerciseRow({ template, onPress }: ExerciseRowProps) {
-    const colors = useThemeColors();
-    const styles = useMemo(() => createRowStyles(colors), [colors]);
-
-    return (
-        <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-            <View style={styles.info}>
-                <Text style={styles.name}>{template.name}</Text>
-                {(template.muscle_group || template.equipment) && (
-                    <Text style={styles.meta}>
-                        {[template.muscle_group, template.equipment].filter(Boolean).join(" · ")}
-                    </Text>
-                )}
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-        </Pressable>
-    );
-}
-
-function createRowStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        row: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingVertical: spacing.sm + 2,
-            paddingHorizontal: spacing.lg,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-        },
-        rowPressed: { backgroundColor: colors.primaryLight },
-        info: { flex: 1 },
-        name: { fontSize: fontSize.md, color: colors.text, fontWeight: "500" },
-        meta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-    });
 }
 
 export default function AddExerciseModal({ visible, onClose, onSelect }: AddExerciseModalProps) {
@@ -153,31 +114,13 @@ export default function AddExerciseModal({ visible, onClose, onSelect }: AddExer
                         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                             {/* Muscle group chips */}
                             <Text style={styles.sectionLabel}>{t("exercise.addExercise.sectionByMuscle")}</Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.chipRow}
-                            >
-                                {MUSCLE_GROUPS.map((mg) => (
-                                    <Pressable
-                                        key={mg.key}
-                                        onPress={() => search.handleSelectMuscleGroup(mg.key as MuscleGroup)}
-                                        style={[
-                                            styles.muscleChip,
-                                            search.selectedMuscleGroup === mg.key && styles.muscleChipActive,
-                                        ]}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.muscleChipText,
-                                                search.selectedMuscleGroup === mg.key && styles.muscleChipTextActive,
-                                            ]}
-                                        >
-                                            {t(mg.labelKey)}
-                                        </Text>
-                                    </Pressable>
-                                ))}
-                            </ScrollView>
+                            <View style={styles.chipContainer}>
+                                <ChipSelect
+                                    items={MUSCLE_GROUPS.map((mg) => ({ key: mg.key, label: t(mg.labelKey) }))}
+                                    selected={search.selectedMuscleGroup}
+                                    onSelect={(key) => search.handleSelectMuscleGroup(key as MuscleGroup)}
+                                />
+                            </View>
 
                             {/* Recent templates */}
                             {search.recentTemplates.length > 0 && (
@@ -243,31 +186,9 @@ function createStyles(colors: ThemeColors) {
             paddingBottom: spacing.sm,
             letterSpacing: 0.5,
         },
-        chipRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
+        chipContainer: {
             paddingHorizontal: spacing.lg,
             paddingBottom: spacing.sm,
-        },
-        muscleChip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-        },
-        muscleChipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        muscleChipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        muscleChipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
         },
         emptyText: {
             textAlign: "center",
