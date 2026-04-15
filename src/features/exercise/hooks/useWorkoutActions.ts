@@ -51,6 +51,18 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         workout.reload();
     }, [workout, restTimer]);
 
+    const handleUpdateSet = useCallback((setId: number, values: SetValues) => {
+        updateSet(setId, {
+            weight: values.weight,
+            weight_unit: values.weight_unit,
+            reps: values.reps,
+            rir: values.rir,
+            duration_seconds: values.duration_seconds,
+            distance_meters: values.distance_meters,
+            type: values.type,
+        });
+    }, []);
+
     const handleDeleteSet = useCallback((setId: number) => {
         deleteSet(setId);
         workout.reload();
@@ -90,6 +102,7 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         handleMoveUp,
         handleMoveDown,
         handleConfirmSet,
+        handleUpdateSet,
         handleDeleteSet,
         handleSetTypeChange,
         handleAddSet,

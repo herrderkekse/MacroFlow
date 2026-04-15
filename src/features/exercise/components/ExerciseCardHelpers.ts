@@ -77,13 +77,13 @@ export function createExerciseCardStyles(colors: ThemeColors) {
             marginBottom: spacing.sm,
         },
         orderNum: {
-            fontSize: fontSize.md,
+            fontSize: fontSize.lg,
             fontWeight: "800",
             color: colors.primary,
         },
         exerciseName: {
             flex: 1,
-            fontSize: fontSize.md,
+            fontSize: fontSize.lg,
             fontWeight: "600",
             color: colors.text,
         },
@@ -110,7 +110,7 @@ export function createExerciseCardStyles(colors: ThemeColors) {
         setCol: { width: 32 },
         valueCol: { flex: 1, textAlign: "center" as const },
         rirCol: { width: 36, textAlign: "center" as const },
-        checkCol: { width: 28, alignItems: "center" as const },
+        emptyCol: { width: 28, alignItems: "center" as const },
         emptyText: {
             fontSize: fontSize.sm,
             color: colors.textTertiary,

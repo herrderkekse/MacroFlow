@@ -31,6 +31,7 @@ interface ExpandedExerciseCardProps {
     onMoveDown: (workoutExerciseId: number) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
+    onUpdateSet: (setId: number, values: SetValues) => void;
     onDeleteSet: (setId: number) => void;
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
@@ -47,7 +48,7 @@ export function ExpandedExerciseCard({
     lastWorkoutSets,
     menuOpen, setMenuOpen, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
     onRemove, onMoveUp, onMoveDown, onNoteChange,
-    onConfirmSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
+    onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExpandedExerciseCardProps) {
     const colors = useThemeColors();
@@ -120,7 +121,7 @@ export function ExpandedExerciseCard({
                 {exerciseType !== "cardio" && (
                     <Text style={[styles.headerCell, styles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
                 )}
-                <Text style={[styles.headerCell, styles.checkCol]}>✓</Text>
+                <Text style={[styles.headerCell, styles.emptyCol]}></Text>
             </View>
 
             {/* Set rows */}
@@ -149,6 +150,7 @@ export function ExpandedExerciseCard({
                             prefillDuration={prefill.duration}
                             prefillDistance={prefill.distance}
                             onConfirm={onConfirmSet}
+                            onUpdate={onUpdateSet}
                             onDelete={onDeleteSet}
                             onTypeChange={onSetTypeChange}
                         />
