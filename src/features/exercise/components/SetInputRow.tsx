@@ -31,15 +31,7 @@ interface SetInputRowProps {
     onTypeChange: (id: number, type: string) => void;
 }
 
-export interface SetValues {
-    weight: number | null;
-    weight_unit: string;
-    reps: number | null;
-    rir: number | null;
-    duration_seconds: number | null;
-    distance_meters: number | null;
-    type: string;
-}
+export type { SetValues } from "../types";
 
 export default function SetInputRow({
     set, index, exerciseType, isActive, isFinished,

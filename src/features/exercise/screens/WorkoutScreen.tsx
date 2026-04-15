@@ -3,21 +3,24 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { parseDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Alert, Text, View } from "react-native";
+import { FlatList, Alert, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import ExerciseCard from "../components/ExerciseCard";
-import type { SetValues } from "../components/SetInputRow";
 import WorkoutHeader from "../components/WorkoutHeader";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
+import { useWorkoutActions } from "../hooks/useWorkoutActions";
 import { createWorkoutScreenStyles } from "./WorkoutScreenStyles";
 import {
-    addSet, completeSet, copySetsFromLastSession, deleteSet, getLastCompletedSetsForTemplate, updateSet,
-    updateWorkoutExercise, type ExerciseSet, type ExerciseTemplate, type WorkoutExerciseWithSets,
+    copySetsFromLastSession, type ExerciseTemplate, type WorkoutExerciseWithSets,
 } from "../services/exerciseDb";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function WorkoutScreen() {
     const colors = useThemeColors();
@@ -30,22 +33,46 @@ export default function WorkoutScreen() {
 
     const workout = useWorkout({ workoutId, date: workoutDate });
     const restTimer = useRestTimer();
+    const actions = useWorkoutActions(workout, restTimer);
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
 
-    // Auto-start workout if none loaded (must run in effect, not during render)
+    // Focus state: which exercise is expanded (null = none)
+    const [expandedId, setExpandedId] = useState<number | null>(null);
+    const flatListRef = useRef<FlatList>(null);
+
     useEffect(() => {
         if (!workout.data && !workoutId && !workout.isResumed) {
             workout.startWorkout(workoutDate);
         }
     }, [workout.data, workoutId, workout.isResumed, workout.startWorkout, workoutDate]);
 
+    // Auto-expand the first exercise when data loads
+    useEffect(() => {
+        const exercises = workout.data?.exercises ?? [];
+        if (exercises.length > 0 && expandedId === null) {
+            setExpandedId(exercises[0].workoutExercise.id);
+        }
+    }, [workout.data?.exercises, expandedId]);
+
     const isFinished = !!workout.data?.workout.ended_at;
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
 
+    const handleExpand = useCallback((weId: number, index: number) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpandedId(weId);
+        setTimeout(() => {
+            flatListRef.current?.scrollToIndex({ index, animated: true, viewOffset: 8 });
+        }, 100);
+    }, []);
+
     function handleExerciseSelected(template: ExerciseTemplate) {
         const weId = workout.addExercise(template.id);
-        if (weId) copySetsFromLastSession(template.id, weId);
+        if (weId) {
+            copySetsFromLastSession(template.id, weId);
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setExpandedId(weId);
+        }
         workout.reload();
         setShowAddExercise(false);
     }
@@ -57,129 +84,41 @@ export default function WorkoutScreen() {
 
     function handleBack() {
         const isInProgress = workout.data?.workout && !workout.data.workout.ended_at;
-        if (!isInProgress) {
-            router.back();
-            return;
-        }
+        if (!isInProgress) { router.back(); return; }
 
         Alert.alert(
             t("exercise.workout.leaveTitle"),
             t("exercise.workout.leaveMessage"),
             [
                 { text: t("exercise.workout.leaveContinue"), style: "cancel" },
-                {
-                    text: t("exercise.workout.leaveFinish"),
-                    onPress: () => { workout.finishCurrentWorkout(); router.back(); },
-                },
-                {
-                    text: t("exercise.workout.leaveWithout"),
-                    style: "destructive",
-                    onPress: () => router.back(),
-                },
+                { text: t("exercise.workout.leaveFinish"), onPress: () => { workout.finishCurrentWorkout(); router.back(); } },
+                { text: t("exercise.workout.leaveWithout"), style: "destructive", onPress: () => router.back() },
             ],
         );
     }
 
-    function handleNoteChange(workoutExerciseId: number, note: string) {
-        updateWorkoutExercise(workoutExerciseId, { notes: note || null });
-        workout.reload();
-    }
-
-    function handleMoveUp(workoutExerciseId: number) {
-        const exercises = workout.data?.exercises ?? [];
-        const idx = exercises.findIndex((e) => e.workoutExercise.id === workoutExerciseId);
-        if (idx > 0) {
-            workout.moveExercise(workoutExerciseId, idx);
-        }
-    }
-
-    function handleMoveDown(workoutExerciseId: number) {
-        const exercises = workout.data?.exercises ?? [];
-        const idx = exercises.findIndex((e) => e.workoutExercise.id === workoutExerciseId);
-        if (idx < exercises.length - 1) {
-            workout.moveExercise(workoutExerciseId, idx + 2);
-        }
-    }
-
-    const handleConfirmSet = useCallback((setId: number, values: SetValues) => {
-        updateSet(setId, {
-            weight: values.weight,
-            weight_unit: values.weight_unit,
-            reps: values.reps,
-            rir: values.rir,
-            duration_seconds: values.duration_seconds,
-            distance_meters: values.distance_meters,
-            type: values.type,
-        });
-        completeSet(setId);
-
-        // Find which workout exercise this set belongs to & start rest timer
-        for (const ex of workout.data?.exercises ?? []) {
-            if (ex.sets.some((s) => s.id === setId)) {
-                restTimer.start(ex.workoutExercise.id, values.type);
-                break;
-            }
-        }
-
-        workout.reload();
-    }, [workout, restTimer]);
-
-    const handleDeleteSet = useCallback((setId: number) => {
-        deleteSet(setId);
-        workout.reload();
-    }, [workout]);
-
-    const handleSetTypeChange = useCallback((setId: number, type: string) => {
-        updateSet(setId, { type });
-        workout.reload();
-    }, [workout]);
-
-    const handleAddSet = useCallback((workoutExerciseId: number) => {
-        const ex = workout.data?.exercises.find((e) => e.workoutExercise.id === workoutExerciseId);
-        const defaultUnit = ex?.exerciseTemplate?.default_weight_unit ?? "kg";
-        addSet({ workout_exercise_id: workoutExerciseId, weight_unit: defaultUnit });
-        workout.reload();
-    }, [workout]);
-
-    const handleCopyFromLast = useCallback((workoutExerciseId: number, templateId: number) => {
-        const count = copySetsFromLastSession(templateId, workoutExerciseId);
-        if (count === 0) {
-            Alert.alert(t("exercise.exerciseCard.noHistory"));
-        }
-        workout.reload();
-    }, [workout, t]);
-
-    /** Cache of last-workout sets per template. */
-    const lastSetsCache = useMemo(() => {
-        const cache = new Map<number, ExerciseSet[]>();
-        for (const ex of workout.data?.exercises ?? []) {
-            const tid = ex.workoutExercise.exercise_template_id;
-            if (tid && !cache.has(tid)) {
-                cache.set(tid, getLastCompletedSetsForTemplate(tid));
-            }
-        }
-        return cache;
-    }, [workout.data?.exercises]);
-
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
         const tid = item.workoutExercise.exercise_template_id;
         const timerActive = restTimer.isRunning && restTimer.workoutExerciseId === item.workoutExercise.id;
+        const isExpanded = isFinished || expandedId === item.workoutExercise.id;
         return (
             <ExerciseCard
                 item={item}
                 index={index}
                 totalExercises={workout.data?.exercises.length ?? 0}
                 isFinished={isFinished}
-                lastWorkoutSets={tid ? (lastSetsCache.get(tid) ?? []) : []}
+                isExpanded={isExpanded}
+                onExpand={() => handleExpand(item.workoutExercise.id, index)}
+                lastWorkoutSets={tid ? (actions.lastSetsCache.get(tid) ?? []) : []}
                 onRemove={workout.removeExercise}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
-                onNoteChange={handleNoteChange}
-                onConfirmSet={handleConfirmSet}
-                onDeleteSet={handleDeleteSet}
-                onSetTypeChange={handleSetTypeChange}
-                onAddSet={handleAddSet}
-                onCopyFromLast={handleCopyFromLast}
+                onMoveUp={actions.handleMoveUp}
+                onMoveDown={actions.handleMoveDown}
+                onNoteChange={actions.handleNoteChange}
+                onConfirmSet={actions.handleConfirmSet}
+                onDeleteSet={actions.handleDeleteSet}
+                onSetTypeChange={actions.handleSetTypeChange}
+                onAddSet={actions.handleAddSet}
+                onCopyFromLast={actions.handleCopyFromLast}
                 restTimerActive={timerActive}
                 restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
                 restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
@@ -204,6 +143,7 @@ export default function WorkoutScreen() {
             />
 
             <FlatList
+                ref={flatListRef}
                 data={workout.data?.exercises ?? []}
                 keyExtractor={(item) => String(item.workoutExercise.id)}
                 renderItem={renderExercise}
