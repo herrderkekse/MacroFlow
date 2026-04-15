@@ -211,12 +211,21 @@ export default function WorkoutScreen() {
                         <Ionicons name="barbell-outline" size={48} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
                         {!isFinished && (
-                            <Button
-                                title={t("exercise.workout.copyFromHistory")}
-                                variant="ghost"
-                                icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
-                                onPress={() => setShowCopySheet(true)}
-                            />
+                            <>
+                                <Button
+                                    title={t("exercise.workout.addExercise")}
+                                    variant="outline"
+                                    icon={<Ionicons name="add" size={18} color={colors.text} />}
+                                    onPress={() => setShowAddExercise(true)}
+                                    style={styles.addBtn}
+                                />
+                                <Button
+                                    title={t("exercise.workout.copyFromHistory")}
+                                    variant="ghost"
+                                    icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
+                                    onPress={() => setShowCopySheet(true)}
+                                />
+                            </>
                         )}
                     </View>
                 }
