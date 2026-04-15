@@ -39,7 +39,7 @@ function DayPage({
     onConfirmEntry, onConfirmRecipeLog,
     selectionMode, selectedEntryIds, onToggleEntries, onActivateSelection, onActivateSelectionMultiple,
     meanWeightKg, weightTrend, weightDaysAgo, weightLogs, onAddWeight, onDeleteWeight,
-    dateKey, onQuickAdd,
+    dateKey, onQuickAdd, workoutRefreshKey,
 }: {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
@@ -63,6 +63,7 @@ function DayPage({
     onDeleteWeight?: (id: number) => void;
     dateKey?: string;
     onQuickAdd?: () => void;
+    workoutRefreshKey?: number;
 }) {
     const totals = computeTotals(grouped);
     return (
@@ -81,7 +82,7 @@ function DayPage({
                     />
                 ))}
                 <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />
-                {dateKey && <WorkoutSummarySection date={dateKey} onQuickAdd={onQuickAdd} />}
+                {dateKey && <WorkoutSummarySection date={dateKey} onQuickAdd={onQuickAdd} refreshKey={workoutRefreshKey} />}
             </ScrollView>
         </View>
     );
@@ -121,7 +122,8 @@ export default function LogScreen() {
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
-                    dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, -1))} />
+                    dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, -1))}
+                    workoutRefreshKey={d.workoutRefreshKey} />
                 <DayPage grouped={d.grouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
@@ -132,13 +134,15 @@ export default function LogScreen() {
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
                     weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight}
                     dateKey={formatDateKey(d.selectedDate)}
-                    onQuickAdd={() => setShowQuickExercise(true)} />
+                    onQuickAdd={() => setShowQuickExercise(true)}
+                    workoutRefreshKey={d.workoutRefreshKey} />
                 <DayPage grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
-                    dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, +1))} />
+                    dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, +1))}
+                    workoutRefreshKey={d.workoutRefreshKey} />
             </ScrollView>
 
             <EntryModal food={d.editingEntry?.foods ?? null} entry={d.editingEntry?.entries ?? null}

@@ -50,6 +50,7 @@ export function useLogData() {
     const [dayWeightLogs, setDayWeightLogs] = useState<WeightLog[]>([]);
     const [meanWeightKg, setMeanWeightKg] = useState<number | null>(null);
     const [weightDaysAgo, setWeightDaysAgo] = useState<number | null>(null);
+    const [workoutRefreshKey, setWorkoutRefreshKey] = useState(0);
 
     function loadAllDays(center: Date) {
         setGrouped(loadGrouped(center));
@@ -88,6 +89,7 @@ export function useLogData() {
     useFocusEffect(
         useCallback(() => {
             loadAllDays(selectedDate);
+            setWorkoutRefreshKey((k) => k + 1);
             return () => { setSelectionMode(false); setSelectedEntryIds(new Set()); };
         }, [selectedDate]),
     );
@@ -235,7 +237,7 @@ export function useLogData() {
         editingEntry, setEditingEntry, editingRecipeGroup, setEditingRecipeGroup,
         portionInput, setPortionInput,
         selectionMode, selectedEntryIds, moveModalVisible, setMoveModalVisible,
-        weightTrend, dayWeightLogs, meanWeightKg, weightDaysAgo,
+        weightTrend, dayWeightLogs, meanWeightKg, weightDaysAgo, workoutRefreshKey,
         handleScrollEnd, handleDelete, handleDeleteRecipeLog,
         handleConfirmEntry, handleConfirmRecipeLog,
         handleAddWeight, handleDeleteWeight,
