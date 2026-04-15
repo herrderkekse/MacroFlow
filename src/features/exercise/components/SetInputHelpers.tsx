@@ -52,7 +52,7 @@ export function createSetInputStyles(colors: ThemeColors) {
         activeRow: {
             backgroundColor: colors.surfaceVariant ?? colors.background,
             borderRadius: borderRadius.sm,
-            marginHorizontal: -spacing.xs,
+            marginHorizontal: -(spacing.xs - 2),
             paddingHorizontal: spacing.xs,
         },
         setRowScheduled: {

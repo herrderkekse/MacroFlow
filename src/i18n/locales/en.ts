@@ -327,6 +327,9 @@ const en = {
             notePlaceholder: "Exercise notes…",
             deleteSet: "Delete Set",
             deleteSetConfirm: "Delete this set?",
+            setsProgress: "{{completed}}/{{total}} sets",
+            allSetsComplete: "All {{total}} sets done",
+            noSetsYet: "No sets yet",
         },
         addExercise: {
             title: "Add Exercise",

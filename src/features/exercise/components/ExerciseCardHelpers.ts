@@ -40,6 +40,26 @@ export function getPrefillForSet(index: number, sets: ExerciseSet[], lastWorkout
     return { weight: null, reps: null, rir: null, duration: null, distance: null };
 }
 
+/** Build a compact summary string for a set list, e.g. "80kg × 8" for the best completed set. */
+export function bestSetSummary(sets: ExerciseSet[]): string {
+    const completed = sets.filter((s) => !!s.completed_at);
+    if (completed.length === 0) return "";
+    // Pick the set with the highest weight (or most reps for bodyweight)
+    const best = completed.reduce((a, b) => {
+        const aScore = (a.weight ?? 0) * 1000 + (a.reps ?? 0);
+        const bScore = (b.weight ?? 0) * 1000 + (b.reps ?? 0);
+        return bScore > aScore ? b : a;
+    });
+    if (best.weight != null && best.reps != null) {
+        return `${best.weight}${best.weight_unit ?? "kg"} × ${best.reps}`;
+    }
+    if (best.reps != null) return `× ${best.reps}`;
+    if (best.duration_seconds != null) return `${best.duration_seconds}s`;
+    return "";
+}
+
+// ── Expanded card styles ────────────────────────────────────────────────────
+
 export function createExerciseCardStyles(colors: ThemeColors) {
     return StyleSheet.create({
         card: {
@@ -47,6 +67,8 @@ export function createExerciseCardStyles(colors: ThemeColors) {
             borderRadius: borderRadius.lg,
             padding: spacing.md,
             marginBottom: spacing.md,
+            borderWidth: 2,
+            borderColor: colors.primary,
         },
         titleRow: {
             flexDirection: "row",
@@ -55,13 +77,13 @@ export function createExerciseCardStyles(colors: ThemeColors) {
             marginBottom: spacing.sm,
         },
         orderNum: {
-            fontSize: fontSize.sm,
-            fontWeight: "700",
-            color: colors.textSecondary,
+            fontSize: fontSize.md,
+            fontWeight: "800",
+            color: colors.primary,
         },
         exerciseName: {
             flex: 1,
-            fontSize: fontSize.sm,
+            fontSize: fontSize.md,
             fontWeight: "600",
             color: colors.text,
         },
@@ -103,6 +125,63 @@ export function createExerciseCardStyles(colors: ThemeColors) {
             fontSize: fontSize.sm,
             fontWeight: "600",
             color: colors.primary,
+        },
+    });
+}
+
+// ── Collapsed card styles ───────────────────────────────────────────────────
+
+export function createCollapsedCardStyles(colors: ThemeColors) {
+    return StyleSheet.create({
+        card: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            paddingVertical: spacing.sm + 2,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+        },
+        orderNum: {
+            fontSize: fontSize.sm,
+            fontWeight: "700",
+            color: colors.textTertiary,
+            width: 22,
+        },
+        name: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            fontWeight: "500",
+            color: colors.text,
+        },
+        progressBadge: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+            backgroundColor: colors.primaryLight,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 3,
+            borderRadius: borderRadius.sm,
+        },
+        progressBadgeComplete: {
+            backgroundColor: colors.success + "22",
+        },
+        progressText: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+            color: colors.primary,
+        },
+        progressTextComplete: {
+            color: colors.success,
+        },
+        bestSetText: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+            fontWeight: "500",
+        },
+        chevron: {
+            marginLeft: 2,
         },
     });
 }
