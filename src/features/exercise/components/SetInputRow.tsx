@@ -1,12 +1,12 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { convertWeight } from "../helpers/exerciseUnits";
 import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
+import { ReadOnlyCells, createSetInputStyles } from "./SetInputHelpers";
 
 const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
 type SetType = (typeof SET_TYPES)[number];
@@ -48,7 +48,7 @@ export default function SetInputRow({
 }: SetInputRowProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    const styles = useMemo(() => createSetInputStyles(colors), [colors]);
 
     const isCompleted = !!set.completed_at;
     const isScheduled = !!set.is_scheduled && !isCompleted;
@@ -221,88 +221,4 @@ export default function SetInputRow({
             </View>
         </Pressable>
     );
-}
-
-function ReadOnlyCells({ set, exerciseType, textColor, styles }: {
-    set: ExerciseSet; exerciseType: ExerciseType; textColor: string;
-    styles: ReturnType<typeof createStyles>;
-}) {
-    return (
-        <>
-            {exerciseType === "weight" && (
-                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                    {set.weight != null ? `${set.weight} ${set.weight_unit}` : "—"}
-                </Text>
-            )}
-            {exerciseType !== "cardio" && (
-                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>{set.reps ?? "—"}</Text>
-            )}
-            {exerciseType === "cardio" && (
-                <>
-                    <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                        {set.duration_seconds ? `${set.duration_seconds}s` : "—"}
-                    </Text>
-                    <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                        {set.distance_meters ? `${set.distance_meters}m` : "—"}
-                    </Text>
-                </>
-            )}
-            {exerciseType !== "cardio" && (
-                <Text style={[
-                    styles.setCell, styles.rirCol,
-                    { color: set.rir != null && set.rir <= 1 ? "#ef4444" : textColor },
-                    set.rir != null && set.rir <= 1 && { fontWeight: "700" },
-                ]}>
-                    {set.rir ?? "—"}
-                </Text>
-            )}
-        </>
-    );
-}
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        setRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingVertical: 4,
-        },
-        activeRow: {
-            backgroundColor: colors.surfaceVariant ?? colors.background,
-            borderRadius: borderRadius.sm,
-            marginHorizontal: -spacing.xs,
-            paddingHorizontal: spacing.xs,
-        },
-        setRowScheduled: {
-            opacity: 0.6,
-        },
-        setCell: {
-            fontSize: fontSize.sm,
-        },
-        setCol: { width: 32, justifyContent: "center" },
-        valueCol: { flex: 1, textAlign: "center" },
-        rirCol: { width: 36, textAlign: "center" },
-        checkCol: { width: 28, alignItems: "center" },
-        input: {
-            fontSize: fontSize.sm,
-            textAlign: "center",
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            paddingVertical: 2,
-            marginHorizontal: 2,
-        },
-        weightInputGroup: {
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-        },
-        unitToggle: {
-            paddingHorizontal: 4,
-            paddingVertical: 2,
-        },
-        unitText: {
-            fontSize: fontSize.xs,
-            fontWeight: "700",
-        },
-    });
 }

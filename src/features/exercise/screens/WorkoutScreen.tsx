@@ -1,11 +1,10 @@
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Alert, StyleSheet, Text, View } from "react-native";
+import { FlatList, Alert, Text, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import ExerciseCard from "../components/ExerciseCard";
@@ -13,6 +12,7 @@ import type { SetValues } from "../components/SetInputRow";
 import WorkoutHeader from "../components/WorkoutHeader";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
+import { createWorkoutScreenStyles } from "./WorkoutScreenStyles";
 import {
     addSet, completeSet, copySetsFromLastSession, deleteSet, getLastCompletedSetsForTemplate, updateSet,
     updateWorkoutExercise, type ExerciseSet, type ExerciseTemplate, type WorkoutExerciseWithSets,
@@ -21,7 +21,7 @@ import {
 export default function WorkoutScreen() {
     const colors = useThemeColors();
     const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    const styles = useMemo(() => createWorkoutScreenStyles(colors), [colors]);
     const router = useRouter();
     const params = useLocalSearchParams<{ workoutId?: string }>();
     const workoutId = params.workoutId ? Number(params.workoutId) : undefined;
@@ -249,31 +249,4 @@ export default function WorkoutScreen() {
             )}
         </View>
     );
-}
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        screen: {
-            flex: 1,
-            backgroundColor: colors.background,
-        },
-        list: {
-            padding: spacing.md,
-            paddingBottom: 100,
-        },
-        emptyWrap: {
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: spacing.xl * 2,
-            gap: spacing.md,
-        },
-        emptyText: {
-            fontSize: 14,
-            color: colors.textTertiary,
-            textAlign: "center",
-        },
-        addBtn: {
-            marginTop: spacing.sm,
-        },
-    });
 }

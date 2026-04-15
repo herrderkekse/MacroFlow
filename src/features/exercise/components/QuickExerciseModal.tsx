@@ -1,12 +1,11 @@
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { formatDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AddExerciseModal from "./AddExerciseModal";
 import {
     addExerciseToWorkout,
@@ -16,6 +15,7 @@ import {
     getWorkoutsByDate,
     type ExerciseTemplate,
 } from "../services/exerciseDb";
+import { createQuickExerciseStyles } from "./QuickExerciseModalStyles";
 
 interface QuickExerciseModalProps {
     visible: boolean;
@@ -27,7 +27,7 @@ interface QuickExerciseModalProps {
 export default function QuickExerciseModal({ visible, date, onClose, onSaved }: QuickExerciseModalProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    const styles = useMemo(() => createQuickExerciseStyles(colors), [colors]);
 
     const [template, setTemplate] = useState<ExerciseTemplate | null>(null);
     const [showPicker, setShowPicker] = useState(false);
@@ -205,60 +205,4 @@ export default function QuickExerciseModal({ visible, date, onClose, onSaved }: 
             />
         </>
     );
-}
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        overlay: {
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "flex-end",
-        },
-        sheet: {
-            backgroundColor: colors.surface,
-            borderTopLeftRadius: borderRadius.lg,
-            borderTopRightRadius: borderRadius.lg,
-            padding: spacing.lg,
-            maxHeight: "70%",
-        },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: spacing.md,
-        },
-        title: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        pickerBtn: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.md,
-            padding: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        pickerText: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-        },
-        pickerPlaceholder: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-        },
-        fieldGroup: {
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        field: {
-            marginBottom: 0,
-        },
-        saveBtn: {
-            marginTop: spacing.sm,
-        },
-    });
 }

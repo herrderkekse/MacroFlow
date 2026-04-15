@@ -2,7 +2,7 @@ import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import ModalHeader from "@/src/shared/atoms/ModalHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,6 +18,7 @@ import {
 import { EQUIPMENT_LIST, EXERCISE_TYPES, MUSCLE_GROUPS } from "../constants";
 import { createExerciseTemplate, type ExerciseTemplate } from "../services/exerciseDb";
 import type { Equipment, ExerciseType, MuscleGroup, ResistanceMode, WeightUnit } from "../types";
+import ChipSelect from "./ChipSelect";
 
 interface CreateExerciseModalProps {
     visible: boolean;
@@ -101,65 +102,27 @@ export default function CreateExerciseModal({ visible, onClose, onCreated }: Cre
                     )}
 
                     <Text style={styles.fieldLabel}>{t("exercise.createExercise.type")}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                        {EXERCISE_TYPES.map((et) => (
-                            <Pressable
-                                key={et.key}
-                                onPress={() => setType(et.key)}
-                                style={[styles.chip, type === et.key && styles.chipActive]}
-                            >
-                                <Text style={[styles.chipText, type === et.key && styles.chipTextActive]}>
-                                    {t(`exercise.types.${et.key}`)}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </ScrollView>
+                    <ChipSelect
+                        items={EXERCISE_TYPES.map((et) => ({ key: et.key, label: t(`exercise.types.${et.key}`) }))}
+                        selected={type}
+                        onSelect={(key) => setType(key ?? "weight")}
+                    />
 
                     <Text style={styles.fieldLabel}>{t("exercise.createExercise.muscleGroup")}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                        <Pressable
-                            onPress={() => setMuscleGroup(null)}
-                            style={[styles.chip, muscleGroup === null && styles.chipActive]}
-                        >
-                            <Text style={[styles.chipText, muscleGroup === null && styles.chipTextActive]}>
-                                {t("exercise.createExercise.none")}
-                            </Text>
-                        </Pressable>
-                        {MUSCLE_GROUPS.map((mg) => (
-                            <Pressable
-                                key={mg.key}
-                                onPress={() => setMuscleGroup(mg.key)}
-                                style={[styles.chip, muscleGroup === mg.key && styles.chipActive]}
-                            >
-                                <Text style={[styles.chipText, muscleGroup === mg.key && styles.chipTextActive]}>
-                                    {t(mg.labelKey)}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </ScrollView>
+                    <ChipSelect
+                        items={MUSCLE_GROUPS.map((mg) => ({ key: mg.key, label: t(mg.labelKey) }))}
+                        selected={muscleGroup}
+                        onSelect={setMuscleGroup}
+                        noneLabel={t("exercise.createExercise.none")}
+                    />
 
                     <Text style={styles.fieldLabel}>{t("exercise.createExercise.equipment")}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                        <Pressable
-                            onPress={() => setEquipment(null)}
-                            style={[styles.chip, equipment === null && styles.chipActive]}
-                        >
-                            <Text style={[styles.chipText, equipment === null && styles.chipTextActive]}>
-                                {t("exercise.createExercise.none")}
-                            </Text>
-                        </Pressable>
-                        {EQUIPMENT_LIST.map((eq) => (
-                            <Pressable
-                                key={eq.key}
-                                onPress={() => setEquipment(eq.key)}
-                                style={[styles.chip, equipment === eq.key && styles.chipActive]}
-                            >
-                                <Text style={[styles.chipText, equipment === eq.key && styles.chipTextActive]}>
-                                    {t(`exercise.equipment.${eq.key}`)}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </ScrollView>
+                    <ChipSelect
+                        items={EQUIPMENT_LIST.map((eq) => ({ key: eq.key, label: t(`exercise.equipment.${eq.key}`) }))}
+                        selected={equipment}
+                        onSelect={setEquipment}
+                        noneLabel={t("exercise.createExercise.none")}
+                    />
 
                     {type === "weight" && (
                         <>
@@ -184,19 +147,12 @@ export default function CreateExerciseModal({ visible, onClose, onCreated }: Cre
                     )}
 
                     <Text style={styles.fieldLabel}>{t("exercise.createExercise.defaultUnit")}</Text>
-                    <View style={styles.chipRow}>
-                        {(["kg", "lb"] as WeightUnit[]).map((u) => (
-                            <Pressable
-                                key={u}
-                                onPress={() => setDefaultUnit(u)}
-                                style={[styles.chip, defaultUnit === u && styles.chipActive]}
-                            >
-                                <Text style={[styles.chipText, defaultUnit === u && styles.chipTextActive]}>
-                                    {u}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </View>
+                    <ChipSelect
+                        items={(["kg", "lb"] as WeightUnit[]).map((u) => ({ key: u, label: u }))}
+                        selected={defaultUnit}
+                        onSelect={(key) => setDefaultUnit(key ?? "kg")}
+                        horizontal={false}
+                    />
 
                     <Button title={t("common.save")} onPress={handleSave} style={styles.saveButton} />
                 </ScrollView>
@@ -219,31 +175,6 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.sm,
             color: colors.danger,
             marginTop: -spacing.sm,
-        },
-        chipRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            paddingBottom: spacing.xs,
-        },
-        chip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-        },
-        chipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        chipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        chipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
         },
         radioRow: {
             flexDirection: "row",
