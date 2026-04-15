@@ -76,7 +76,6 @@ export default function QuickExerciseModal({ visible, date, onClose, onSaved }: 
         const we = addExerciseToWorkout({
             workout_id: workoutId,
             exercise_template_id: template.id,
-            sort_order: 1,
         });
 
         if (isCardio) {
@@ -99,6 +98,7 @@ export default function QuickExerciseModal({ visible, date, onClose, onSaved }: 
                     set_order: i,
                     type: "working",
                     weight: w,
+                    weight_unit: template.default_weight_unit ?? "kg",
                     reps: r,
                     completed_at: now,
                 });
