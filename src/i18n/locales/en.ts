@@ -325,6 +325,8 @@ const en = {
             noHistory: "No previous session found",
             note: "Note",
             notePlaceholder: "Exercise notes…",
+            deleteSet: "Delete Set",
+            deleteSetConfirm: "Delete this set?",
         },
         addExercise: {
             title: "Add Exercise",

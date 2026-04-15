@@ -106,8 +106,8 @@ export default function SetInputRow({
     const handleDelete = useCallback(() => {
         if (isFinished) return;
         Alert.alert(
-            t("common.delete"),
-            t("exercise.exerciseCard.removeConfirm"),
+            t("exercise.exerciseCard.deleteSet"),
+            t("exercise.exerciseCard.deleteSetConfirm"),
             [
                 { text: t("common.cancel"), style: "cancel" },
                 { text: t("common.delete"), style: "destructive", onPress: () => onDelete(set.id) },
@@ -115,23 +115,34 @@ export default function SetInputRow({
         );
     }, [set.id, isFinished, onDelete, t]);
 
+    const [reEditing, setReEditing] = useState(false);
+
     // Completed / read-only display
-    if (isCompleted && !isActive) {
+    if (isCompleted && !isActive && !reEditing) {
         return (
-            <Pressable style={styles.setRow} onLongPress={handleDelete} delayLongPress={600}>
+            <Pressable
+                style={styles.setRow}
+                onLongPress={handleDelete}
+                delayLongPress={600}
+                onPress={() => { if (!isFinished) setReEditing(true); }}
+            >
                 <Text style={[styles.setCell, styles.setCol, { color: colors.textSecondary }]}>
                     {typeLabel}{index + 1}
                 </Text>
                 <ReadOnlyCells set={set} exerciseType={exerciseType} textColor={colors.textSecondary} styles={styles} />
                 <View style={styles.checkCol}>
-                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                    <Ionicons
+                        name={isFinished ? "checkmark-circle" : "create-outline"}
+                        size={20}
+                        color={isFinished ? colors.primary : colors.textSecondary}
+                    />
                 </View>
             </Pressable>
         );
     }
 
-    // Active / editable input row
-    if (isActive && !isFinished) {
+    // Active / editable input row (also used for re-editing a completed set)
+    if ((isActive && !isFinished) || reEditing) {
         const textColor = isScheduled ? colors.textTertiary : colors.text;
         return (
             <View style={[styles.setRow, styles.activeRow]}>
@@ -200,7 +211,7 @@ export default function SetInputRow({
                         selectTextOnFocus
                     />
                 )}
-                <Pressable style={styles.checkCol} onPress={handleConfirm}>
+                <Pressable style={styles.checkCol} onPress={() => { handleConfirm(); setReEditing(false); }}>
                     <Ionicons name="checkmark-circle-outline" size={22} color={colors.primary} />
                 </Pressable>
             </View>
@@ -216,9 +227,15 @@ export default function SetInputRow({
         >
             <Text style={[styles.setCell, styles.setCol, { color: textColor }]}>{typeLabel}{index + 1}</Text>
             <ReadOnlyCells set={set} exerciseType={exerciseType} textColor={textColor} styles={styles} />
-            <View style={styles.checkCol}>
-                <Ionicons name="ellipse-outline" size={20} color={colors.border} />
-            </View>
+            {isFinished ? (
+                <View style={styles.checkCol}>
+                    <Ionicons name="ellipse-outline" size={20} color={colors.border} />
+                </View>
+            ) : (
+                <Pressable style={styles.checkCol} onPress={handleDelete}>
+                    <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+                </Pressable>
+            )}
         </Pressable>
     );
 }
