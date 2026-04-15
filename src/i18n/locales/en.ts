@@ -356,6 +356,7 @@ const en = {
             duration: "{{minutes}} min",
             exercises: "{{count}} exercises",
             deleteConfirm: "Delete this workout and all its data?",
+            moreExercises: "+{{count}} more",
         },
         workout: {
             title: "Workout",

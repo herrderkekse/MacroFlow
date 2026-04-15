@@ -47,8 +47,8 @@ export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, on
 
     function formatDate(dateStr: string): string {
         const [y, m, d] = dateStr.split("-");
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        return `${months[Number(m) - 1]} ${Number(d)}`;
+        const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+        return dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     }
 
     return (

@@ -62,7 +62,7 @@ function WorkoutSummaryCard({ workout, exercises, onDelete }: WorkoutSummaryProp
             ))}
             {exercises.length > 5 && (
                 <Text style={styles.moreText}>
-                    +{exercises.length - 5} more
+                    {t("exercise.workoutSummary.moreExercises", { count: exercises.length - 5 })}
                 </Text>
             )}
         </Pressable>
