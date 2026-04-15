@@ -349,6 +349,34 @@ export function getLastCompletedSetsForTemplate(templateId: number): ExerciseSet
     return exerciseDbSupport.listSetsForExercise(rows[0].weId).filter((s) => !!s.completed_at);
 }
 
+/** Copies sets from a historical template instance into a target workout_exercise as scheduled. */
+export function copySetsFromLastSession(templateId: number, targetWorkoutExerciseId: number): number {
+    const sourceSets = getLastCompletedSetsForTemplate(templateId);
+    if (sourceSets.length === 0) return 0;
+
+    const existing = exerciseDbSupport.listSetsForExercise(targetWorkoutExerciseId);
+    let order = existing.length + 1;
+
+    for (const s of sourceSets) {
+        db.insert(exerciseSets)
+            .values({
+                workout_exercise_id: targetWorkoutExerciseId,
+                set_order: order++,
+                type: s.type,
+                weight: s.weight,
+                weight_unit: s.weight_unit,
+                reps: s.reps,
+                duration_seconds: s.duration_seconds,
+                distance_meters: s.distance_meters,
+                rir: s.rir,
+                rest_seconds: s.rest_seconds,
+                is_scheduled: 1,
+            })
+            .run();
+    }
+    return sourceSets.length;
+}
+
 export function copyWorkoutAsScheduled(sourceWorkoutId: number, targetWorkoutId: number): void {
     const sourceExercises = listWorkoutExercisesForWorkout(sourceWorkoutId);
     const sourceWorkout = exerciseDbSupport.getWorkoutOrThrow(sourceWorkoutId);
