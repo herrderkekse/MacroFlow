@@ -234,6 +234,7 @@ export function useLogData() {
         portionInput, setPortionInput,
         selectionMode, selectedEntryIds, moveModalVisible, setMoveModalVisible,
         weightTrend, dayWeightLogs, meanWeightKg, weightDaysAgo, workoutRefreshKey,
+        bumpWorkoutRefreshKey: () => setWorkoutRefreshKey((k) => k + 1),
         handleScrollEnd, handleDelete, handleDeleteRecipeLog,
         handleConfirmEntry, handleConfirmRecipeLog,
         handleAddWeight, handleDeleteWeight,
