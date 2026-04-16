@@ -2,20 +2,23 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ExerciseTemplate } from "../services/exerciseDb";
 
 interface ExerciseRowProps {
     template: ExerciseTemplate;
-    onPress: () => void;
+    onAddEmpty: () => void;
+    onAddWithSets: () => void;
 }
 
-export default function ExerciseRow({ template, onPress }: ExerciseRowProps) {
+export default function ExerciseRow({ template, onAddEmpty, onAddWithSets }: ExerciseRowProps) {
     const colors = useThemeColors();
+    const { t } = useTranslation();
     const styles = useMemo(() => createRowStyles(colors), [colors]);
 
     return (
-        <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+        <View style={styles.row}>
             <View style={styles.info}>
                 <Text style={styles.name}>{template.name}</Text>
                 {(template.muscle_group || template.equipment) && (
@@ -24,8 +27,23 @@ export default function ExerciseRow({ template, onPress }: ExerciseRowProps) {
                     </Text>
                 )}
             </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-        </Pressable>
+            <Pressable
+                onPress={onAddEmpty}
+                hitSlop={8}
+                style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
+                accessibilityLabel={t("exercise.addExercise.addEmpty")}
+            >
+                <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+            </Pressable>
+            <Pressable
+                onPress={onAddWithSets}
+                hitSlop={8}
+                style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
+                accessibilityLabel={t("exercise.addExercise.addWithSets")}
+            >
+                <Ionicons name="copy-outline" size={20} color={colors.primary} />
+            </Pressable>
+        </View>
     );
 }
 
@@ -39,9 +57,13 @@ function createRowStyles(colors: ThemeColors) {
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
         },
-        rowPressed: { backgroundColor: colors.primaryLight },
         info: { flex: 1 },
         name: { fontSize: fontSize.md, color: colors.text, fontWeight: "500" },
         meta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+        iconBtn: {
+            padding: spacing.xs,
+            marginLeft: spacing.sm,
+        },
+        iconBtnPressed: { opacity: 0.5 },
     });
 }
