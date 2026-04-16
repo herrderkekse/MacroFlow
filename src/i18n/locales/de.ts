@@ -380,7 +380,7 @@ const de = {
             finishConfirm:
                 "Es gibt noch nicht abgeschlossene geplante Sätze. Trotzdem beenden?",
             elapsed: "Dauer",
-            addExercise: "+ Übung hinzufügen",
+            addExercise: "Übung hinzufügen",
             emptyState: "Füge eine Übung hinzu, um loszulegen",
             copyFromHistory: "Aus Verlauf starten",
             startedAt: "Gestartet um",
