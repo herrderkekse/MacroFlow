@@ -16,6 +16,7 @@ export const lightColors = {
     carbs: "#F59E0B",
     fat: "#EF4444",
     weight: "#8B5CF6",
+    exercise: "#F97316",
     disabled: "#D1D5DB",
 } as const;
 
@@ -37,6 +38,7 @@ export const darkColors = {
     carbs: "#FBBF24",
     fat: "#F87171",
     weight: "#A78BFA",
+    exercise: "#FB923C",
     disabled: "#4B5563",
 } as const;
 

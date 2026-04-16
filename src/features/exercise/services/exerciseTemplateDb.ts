@@ -26,6 +26,15 @@ export function getExerciseTemplateById(id: number): ExerciseTemplate | undefine
     return db.select().from(exerciseTemplates).where(eq(exerciseTemplates.id, id)).get();
 }
 
+export function getAllExerciseTemplates(): ExerciseTemplate[] {
+    return db
+        .select()
+        .from(exerciseTemplates)
+        .where(eq(exerciseTemplates.deleted, 0))
+        .orderBy(asc(exerciseTemplates.name))
+        .all();
+}
+
 export function searchExerciseTemplates(query: string): ExerciseTemplate[] {
     const trimmedQuery = query.trim();
     if (trimmedQuery.length === 0) return [];

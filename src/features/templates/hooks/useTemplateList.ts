@@ -1,3 +1,9 @@
+import {
+    type ExerciseTemplate,
+    getAllExerciseTemplates,
+    searchExerciseTemplates,
+    softDeleteExerciseTemplate,
+} from "@/src/features/exercise/services/exerciseTemplateDb";
 import logger from "@/src/utils/logger";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
@@ -17,11 +23,12 @@ import {
     type Recipe,
 } from "../services/templateDb";
 
-type FilterType = "all" | "recipes" | "foods";
+type FilterType = "all" | "recipes" | "foods" | "exercises";
 
 export type TemplateItem =
     | { kind: "food"; data: Food }
-    | { kind: "recipe"; data: Recipe };
+    | { kind: "recipe"; data: Recipe }
+    | { kind: "exercise"; data: ExerciseTemplate };
 
 export function useTemplateList() {
     const { t } = useTranslation();
@@ -36,13 +43,17 @@ export function useTemplateList() {
         const hasQuery = q.length >= 2;
         const result: TemplateItem[] = [];
 
-        if (filter !== "foods") {
+        if (filter === "all" || filter === "recipes") {
             const recipeList = hasQuery ? searchRecipesByName(q) : getAllRecipes();
             for (const r of recipeList) result.push({ kind: "recipe", data: r });
         }
-        if (filter !== "recipes") {
+        if (filter === "all" || filter === "foods") {
             const foodList = hasQuery ? searchFoodsByName(q) : getAllFoods();
             for (const f of foodList) result.push({ kind: "food", data: f });
+        }
+        if (filter === "all" || filter === "exercises") {
+            const exerciseList = hasQuery ? searchExerciseTemplates(q) : getAllExerciseTemplates();
+            for (const e of exerciseList) result.push({ kind: "exercise", data: e });
         }
 
         result.sort((a, b) => a.data.name.localeCompare(b.data.name));
@@ -101,6 +112,35 @@ export function useTemplateList() {
         );
     }
 
+    function handleDeleteExercise(exercise: ExerciseTemplate) {
+        Alert.alert(
+            t("templates.deleteExercise"),
+            t("templates.deleteExerciseConfirm", { name: exercise.name }),
+            [
+                { text: t("common.cancel"), style: "cancel" },
+                {
+                    text: t("common.delete"),
+                    style: "destructive",
+                    onPress: () => {
+                        softDeleteExerciseTemplate(exercise.id);
+                        logger.info("[DB] Soft-deleted exercise template", { id: exercise.id });
+                        load();
+                    },
+                },
+            ],
+        );
+    }
+
+    function exerciseSummary(exercise: ExerciseTemplate) {
+        const parts: string[] = [];
+        if (exercise.type) parts.push(t(`exercise.types.${exercise.type}`));
+        if (exercise.muscle_group) {
+            const key = exercise.muscle_group === "full_body" ? "fullBody" : exercise.muscle_group;
+            parts.push(t(`exercise.muscles.${key}`));
+        }
+        return parts.join(" · ") || t("templates.exercise");
+    }
+
     function recipeSummary(recipeId: number) {
         const recipeItemsList = getRecipeItems(recipeId);
         if (recipeItemsList.length === 0) return t("templates.noItems");
@@ -116,7 +156,7 @@ export function useTemplateList() {
         return t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) });
     }
 
-    function toggleFilter(type: "recipes" | "foods") {
+    function toggleFilter(type: "recipes" | "foods" | "exercises") {
         setFilter((prev) => (prev === type ? "all" : type));
     }
 
@@ -131,8 +171,11 @@ export function useTemplateList() {
         setFabExpanded,
         handleDeleteRecipe,
         handleDeleteFood,
+        handleDeleteExercise,
         recipeSummary,
         foodSummary,
+        exerciseSummary,
         toggleFilter,
+        reload: load,
     };
 }
