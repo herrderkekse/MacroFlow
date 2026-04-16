@@ -30,7 +30,10 @@ export default function WorkoutScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ workoutId?: string; date?: string }>();
     const workoutId = params.workoutId ? Number(params.workoutId) : undefined;
-    const workoutDate = params.date ? parseDateKey(params.date) : undefined;
+    const workoutDate = useMemo(
+        () => (params.date ? parseDateKey(params.date) : undefined),
+        [params.date]
+    );
 
     const workout = useWorkout({ workoutId, date: workoutDate });
     const restTimer = useRestTimer();
