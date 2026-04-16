@@ -2,10 +2,10 @@ import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { parseDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Alert, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { FlatList, Alert, BackHandler, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
@@ -47,6 +47,7 @@ export default function WorkoutScreen() {
         if (!workout.data && !workoutId && !workout.isResumed) {
             workout.startWorkout(workoutDate);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workout.data, workoutId, workout.isResumed, workout.startWorkout, workoutDate]);
 
     // Auto-expand the first exercise when data loads
@@ -91,7 +92,7 @@ export default function WorkoutScreen() {
         if (endEpoch != null) workout.updateEndTime(endEpoch);
     }
 
-    function handleBack() {
+    const handleBack = useCallback(() => {
         const isInProgress = workout.data?.workout && !workout.data.workout.ended_at;
         if (!isInProgress) { router.back(); return; }
 
@@ -104,7 +105,17 @@ export default function WorkoutScreen() {
                 { text: t("exercise.workout.leaveWithout"), style: "destructive", onPress: () => router.back() },
             ],
         );
-    }
+    }, [workout, router, t]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+                handleBack();
+                return true;
+            });
+            return () => subscription.remove();
+        }, [handleBack]),
+    );
 
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
         const tid = item.workoutExercise.exercise_template_id;
