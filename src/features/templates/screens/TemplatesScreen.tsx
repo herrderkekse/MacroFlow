@@ -1,3 +1,4 @@
+import type { ExerciseTemplate } from "@/src/features/exercise/services/exerciseTemplateDb";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +14,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import TemplateCard from "../components/TemplateCard";
 import { useTemplateList, type TemplateItem } from "../hooks/useTemplateList";
 import type { Food, Recipe } from "../services/templateDb";
 
@@ -25,39 +27,23 @@ export default function TemplatesScreen() {
     const list = useTemplateList();
 
     function renderItem({ item }: { item: TemplateItem }) {
-        if (item.kind === "recipe") {
-            const recipe = item.data as Recipe;
-            return (
-                <Pressable
-                    style={styles.card}
-                    onPress={() => router.push({ pathname: "/templates/edit", params: { recipeId: String(recipe.id) } } as unknown as Href)}
-                >
-                    <Ionicons name="book-outline" size={22} color={colors.primary} style={styles.cardIcon} />
-                    <View style={styles.cardInfo}>
-                        <Text style={styles.cardName} numberOfLines={1}>{recipe.name}</Text>
-                        <Text style={styles.cardSub}>{list.recipeSummary(recipe.id)}</Text>
-                    </View>
-                    <Pressable onPress={() => list.handleDeleteRecipe(recipe)} hitSlop={8}>
-                        <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                    </Pressable>
-                </Pressable>
-            );
-        }
-        const food = item.data as Food;
+        const subtitle =
+            item.kind === "recipe" ? list.recipeSummary((item.data as Recipe).id) :
+            item.kind === "exercise" ? list.exerciseSummary(item.data as ExerciseTemplate) :
+            list.foodSummary(item.data as Food);
+
+        const handleDelete =
+            item.kind === "recipe" ? () => list.handleDeleteRecipe(item.data as Recipe) :
+            item.kind === "exercise" ? () => list.handleDeleteExercise(item.data as ExerciseTemplate) :
+            () => list.handleDeleteFood(item.data as Food);
+
         return (
-            <Pressable
-                style={styles.card}
-                onPress={() => router.push({ pathname: "/templates/food-edit", params: { foodId: String(food.id) } } as unknown as Href)}
-            >
-                <Ionicons name="nutrition-outline" size={22} color={colors.success} style={styles.cardIcon} />
-                <View style={styles.cardInfo}>
-                    <Text style={styles.cardName} numberOfLines={1}>{food.name}</Text>
-                    <Text style={styles.cardSub}>{list.foodSummary(food)}</Text>
-                </View>
-                <Pressable onPress={() => list.handleDeleteFood(food)} hitSlop={8}>
-                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                </Pressable>
-            </Pressable>
+            <TemplateCard
+                kind={item.kind}
+                data={item.data}
+                subtitle={subtitle}
+                onDelete={handleDelete}
+            />
         );
     }
 
@@ -121,14 +107,26 @@ export default function TemplatesScreen() {
                             {t("templates.filterFoods")}
                         </Text>
                     </Pressable>
+                    <Pressable
+                        style={[styles.filterButton, list.filter === "exercises" && styles.filterButtonActive]}
+                        onPress={() => list.toggleFilter("exercises")}
+                    >
+                        <Ionicons
+                            name="barbell-outline"
+                            size={16}
+                            color={list.filter === "exercises" ? colors.primary : colors.textSecondary}
+                            style={{ marginRight: spacing.xs }}
+                        />
+                        <Text style={[styles.filterButtonText, list.filter === "exercises" && styles.filterButtonTextActive]}>
+                            {t("templates.filterExercises")}
+                        </Text>
+                    </Pressable>
                 </View>
             )}
 
             <FlatList
                 data={list.items}
-                keyExtractor={(item) =>
-                    item.kind === "recipe" ? `recipe-${item.data.id}` : `food-${item.data.id}`
-                }
+                keyExtractor={(item) => `${item.kind}-${item.data.id}`}
                 contentContainerStyle={styles.list}
                 ListEmptyComponent={
                     <Text style={styles.empty}>
@@ -150,7 +148,7 @@ export default function TemplatesScreen() {
                     <Pressable style={styles.fabOverlay} onPress={() => list.setFabExpanded(false)} />
 
                     <Pressable
-                        style={[styles.miniFab, styles.miniFabUpper]}
+                        style={[styles.miniFab, styles.miniFabTop]}
                         onPress={() => {
                             list.setFabExpanded(false);
                             router.push("/templates/food-edit" as unknown as Href);
@@ -161,7 +159,7 @@ export default function TemplatesScreen() {
                     </Pressable>
 
                     <Pressable
-                        style={[styles.miniFab, styles.miniFabLower]}
+                        style={[styles.miniFab, styles.miniFabMiddle]}
                         onPress={() => {
                             list.setFabExpanded(false);
                             router.push("/templates/edit" as unknown as Href);
@@ -169,6 +167,17 @@ export default function TemplatesScreen() {
                     >
                         <Ionicons name="book-outline" size={20} color="#fff" />
                         <Text style={styles.miniFabLabel}>{t("templates.newRecipe")}</Text>
+                    </Pressable>
+
+                    <Pressable
+                        style={[styles.miniFab, styles.miniFabBottom]}
+                        onPress={() => {
+                            list.setFabExpanded(false);
+                            router.push("/templates/exercise-edit" as unknown as Href);
+                        }}
+                    >
+                        <Ionicons name="barbell-outline" size={20} color="#fff" />
+                        <Text style={styles.miniFabLabel}>{t("templates.newExercise")}</Text>
                     </Pressable>
                 </>
             )}
@@ -256,18 +265,6 @@ function createStyles(colors: ThemeColors) {
             marginTop: spacing.xl,
             fontSize: fontSize.sm,
         },
-        card: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-            flexDirection: "row",
-            alignItems: "center",
-        },
-        cardIcon: { marginRight: spacing.sm },
-        cardInfo: { flex: 1, marginRight: spacing.sm },
-        cardName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
-        cardSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
         fab: {
             position: "absolute",
             bottom: 24,
@@ -304,8 +301,9 @@ function createStyles(colors: ThemeColors) {
             shadowOpacity: 0.25,
             shadowRadius: 4,
         },
-        miniFabUpper: { bottom: 24 + 56 + spacing.md + 48 + spacing.sm },
-        miniFabLower: { bottom: 24 + 56 + spacing.md },
+        miniFabTop: { bottom: 24 + 56 + spacing.md + (48 + spacing.sm) * 2 },
+        miniFabMiddle: { bottom: 24 + 56 + spacing.md + 48 + spacing.sm },
+        miniFabBottom: { bottom: 24 + 56 + spacing.md },
         miniFabLabel: {
             color: "#fff",
             fontSize: fontSize.sm,
