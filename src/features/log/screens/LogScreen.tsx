@@ -131,7 +131,7 @@ export default function LogScreen() {
         }
 
         setShowAddExercise(false);
-        d.loadAllDays(d.selectedDate);
+        d.bumpWorkoutRefreshKey();
     }
 
     return (
