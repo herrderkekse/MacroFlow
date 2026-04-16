@@ -32,8 +32,8 @@ const CONFIG = {
             { offset: "100%", color: "#0b1419" },
         ],
 
-        connectingLine: "#1F2937",
-        connectingLineDarkMode: "#9CA3AF",
+        connectingLine: "#8B5CF6",
+        connectingLineDarkMode: "#8B5CF6",
 
         nodes: {
             center: "#10B981",
