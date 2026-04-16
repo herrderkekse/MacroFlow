@@ -339,6 +339,8 @@ const de = {
             sectionByMuscle: "NACH MUSKELGRUPPE",
             createNew: "Neue Übung erstellen",
             noResults: "Keine Übungen gefunden",
+            addEmpty: "Leer hinzufügen",
+            addWithSets: "Mit letzten Sätzen",
         },
         createExercise: {
             title: "Neue Übung",
@@ -401,6 +403,8 @@ const de = {
             current: "Aktuell",
             copyToCurrent: "Sätze übernehmen",
             noHistory: "Noch kein Verlauf",
+            copiedSets: "{{count}} Sätze kopiert",
+            noSetsInSession: "Keine abgeschlossenen Sätze in dieser Einheit",
         },
         copyWorkout: {
             title: "Aus Verlauf starten",

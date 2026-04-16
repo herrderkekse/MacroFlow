@@ -1,7 +1,7 @@
 import exerciseDbSupport from "@/src/features/exercise/services/exerciseDbSupport";
 import { db } from "@/src/services/db";
 import { exerciseSets, workoutExercises, workouts } from "@/src/services/db/schema";
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 
 export type ExerciseSet = typeof exerciseSets.$inferSelect;
 export type NewExerciseSet = typeof exerciseSets.$inferInsert;
@@ -58,6 +58,34 @@ export function getLastCompletedSetsForTemplate(templateId: number): ExerciseSet
 /** Copies sets from a historical template instance into a target workout_exercise as scheduled. */
 export function copySetsFromLastSession(templateId: number, targetWorkoutExerciseId: number): number {
     const sourceSets = getLastCompletedSetsForTemplate(templateId);
+    if (sourceSets.length === 0) return 0;
+
+    const existing = exerciseDbSupport.listSetsForExercise(targetWorkoutExerciseId);
+    let order = existing.length + 1;
+
+    for (const s of sourceSets) {
+        db.insert(exerciseSets)
+            .values({
+                workout_exercise_id: targetWorkoutExerciseId,
+                set_order: order++,
+                type: s.type,
+                weight: s.weight,
+                weight_unit: s.weight_unit,
+                reps: s.reps,
+                duration_seconds: s.duration_seconds,
+                distance_meters: s.distance_meters,
+                rir: s.rir,
+                rest_seconds: s.rest_seconds,
+                is_scheduled: 1,
+            })
+            .run();
+    }
+    return sourceSets.length;
+}
+
+/** Copies completed sets from a specific workout exercise into a target as scheduled. */
+export function copySetsFromWorkoutExercise(sourceWorkoutExerciseId: number, targetWorkoutExerciseId: number): number {
+    const sourceSets = exerciseDbSupport.listSetsForExercise(sourceWorkoutExerciseId).filter((s) => !!s.completed_at);
     if (sourceSets.length === 0) return 0;
 
     const existing = exerciseDbSupport.listSetsForExercise(targetWorkoutExerciseId);

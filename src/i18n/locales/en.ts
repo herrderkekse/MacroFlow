@@ -338,6 +338,8 @@ const en = {
             sectionByMuscle: "BY MUSCLE GROUP",
             createNew: "Create New Exercise",
             noResults: "No exercises found",
+            addEmpty: "Add empty",
+            addWithSets: "Add with last sets",
         },
         createExercise: {
             title: "New Exercise",
@@ -399,6 +401,8 @@ const en = {
             current: "Current",
             copyToCurrent: "Copy Sets to Current",
             noHistory: "No history yet",
+            copiedSets: "Copied {{count}} sets",
+            noSetsInSession: "No completed sets in this session",
         },
         copyWorkout: {
             title: "Start from History",

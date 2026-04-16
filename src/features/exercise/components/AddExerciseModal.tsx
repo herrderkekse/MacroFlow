@@ -25,7 +25,7 @@ import { useExerciseSearch } from "../hooks/useExerciseSearch";
 interface AddExerciseModalProps {
     visible: boolean;
     onClose: () => void;
-    onSelect: (template: ExerciseTemplate) => void;
+    onSelect: (template: ExerciseTemplate, copyFromLast: boolean) => void;
 }
 
 export default function AddExerciseModal({ visible, onClose, onSelect }: AddExerciseModalProps) {
@@ -45,13 +45,13 @@ export default function AddExerciseModal({ visible, onClose, onSelect }: AddExer
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
-    function handleSelect(template: ExerciseTemplate) {
-        onSelect(template);
+    function handleSelect(template: ExerciseTemplate, copyFromLast: boolean) {
+        onSelect(template, copyFromLast);
     }
 
     function handleCreated(template: ExerciseTemplate) {
         setShowCreate(false);
-        onSelect(template);
+        onSelect(template, false);
     }
 
     function handleCloseSelf() {
@@ -66,6 +66,17 @@ export default function AddExerciseModal({ visible, onClose, onSelect }: AddExer
             : [];
 
     const showList = search.isSearching || !!search.selectedMuscleGroup;
+
+    function renderRow(item: ExerciseTemplate) {
+        return (
+            <ExerciseRow
+                key={item.id}
+                template={item}
+                onAddEmpty={() => handleSelect(item, false)}
+                onAddWithSets={() => handleSelect(item, true)}
+            />
+        );
+    }
 
     return (
         <>
@@ -102,9 +113,21 @@ export default function AddExerciseModal({ visible, onClose, onSelect }: AddExer
                         <FlatList
                             data={listData}
                             keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => (
-                                <ExerciseRow template={item} onPress={() => handleSelect(item)} />
-                            )}
+                            renderItem={({ item }) => renderRow(item)}
+                            ListHeaderComponent={
+                                !search.isSearching ? (
+                                    <>
+                                        <Text style={styles.sectionLabel}>{t("exercise.addExercise.sectionByMuscle")}</Text>
+                                        <View style={styles.chipContainer}>
+                                            <ChipSelect
+                                                items={MUSCLE_GROUPS.map((mg) => ({ key: mg.key, label: t(mg.labelKey) }))}
+                                                selected={search.selectedMuscleGroup}
+                                                onSelect={(key) => search.handleSelectMuscleGroup(key as MuscleGroup)}
+                                            />
+                                        </View>
+                                    </>
+                                ) : null
+                            }
                             ListEmptyComponent={
                                 <Text style={styles.emptyText}>{t("exercise.addExercise.noResults")}</Text>
                             }
@@ -126,9 +149,7 @@ export default function AddExerciseModal({ visible, onClose, onSelect }: AddExer
                             {search.recentTemplates.length > 0 && (
                                 <>
                                     <Text style={styles.sectionLabel}>{t("exercise.addExercise.sectionRecent")}</Text>
-                                    {search.recentTemplates.map((item) => (
-                                        <ExerciseRow key={item.id} template={item} onPress={() => handleSelect(item)} />
-                                    ))}
+                                    {search.recentTemplates.map((item) => renderRow(item))}
                                 </>
                             )}
                         </ScrollView>

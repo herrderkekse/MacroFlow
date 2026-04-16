@@ -68,10 +68,12 @@ export default function WorkoutScreen() {
         }, 100);
     }, []);
 
-    function handleExerciseSelected(template: ExerciseTemplate) {
+    function handleExerciseSelected(template: ExerciseTemplate, copyFromLast: boolean) {
         const weId = workout.addExercise(template.id);
         if (weId) {
-            copySetsFromLastSession(template.id, weId);
+            if (copyFromLast) {
+                copySetsFromLastSession(template.id, weId);
+            }
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setExpandedId(weId);
         }
