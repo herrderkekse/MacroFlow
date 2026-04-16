@@ -170,10 +170,6 @@ export function useLogData() {
         router.push({ pathname: "/log/add", params: mealType ? { mealType } : undefined });
     };
 
-    const navigateToWorkout = () => {
-        router.push({ pathname: "/workout", params: { date: formatDateKey(selectedDate) } });
-    };
-
     function exitSelectionMode() { setSelectionMode(false); setSelectedEntryIds(new Set()); }
 
     function handleToggleEntries(entryIds: number[]) {
@@ -242,7 +238,7 @@ export function useLogData() {
         handleConfirmEntry, handleConfirmRecipeLog,
         handleAddWeight, handleDeleteWeight,
         handleEdit, handleEditRecipeGroup, handleSavePortionMultiplier,
-        navigateToAdd, navigateToWorkout, exitSelectionMode,
+        navigateToAdd, exitSelectionMode,
         handleToggleEntries, handleActivateSelection, handleActivateSelectionMultiple,
         handleMoveCopy, handleDateChange,
         loadAllDays, SCREEN_WIDTH,
