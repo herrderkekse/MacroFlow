@@ -378,7 +378,7 @@ const en = {
             finishConfirm:
                 "There are unfinished scheduled sets. Finish anyway?",
             elapsed: "Elapsed",
-            addExercise: "+ Add Exercise",
+            addExercise: "Add Exercise",
             emptyState: "Add an exercise to get started",
             copyFromHistory: "Start from History",
             startedAt: "Started at",
