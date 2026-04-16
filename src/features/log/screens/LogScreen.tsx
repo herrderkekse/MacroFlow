@@ -6,7 +6,8 @@ import AiChatOverlay, { CHAT_BAR_TOTAL_HEIGHT } from "@/src/features/ai/componen
 // eslint-disable-next-line boundaries/dependencies
 import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSummarySection";
 // eslint-disable-next-line boundaries/dependencies
-import QuickExerciseModal from "@/src/features/exercise/components/QuickExerciseModal";
+import AddExerciseModal from "@/src/features/exercise/components/AddExerciseModal";
+import { addExerciseToWorkout, copySetsFromLastSession, createWorkout, finishWorkout, getWorkoutsByDate, type ExerciseTemplate } from "@/src/features/exercise/services/exerciseDb";
 import type { Goals } from "@/src/features/settings/services/settingsDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
@@ -102,7 +103,36 @@ export default function LogScreen() {
     const insets = useSafeAreaInsets();
     const tabBarHeight = useBottomTabBarHeight();
     const d = useLogData();
-    const [showQuickExercise, setShowQuickExercise] = useState(false);
+    const [showAddExercise, setShowAddExercise] = useState(false);
+
+    function handleQuickAddExercise(template: ExerciseTemplate, copyFromLast: boolean) {
+        const dateKey = formatDateKey(d.selectedDate);
+        const now = Date.now();
+        const existing = getWorkoutsByDate(dateKey);
+        let workoutId: number;
+        let autoFinish = false;
+
+        if (existing.length > 0 && !existing[0].ended_at) {
+            workoutId = existing[0].id;
+        } else {
+            const w = createWorkout({ date: dateKey, started_at: now });
+            workoutId = w.id;
+            autoFinish = true;
+        }
+
+        const we = addExerciseToWorkout({ workout_id: workoutId, exercise_template_id: template.id });
+
+        if (copyFromLast) {
+            copySetsFromLastSession(template.id, we.id);
+        }
+
+        if (autoFinish) {
+            finishWorkout(workoutId, now);
+        }
+
+        setShowAddExercise(false);
+        d.loadAllDays(d.selectedDate);
+    }
 
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -134,7 +164,7 @@ export default function LogScreen() {
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
                     weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight}
                     dateKey={formatDateKey(d.selectedDate)}
-                    onQuickAdd={() => setShowQuickExercise(true)}
+                    onQuickAdd={() => setShowAddExercise(true)}
                     workoutRefreshKey={d.workoutRefreshKey} />
                 <DayPage grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
@@ -189,11 +219,10 @@ export default function LogScreen() {
             <AiChatOverlay tabBarHeight={tabBarHeight} onVisibilityChange={d.setChatBarVisible}
                 onDataChanged={() => d.loadAllDays(d.selectedDate)} />
 
-            <QuickExerciseModal
-                visible={showQuickExercise}
-                date={d.selectedDate}
-                onClose={() => setShowQuickExercise(false)}
-                onSaved={() => d.loadAllDays(d.selectedDate)}
+            <AddExerciseModal
+                visible={showAddExercise}
+                onClose={() => setShowAddExercise(false)}
+                onSelect={handleQuickAddExercise}
             />
         </View>
     );
