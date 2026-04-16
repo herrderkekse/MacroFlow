@@ -1,22 +1,31 @@
 import { useExerciseHistory } from "@/src/features/exercise/hooks/useExerciseHistory";
-import { getExerciseTemplateById, type ExerciseTemplate } from "@/src/features/exercise/services/exerciseDb";
+import {
+    copySetsFromWorkoutExercise,
+    getExerciseTemplateById,
+    type ExerciseTemplate,
+} from "@/src/features/exercise/services/exerciseDb";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
-import React, { useMemo } from "react";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import { kgToLb } from "../helpers/exerciseUnits";
-import { formatRirRange, formatSetSummary } from "../helpers/workoutSummary";
+import ReadOnlyExerciseCard from "../components/ReadOnlyExerciseCard";
 
 export default function ExerciseHistoryScreen() {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const { templateId } = useLocalSearchParams<{ templateId: string }>();
+    const router = useRouter();
+    const { templateId, workoutExerciseId } = useLocalSearchParams<{
+        templateId: string;
+        workoutExerciseId?: string;
+    }>();
     const parsedId = templateId ? Number(templateId) : undefined;
+    const parsedWeId = workoutExerciseId ? Number(workoutExerciseId) : undefined;
 
     const template: ExerciseTemplate | undefined = useMemo(
         () => (parsedId ? getExerciseTemplateById(parsedId) : undefined),
@@ -44,6 +53,17 @@ export default function ExerciseHistoryScreen() {
     const currentE1rm = e1rmSeries.length > 0
         ? toDisplayUnit(e1rmSeries[e1rmSeries.length - 1].e1rm)
         : null;
+
+    const handleCopySets = useCallback((sourceWeId: number) => {
+        if (!parsedWeId) return;
+        const count = copySetsFromWorkoutExercise(sourceWeId, parsedWeId);
+        if (count > 0) {
+            Alert.alert(t("exercise.history.copiedSets", { count }));
+            router.back();
+        } else {
+            Alert.alert(t("exercise.history.noSetsInSession"));
+        }
+    }, [parsedWeId, t, router]);
 
     if (isLoading) {
         return (
@@ -118,21 +138,12 @@ export default function ExerciseHistoryScreen() {
                         )}
                     </>
                 }
-                renderItem={({ item }) => {
-                    const summary = formatSetSummary(item.sets);
-                    const rir = formatRirRange(item.sets);
-                    return (
-                        <View style={styles.historyRow}>
-                            <Text style={styles.historyDate}>
-                                {item.workout.date}
-                            </Text>
-                            <Text style={styles.historySummary} numberOfLines={1}>
-                                {summary}
-                                {rir ? `  ${rir}` : ""}
-                            </Text>
-                        </View>
-                    );
-                }}
+                renderItem={({ item }) => (
+                    <ReadOnlyExerciseCard
+                        item={item}
+                        onCopy={parsedWeId ? () => handleCopySets(item.workoutExercise.id) : undefined}
+                    />
+                )}
                 ListEmptyComponent={
                     <View style={styles.center}>
                         <Ionicons name="bar-chart-outline" size={48} color={colors.textTertiary} />
@@ -176,22 +187,6 @@ function createStyles(colors: ThemeColors) {
             letterSpacing: 0.5,
             marginTop: spacing.sm,
             marginBottom: spacing.sm,
-        },
-        historyRow: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-        },
-        historyDate: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.text,
-            marginBottom: 2,
-        },
-        historySummary: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
         },
         emptyText: {
             fontSize: fontSize.md,

@@ -72,7 +72,11 @@ export function ExpandedExerciseCard({
         if (template) {
             router.push({
                 pathname: "/workout/exercise-history",
-                params: { templateId: String(template.id), name: template.name },
+                params: {
+                    templateId: String(template.id),
+                    name: template.name,
+                    workoutExerciseId: String(item.workoutExercise.id),
+                },
             });
         }
     }
