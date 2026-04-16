@@ -33,6 +33,7 @@ export {
     addSet,
     completeSet,
     copySetsFromLastSession,
+    copySetsFromWorkoutExercise,
     deleteSet,
     getLastCompletedSetsForTemplate,
     getSetsForExercise,
