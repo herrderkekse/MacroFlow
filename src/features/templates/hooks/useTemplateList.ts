@@ -1,5 +1,6 @@
 import {
     type ExerciseTemplate,
+    deleteExerciseTemplate,
     getAllExerciseTemplates,
     searchExerciseTemplates,
     softDeleteExerciseTemplate,
@@ -115,15 +116,23 @@ export function useTemplateList() {
     function handleDeleteExercise(exercise: ExerciseTemplate) {
         Alert.alert(
             t("templates.deleteExercise"),
-            t("templates.deleteExerciseConfirm", { name: exercise.name }),
+            t("templates.deleteTitle"),
             [
                 { text: t("common.cancel"), style: "cancel" },
                 {
-                    text: t("common.delete"),
-                    style: "destructive",
+                    text: t("templates.deleteFutureOnly"),
                     onPress: () => {
                         softDeleteExerciseTemplate(exercise.id);
                         logger.info("[DB] Soft-deleted exercise template", { id: exercise.id });
+                        load();
+                    },
+                },
+                {
+                    text: t("templates.deleteEverything"),
+                    style: "destructive",
+                    onPress: () => {
+                        deleteExerciseTemplate(exercise.id);
+                        logger.info("[DB] Deleted exercise template", { id: exercise.id });
                         load();
                     },
                 },

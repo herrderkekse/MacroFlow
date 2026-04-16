@@ -348,6 +348,7 @@ const en = {
         },
         createExercise: {
             title: "New Exercise",
+            editTitle: "Edit Exercise",
             name: "Name",
             namePlaceholder: "e.g., Bench Press",
             type: "Type",

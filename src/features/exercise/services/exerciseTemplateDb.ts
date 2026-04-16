@@ -1,6 +1,6 @@
 import exerciseDbSupport from "@/src/features/exercise/services/exerciseDbSupport";
 import { db } from "@/src/services/db";
-import { exerciseTemplates, workoutExercises, workouts } from "@/src/services/db/schema";
+import { exerciseSets, exerciseTemplates, workoutExercises, workouts } from "@/src/services/db/schema";
 import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { and, asc, desc, eq, gte, like, sql } from "drizzle-orm";
 
@@ -88,4 +88,18 @@ export function updateExerciseTemplate(id: number, data: Partial<NewExerciseTemp
 export function softDeleteExerciseTemplate(id: number) {
     exerciseDbSupport.getExerciseTemplateOrThrow(id);
     db.update(exerciseTemplates).set({ deleted: 1 }).where(eq(exerciseTemplates.id, id)).run();
+}
+
+export function deleteExerciseTemplate(id: number) {
+    exerciseDbSupport.getExerciseTemplateOrThrow(id);
+    const exercises = db
+        .select({ id: workoutExercises.id })
+        .from(workoutExercises)
+        .where(eq(workoutExercises.exercise_template_id, id))
+        .all();
+    for (const we of exercises) {
+        db.delete(exerciseSets).where(eq(exerciseSets.workout_exercise_id, we.id)).run();
+    }
+    db.delete(workoutExercises).where(eq(workoutExercises.exercise_template_id, id)).run();
+    db.delete(exerciseTemplates).where(eq(exerciseTemplates.id, id)).run();
 }

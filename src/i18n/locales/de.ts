@@ -349,6 +349,7 @@ const de = {
         },
         createExercise: {
             title: "Neue Übung",
+            editTitle: "Übung bearbeiten",
             name: "Name",
             namePlaceholder: "z. B. Bankdrücken",
             type: "Typ",
