@@ -3,7 +3,7 @@ import Input from "@/src/shared/atoms/Input";
 import ModalHeader from "@/src/shared/atoms/ModalHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     KeyboardAvoidingView,
@@ -16,20 +16,22 @@ import {
     View,
 } from "react-native";
 import { EQUIPMENT_LIST, EXERCISE_TYPES, MUSCLE_GROUPS } from "../constants";
-import { createExerciseTemplate, type ExerciseTemplate } from "../services/exerciseDb";
+import { createExerciseTemplate, getExerciseTemplateById, updateExerciseTemplate, type ExerciseTemplate } from "../services/exerciseDb";
 import type { Equipment, ExerciseType, MuscleGroup, ResistanceMode, WeightUnit } from "../types";
 import ChipSelect from "./ChipSelect";
 
 interface CreateExerciseModalProps {
     visible: boolean;
+    exerciseId?: number;
     onClose: () => void;
     onCreated: (template: ExerciseTemplate) => void;
 }
 
-export default function CreateExerciseModal({ visible, onClose, onCreated }: CreateExerciseModalProps) {
+export default function CreateExerciseModal({ visible, exerciseId, onClose, onCreated }: CreateExerciseModalProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const isEditing = exerciseId != null;
 
     const [name, setName] = useState("");
     const [type, setType] = useState<ExerciseType>("weight");
@@ -38,6 +40,18 @@ export default function CreateExerciseModal({ visible, onClose, onCreated }: Cre
     const [resistanceMode, setResistanceMode] = useState<ResistanceMode>("resistance");
     const [defaultUnit, setDefaultUnit] = useState<WeightUnit>("kg");
     const [nameError, setNameError] = useState(false);
+
+    useEffect(() => {
+        if (!visible || exerciseId == null) return;
+        const existing = getExerciseTemplateById(exerciseId);
+        if (!existing) return;
+        setName(existing.name);
+        setType((existing.type as ExerciseType) ?? "weight");
+        setMuscleGroup((existing.muscle_group as MuscleGroup) ?? null);
+        setEquipment((existing.equipment as Equipment) ?? null);
+        setResistanceMode((existing.resistance_mode as ResistanceMode) ?? "resistance");
+        setDefaultUnit((existing.default_weight_unit as WeightUnit) ?? "kg");
+    }, [visible, exerciseId]);
 
     function resetForm() {
         setName("");
@@ -60,16 +74,30 @@ export default function CreateExerciseModal({ visible, onClose, onCreated }: Cre
             setNameError(true);
             return;
         }
-        const template = createExerciseTemplate({
-            name: trimmed,
-            type,
-            muscle_group: muscleGroup,
-            equipment,
-            resistance_mode: resistanceMode,
-            default_weight_unit: defaultUnit,
-        });
-        resetForm();
-        onCreated(template);
+        if (isEditing) {
+            updateExerciseTemplate(exerciseId, {
+                name: trimmed,
+                type,
+                muscle_group: muscleGroup,
+                equipment,
+                resistance_mode: resistanceMode,
+                default_weight_unit: defaultUnit,
+            });
+            const updated = getExerciseTemplateById(exerciseId)!;
+            resetForm();
+            onCreated(updated);
+        } else {
+            const template = createExerciseTemplate({
+                name: trimmed,
+                type,
+                muscle_group: muscleGroup,
+                equipment,
+                resistance_mode: resistanceMode,
+                default_weight_unit: defaultUnit,
+            });
+            resetForm();
+            onCreated(template);
+        }
     }
 
     return (
@@ -83,7 +111,7 @@ export default function CreateExerciseModal({ visible, onClose, onCreated }: Cre
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 style={styles.flex}
             >
-                <ModalHeader title={t("exercise.createExercise.title")} onClose={handleClose} />
+                <ModalHeader title={t(isEditing ? "exercise.createExercise.editTitle" : "exercise.createExercise.title")} onClose={handleClose} />
                 <ScrollView
                     contentContainerStyle={styles.form}
                     keyboardShouldPersistTaps="handled"

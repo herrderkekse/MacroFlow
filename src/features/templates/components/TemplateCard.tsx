@@ -29,13 +29,13 @@ export default function TemplateCard({ kind, data, subtitle, onDelete }: Templat
             router.push({ pathname: "/templates/edit", params: { recipeId: String(data.id) } } as unknown as Href);
         } else if (kind === "food") {
             router.push({ pathname: "/templates/food-edit", params: { foodId: String(data.id) } } as unknown as Href);
+        } else {
+            router.push({ pathname: "/templates/exercise-edit", params: { exerciseId: String(data.id) } } as unknown as Href);
         }
     }
 
-    const Wrapper = kind === "exercise" ? View : Pressable;
-
     return (
-        <Wrapper style={styles.card} {...(kind !== "exercise" && { onPress: handlePress })}>
+        <Pressable style={styles.card} onPress={handlePress}>
             <Ionicons name={config.icon} size={22} color={config.color} style={styles.cardIcon} />
             <View style={styles.cardInfo}>
                 <Text style={styles.cardName} numberOfLines={1}>{data.name}</Text>
@@ -44,7 +44,7 @@ export default function TemplateCard({ kind, data, subtitle, onDelete }: Templat
             <Pressable onPress={onDelete} hitSlop={8}>
                 <Ionicons name="trash-outline" size={20} color={colors.danger} />
             </Pressable>
-        </Wrapper>
+        </Pressable>
     );
 }
 

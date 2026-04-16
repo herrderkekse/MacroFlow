@@ -1,6 +1,7 @@
 // Barrel — re-exports from domain-focused modules for backward compatibility.
 export {
     createExerciseTemplate,
+    deleteExerciseTemplate,
     getAllExerciseTemplates,
     getExerciseTemplateById,
     getExerciseTemplatesByMuscleGroup,
