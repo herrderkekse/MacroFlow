@@ -1,0 +1,33 @@
+name: PR Webhook Trigger
+
+on:
+    pull_request:
+        types: [ opened, synchronize, reopened ]
+
+    # for manual testing
+    workflow_dispatch:
+
+jobs:
+    trigger-webhook:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Send webhook to n8n
+              run: |
+                  curl -X POST "$N8N_WEBHOOK_URL" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Webhook-Secret: $N8N_WEBHOOK_SECRET" \
+                  -d '{
+                        "event": "pull_request",
+                        "action": "${{ github.event.action }}",
+                        "pr_title": "${{ github.event.pull_request.title }}",
+                        "pr_url": "${{ github.event.pull_request.html_url }}",
+                        "branch": "${{ github.event.pull_request.head.ref }}",
+                        "author": {
+                            "username": "${{ github.event.pull_request.user.login }}",
+                            "id": "${{ github.event.pull_request.user.id }}"
+                        }
+                  }'
+              env:
+                  N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+                  N8N_WEBHOOK_SECRET: ${{ secrets.N8N_WEBHOOK_SECRET }}
