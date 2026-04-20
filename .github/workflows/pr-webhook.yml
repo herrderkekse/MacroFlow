@@ -22,6 +22,7 @@ jobs:
                         "action": "${{ github.event.action }}",
                         "pr_title": "${{ github.event.pull_request.title }}",
                         "pr_url": "${{ github.event.pull_request.html_url }}",
+                        "pr_number": "${{ github.event.pull_request.number }}",
                         "branch": "${{ github.event.pull_request.head.ref }}",
                         "author": {
                             "username": "${{ github.event.pull_request.user.login }}",
