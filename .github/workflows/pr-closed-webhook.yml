@@ -1,0 +1,35 @@
+name: PR Closed Webhook Trigger
+
+on:
+    pull_request:
+        types: [ closed ]
+
+    # for manual testing
+    workflow_dispatch:
+
+jobs:
+    trigger-webhook:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Send webhook to n8n
+              run: |
+                  curl -X POST "$N8N_PR_CLOSED_WEBHOOK_URL" \
+                  -H "Content-Type: application/json" \
+                  -H "X-Webhook-Secret: $N8N_PR_CLOSED_WEBHOOK_SECRET" \
+                  -d '{
+                        "event": "pull_request",
+                        "action": "${{ github.event.action }}",
+                        "pr_title": "${{ github.event.pull_request.title }}",
+                        "pr_url": "${{ github.event.pull_request.html_url }}",
+                        "pr_number": "${{ github.event.pull_request.number }}",
+                        "branch": "${{ github.event.pull_request.head.ref }}",
+                        "merged": "${{ github.event.pull_request.merged }}",
+                        "author": {
+                            "username": "${{ github.event.pull_request.user.login }}",
+                            "id": "${{ github.event.pull_request.user.id }}"
+                        }
+                  }'
+              env:
+                  N8N_PR_CLOSED_WEBHOOK_URL: ${{ secrets.N8N_PR_CLOSED_WEBHOOK_URL }}
+                  N8N_PR_CLOSED_WEBHOOK_SECRET: ${{ secrets.N8N_PR_CLOSED_WEBHOOK_SECRET }}
