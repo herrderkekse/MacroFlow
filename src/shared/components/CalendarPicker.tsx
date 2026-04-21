@@ -238,7 +238,7 @@ export default function CalendarPicker({
 }
 
 const CELL_SIZE = 40;
-const MAX_MARKER_DOTS = 4;
+const MAX_MARKER_DOTS = 7;
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({

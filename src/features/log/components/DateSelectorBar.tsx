@@ -107,10 +107,7 @@ export default function DateSelectorBar({
                 </Pressable>
 
                 <Pressable
-                    onPress={() => {
-                        loadMonthCategoryColors(date.getFullYear(), date.getMonth());
-                        setCalendarVisible(true);
-                    }}
+                    onPress={() => setCalendarVisible(true)}
                     style={styles.dateButton}
                 >
                     <Text style={styles.dateText}>{label}</Text>
