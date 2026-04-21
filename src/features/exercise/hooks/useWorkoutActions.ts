@@ -6,7 +6,7 @@ import type { UseRestTimerReturn } from "./useRestTimer";
 import type { UseWorkoutReturn } from "./useWorkout";
 import {
     addSet, completeSet, copySetsFromLastSession, deleteSet,
-    getLastCompletedSetsForTemplate, updateSet,
+    getLastCompletedSetsForTemplate, reorderSetsToOrder, updateSet,
     updateWorkoutExercise, type ExerciseSet,
 } from "../services/exerciseDb";
 
@@ -28,6 +28,20 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         const exercises = workout.data?.exercises ?? [];
         const idx = exercises.findIndex((e) => e.workoutExercise.id === workoutExerciseId);
         if (idx < exercises.length - 1) workout.moveExercise(workoutExerciseId, idx + 2);
+    }, [workout]);
+
+    const handleMoveExerciseBySteps = useCallback((workoutExerciseId: number, steps: number) => {
+        if (!steps) return;
+        const exercises = workout.data?.exercises ?? [];
+        const idx = exercises.findIndex((exercise) => exercise.workoutExercise.id === workoutExerciseId);
+        if (idx < 0) return;
+        const targetIdx = Math.max(0, Math.min(idx + steps, exercises.length - 1));
+        if (targetIdx !== idx) workout.moveExercise(workoutExerciseId, targetIdx + 1);
+    }, [workout]);
+
+    const handleReorderSets = useCallback((sets: ExerciseSet[]) => {
+        reorderSetsToOrder(sets.map((s) => s.id));
+        workout.reload();
     }, [workout]);
 
     const handleConfirmSet = useCallback((setId: number, values: SetValues) => {
@@ -101,6 +115,8 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         handleNoteChange,
         handleMoveUp,
         handleMoveDown,
+        handleMoveExerciseBySteps,
+        handleReorderSets,
         handleConfirmSet,
         handleUpdateSet,
         handleDeleteSet,

@@ -1,9 +1,10 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
+import DraggableFlatList, { type RenderItemParams, ScaleDecorator } from "react-native-draggable-flatlist";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { createExerciseCardStyles, getPrefillForSet, isActiveSet } from "./ExerciseCardHelpers";
@@ -29,6 +30,7 @@ interface ExpandedExerciseCardProps {
     onRemove: (workoutExerciseId: number) => void;
     onMoveUp: (workoutExerciseId: number) => void;
     onMoveDown: (workoutExerciseId: number) => void;
+    onReorderSets: (sets: ExerciseSet[]) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
@@ -47,7 +49,7 @@ export function ExpandedExerciseCard({
     item, index, totalExercises, isFinished, name, exerciseType, template,
     lastWorkoutSets,
     menuOpen, setMenuOpen, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
-    onRemove, onMoveUp, onMoveDown, onNoteChange,
+    onRemove, onMoveUp, onMoveDown, onReorderSets, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExpandedExerciseCardProps) {
@@ -85,6 +87,44 @@ export function ExpandedExerciseCard({
         onNoteChange(item.workoutExercise.id, noteDraft.trim());
         setNoteOpen(false);
     }
+
+    const renderSetItem = useCallback(({ item: set, drag, isActive: isDragging, getIndex }: RenderItemParams<ExerciseSet>) => {
+        const si = getIndex() ?? 0;
+        const prefill = getPrefillForSet(si, item.sets, lastWorkoutSets);
+        const active = isActiveSet(set, si, item.sets);
+        return (
+            <ScaleDecorator activeScale={1.02}>
+                {active && restTimerActive && (
+                    <RestTimer
+                        elapsedSeconds={restTimerElapsed}
+                        targetSeconds={restTimerTarget}
+                        isTargetReached={restTimerReached}
+                        onSkip={onRestTimerSkip}
+                    />
+                )}
+                <SetInputRow
+                    set={set}
+                    index={si}
+                    exerciseType={exerciseType}
+                    isActive={active}
+                    isFinished={isFinished}
+                    isBeingDragged={isDragging}
+                    drag={drag}
+                    prefillWeight={prefill.weight}
+                    prefillReps={prefill.reps}
+                    prefillRir={prefill.rir}
+                    prefillDuration={prefill.duration}
+                    prefillDistance={prefill.distance}
+                    onConfirm={onConfirmSet}
+                    onUpdate={onUpdateSet}
+                    onDelete={onDeleteSet}
+                    onTypeChange={onSetTypeChange}
+                />
+            </ScaleDecorator>
+        );
+    }, [item.sets, lastWorkoutSets, exerciseType, isFinished, restTimerActive, restTimerElapsed,
+        restTimerTarget, restTimerReached, onRestTimerSkip,
+        onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange]);
 
     return (
         <View style={styles.card}>
@@ -129,38 +169,14 @@ export function ExpandedExerciseCard({
             </View>
 
             {/* Set rows */}
-            {item.sets.map((set, si) => {
-                const prefill = getPrefillForSet(si, item.sets, lastWorkoutSets);
-                const isActive = isActiveSet(set, si, item.sets);
-                return (
-                    <React.Fragment key={set.id}>
-                        {isActive && restTimerActive && (
-                            <RestTimer
-                                elapsedSeconds={restTimerElapsed}
-                                targetSeconds={restTimerTarget}
-                                isTargetReached={restTimerReached}
-                                onSkip={onRestTimerSkip}
-                            />
-                        )}
-                        <SetInputRow
-                            set={set}
-                            index={si}
-                            exerciseType={exerciseType}
-                            isActive={isActive}
-                            isFinished={isFinished}
-                            prefillWeight={prefill.weight}
-                            prefillReps={prefill.reps}
-                            prefillRir={prefill.rir}
-                            prefillDuration={prefill.duration}
-                            prefillDistance={prefill.distance}
-                            onConfirm={onConfirmSet}
-                            onUpdate={onUpdateSet}
-                            onDelete={onDeleteSet}
-                            onTypeChange={onSetTypeChange}
-                        />
-                    </React.Fragment>
-                );
-            })}
+            <DraggableFlatList
+                data={item.sets}
+                keyExtractor={(set) => String(set.id)}
+                renderItem={renderSetItem}
+                onDragEnd={({ data }) => onReorderSets(data)}
+                scrollEnabled={false}
+                activationDistance={5}
+            />
 
             {/* Empty state */}
             {item.sets.length === 0 && (

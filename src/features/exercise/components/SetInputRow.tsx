@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import type { ExerciseSet } from "../services/exerciseDb";
-import type { ExerciseType } from "../types";
+import type { ExerciseType, SetValues } from "../types";
 import { ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
 
 const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
@@ -17,6 +17,8 @@ const SET_TYPE_LABELS: Record<SetType, string> = {
 interface SetInputRowProps {
     set: ExerciseSet; index: number; exerciseType: ExerciseType;
     isActive: boolean; isFinished: boolean;
+    isBeingDragged: boolean;
+    drag: () => void;
     prefillWeight: number | null; prefillReps: number | null; prefillRir: number | null;
     prefillDuration: number | null; prefillDistance: number | null;
     onConfirm: (id: number, values: SetValues) => void;
@@ -28,7 +30,7 @@ interface SetInputRowProps {
 export type { SetValues } from "../types";
 
 export default function SetInputRow({
-    set, index, exerciseType, isActive, isFinished,
+    set, index, exerciseType, isActive, isFinished, isBeingDragged, drag,
     prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance,
     onConfirm, onUpdate, onDelete, onTypeChange,
 }: SetInputRowProps) {
@@ -111,18 +113,29 @@ export default function SetInputRow({
         );
     }, [set.id, onDelete, t]);
 
+    const dragHandleColor = isBeingDragged ? colors.primary : colors.textTertiary;
+
     // Scheduled / pending — display-only dim row
     if (isScheduled && !isActive) {
         return (
-            <Pressable style={[styles.setRow, styles.setRowScheduled]} onLongPress={handleLongPressSetNum}>
-                <Text style={[styles.setCell, styles.setCol, { color: colors.textTertiary }]}>
-                    {typeLabel}{index + 1}
-                </Text>
+            <View style={[styles.setRow, styles.setRowScheduled]}>
+                <Pressable
+                    style={styles.dragHandleCol}
+                    onLongPress={!isFinished ? drag : undefined}
+                    delayLongPress={200}
+                >
+                    <Ionicons name="reorder-three" size={20} color={dragHandleColor} />
+                </Pressable>
+                <Pressable style={styles.setCol} onLongPress={handleLongPressSetNum}>
+                    <Text style={[styles.setCell, { color: colors.textTertiary }]}>
+                        {typeLabel}{index + 1}
+                    </Text>
+                </Pressable>
                 <ScheduledCells set={set} exerciseType={exerciseType} textColor={colors.textTertiary} styles={styles} />
                 <Pressable style={styles.checkCol} onPress={handleDelete}>
                     <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
                 </Pressable>
-            </Pressable>
+            </View>
         );
     }
 
@@ -132,6 +145,14 @@ export default function SetInputRow({
 
     return (
         <View style={[styles.setRow, isActiveSet && styles.activeRow]}>
+            <Pressable
+                style={styles.dragHandleCol}
+                onLongPress={!isFinished ? drag : undefined}
+                delayLongPress={200}
+            >
+                <Ionicons name="reorder-three" size={20} color={dragHandleColor} />
+            </Pressable>
+
             <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol}>
                 <Text style={[
                     styles.setCell,
