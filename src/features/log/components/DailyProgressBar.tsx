@@ -56,7 +56,7 @@ export default function DailyProgressBar({
             <View style={styles.headerRow}>
                 <Text style={[styles.calorieText, isOverCalories && styles.calorieTextOver]}>
                     {Math.round(actualCalories)}
-                    {hasScheduledCalories && <Text style={styles.goalText}> + {Math.round(scheduledTotals?.calories ?? 0)}</Text>}{" "}
+                    {hasScheduledCalories && <Text style={styles.scheduledText}> + {Math.round(scheduledTotals?.calories ?? 0)}</Text>}{" "}
                     <Text style={styles.goalText}>/ {Math.round(goals.calories)} kcal</Text>
                 </Text>
                 <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textTertiary} />
@@ -108,6 +108,7 @@ function createStyles(colors: ThemeColors) {
         calorieText: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
         calorieTextOver: { color: colors.danger },
         goalText: { fontWeight: "400", color: colors.textSecondary },
+        scheduledText: { fontWeight: "400", color: colors.textSecondary },
         track: { height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: "hidden" },
         fill: { height: 8, borderRadius: 4 },
         scheduledFill: { position: "absolute", height: 8, borderRadius: 4, backgroundColor: colors.disabled },
