@@ -53,10 +53,9 @@ export default function DateSelectorBar({
         for (const [dateKey, muscleGroups] of Object.entries(groupsByDate)) {
             const colorsForDate = Array.from(
                 new Set(
-                    muscleGroups.flatMap((group) => {
-                        const color = muscleGroupColorMap[group];
-                        return color ? [color] : [];
-                    }),
+                    muscleGroups
+                        .map((group) => muscleGroupColorMap[group])
+                        .filter((color): color is string => Boolean(color)),
                 ),
             );
             if (colorsForDate.length > 0) nextColors[dateKey] = colorsForDate;

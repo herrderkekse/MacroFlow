@@ -214,7 +214,7 @@ export default function CalendarPicker({
                                                     <View style={styles.markerRow}>
                                                         {markerColors.slice(0, 4).map((markerColor, index) => (
                                                             <View
-                                                                key={`${markerColor}-${index}`}
+                                                                key={index}
                                                                 style={[styles.markerDot, { backgroundColor: markerColor }]}
                                                             />
                                                         ))}
