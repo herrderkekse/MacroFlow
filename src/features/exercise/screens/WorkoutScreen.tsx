@@ -138,8 +138,8 @@ export default function WorkoutScreen() {
                 onRemove={workout.removeExercise}
                 onMoveUp={actions.handleMoveUp}
                 onMoveDown={actions.handleMoveDown}
-                onMoveSetUp={actions.handleMoveSetUp}
-                onMoveSetDown={actions.handleMoveSetDown}
+                onMoveBySteps={actions.handleMoveExerciseBySteps}
+                onMoveSetBySteps={actions.handleMoveSetBySteps}
                 onNoteChange={actions.handleNoteChange}
                 onConfirmSet={actions.handleConfirmSet}
                 onUpdateSet={actions.handleUpdateSet}

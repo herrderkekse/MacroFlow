@@ -29,8 +29,7 @@ interface ExpandedExerciseCardProps {
     onRemove: (workoutExerciseId: number) => void;
     onMoveUp: (workoutExerciseId: number) => void;
     onMoveDown: (workoutExerciseId: number) => void;
-    onMoveSetUp: (setId: number) => void;
-    onMoveSetDown: (setId: number) => void;
+    onMoveSetBySteps: (setId: number, steps: number) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
@@ -49,7 +48,7 @@ export function ExpandedExerciseCard({
     item, index, totalExercises, isFinished, name, exerciseType, template,
     lastWorkoutSets,
     menuOpen, setMenuOpen, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
-    onRemove, onMoveUp, onMoveDown, onMoveSetUp, onMoveSetDown, onNoteChange,
+    onRemove, onMoveUp, onMoveDown, onMoveSetBySteps, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExpandedExerciseCardProps) {
@@ -159,8 +158,7 @@ export function ExpandedExerciseCard({
                             onUpdate={onUpdateSet}
                             onDelete={onDeleteSet}
                             onTypeChange={onSetTypeChange}
-                            onMoveUp={onMoveSetUp}
-                            onMoveDown={onMoveSetDown}
+                            onMoveBySteps={onMoveSetBySteps}
                         />
                     </React.Fragment>
                 );

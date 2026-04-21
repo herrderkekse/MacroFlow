@@ -12,6 +12,9 @@ import { ExerciseCardMenu, ExerciseNoteModal } from "./ExerciseCardModals";
 import { ExpandedExerciseCard } from "./ExpandedExerciseCard";
 import type { SetValues } from "./SetInputRow";
 
+const DRAG_ACTIVATION_LONG_PRESS_MS = 250;
+const EXERCISE_DRAG_STEP_PX = 56;
+
 interface ExerciseCardProps {
     item: WorkoutExerciseWithSets;
     index: number;
@@ -23,8 +26,8 @@ interface ExerciseCardProps {
     onRemove: (workoutExerciseId: number) => void;
     onMoveUp: (workoutExerciseId: number) => void;
     onMoveDown: (workoutExerciseId: number) => void;
-    onMoveSetUp: (setId: number) => void;
-    onMoveSetDown: (setId: number) => void;
+    onMoveBySteps: (workoutExerciseId: number, steps: number) => void;
+    onMoveSetBySteps: (setId: number, steps: number) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
@@ -41,7 +44,7 @@ interface ExerciseCardProps {
 
 export default function ExerciseCard({
     item, index, totalExercises, isFinished, isExpanded, onExpand, lastWorkoutSets,
-    onRemove, onMoveUp, onMoveDown, onMoveSetUp, onMoveSetDown, onNoteChange,
+    onRemove, onMoveUp, onMoveDown, onMoveBySteps, onMoveSetBySteps, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
@@ -81,8 +84,8 @@ export default function ExerciseCard({
                     name={name}
                     isFinished={isFinished}
                     onExpand={onExpand}
-                    onMoveUp={onMoveUp}
-                    onMoveDown={onMoveDown}
+                    onOpenMenu={() => setMenuOpen(true)}
+                    onMoveBySteps={onMoveBySteps}
                 />
                 <ExerciseCardMenu
                     visible={menuOpen}
@@ -141,8 +144,7 @@ export default function ExerciseCard({
             onRemove={onRemove}
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
-            onMoveSetUp={onMoveSetUp}
-            onMoveSetDown={onMoveSetDown}
+            onMoveSetBySteps={onMoveSetBySteps}
             onNoteChange={onNoteChange}
             onConfirmSet={onConfirmSet}
             onUpdateSet={onUpdateSet}
@@ -167,11 +169,11 @@ interface CollapsedProps {
     name: string;
     isFinished: boolean;
     onExpand: () => void;
-    onMoveUp: (workoutExerciseId: number) => void;
-    onMoveDown: (workoutExerciseId: number) => void;
+    onOpenMenu: () => void;
+    onMoveBySteps: (workoutExerciseId: number, steps: number) => void;
 }
 
-function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onMoveUp, onMoveDown }: CollapsedProps) {
+function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onOpenMenu, onMoveBySteps }: CollapsedProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createCollapsedCardStyles(colors), [colors]);
@@ -188,31 +190,24 @@ function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onMove
         return t("exercise.exerciseCard.setsProgress", { completed: completedSets, total: totalSets });
     }
 
-    function moveBySteps(workoutExerciseId: number, count: number) {
-        if (count > 0) {
-            for (let i = 0; i < count; i++) onMoveDown(workoutExerciseId);
-            return;
-        }
-        for (let i = 0; i < Math.abs(count); i++) onMoveUp(workoutExerciseId);
-    }
-
     const panGesture = Gesture.Pan()
         .enabled(!isFinished)
-        .activateAfterLongPress(250)
+        .activateAfterLongPress(DRAG_ACTIVATION_LONG_PRESS_MS)
         .onStart(() => {
             "worklet";
             dragStep.value = 0;
         })
         .onUpdate((event) => {
             "worklet";
-            const nextStep = Math.trunc(event.translationY / 56);
+            const nextStep = Math.trunc(event.translationY / EXERCISE_DRAG_STEP_PX);
             if (nextStep === dragStep.value) return;
             const diff = nextStep - dragStep.value;
             dragStep.value = nextStep;
-            runOnJS(moveBySteps)(item.workoutExercise.id, diff);
+            runOnJS(onMoveBySteps)(item.workoutExercise.id, diff);
         })
         .onEnd(() => {
             "worklet";
+            if (dragStep.value === 0) runOnJS(onOpenMenu)();
             dragStep.value = 0;
         });
 

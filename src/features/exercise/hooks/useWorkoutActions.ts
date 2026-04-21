@@ -30,6 +30,15 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         if (idx < exercises.length - 1) workout.moveExercise(workoutExerciseId, idx + 2);
     }, [workout]);
 
+    const handleMoveExerciseBySteps = useCallback((workoutExerciseId: number, steps: number) => {
+        if (!steps) return;
+        const exercises = workout.data?.exercises ?? [];
+        const idx = exercises.findIndex((exercise) => exercise.workoutExercise.id === workoutExerciseId);
+        if (idx < 0) return;
+        const targetIdx = Math.max(0, Math.min(idx + steps, exercises.length - 1));
+        if (targetIdx !== idx) workout.moveExercise(workoutExerciseId, targetIdx + 1);
+    }, [workout]);
+
     const handleMoveSetUp = useCallback((setId: number) => {
         for (const exercise of workout.data?.exercises ?? []) {
             const idx = exercise.sets.findIndex((set) => set.id === setId);
@@ -39,6 +48,20 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
                 return;
             }
             if (idx >= 0) return;
+        }
+    }, [workout]);
+
+    const handleMoveSetBySteps = useCallback((setId: number, steps: number) => {
+        if (!steps) return;
+        for (const exercise of workout.data?.exercises ?? []) {
+            const idx = exercise.sets.findIndex((set) => set.id === setId);
+            if (idx < 0) continue;
+            const targetIdx = Math.max(0, Math.min(idx + steps, exercise.sets.length - 1));
+            if (targetIdx !== idx) {
+                reorderSet(setId, targetIdx + 1);
+                workout.reload();
+            }
+            return;
         }
     }, [workout]);
 
@@ -125,8 +148,10 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         handleNoteChange,
         handleMoveUp,
         handleMoveDown,
+        handleMoveExerciseBySteps,
         handleMoveSetUp,
         handleMoveSetDown,
+        handleMoveSetBySteps,
         handleConfirmSet,
         handleUpdateSet,
         handleDeleteSet,

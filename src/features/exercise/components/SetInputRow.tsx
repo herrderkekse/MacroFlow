@@ -12,6 +12,9 @@ import { ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
 const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
 type SetType = (typeof SET_TYPES)[number];
 
+const DRAG_ACTIVATION_LONG_PRESS_MS = 250;
+const SET_DRAG_STEP_PX = 44;
+
 const SET_TYPE_LABELS: Record<SetType, string> = {
     warmup: "W", working: "", dropset: "D", failure: "F",
 };
@@ -25,8 +28,7 @@ interface SetInputRowProps {
     onUpdate: (id: number, values: SetValues) => void;
     onDelete: (id: number) => void;
     onTypeChange: (id: number, type: string) => void;
-    onMoveUp: (id: number) => void;
-    onMoveDown: (id: number) => void;
+    onMoveBySteps: (id: number, steps: number) => void;
 }
 
 export type { SetValues } from "../types";
@@ -34,7 +36,7 @@ export type { SetValues } from "../types";
 export default function SetInputRow({
     set, index, exerciseType, isActive, isFinished,
     prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance,
-    onConfirm, onUpdate, onDelete, onTypeChange, onMoveUp, onMoveDown,
+    onConfirm, onUpdate, onDelete, onTypeChange, onMoveBySteps,
 }: SetInputRowProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -116,28 +118,20 @@ export default function SetInputRow({
         );
     }, [set.id, onDelete, t]);
 
-    const moveBySteps = useCallback((setId: number, count: number) => {
-        if (count > 0) {
-            for (let i = 0; i < count; i++) onMoveDown(setId);
-            return;
-        }
-        for (let i = 0; i < Math.abs(count); i++) onMoveUp(setId);
-    }, [onMoveUp, onMoveDown]);
-
     const panGesture = Gesture.Pan()
         .enabled(!isFinished)
-        .activateAfterLongPress(250)
+        .activateAfterLongPress(DRAG_ACTIVATION_LONG_PRESS_MS)
         .onStart(() => {
             "worklet";
             dragStep.value = 0;
         })
         .onUpdate((event) => {
             "worklet";
-            const nextStep = Math.trunc(event.translationY / 44);
+            const nextStep = Math.trunc(event.translationY / SET_DRAG_STEP_PX);
             if (nextStep === dragStep.value) return;
             const diff = nextStep - dragStep.value;
             dragStep.value = nextStep;
-            runOnJS(moveBySteps)(set.id, diff);
+            runOnJS(onMoveBySteps)(set.id, diff);
         })
         .onEnd(() => {
             "worklet";
