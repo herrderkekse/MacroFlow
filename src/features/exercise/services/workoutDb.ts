@@ -92,6 +92,7 @@ export function getWorkoutMuscleGroupsByDateRange(startDate: string, endDate: st
 
     const byDate = new Map<string, Set<string>>();
     for (const row of rows) {
+        if (!row.muscleGroup) continue;
         const dayGroups = byDate.get(row.date) ?? new Set<string>();
         dayGroups.add(row.muscleGroup);
         byDate.set(row.date, dayGroups);
