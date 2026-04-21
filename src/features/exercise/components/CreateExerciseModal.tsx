@@ -23,11 +23,12 @@ import ChipSelect from "./ChipSelect";
 interface CreateExerciseModalProps {
     visible: boolean;
     exerciseId?: number;
+    initialName?: string;
     onClose: () => void;
     onCreated: (template: ExerciseTemplate) => void;
 }
 
-export default function CreateExerciseModal({ visible, exerciseId, onClose, onCreated }: CreateExerciseModalProps) {
+export default function CreateExerciseModal({ visible, exerciseId, initialName, onClose, onCreated }: CreateExerciseModalProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -42,16 +43,23 @@ export default function CreateExerciseModal({ visible, exerciseId, onClose, onCr
     const [nameError, setNameError] = useState(false);
 
     useEffect(() => {
-        if (!visible || exerciseId == null) return;
-        const existing = getExerciseTemplateById(exerciseId);
-        if (!existing) return;
-        setName(existing.name);
-        setType((existing.type as ExerciseType) ?? "weight");
-        setMuscleGroup((existing.muscle_group as MuscleGroup) ?? null);
-        setEquipment((existing.equipment as Equipment) ?? null);
-        setResistanceMode((existing.resistance_mode as ResistanceMode) ?? "resistance");
-        setDefaultUnit((existing.default_weight_unit as WeightUnit) ?? "kg");
-    }, [visible, exerciseId]);
+        if (!visible) return;
+
+        if (exerciseId != null) {
+            const existing = getExerciseTemplateById(exerciseId);
+            if (!existing) return;
+            setName(existing.name);
+            setType((existing.type as ExerciseType) ?? "weight");
+            setMuscleGroup((existing.muscle_group as MuscleGroup) ?? null);
+            setEquipment((existing.equipment as Equipment) ?? null);
+            setResistanceMode((existing.resistance_mode as ResistanceMode) ?? "resistance");
+            setDefaultUnit((existing.default_weight_unit as WeightUnit) ?? "kg");
+            return;
+        }
+
+        setName(initialName?.trim() ?? "");
+        setNameError(false);
+    }, [visible, exerciseId, initialName]);
 
     function resetForm() {
         setName("");

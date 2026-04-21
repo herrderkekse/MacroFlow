@@ -170,6 +170,7 @@ export default function AddExerciseModal({ visible, onClose, onSelect }: AddExer
 
             <CreateExerciseModal
                 visible={showCreate}
+                initialName={search.query}
                 onClose={() => setShowCreate(false)}
                 onCreated={handleCreated}
             />
