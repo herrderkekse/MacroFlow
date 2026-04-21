@@ -124,7 +124,7 @@ export default function WorkoutScreen() {
 
     function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
         const tid = item.workoutExercise.exercise_template_id;
-        const timerActive = restTimer.isRunning && restTimer.workoutExerciseId === item.workoutExercise.id;
+        const timerActive = restTimer.isRunning;
         const isExpanded = expandedId === item.workoutExercise.id;
         return (
             <ExerciseCard
