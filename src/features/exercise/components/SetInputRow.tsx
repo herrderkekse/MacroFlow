@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
-import { convertWeight } from "../helpers/exerciseUnits";
 import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
@@ -73,7 +72,7 @@ export default function SetInputRow({
 
     const handleToggleUnit = useCallback(() => {
         const newUnit = unit === "kg" ? "lb" : "kg";
-        const newWeight = weight ? String(convertWeight(parseFloat(weight), unit, newUnit)) : weight;
+        const newWeight = weight;
         setWeight(newWeight);
         setUnit(newUnit);
         if (isCompleted) {
