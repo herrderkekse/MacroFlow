@@ -45,7 +45,7 @@ function createRowStyles(colors: ThemeColors) {
         labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
         label: { fontSize: fontSize.xs, fontWeight: "600" },
         values: { fontSize: fontSize.xs, color: colors.textSecondary },
-        scheduledValue: { color: colors.textTertiary },
+        scheduledValue: { color: colors.textSecondary },
         separator: { color: colors.textTertiary },
         track: { height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: "hidden" },
         fill: { height: 6, borderRadius: 3 },
