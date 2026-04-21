@@ -53,13 +53,15 @@ export default function WorkoutScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workout.data, workoutId, workout.isResumed, workout.startWorkout, workoutDate]);
 
-    // Auto-expand the first exercise when data loads
+    // Auto-expand an exercise when data loads
     useEffect(() => {
         const exercises = workout.data?.exercises ?? [];
         if (exercises.length > 0 && expandedId === null) {
-            setExpandedId(exercises[0].workoutExercise.id);
+            const isRunningWorkout = workout.data?.workout?.ended_at == null;
+            const targetIndex = isRunningWorkout ? exercises.length - 1 : 0;
+            setExpandedId(exercises[targetIndex].workoutExercise.id);
         }
-    }, [workout.data?.exercises, expandedId]);
+    }, [workout.data?.exercises, workout.data?.workout?.ended_at, expandedId]);
 
     const isFinished = !!workout.data?.workout.ended_at;
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
