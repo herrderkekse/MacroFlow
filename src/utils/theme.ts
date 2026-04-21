@@ -17,6 +17,13 @@ export const lightColors = {
     fat: "#EF4444",
     weight: "#F97316",
     exercise: "#8B5CF6",
+    exerciseChest: "#EF4444",
+    exerciseBack: "#3B82F6",
+    exerciseLegs: "#F59E0B",
+    exerciseShoulders: "#8B5CF6",
+    exerciseArms: "#10B981",
+    exerciseCore: "#F97316",
+    exerciseFullBody: "#14B8A6",
     disabled: "#D1D5DB",
 } as const;
 
@@ -39,6 +46,13 @@ export const darkColors = {
     fat: "#F87171",
     weight: "#F97316",
     exercise: "#8B5CF6",
+    exerciseChest: "#F87171",
+    exerciseBack: "#60A5FA",
+    exerciseLegs: "#FBBF24",
+    exerciseShoulders: "#A78BFA",
+    exerciseArms: "#34D399",
+    exerciseCore: "#FB923C",
+    exerciseFullBody: "#2DD4BF",
     disabled: "#4B5563",
 } as const;
 

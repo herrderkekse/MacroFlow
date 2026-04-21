@@ -1,7 +1,7 @@
 import exerciseDbSupport from "@/src/features/exercise/services/exerciseDbSupport";
 import { db } from "@/src/services/db";
 import { exerciseSets, exerciseTemplates, workoutExercises, workouts } from "@/src/services/db/schema";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import type { ExerciseTemplate } from "./exerciseTemplateDb";
 
@@ -69,6 +69,38 @@ export function getWorkoutsByDate(date: string): Workout[] {
         .where(eq(workouts.date, date))
         .orderBy(desc(workouts.started_at), desc(workouts.id))
         .all();
+}
+
+export function getWorkoutMuscleGroupsByDateRange(startDate: string, endDate: string): Record<string, string[]> {
+    const rows = db
+        .select({
+            date: workouts.date,
+            muscleGroup: exerciseTemplates.muscle_group,
+        })
+        .from(workouts)
+        .innerJoin(workoutExercises, eq(workouts.id, workoutExercises.workout_id))
+        .innerJoin(exerciseTemplates, eq(workoutExercises.exercise_template_id, exerciseTemplates.id))
+        .where(
+            and(
+                gte(workouts.date, startDate),
+                lte(workouts.date, endDate),
+                eq(exerciseTemplates.deleted, 0),
+                sql`${exerciseTemplates.muscle_group} IS NOT NULL`,
+            ),
+        )
+        .all();
+
+    const byDate = new Map<string, Set<string>>();
+    for (const row of rows) {
+        if (!row.muscleGroup) continue;
+        const dayGroups = byDate.get(row.date) ?? new Set<string>();
+        dayGroups.add(row.muscleGroup);
+        byDate.set(row.date, dayGroups);
+    }
+
+    return Object.fromEntries(
+        Array.from(byDate.entries()).map(([date, groups]) => [date, Array.from(groups)]),
+    );
 }
 
 export function getUnfinishedWorkoutByDate(date: string): WorkoutWithExercises | undefined {

@@ -1,8 +1,10 @@
 import CalendarPicker from "@/src/shared/components/CalendarPicker";
+import { getWorkoutMuscleGroupsByDateRange } from "@/src/features/exercise/services/workoutDb";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { formatDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -27,6 +29,40 @@ export default function DateSelectorBar({
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t, i18n } = useTranslation();
     const [calendarVisible, setCalendarVisible] = useState(false);
+    const [dayCategoryColors, setDayCategoryColors] = useState<Record<string, string[]>>({});
+
+    const muscleGroupColorMap: Record<string, string> = useMemo(() => ({
+        chest: colors.exerciseChest,
+        back: colors.exerciseBack,
+        legs: colors.exerciseLegs,
+        shoulders: colors.exerciseShoulders,
+        arms: colors.exerciseArms,
+        core: colors.exerciseCore,
+        full_body: colors.exerciseFullBody,
+    }), [colors]);
+
+    const loadMonthCategoryColors = useCallback((year: number, month: number) => {
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month + 1, 0);
+        const groupsByDate = getWorkoutMuscleGroupsByDateRange(
+            formatDateKey(monthStart),
+            formatDateKey(monthEnd),
+        );
+
+        const nextColors: Record<string, string[]> = {};
+        for (const [dateKey, muscleGroups] of Object.entries(groupsByDate)) {
+            const colorsForDate = Array.from(
+                new Set(
+                    muscleGroups.flatMap((group) => {
+                        const color = muscleGroupColorMap[group];
+                        return color ? [color] : [];
+                    }),
+                ),
+            );
+            if (colorsForDate.length > 0) nextColors[dateKey] = colorsForDate;
+        }
+        setDayCategoryColors(nextColors);
+    }, [muscleGroupColorMap]);
 
     function shiftDay(delta: number) {
         const next = new Date(date);
@@ -72,7 +108,10 @@ export default function DateSelectorBar({
                 </Pressable>
 
                 <Pressable
-                    onPress={() => setCalendarVisible(true)}
+                    onPress={() => {
+                        loadMonthCategoryColors(date.getFullYear(), date.getMonth());
+                        setCalendarVisible(true);
+                    }}
                     style={styles.dateButton}
                 >
                     <Text style={styles.dateText}>{label}</Text>
@@ -105,6 +144,8 @@ export default function DateSelectorBar({
                     setCalendarVisible(false);
                 }}
                 onClose={() => setCalendarVisible(false)}
+                dayCategoryColors={dayCategoryColors}
+                onViewMonthChange={loadMonthCategoryColors}
             />
         </>
     );
