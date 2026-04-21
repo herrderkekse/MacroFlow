@@ -24,7 +24,7 @@ export default function ProgressRow({ label, current, goal, color, unit, colors,
                 <Text style={[rs.label, { color }]}>{label}</Text>
                 <Text style={rs.values}>
                     {Math.round(current)}
-                    {hasScheduled && <Text style={rs.scheduledValue}> + {Math.round(scheduled ?? 0)}</Text>}{" "}
+                    {hasScheduled && <Text> + {Math.round(scheduled ?? 0)}</Text>}{" "}
                     <Text style={rs.separator}>/</Text>{" "}
                     {Math.round(goal)} {unit}
                 </Text>
@@ -45,7 +45,6 @@ function createRowStyles(colors: ThemeColors) {
         labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
         label: { fontSize: fontSize.xs, fontWeight: "600" },
         values: { fontSize: fontSize.xs, color: colors.textSecondary },
-        scheduledValue: { color: colors.textSecondary },
         separator: { color: colors.textTertiary },
         track: { height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: "hidden" },
         fill: { height: 6, borderRadius: 3 },
