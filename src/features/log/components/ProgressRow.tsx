@@ -23,7 +23,8 @@ export default function ProgressRow({ label, current, goal, color, unit, colors,
             <View style={rs.labelRow}>
                 <Text style={[rs.label, { color }]}>{label}</Text>
                 <Text style={rs.values}>
-                    {Math.round(current)}{" "}
+                    {Math.round(current)}
+                    {hasScheduled && <Text> + {Math.round(scheduled ?? 0)}</Text>}{" "}
                     <Text style={rs.separator}>/</Text>{" "}
                     {Math.round(goal)} {unit}
                 </Text>
