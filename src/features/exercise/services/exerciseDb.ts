@@ -39,6 +39,7 @@ export {
     deleteSet,
     getLastCompletedSetsForTemplate,
     reorderSet,
+    reorderSetsToOrder,
     getSetsForExercise,
     updateSet,
 } from "./exerciseSetDb";

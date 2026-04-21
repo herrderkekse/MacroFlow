@@ -60,6 +60,7 @@ export function createSetInputStyles(colors: ThemeColors) {
             fontSize: fontSize.sm,
         },
         setCol: { width: 32, justifyContent: "center" },
+        dragHandleCol: { width: 24, alignItems: "center", justifyContent: "center" },
         valueCol: { flex: 1, textAlign: "center" },
         rirCol: { width: 36, textAlign: "center" },
         checkCol: { width: 28, alignItems: "center" },

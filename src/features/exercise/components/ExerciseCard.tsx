@@ -1,14 +1,12 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS, useSharedValue } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { bestSetSummary, createCollapsedCardStyles } from "./ExerciseCardHelpers";
-import { ExerciseCardMenu, ExerciseNoteModal } from "./ExerciseCardModals";
 import { ExpandedExerciseCard } from "./ExpandedExerciseCard";
 import type { SetValues } from "./SetInputRow";
 
@@ -27,7 +25,7 @@ interface ExerciseCardProps {
     onMoveUp: (workoutExerciseId: number) => void;
     onMoveDown: (workoutExerciseId: number) => void;
     onMoveBySteps: (workoutExerciseId: number, steps: number) => void;
-    onMoveSetBySteps: (setId: number, steps: number) => void;
+    onReorderSets: (sets: ExerciseSet[]) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
@@ -44,11 +42,10 @@ interface ExerciseCardProps {
 
 export default function ExerciseCard({
     item, index, totalExercises, isFinished, isExpanded, onExpand, lastWorkoutSets,
-    onRemove, onMoveUp, onMoveDown, onMoveBySteps, onMoveSetBySteps, onNoteChange,
+    onRemove, onMoveUp, onMoveDown, onMoveBySteps, onReorderSets, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
-    const { t } = useTranslation();
     const template = item.exerciseTemplate;
     const name = template?.name ?? "?";
     const exerciseType: ExerciseType = (template?.type as ExerciseType) ?? "weight";
@@ -57,71 +54,17 @@ export default function ExerciseCard({
     const [noteOpen, setNoteOpen] = useState(false);
     const [noteDraft, setNoteDraft] = useState(item.workoutExercise.notes ?? "");
 
-    function handleRemove() {
-        Alert.alert(
-            t("exercise.exerciseCard.remove"),
-            t("exercise.exerciseCard.removeConfirm"),
-            [
-                { text: t("common.cancel"), style: "cancel" },
-                { text: t("common.delete"), style: "destructive", onPress: () => onRemove(item.workoutExercise.id) },
-            ],
-        );
-        setMenuOpen(false);
-    }
-
-    function handleSaveNote() {
-        onNoteChange(item.workoutExercise.id, noteDraft.trim());
-        setNoteOpen(false);
-    }
-
     // Show collapsed card for non-expanded exercises
     if (!isExpanded) {
         return (
-            <>
-                <CollapsedExerciseCard
-                    item={item}
-                    index={index}
-                    name={name}
-                    isFinished={isFinished}
-                    onExpand={onExpand}
-                    onOpenMenu={() => setMenuOpen(true)}
-                    onMoveBySteps={onMoveBySteps}
-                />
-                <ExerciseCardMenu
-                    visible={menuOpen}
-                    onClose={() => setMenuOpen(false)}
-                    index={index}
-                    totalExercises={totalExercises}
-                    isFinished={isFinished}
-                    hasNote={!!item.workoutExercise.notes}
-                    hasTemplate={!!template}
-                    onMoveUp={() => { onMoveUp(item.workoutExercise.id); setMenuOpen(false); }}
-                    onMoveDown={() => { onMoveDown(item.workoutExercise.id); setMenuOpen(false); }}
-                    onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
-                    onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
-                    onRemove={handleRemove}
-                    labels={{
-                        moveUp: t("exercise.exerciseCard.moveUp"),
-                        moveDown: t("exercise.exerciseCard.moveDown"),
-                        editNote: t("exercise.exerciseCard.editNote"),
-                        addNote: t("exercise.exerciseCard.addNote"),
-                        copyFromLast: t("exercise.exerciseCard.copyFromLast"),
-                        remove: t("exercise.exerciseCard.remove"),
-                    }}
-                />
-                <ExerciseNoteModal
-                    visible={noteOpen}
-                    onClose={() => setNoteOpen(false)}
-                    value={noteDraft}
-                    onChangeText={setNoteDraft}
-                    onSave={handleSaveNote}
-                    labels={{
-                        title: t("exercise.exerciseCard.note"),
-                        placeholder: t("exercise.exerciseCard.notePlaceholder"),
-                        save: t("common.save"),
-                    }}
-                />
-            </>
+            <CollapsedExerciseCard
+                item={item}
+                index={index}
+                name={name}
+                isFinished={isFinished}
+                onExpand={onExpand}
+                onMoveBySteps={onMoveBySteps}
+            />
         );
     }
 
@@ -144,7 +87,7 @@ export default function ExerciseCard({
             onRemove={onRemove}
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
-            onMoveSetBySteps={onMoveSetBySteps}
+            onReorderSets={onReorderSets}
             onNoteChange={onNoteChange}
             onConfirmSet={onConfirmSet}
             onUpdateSet={onUpdateSet}
@@ -169,15 +112,15 @@ interface CollapsedProps {
     name: string;
     isFinished: boolean;
     onExpand: () => void;
-    onOpenMenu: () => void;
     onMoveBySteps: (workoutExerciseId: number, steps: number) => void;
 }
 
-function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onOpenMenu, onMoveBySteps }: CollapsedProps) {
+function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onMoveBySteps }: CollapsedProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createCollapsedCardStyles(colors), [colors]);
     const dragStep = useSharedValue(0);
+    const isDragging = useSharedValue(false);
 
     const totalSets = item.sets.length;
     const completedSets = item.sets.filter((s) => !!s.completed_at).length;
@@ -190,11 +133,21 @@ function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onOpen
         return t("exercise.exerciseCard.setsProgress", { completed: completedSets, total: totalSets });
     }
 
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: withSpring(isDragging.value ? 1.03 : 1, { damping: 15 }) }],
+        opacity: isDragging.value ? 0.92 : 1,
+        shadowOpacity: isDragging.value ? 0.25 : 0,
+        shadowRadius: isDragging.value ? 8 : 0,
+        elevation: isDragging.value ? 6 : 0,
+        zIndex: isDragging.value ? 10 : 0,
+    }));
+
     const panGesture = Gesture.Pan()
         .enabled(!isFinished)
         .activateAfterLongPress(DRAG_ACTIVATION_LONG_PRESS_MS)
         .onStart(() => {
             "worklet";
+            isDragging.value = true;
             dragStep.value = 0;
         })
         .onUpdate((event) => {
@@ -207,36 +160,38 @@ function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onOpen
         })
         .onEnd(() => {
             "worklet";
-            if (dragStep.value === 0) runOnJS(onOpenMenu)();
+            isDragging.value = false;
             dragStep.value = 0;
         });
 
     return (
         <GestureDetector gesture={panGesture}>
-            <Pressable style={styles.card} onPress={onExpand}>
-                <Text style={styles.orderNum}>{index + 1}.</Text>
-                <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <Animated.View style={animatedStyle}>
+                <Pressable style={styles.card} onPress={onExpand}>
+                    <Text style={styles.orderNum}>{index + 1}.</Text>
+                    <Text style={styles.name} numberOfLines={1}>{name}</Text>
 
-                {summary ? (
-                    <Text style={styles.bestSetText}>{summary}</Text>
-                ) : null}
+                    {summary ? (
+                        <Text style={styles.bestSetText}>{summary}</Text>
+                    ) : null}
 
-                <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
-                    {isAllDone && (
-                        <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                    )}
-                    <Text style={[styles.progressText, isAllDone && styles.progressTextComplete]}>
-                        {getProgressLabel()}
-                    </Text>
-                </View>
+                    <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
+                        {isAllDone && (
+                            <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+                        )}
+                        <Text style={[styles.progressText, isAllDone && styles.progressTextComplete]}>
+                            {getProgressLabel()}
+                        </Text>
+                    </View>
 
-                <Ionicons
-                    name="chevron-forward"
-                    size={16}
-                    color={colors.textTertiary}
-                    style={styles.chevron}
-                />
-            </Pressable>
+                    <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color={colors.textTertiary}
+                        style={styles.chevron}
+                    />
+                </Pressable>
+            </Animated.View>
         </GestureDetector>
     );
 }

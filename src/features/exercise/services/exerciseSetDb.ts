@@ -35,6 +35,15 @@ export function deleteSet(id: number) {
     exerciseDbSupport.normalizeSetOrder(set.workout_exercise_id);
 }
 
+export function reorderSetsToOrder(orderedSetIds: number[]) {
+    orderedSetIds.forEach((id, index) => {
+        db.update(exerciseSets)
+            .set({ set_order: index + 1 })
+            .where(eq(exerciseSets.id, id))
+            .run();
+    });
+}
+
 export function reorderSet(id: number, newOrder: number) {
     const targetSet = exerciseDbSupport.getExerciseSetOrThrow(id);
     const sets = db
