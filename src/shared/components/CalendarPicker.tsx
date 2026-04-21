@@ -1,5 +1,6 @@
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { formatDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,6 +17,8 @@ interface CalendarPickerProps {
     selectedDate: Date;
     onSelect: (date: Date) => void;
     onClose: () => void;
+    dayCategoryColors?: Record<string, string[]>;
+    onViewMonthChange?: (year: number, month: number) => void;
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -45,6 +48,8 @@ export default function CalendarPicker({
     selectedDate,
     onSelect,
     onClose,
+    dayCategoryColors,
+    onViewMonthChange,
 }: CalendarPickerProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -55,10 +60,13 @@ export default function CalendarPicker({
     // Reset view when opening
     React.useEffect(() => {
         if (visible) {
-            setViewYear(selectedDate.getFullYear());
-            setViewMonth(selectedDate.getMonth());
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth();
+            setViewYear(year);
+            setViewMonth(month);
+            onViewMonthChange?.(year, month);
         }
-    }, [visible, selectedDate]);
+    }, [onViewMonthChange, selectedDate, visible]);
 
     const cells = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
     const today = useMemo(() => new Date(), []);
@@ -78,19 +86,27 @@ export default function CalendarPicker({
 
     function prevMonth() {
         if (viewMonth === 0) {
+            const nextYear = viewYear - 1;
             setViewMonth(11);
-            setViewYear((y) => y - 1);
+            setViewYear(nextYear);
+            onViewMonthChange?.(nextYear, 11);
         } else {
-            setViewMonth((m) => m - 1);
+            const nextMonth = viewMonth - 1;
+            setViewMonth(nextMonth);
+            onViewMonthChange?.(viewYear, nextMonth);
         }
     }
 
     function nextMonth() {
         if (viewMonth === 11) {
+            const nextYear = viewYear + 1;
             setViewMonth(0);
-            setViewYear((y) => y + 1);
+            setViewYear(nextYear);
+            onViewMonthChange?.(nextYear, 0);
         } else {
-            setViewMonth((m) => m + 1);
+            const nextMonth = viewMonth + 1;
+            setViewMonth(nextMonth);
+            onViewMonthChange?.(viewYear, nextMonth);
         }
     }
 
@@ -171,6 +187,8 @@ export default function CalendarPicker({
                                             cellDate,
                                             today,
                                         );
+                                        const markerColors =
+                                            dayCategoryColors?.[formatDateKey(cellDate)] ?? [];
                                         return (
                                             <Pressable
                                                 key={cellIdx}
@@ -192,6 +210,16 @@ export default function CalendarPicker({
                                                 >
                                                     {day}
                                                 </Text>
+                                                {markerColors.length > 0 ? (
+                                                    <View style={styles.markerRow}>
+                                                        {markerColors.slice(0, MAX_MARKER_DOTS).map((markerColor, index) => (
+                                                            <View
+                                                                key={index}
+                                                                style={[styles.markerDot, { backgroundColor: markerColor }]}
+                                                            />
+                                                        ))}
+                                                    </View>
+                                                ) : null}
                                             </Pressable>
                                         );
                                     })}
@@ -210,6 +238,7 @@ export default function CalendarPicker({
 }
 
 const CELL_SIZE = 40;
+const MAX_MARKER_DOTS = 7;
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
@@ -270,6 +299,18 @@ function createStyles(colors: ThemeColors) {
         selectedText: {
             color: "#fff",
             fontWeight: "700",
+        },
+        markerRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+            marginTop: 1,
+        },
+        markerDot: {
+            width: 4,
+            height: 4,
+            borderRadius: 2,
         },
         todayButton: {
             alignSelf: "center",
