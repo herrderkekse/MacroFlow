@@ -38,6 +38,7 @@ export {
     copySetsFromWorkoutExercise,
     deleteSet,
     getLastCompletedSetsForTemplate,
+    reorderSet,
     getSetsForExercise,
     updateSet,
 } from "./exerciseSetDb";

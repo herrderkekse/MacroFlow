@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS, useSharedValue } from "react-native-reanimated";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { bestSetSummary, createCollapsedCardStyles } from "./ExerciseCardHelpers";
@@ -21,6 +23,8 @@ interface ExerciseCardProps {
     onRemove: (workoutExerciseId: number) => void;
     onMoveUp: (workoutExerciseId: number) => void;
     onMoveDown: (workoutExerciseId: number) => void;
+    onMoveSetUp: (setId: number) => void;
+    onMoveSetDown: (setId: number) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
@@ -37,7 +41,7 @@ interface ExerciseCardProps {
 
 export default function ExerciseCard({
     item, index, totalExercises, isFinished, isExpanded, onExpand, lastWorkoutSets,
-    onRemove, onMoveUp, onMoveDown, onNoteChange,
+    onRemove, onMoveUp, onMoveDown, onMoveSetUp, onMoveSetDown, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExerciseCardProps) {
@@ -75,8 +79,10 @@ export default function ExerciseCard({
                     item={item}
                     index={index}
                     name={name}
+                    isFinished={isFinished}
                     onExpand={onExpand}
-                    onLongPress={() => setMenuOpen(true)}
+                    onMoveUp={onMoveUp}
+                    onMoveDown={onMoveDown}
                 />
                 <ExerciseCardMenu
                     visible={menuOpen}
@@ -135,6 +141,8 @@ export default function ExerciseCard({
             onRemove={onRemove}
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
+            onMoveSetUp={onMoveSetUp}
+            onMoveSetDown={onMoveSetDown}
             onNoteChange={onNoteChange}
             onConfirmSet={onConfirmSet}
             onUpdateSet={onUpdateSet}
@@ -157,14 +165,17 @@ interface CollapsedProps {
     item: WorkoutExerciseWithSets;
     index: number;
     name: string;
+    isFinished: boolean;
     onExpand: () => void;
-    onLongPress: () => void;
+    onMoveUp: (workoutExerciseId: number) => void;
+    onMoveDown: (workoutExerciseId: number) => void;
 }
 
-function CollapsedExerciseCard({ item, index, name, onExpand, onLongPress }: CollapsedProps) {
+function CollapsedExerciseCard({ item, index, name, isFinished, onExpand, onMoveUp, onMoveDown }: CollapsedProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createCollapsedCardStyles(colors), [colors]);
+    const dragStep = useSharedValue(0);
 
     const totalSets = item.sets.length;
     const completedSets = item.sets.filter((s) => !!s.completed_at).length;
@@ -177,30 +188,60 @@ function CollapsedExerciseCard({ item, index, name, onExpand, onLongPress }: Col
         return t("exercise.exerciseCard.setsProgress", { completed: completedSets, total: totalSets });
     }
 
+    function moveBySteps(workoutExerciseId: number, count: number) {
+        if (count > 0) {
+            for (let i = 0; i < count; i++) onMoveDown(workoutExerciseId);
+            return;
+        }
+        for (let i = 0; i < Math.abs(count); i++) onMoveUp(workoutExerciseId);
+    }
+
+    const panGesture = Gesture.Pan()
+        .enabled(!isFinished)
+        .activateAfterLongPress(250)
+        .onStart(() => {
+            "worklet";
+            dragStep.value = 0;
+        })
+        .onUpdate((event) => {
+            "worklet";
+            const nextStep = Math.trunc(event.translationY / 56);
+            if (nextStep === dragStep.value) return;
+            const diff = nextStep - dragStep.value;
+            dragStep.value = nextStep;
+            runOnJS(moveBySteps)(item.workoutExercise.id, diff);
+        })
+        .onEnd(() => {
+            "worklet";
+            dragStep.value = 0;
+        });
+
     return (
-        <Pressable style={styles.card} onPress={onExpand} onLongPress={onLongPress}>
-            <Text style={styles.orderNum}>{index + 1}.</Text>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        <GestureDetector gesture={panGesture}>
+            <Pressable style={styles.card} onPress={onExpand}>
+                <Text style={styles.orderNum}>{index + 1}.</Text>
+                <Text style={styles.name} numberOfLines={1}>{name}</Text>
 
-            {summary ? (
-                <Text style={styles.bestSetText}>{summary}</Text>
-            ) : null}
+                {summary ? (
+                    <Text style={styles.bestSetText}>{summary}</Text>
+                ) : null}
 
-            <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
-                {isAllDone && (
-                    <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                )}
-                <Text style={[styles.progressText, isAllDone && styles.progressTextComplete]}>
-                    {getProgressLabel()}
-                </Text>
-            </View>
+                <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
+                    {isAllDone && (
+                        <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+                    )}
+                    <Text style={[styles.progressText, isAllDone && styles.progressTextComplete]}>
+                        {getProgressLabel()}
+                    </Text>
+                </View>
 
-            <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.textTertiary}
-                style={styles.chevron}
-            />
-        </Pressable>
+                <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={colors.textTertiary}
+                    style={styles.chevron}
+                />
+            </Pressable>
+        </GestureDetector>
     );
 }

@@ -3,8 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS, useSharedValue } from "react-native-reanimated";
 import type { ExerciseSet } from "../services/exerciseDb";
-import type { ExerciseType } from "../types";
+import type { ExerciseType, SetValues } from "../types";
 import { ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
 
 const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
@@ -23,6 +25,8 @@ interface SetInputRowProps {
     onUpdate: (id: number, values: SetValues) => void;
     onDelete: (id: number) => void;
     onTypeChange: (id: number, type: string) => void;
+    onMoveUp: (id: number) => void;
+    onMoveDown: (id: number) => void;
 }
 
 export type { SetValues } from "../types";
@@ -30,7 +34,7 @@ export type { SetValues } from "../types";
 export default function SetInputRow({
     set, index, exerciseType, isActive, isFinished,
     prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance,
-    onConfirm, onUpdate, onDelete, onTypeChange,
+    onConfirm, onUpdate, onDelete, onTypeChange, onMoveUp, onMoveDown,
 }: SetInputRowProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -47,6 +51,7 @@ export default function SetInputRow({
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
     const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
     const [focusedField, setFocusedField] = useState<string | null>(null);
+    const dragStep = useSharedValue(0);
 
     useEffect(() => {
         setWeight(set.weight != null ? String(set.weight) : "");
@@ -111,18 +116,48 @@ export default function SetInputRow({
         );
     }, [set.id, onDelete, t]);
 
+    const moveBySteps = useCallback((setId: number, count: number) => {
+        if (count > 0) {
+            for (let i = 0; i < count; i++) onMoveDown(setId);
+            return;
+        }
+        for (let i = 0; i < Math.abs(count); i++) onMoveUp(setId);
+    }, [onMoveUp, onMoveDown]);
+
+    const panGesture = Gesture.Pan()
+        .enabled(!isFinished)
+        .activateAfterLongPress(250)
+        .onStart(() => {
+            "worklet";
+            dragStep.value = 0;
+        })
+        .onUpdate((event) => {
+            "worklet";
+            const nextStep = Math.trunc(event.translationY / 44);
+            if (nextStep === dragStep.value) return;
+            const diff = nextStep - dragStep.value;
+            dragStep.value = nextStep;
+            runOnJS(moveBySteps)(set.id, diff);
+        })
+        .onEnd(() => {
+            "worklet";
+            dragStep.value = 0;
+        });
+
     // Scheduled / pending — display-only dim row
     if (isScheduled && !isActive) {
         return (
-            <Pressable style={[styles.setRow, styles.setRowScheduled]} onLongPress={handleLongPressSetNum}>
-                <Text style={[styles.setCell, styles.setCol, { color: colors.textTertiary }]}>
-                    {typeLabel}{index + 1}
-                </Text>
-                <ScheduledCells set={set} exerciseType={exerciseType} textColor={colors.textTertiary} styles={styles} />
-                <Pressable style={styles.checkCol} onPress={handleDelete}>
-                    <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+            <GestureDetector gesture={panGesture}>
+                <Pressable style={[styles.setRow, styles.setRowScheduled]} onLongPress={handleLongPressSetNum}>
+                    <Text style={[styles.setCell, styles.setCol, { color: colors.textTertiary }]}>
+                        {typeLabel}{index + 1}
+                    </Text>
+                    <ScheduledCells set={set} exerciseType={exerciseType} textColor={colors.textTertiary} styles={styles} />
+                    <Pressable style={styles.checkCol} onPress={handleDelete}>
+                        <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+                    </Pressable>
                 </Pressable>
-            </Pressable>
+            </GestureDetector>
         );
     }
 
@@ -131,100 +166,102 @@ export default function SetInputRow({
     const fieldStyle = (field: string) => focusedField === field ? styles.input : styles.inlineInput;
 
     return (
-        <View style={[styles.setRow, isActiveSet && styles.activeRow]}>
-            <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol}>
-                <Text style={[
-                    styles.setCell,
-                    { color: isActiveSet ? colors.primary : textColor },
-                    isActiveSet && { fontWeight: "700" },
-                ]}>
-                    {typeLabel}{index + 1}
-                </Text>
-            </Pressable>
+        <GestureDetector gesture={panGesture}>
+            <View style={[styles.setRow, isActiveSet && styles.activeRow]}>
+                <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol}>
+                    <Text style={[
+                        styles.setCell,
+                        { color: isActiveSet ? colors.primary : textColor },
+                        isActiveSet && { fontWeight: "700" },
+                    ]}>
+                        {typeLabel}{index + 1}
+                    </Text>
+                </Pressable>
 
-            {exerciseType === "weight" && (
-                <View style={styles.weightInputGroup}>
+                {exerciseType === "weight" && (
+                    <View style={styles.weightInputGroup}>
+                        <TextInput
+                            style={[fieldStyle("weight"), styles.weightInput, { color: textColor }]}
+                            value={weight}
+                            onChangeText={setWeight}
+                            placeholder={prefillWeight != null ? String(prefillWeight) : "—"}
+                            placeholderTextColor={colors.textTertiary}
+                            keyboardType="decimal-pad"
+                            selectTextOnFocus
+                            onFocus={() => setFocusedField("weight")}
+                            onBlur={() => handleBlurSave("weight")}
+                        />
+                        <Pressable onPress={handleToggleUnit} style={styles.unitToggle}>
+                            <Text style={[styles.unitText, { color: colors.primary }]}>{unit}</Text>
+                        </Pressable>
+                    </View>
+                )}
+
+                {exerciseType !== "cardio" && (
                     <TextInput
-                        style={[fieldStyle("weight"), styles.weightInput, { color: textColor }]}
-                        value={weight}
-                        onChangeText={setWeight}
-                        placeholder={prefillWeight != null ? String(prefillWeight) : "—"}
-                        placeholderTextColor={colors.textTertiary}
-                        keyboardType="decimal-pad"
-                        selectTextOnFocus
-                        onFocus={() => setFocusedField("weight")}
-                        onBlur={() => handleBlurSave("weight")}
-                    />
-                    <Pressable onPress={handleToggleUnit} style={styles.unitToggle}>
-                        <Text style={[styles.unitText, { color: colors.primary }]}>{unit}</Text>
-                    </Pressable>
-                </View>
-            )}
-
-            {exerciseType !== "cardio" && (
-                <TextInput
-                    style={[fieldStyle("reps"), styles.valueCol, { color: textColor }]}
-                    value={reps}
-                    onChangeText={setReps}
-                    placeholder={prefillReps != null ? String(prefillReps) : "—"}
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="number-pad"
-                    selectTextOnFocus
-                    onFocus={() => setFocusedField("reps")}
-                    onBlur={() => handleBlurSave("reps")}
-                />
-            )}
-
-            {exerciseType === "cardio" && (
-                <>
-                    <TextInput
-                        style={[fieldStyle("duration"), styles.valueCol, { color: textColor }]}
-                        value={duration}
-                        onChangeText={setDuration}
-                        placeholder={prefillDuration != null ? String(prefillDuration) : "—"}
+                        style={[fieldStyle("reps"), styles.valueCol, { color: textColor }]}
+                        value={reps}
+                        onChangeText={setReps}
+                        placeholder={prefillReps != null ? String(prefillReps) : "—"}
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="number-pad"
                         selectTextOnFocus
-                        onFocus={() => setFocusedField("duration")}
-                        onBlur={() => handleBlurSave("duration")}
+                        onFocus={() => setFocusedField("reps")}
+                        onBlur={() => handleBlurSave("reps")}
                     />
+                )}
+
+                {exerciseType === "cardio" && (
+                    <>
+                        <TextInput
+                            style={[fieldStyle("duration"), styles.valueCol, { color: textColor }]}
+                            value={duration}
+                            onChangeText={setDuration}
+                            placeholder={prefillDuration != null ? String(prefillDuration) : "—"}
+                            placeholderTextColor={colors.textTertiary}
+                            keyboardType="number-pad"
+                            selectTextOnFocus
+                            onFocus={() => setFocusedField("duration")}
+                            onBlur={() => handleBlurSave("duration")}
+                        />
+                        <TextInput
+                            style={[fieldStyle("distance"), styles.valueCol, { color: textColor }]}
+                            value={distance}
+                            onChangeText={setDistance}
+                            placeholder={prefillDistance != null ? String(prefillDistance) : "—"}
+                            placeholderTextColor={colors.textTertiary}
+                            keyboardType="decimal-pad"
+                            selectTextOnFocus
+                            onFocus={() => setFocusedField("distance")}
+                            onBlur={() => handleBlurSave("distance")}
+                        />
+                    </>
+                )}
+
+                {exerciseType !== "cardio" && (
                     <TextInput
-                        style={[fieldStyle("distance"), styles.valueCol, { color: textColor }]}
-                        value={distance}
-                        onChangeText={setDistance}
-                        placeholder={prefillDistance != null ? String(prefillDistance) : "—"}
+                        style={[fieldStyle("rir"), styles.rirCol, { color: textColor }]}
+                        value={rir}
+                        onChangeText={setRir}
+                        placeholder={prefillRir != null ? String(prefillRir) : "—"}
                         placeholderTextColor={colors.textTertiary}
-                        keyboardType="decimal-pad"
+                        keyboardType="number-pad"
                         selectTextOnFocus
-                        onFocus={() => setFocusedField("distance")}
-                        onBlur={() => handleBlurSave("distance")}
+                        onFocus={() => setFocusedField("rir")}
+                        onBlur={() => handleBlurSave("rir")}
                     />
-                </>
-            )}
+                )}
 
-            {exerciseType !== "cardio" && (
-                <TextInput
-                    style={[fieldStyle("rir"), styles.rirCol, { color: textColor }]}
-                    value={rir}
-                    onChangeText={setRir}
-                    placeholder={prefillRir != null ? String(prefillRir) : "—"}
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="number-pad"
-                    selectTextOnFocus
-                    onFocus={() => setFocusedField("rir")}
-                    onBlur={() => handleBlurSave("rir")}
-                />
-            )}
-
-            {isActiveSet ? (
-                <Pressable style={styles.checkCol} onPress={handleConfirm}>
-                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                </Pressable>
-            ) : (
-                <Pressable style={styles.checkCol} onPress={handleDelete}>
-                    <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
-                </Pressable>
-            )}
-        </View>
+                {isActiveSet ? (
+                    <Pressable style={styles.checkCol} onPress={handleConfirm}>
+                        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    </Pressable>
+                ) : (
+                    <Pressable style={styles.checkCol} onPress={handleDelete}>
+                        <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+                    </Pressable>
+                )}
+            </View>
+        </GestureDetector>
     );
 }

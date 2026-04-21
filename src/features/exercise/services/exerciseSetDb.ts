@@ -1,7 +1,7 @@
 import exerciseDbSupport from "@/src/features/exercise/services/exerciseDbSupport";
 import { db } from "@/src/services/db";
 import { exerciseSets, workoutExercises, workouts } from "@/src/services/db/schema";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
 export type ExerciseSet = typeof exerciseSets.$inferSelect;
 export type NewExerciseSet = typeof exerciseSets.$inferInsert;
@@ -33,6 +33,30 @@ export function deleteSet(id: number) {
     const set = exerciseDbSupport.getExerciseSetOrThrow(id);
     db.delete(exerciseSets).where(eq(exerciseSets.id, id)).run();
     exerciseDbSupport.normalizeSetOrder(set.workout_exercise_id);
+}
+
+export function reorderSet(id: number, newOrder: number) {
+    const targetSet = exerciseDbSupport.getExerciseSetOrThrow(id);
+    const sets = db
+        .select()
+        .from(exerciseSets)
+        .where(eq(exerciseSets.workout_exercise_id, targetSet.workout_exercise_id))
+        .orderBy(asc(exerciseSets.set_order), asc(exerciseSets.id))
+        .all();
+
+    const sourceIndex = sets.findIndex((set) => set.id === id);
+    if (sourceIndex === -1) throw new Error(`Exercise set ${id} not found`);
+
+    const [setToMove] = sets.splice(sourceIndex, 1);
+    const targetIndex = Math.max(0, Math.min(newOrder - 1, sets.length));
+    sets.splice(targetIndex, 0, setToMove);
+
+    sets.forEach((set, index) => {
+        const setOrder = index + 1;
+        if (set.set_order !== setOrder) {
+            db.update(exerciseSets).set({ set_order: setOrder }).where(eq(exerciseSets.id, set.id)).run();
+        }
+    });
 }
 
 export function getSetsForExercise(workoutExerciseId: number): ExerciseSet[] {
