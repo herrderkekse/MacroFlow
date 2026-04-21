@@ -55,7 +55,8 @@ export default function DailyProgressBar({
         <Pressable style={styles.container} onPress={toggle}>
             <View style={styles.headerRow}>
                 <Text style={[styles.calorieText, isOverCalories && styles.calorieTextOver]}>
-                    {Math.round(actualCalories)}{" "}
+                    {Math.round(actualCalories)}
+                    {hasScheduledCalories && <Text style={styles.goalText}> + {Math.round(scheduledTotals?.calories ?? 0)}</Text>}{" "}
                     <Text style={styles.goalText}>/ {Math.round(goals.calories)} kcal</Text>
                 </Text>
                 <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textTertiary} />
