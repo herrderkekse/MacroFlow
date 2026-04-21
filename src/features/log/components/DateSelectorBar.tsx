@@ -55,7 +55,7 @@ export default function DateSelectorBar({
                 new Set(
                     muscleGroups
                         .map((group) => muscleGroupColorMap[group])
-                        .filter((color): color is string => Boolean(color)),
+                        .filter((color): color is string => color != null),
                 ),
             );
             if (colorsForDate.length > 0) nextColors[dateKey] = colorsForDate;

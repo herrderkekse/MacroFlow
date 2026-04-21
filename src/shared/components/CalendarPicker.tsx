@@ -212,7 +212,7 @@ export default function CalendarPicker({
                                                 </Text>
                                                 {markerColors.length > 0 ? (
                                                     <View style={styles.markerRow}>
-                                                        {markerColors.slice(0, 4).map((markerColor, index) => (
+                                                        {markerColors.slice(0, MAX_MARKER_DOTS).map((markerColor, index) => (
                                                             <View
                                                                 key={index}
                                                                 style={[styles.markerDot, { backgroundColor: markerColor }]}
@@ -238,6 +238,7 @@ export default function CalendarPicker({
 }
 
 const CELL_SIZE = 40;
+const MAX_MARKER_DOTS = 4;
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
