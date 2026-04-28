@@ -333,8 +333,7 @@ const de = {
             notePlaceholder: "Übungsnotizen…",
             deleteSet: "Satz löschen",
             deleteSetConfirm: "Diesen Satz löschen?",
-            setsProgress: "{{completed}}/{{total}} Sätze",
-            allSetsComplete: "Alle {{total}} Sätze fertig",
+            setsProgress: "{{completed}}/{{total}}",
             noSetsYet: "Noch keine Sätze",
         },
         addExercise: {
