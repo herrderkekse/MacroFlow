@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
-import { bestSetSummary, createCollapsedCardStyles } from "./ExerciseCardHelpers";
+import { createCollapsedCardStyles } from "./ExerciseCardHelpers";
 import { ExerciseCardMenu, ExerciseNoteModal } from "./ExerciseCardModals";
 import { ExpandedExerciseCard } from "./ExpandedExerciseCard";
 import type { SetValues } from "./SetInputRow";
@@ -169,11 +169,9 @@ function CollapsedExerciseCard({ item, index, name, onExpand, onLongPress }: Col
     const totalSets = item.sets.length;
     const completedSets = item.sets.filter((s) => !!s.completed_at).length;
     const isAllDone = totalSets > 0 && completedSets === totalSets;
-    const summary = bestSetSummary(item.sets);
 
     function getProgressLabel(): string {
         if (totalSets === 0) return t("exercise.exerciseCard.noSetsYet");
-        if (isAllDone) return t("exercise.exerciseCard.allSetsComplete", { total: totalSets });
         return t("exercise.exerciseCard.setsProgress", { completed: completedSets, total: totalSets });
     }
 
@@ -181,10 +179,6 @@ function CollapsedExerciseCard({ item, index, name, onExpand, onLongPress }: Col
         <Pressable style={styles.card} onPress={onExpand} onLongPress={onLongPress}>
             <Text style={styles.orderNum}>{index + 1}.</Text>
             <Text style={styles.name} numberOfLines={1}>{name}</Text>
-
-            {summary ? (
-                <Text style={styles.bestSetText}>{summary}</Text>
-            ) : null}
 
             <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
                 {isAllDone && (
