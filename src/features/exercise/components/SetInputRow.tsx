@@ -75,14 +75,12 @@ export default function SetInputRow({
         const newWeight = weight;
         setWeight(newWeight);
         setUnit(newUnit);
-        if (isCompleted) {
-            onUpdate(set.id, {
-                ...buildValues(),
-                weight: newWeight ? parseFloat(newWeight) : prefillWeight,
-                weight_unit: newUnit,
-            });
-        }
-    }, [unit, weight, isCompleted, set.id, buildValues, prefillWeight, onUpdate]);
+        onUpdate(set.id, {
+            ...buildValues(),
+            weight: newWeight ? parseFloat(newWeight) : prefillWeight,
+            weight_unit: newUnit,
+        });
+    }, [unit, weight, set.id, buildValues, prefillWeight, onUpdate]);
 
     const handleConfirm = useCallback(() => {
         onConfirm(set.id, buildValues());
@@ -90,8 +88,8 @@ export default function SetInputRow({
 
     const handleBlurSave = useCallback((field: string) => {
         setFocusedField((prev) => (prev === field ? null : prev));
-        if (isCompleted) onUpdate(set.id, buildValues());
-    }, [isCompleted, set.id, buildValues, onUpdate]);
+        onUpdate(set.id, buildValues());
+    }, [set.id, buildValues, onUpdate]);
 
     const handleLongPressSetNum = useCallback(() => {
         if (isCompleted) return;

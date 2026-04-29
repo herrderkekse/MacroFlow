@@ -61,7 +61,8 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
             distance_meters: values.distance_meters,
             type: values.type,
         });
-    }, []);
+        workout.reload();
+    }, [workout]);
 
     const handleDeleteSet = useCallback((setId: number) => {
         deleteSet(setId);
