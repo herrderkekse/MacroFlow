@@ -13,23 +13,30 @@ jobs:
 
         steps:
             - name: Send webhook to n8n
-              run: |
-                  curl -X POST "$N8N_PR_CLOSED_WEBHOOK_URL" \
-                  -H "Content-Type: application/json" \
-                  -H "X-Webhook-Secret: $N8N_PR_CLOSED_WEBHOOK_SECRET" \
-                  -d '{
-                        "event": "pull_request",
-                        "action": "${{ github.event.action }}",
-                        "pr_title": "${{ github.event.pull_request.title }}",
-                        "pr_url": "${{ github.event.pull_request.html_url }}",
-                        "pr_number": "${{ github.event.pull_request.number }}",
-                        "branch": "${{ github.event.pull_request.head.ref }}",
-                        "merged": "${{ github.event.pull_request.merged }}",
-                        "author": {
-                            "username": "${{ github.event.pull_request.user.login }}",
-                            "id": "${{ github.event.pull_request.user.id }}"
-                        }
-                  }'
               env:
                   N8N_PR_CLOSED_WEBHOOK_URL: ${{ secrets.N8N_PR_CLOSED_WEBHOOK_URL }}
                   N8N_PR_CLOSED_WEBHOOK_SECRET: ${{ secrets.N8N_PR_CLOSED_WEBHOOK_SECRET }}
+                  PR_ACTION: ${{ github.event.action }}
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_URL: ${{ github.event.pull_request.html_url }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+                  PR_MERGED: ${{ github.event.pull_request.merged }}
+                  PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+                  PR_AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+              run: |
+                  PAYLOAD=$(jq -n \
+                    --arg event "pull_request" \
+                    --arg action "$PR_ACTION" \
+                    --arg pr_title "$PR_TITLE" \
+                    --arg pr_url "$PR_URL" \
+                    --argjson pr_number "${PR_NUMBER:-0}" \
+                    --arg branch "$PR_BRANCH" \
+                    --argjson merged "${PR_MERGED:-false}" \
+                    --arg username "$PR_AUTHOR" \
+                    --argjson user_id "${PR_AUTHOR_ID:-null}" \
+                    '{event: $event, action: $action, pr_title: $pr_title, pr_url: $pr_url, pr_number: $pr_number, branch: $branch, merged: $merged, author: {username: $username, id: $user_id}}')
+                  curl -X POST "$N8N_PR_CLOSED_WEBHOOK_URL" \
+                    -H "Content-Type: application/json" \
+                    -H "X-Webhook-Secret: $N8N_PR_CLOSED_WEBHOOK_SECRET" \
+                    -d "$PAYLOAD"
