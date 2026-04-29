@@ -21,6 +21,7 @@ interface CopyWorkoutSheetProps {
 interface WorkoutRow {
     workout: Workout;
     exerciseCount: number;
+    muscleGroups: string[];
 }
 
 export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, onCopied }: CopyWorkoutSheetProps) {
@@ -33,10 +34,19 @@ export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, on
         if (!visible) return;
         const recents = getRecentWorkouts(20);
         const filtered = recents.filter((w) => w.id !== targetWorkoutId && w.ended_at !== null);
-        setRows(filtered.map((w) => ({
-            workout: w,
-            exerciseCount: getExercisesForWorkout(w.id).length,
-        })));
+        setRows(filtered.map((w) => {
+            const exercises = getExercisesForWorkout(w.id);
+            const muscleGroups = [...new Set(
+                exercises
+                    .map((e) => e.exerciseTemplate?.muscle_group)
+                    .filter((g): g is string => !!g),
+            )];
+            return {
+                workout: w,
+                exerciseCount: exercises.length,
+                muscleGroups,
+            };
+        }));
     }, [visible, targetWorkoutId]);
 
     function handleCopy(sourceId: number) {
@@ -48,7 +58,7 @@ export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, on
     function formatDate(dateStr: string): string {
         const [y, m, d] = dateStr.split("-");
         const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
-        return dateObj.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        return dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
     }
 
     return (
@@ -76,9 +86,14 @@ export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, on
                                         <Text style={styles.rowTitle} numberOfLines={1}>
                                             {item.workout.title || t("exercise.workout.defaultTitle")}
                                         </Text>
-                                        <Text style={styles.rowCount}>
-                                            {t("exercise.copyWorkout.exercises", { count: item.exerciseCount })}
-                                        </Text>
+                                        <View style={styles.dots}>
+                                            {item.muscleGroups.map((group) => (
+                                                <View
+                                                    key={group}
+                                                    style={[styles.dot, { backgroundColor: getMuscleGroupColor(group, colors) }]}
+                                                />
+                                            ))}
+                                        </View>
                                     </Pressable>
                                 )}
                                 style={styles.list}
@@ -135,7 +150,7 @@ function createStyles(colors: ThemeColors) {
         rowDate: {
             fontSize: fontSize.xs,
             color: colors.textSecondary,
-            width: 50,
+            width: 80,
         },
         rowTitle: {
             flex: 1,
@@ -143,9 +158,16 @@ function createStyles(colors: ThemeColors) {
             fontWeight: "600",
             color: colors.text,
         },
-        rowCount: {
-            fontSize: fontSize.xs,
-            color: colors.textTertiary,
+        dots: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 4,
+            justifyContent: "flex-end",
+        },
+        dot: {
+            width: 8,
+            height: 8,
+            borderRadius: 4,
         },
         emptyText: {
             fontSize: fontSize.sm,
@@ -154,4 +176,19 @@ function createStyles(colors: ThemeColors) {
             paddingVertical: spacing.lg,
         },
     });
+}
+
+const MUSCLE_GROUP_COLOR_MAP: Partial<Record<string, keyof ThemeColors>> = {
+    chest: "exerciseChest",
+    back: "exerciseBack",
+    legs: "exerciseLegs",
+    shoulders: "exerciseShoulders",
+    arms: "exerciseArms",
+    core: "exerciseCore",
+    full_body: "exerciseFullBody",
+};
+
+function getMuscleGroupColor(muscleGroup: string, colors: ThemeColors): string {
+    const key = MUSCLE_GROUP_COLOR_MAP[muscleGroup];
+    return key ? colors[key] : colors.exercise;
 }
