@@ -149,6 +149,8 @@ const de = {
         selectDate: "Datum wählen",
         selectMeal: "Mahlzeit wählen",
         keepMeal: "Mahlzeit beibehalten",
+        selectRecipe: "In Rezept verschieben (optional)",
+        noRecipe: "Kein Rezept",
         move: "Verschieben",
         copy: "Kopieren",
         logWeight: "Gewicht erfassen",

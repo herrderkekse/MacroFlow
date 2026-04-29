@@ -214,7 +214,8 @@ export default function LogScreen() {
             </Modal>
 
             <MoveCopyModal visible={d.moveModalVisible} onClose={() => d.setMoveModalVisible(false)}
-                onConfirm={d.handleMoveCopy} initialDate={d.selectedDate} />
+                onConfirm={d.handleMoveCopy} initialDate={d.selectedDate}
+                selectedEntries={Object.values(d.grouped).flat().filter(e => d.selectedEntryIds.has(e.entries.id))} />
 
             <AiChatOverlay tabBarHeight={tabBarHeight} onVisibilityChange={d.setChatBarVisible}
                 onDataChanged={() => d.loadAllDays(d.selectedDate)} />
