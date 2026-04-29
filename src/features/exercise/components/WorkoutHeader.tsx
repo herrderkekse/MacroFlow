@@ -82,6 +82,7 @@ export default function WorkoutHeader({
             ) : (
                 <Pressable onPress={() => { setDraft(title); setEditing(true); }} style={styles.titleWrap}>
                     <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                    <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
                 </Pressable>
             )}
 
@@ -117,11 +118,15 @@ function createStyles(colors: ThemeColors) {
         titleWrap: {
             flex: 1,
             minWidth: 0,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
         },
         title: {
             fontSize: fontSize.md,
             fontWeight: "700",
             color: colors.text,
+            flexShrink: 1,
         },
         titleInput: {
             flex: 1,
