@@ -379,9 +379,10 @@ export function copyEntriesToRecipeLog(
     const ts = Date.now();
     // Fetch all entries in a single query
     const sourceEntries = db.select().from(entries).where(inArray(entries.id, entryIds)).all();
-    for (const entry of sourceEntries) {
-        db.insert(entries)
-            .values({
+    if (sourceEntries.length === 0) return;
+    db.insert(entries)
+        .values(
+            sourceEntries.map((entry) => ({
                 food_id: entry.food_id,
                 quantity_grams: entry.quantity_grams,
                 quantity_unit: entry.quantity_unit,
@@ -390,9 +391,9 @@ export function copyEntriesToRecipeLog(
                 meal_type: targetMealType,
                 recipe_log_id: targetRecipeLogId,
                 is_scheduled: entry.is_scheduled,
-            })
-            .run();
-    }
+            })),
+        )
+        .run();
 }
 
 // ── Weight Logging ─────────────────────────────────────────
