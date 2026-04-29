@@ -59,13 +59,13 @@ export default function SetInputRow({
 
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";
 
-    const buildValues = useCallback((): SetValues => ({
-        weight: weight ? parseFloat(weight) : prefillWeight,
+    const buildValues = useCallback((usePrefillForEmpty = true): SetValues => ({
+        weight: weight ? parseFloat(weight) : (usePrefillForEmpty ? prefillWeight : null),
         weight_unit: unit,
-        reps: reps ? parseInt(reps, 10) : prefillReps,
-        rir: rir ? parseInt(rir, 10) : prefillRir,
-        duration_seconds: duration ? parseInt(duration, 10) : prefillDuration,
-        distance_meters: distance ? parseFloat(distance) : prefillDistance,
+        reps: reps ? parseInt(reps, 10) : (usePrefillForEmpty ? prefillReps : null),
+        rir: rir ? parseInt(rir, 10) : (usePrefillForEmpty ? prefillRir : null),
+        duration_seconds: duration ? parseInt(duration, 10) : (usePrefillForEmpty ? prefillDuration : null),
+        distance_meters: distance ? parseFloat(distance) : (usePrefillForEmpty ? prefillDistance : null),
         type: set.type,
     }), [weight, reps, rir, duration, distance, unit, set.type,
         prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance]);
@@ -83,12 +83,12 @@ export default function SetInputRow({
     }, [unit, weight, set.id, buildValues, prefillWeight, onUpdate]);
 
     const handleConfirm = useCallback(() => {
-        onConfirm(set.id, buildValues());
+        onConfirm(set.id, buildValues(false));
     }, [set.id, buildValues, onConfirm]);
 
     const handleBlurSave = useCallback((field: string) => {
         setFocusedField((prev) => (prev === field ? null : prev));
-        onUpdate(set.id, buildValues());
+        onUpdate(set.id, buildValues(false));
     }, [set.id, buildValues, onUpdate]);
 
     const handleLongPressSetNum = useCallback(() => {
