@@ -77,7 +77,8 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
     const handleAddSet = useCallback((workoutExerciseId: number) => {
         const ex = workout.data?.exercises.find((e) => e.workoutExercise.id === workoutExerciseId);
         const defaultUnit = ex?.exerciseTemplate?.default_weight_unit ?? "kg";
-        addSet({ workout_exercise_id: workoutExerciseId, weight_unit: defaultUnit });
+        const hasUnconfirmedScheduledSets = ex?.sets.some((s) => !!s.is_scheduled && !s.completed_at) ?? false;
+        addSet({ workout_exercise_id: workoutExerciseId, weight_unit: defaultUnit, is_scheduled: hasUnconfirmedScheduledSets ? 1 : 0 });
         workout.reload();
     }, [workout]);
 
