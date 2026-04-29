@@ -47,7 +47,11 @@ export default function SetInputRow({
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
     const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
     const [focusedField, setFocusedField] = useState<string | null>(null);
+    // Tracks fields the user has explicitly cleared; used to distinguish "never set" (show prefill)
+    // from "intentionally cleared" (show "—" and save null). Reset when navigating to a new set.
+    const [clearedFields, setClearedFields] = useState<Record<string, boolean>>({});
 
+    // Sync input state from DB when set values change (e.g., after a save)
     useEffect(() => {
         setWeight(set.weight != null ? String(set.weight) : "");
         setReps(set.reps != null ? String(set.reps) : "");
@@ -57,38 +61,37 @@ export default function SetInputRow({
         setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
     }, [set.id, set.weight, set.reps, set.rir, set.duration_seconds, set.distance_meters, set.weight_unit]);
 
+    // Reset cleared-field tracking only when switching to a different set
+    useEffect(() => {
+        setClearedFields({});
+    }, [set.id]);
+
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";
 
-    const buildValues = useCallback((usePrefillForEmpty = true): SetValues => ({
-        weight: weight ? parseFloat(weight) : (usePrefillForEmpty ? prefillWeight : null),
+    const buildValues = useCallback((): SetValues => ({
+        weight: weight ? parseFloat(weight) : (clearedFields.weight ? null : prefillWeight),
         weight_unit: unit,
-        reps: reps ? parseInt(reps, 10) : (usePrefillForEmpty ? prefillReps : null),
-        rir: rir ? parseInt(rir, 10) : (usePrefillForEmpty ? prefillRir : null),
-        duration_seconds: duration ? parseInt(duration, 10) : (usePrefillForEmpty ? prefillDuration : null),
-        distance_meters: distance ? parseFloat(distance) : (usePrefillForEmpty ? prefillDistance : null),
+        reps: reps ? parseInt(reps, 10) : (clearedFields.reps ? null : prefillReps),
+        rir: rir ? parseInt(rir, 10) : (clearedFields.rir ? null : prefillRir),
+        duration_seconds: duration ? parseInt(duration, 10) : (clearedFields.duration ? null : prefillDuration),
+        distance_meters: distance ? parseFloat(distance) : (clearedFields.distance ? null : prefillDistance),
         type: set.type,
-    }), [weight, reps, rir, duration, distance, unit, set.type,
+    }), [weight, reps, rir, duration, distance, unit, set.type, clearedFields,
         prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance]);
 
     const handleToggleUnit = useCallback(() => {
         const newUnit = unit === "kg" ? "lb" : "kg";
-        const newWeight = weight;
-        setWeight(newWeight);
         setUnit(newUnit);
-        onUpdate(set.id, {
-            ...buildValues(),
-            weight: newWeight ? parseFloat(newWeight) : prefillWeight,
-            weight_unit: newUnit,
-        });
-    }, [unit, weight, set.id, buildValues, prefillWeight, onUpdate]);
+        onUpdate(set.id, { ...buildValues(), weight_unit: newUnit });
+    }, [unit, set.id, buildValues, onUpdate]);
 
     const handleConfirm = useCallback(() => {
-        onConfirm(set.id, buildValues(false));
+        onConfirm(set.id, buildValues());
     }, [set.id, buildValues, onConfirm]);
 
     const handleBlurSave = useCallback((field: string) => {
         setFocusedField((prev) => (prev === field ? null : prev));
-        onUpdate(set.id, buildValues(false));
+        onUpdate(set.id, buildValues());
     }, [set.id, buildValues, onUpdate]);
 
     const handleLongPressSetNum = useCallback(() => {
@@ -145,8 +148,11 @@ export default function SetInputRow({
                     <TextInput
                         style={[fieldStyle("weight"), styles.weightInput, { color: textColor }]}
                         value={weight}
-                        onChangeText={setWeight}
-                        placeholder={prefillWeight != null ? String(prefillWeight) : "—"}
+                        onChangeText={(text) => {
+                            setWeight(text);
+                            setClearedFields(prev => ({ ...prev, weight: text === "" }));
+                        }}
+                        placeholder={!clearedFields.weight && prefillWeight != null ? String(prefillWeight) : "—"}
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         selectTextOnFocus
@@ -163,8 +169,11 @@ export default function SetInputRow({
                 <TextInput
                     style={[fieldStyle("reps"), styles.valueCol, { color: textColor }]}
                     value={reps}
-                    onChangeText={setReps}
-                    placeholder={prefillReps != null ? String(prefillReps) : "—"}
+                    onChangeText={(text) => {
+                        setReps(text);
+                        setClearedFields(prev => ({ ...prev, reps: text === "" }));
+                    }}
+                    placeholder={!clearedFields.reps && prefillReps != null ? String(prefillReps) : "—"}
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="number-pad"
                     selectTextOnFocus
@@ -178,8 +187,11 @@ export default function SetInputRow({
                     <TextInput
                         style={[fieldStyle("duration"), styles.valueCol, { color: textColor }]}
                         value={duration}
-                        onChangeText={setDuration}
-                        placeholder={prefillDuration != null ? String(prefillDuration) : "—"}
+                        onChangeText={(text) => {
+                            setDuration(text);
+                            setClearedFields(prev => ({ ...prev, duration: text === "" }));
+                        }}
+                        placeholder={!clearedFields.duration && prefillDuration != null ? String(prefillDuration) : "—"}
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="number-pad"
                         selectTextOnFocus
@@ -189,8 +201,11 @@ export default function SetInputRow({
                     <TextInput
                         style={[fieldStyle("distance"), styles.valueCol, { color: textColor }]}
                         value={distance}
-                        onChangeText={setDistance}
-                        placeholder={prefillDistance != null ? String(prefillDistance) : "—"}
+                        onChangeText={(text) => {
+                            setDistance(text);
+                            setClearedFields(prev => ({ ...prev, distance: text === "" }));
+                        }}
+                        placeholder={!clearedFields.distance && prefillDistance != null ? String(prefillDistance) : "—"}
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         selectTextOnFocus
@@ -204,8 +219,11 @@ export default function SetInputRow({
                 <TextInput
                     style={[fieldStyle("rir"), styles.rirCol, { color: textColor }]}
                     value={rir}
-                    onChangeText={setRir}
-                    placeholder={prefillRir != null ? String(prefillRir) : "—"}
+                    onChangeText={(text) => {
+                        setRir(text);
+                        setClearedFields(prev => ({ ...prev, rir: text === "" }));
+                    }}
+                    placeholder={!clearedFields.rir && prefillRir != null ? String(prefillRir) : "—"}
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="number-pad"
                     selectTextOnFocus
