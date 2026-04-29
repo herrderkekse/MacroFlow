@@ -49,7 +49,7 @@ export default function SetInputRow({
     const [focusedField, setFocusedField] = useState<string | null>(null);
     // Tracks fields the user has explicitly cleared; used to distinguish "never set" (show prefill)
     // from "intentionally cleared" (show "—" and save null). Reset when navigating to a new set.
-    const [clearedFields, setClearedFields] = useState<Record<string, boolean>>({});
+    const [clearedFields, setClearedFields] = useState<Partial<Record<"weight" | "reps" | "rir" | "duration" | "distance", boolean>>>({});
 
     // Sync input state from DB when set values change (e.g., after a save)
     useEffect(() => {
