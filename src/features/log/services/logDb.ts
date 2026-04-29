@@ -3,7 +3,7 @@ import { db } from "@/src/services/db";
 import { entries, foods, recipeLogs, weightLogs } from "@/src/services/db/schema";
 import { diffCalendarDays, formatDateKey as formatLocalDateKey, parseDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 export type Entry = typeof entries.$inferSelect;
 
@@ -335,6 +335,65 @@ export function copyEntriesToDate(
             })
             .run();
     }
+}
+
+export function moveEntriesToRecipeLog(
+    entryIds: number[],
+    targetRecipeLogId: number,
+    targetDate: string,
+    targetMealType: string,
+) {
+    if (entryIds.length === 0) return;
+    // Fetch all entries at once to find source recipe log IDs
+    const sourceEntries = db.select({ id: entries.id, recipe_log_id: entries.recipe_log_id })
+        .from(entries)
+        .where(inArray(entries.id, entryIds))
+        .all();
+    const sourceRecipeLogIds = new Set<number>();
+    for (const entry of sourceEntries) {
+        if (entry.recipe_log_id && entry.recipe_log_id !== targetRecipeLogId) {
+            sourceRecipeLogIds.add(entry.recipe_log_id);
+        }
+    }
+    // Bulk update all selected entries to point to the target recipe log
+    db.update(entries)
+        .set({ recipe_log_id: targetRecipeLogId, date: targetDate, meal_type: targetMealType })
+        .where(inArray(entries.id, entryIds))
+        .run();
+    // Clean up source recipe logs that are now empty
+    for (const rlId of sourceRecipeLogIds) {
+        const remaining = db.select({ id: entries.id }).from(entries).where(eq(entries.recipe_log_id, rlId)).all();
+        if (remaining.length === 0) {
+            db.delete(recipeLogs).where(eq(recipeLogs.id, rlId)).run();
+        }
+    }
+}
+
+export function copyEntriesToRecipeLog(
+    entryIds: number[],
+    targetRecipeLogId: number,
+    targetDate: string,
+    targetMealType: string,
+) {
+    if (entryIds.length === 0) return;
+    const ts = Date.now();
+    // Fetch all entries in a single query
+    const sourceEntries = db.select().from(entries).where(inArray(entries.id, entryIds)).all();
+    if (sourceEntries.length === 0) return;
+    db.insert(entries)
+        .values(
+            sourceEntries.map((entry) => ({
+                food_id: entry.food_id,
+                quantity_grams: entry.quantity_grams,
+                quantity_unit: entry.quantity_unit,
+                timestamp: ts,
+                date: targetDate,
+                meal_type: targetMealType,
+                recipe_log_id: targetRecipeLogId,
+                is_scheduled: entry.is_scheduled,
+            })),
+        )
+        .run();
 }
 
 // ── Weight Logging ─────────────────────────────────────────

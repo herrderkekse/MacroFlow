@@ -9,7 +9,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
 import { computeWeightTrend, loadGrouped, type EntryWithFood } from "../helpers/logHelpers";
-import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
+import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, copyEntriesToRecipeLog, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, moveEntriesToRecipeLog, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -186,29 +186,45 @@ export function useLogData() {
     const handleActivateSelection = (entryId: number) => { setSelectionMode(true); setSelectedEntryIds(new Set([entryId])); };
     const handleActivateSelectionMultiple = (entryIds: number[]) => { setSelectionMode(true); setSelectedEntryIds(new Set(entryIds)); };
 
-    function handleMoveCopy(targetDate: Date, targetMealType: string | null, action: "move" | "copy") {
+    function handleMoveCopy(targetDate: Date, targetMealType: string | null, action: "move" | "copy", targetRecipeLogId: number | null) {
         const allEntries = Object.values(grouped).flat();
-        const recipeLogEntryMap = new Map<number, number[]>();
-        for (const row of allEntries) {
-            const rlId = row.entries.recipe_log_id;
-            if (rlId) {
-                const list = recipeLogEntryMap.get(rlId) ?? [];
-                list.push(row.entries.id);
-                recipeLogEntryMap.set(rlId, list);
-            }
-        }
-        const fullySelectedRecipeLogIds: number[] = [];
-        const standaloneEntryIds: number[] = [];
-        for (const [rlId, entryIds] of recipeLogEntryMap) {
-            if (entryIds.every((id) => selectedEntryIds.has(id))) fullySelectedRecipeLogIds.push(rlId);
-            else entryIds.filter((id) => selectedEntryIds.has(id)).forEach((id) => standaloneEntryIds.push(id));
-        }
-        for (const row of allEntries) {
-            if (!row.entries.recipe_log_id && selectedEntryIds.has(row.entries.id)) standaloneEntryIds.push(row.entries.id);
-        }
         const dateKey = formatDateKey(targetDate);
-        if (action === "move") moveEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
-        else copyEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
+
+        if (targetRecipeLogId !== null) {
+            // Move/copy all selected entries into the target recipe log
+            const allSelectedEntryIds = allEntries
+                .filter((row) => selectedEntryIds.has(row.entries.id))
+                .map((row) => row.entries.id);
+            // targetMealType is always non-null when a recipe is selected (recipe selector
+            // only appears when a specific meal is selected), but fall back gracefully.
+            const recipeMealType = targetMealType ?? "breakfast";
+            if (action === "move") {
+                moveEntriesToRecipeLog(allSelectedEntryIds, targetRecipeLogId, dateKey, recipeMealType);
+            } else {
+                copyEntriesToRecipeLog(allSelectedEntryIds, targetRecipeLogId, dateKey, recipeMealType);
+            }
+        } else {
+            const recipeLogEntryMap = new Map<number, number[]>();
+            for (const row of allEntries) {
+                const rlId = row.entries.recipe_log_id;
+                if (rlId) {
+                    const list = recipeLogEntryMap.get(rlId) ?? [];
+                    list.push(row.entries.id);
+                    recipeLogEntryMap.set(rlId, list);
+                }
+            }
+            const fullySelectedRecipeLogIds: number[] = [];
+            const standaloneEntryIds: number[] = [];
+            for (const [rlId, entryIds] of recipeLogEntryMap) {
+                if (entryIds.every((id) => selectedEntryIds.has(id))) fullySelectedRecipeLogIds.push(rlId);
+                else entryIds.filter((id) => selectedEntryIds.has(id)).forEach((id) => standaloneEntryIds.push(id));
+            }
+            for (const row of allEntries) {
+                if (!row.entries.recipe_log_id && selectedEntryIds.has(row.entries.id)) standaloneEntryIds.push(row.entries.id);
+            }
+            if (action === "move") moveEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
+            else copyEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
+        }
         exitSelectionMode();
         setMoveModalVisible(false);
         loadAllDays(targetDate);

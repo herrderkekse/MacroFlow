@@ -150,6 +150,8 @@ const en = {
         selectDate: "Select Date",
         selectMeal: "Select Meal",
         keepMeal: "Keep original meal",
+        selectRecipe: "Move into Recipe (optional)",
+        noRecipe: "No recipe",
         move: "Move",
         copy: "Copy",
         logWeight: "Log Weight",

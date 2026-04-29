@@ -6,13 +6,15 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { formatDateKey, getLoggedRecipeGroups, type EntryWithFood, type LoggedRecipeGroup } from "../services/logDb";
 
 interface MoveCopyModalProps {
     visible: boolean;
     onClose: () => void;
-    onConfirm: (targetDate: Date, targetMealType: string | null, action: "move" | "copy") => void;
+    onConfirm: (targetDate: Date, targetMealType: string | null, action: "move" | "copy", targetRecipeLogId: number | null) => void;
     initialDate: Date;
+    selectedEntries?: EntryWithFood[];
 }
 
 export default function MoveCopyModal({
@@ -20,20 +22,39 @@ export default function MoveCopyModal({
     onClose,
     onConfirm,
     initialDate,
+    selectedEntries = [],
 }: MoveCopyModalProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const [targetDate, setTargetDate] = useState(initialDate);
     const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
+    const [selectedRecipeLogId, setSelectedRecipeLogId] = useState<number | null>(null);
     const [calendarVisible, setCalendarVisible] = useState(false);
+
+    // Derive scheduling status of selected entries
+    const anyScheduled = selectedEntries.some((e) => e.entries.is_scheduled === 1);
+    const anyUnscheduled = selectedEntries.some((e) => e.entries.is_scheduled !== 1);
+
+    // Load recipe groups for the currently selected date+meal
+    const recipeGroups: LoggedRecipeGroup[] = useMemo(() => {
+        if (!selectedMeal) return [];
+        const dateKey = formatDateKey(targetDate);
+        return getLoggedRecipeGroups(dateKey, selectedMeal);
+    }, [targetDate, selectedMeal]);
 
     React.useEffect(() => {
         if (visible) {
             setTargetDate(initialDate);
             setSelectedMeal(null);
+            setSelectedRecipeLogId(null);
         }
     }, [visible, initialDate]);
+
+    // Reset recipe selection when meal or date changes
+    React.useEffect(() => {
+        setSelectedRecipeLogId(null);
+    }, [selectedMeal, targetDate]);
 
     function shiftDate(days: number) {
         setTargetDate((prev) => {
@@ -65,6 +86,12 @@ export default function MoveCopyModal({
         });
     }
 
+    function isRecipeDisabled(recipe: LoggedRecipeGroup): boolean {
+        if (recipe.isScheduled && anyUnscheduled) return true;
+        if (!recipe.isScheduled && anyScheduled) return true;
+        return false;
+    }
+
     const dateLabel = getDateLabel(targetDate);
 
     return (
@@ -79,6 +106,7 @@ export default function MoveCopyModal({
                     <Pressable style={styles.modal} onPress={() => {}}>
                         <Text style={styles.title}>{t("log.moveCopyTitle")}</Text>
 
+                        <ScrollView showsVerticalScrollIndicator={false}>
                         {/* Date selector */}
                         <Text style={styles.sectionLabel}>{t("log.selectDate")}</Text>
                         <View style={styles.dateRow}>
@@ -159,20 +187,85 @@ export default function MoveCopyModal({
                             ))}
                         </View>
 
+                        {/* Recipe selector — only shown when a specific meal is selected and it has recipes */}
+                        {selectedMeal !== null && recipeGroups.length > 0 && (
+                            <>
+                                <Text style={styles.sectionLabel}>{t("log.selectRecipe")}</Text>
+                                <View style={styles.mealOptions}>
+                                    <Pressable
+                                        style={[
+                                            styles.mealOption,
+                                            selectedRecipeLogId === null && styles.mealOptionSelected,
+                                        ]}
+                                        onPress={() => setSelectedRecipeLogId(null)}
+                                    >
+                                        <Ionicons
+                                            name="remove-circle-outline"
+                                            size={16}
+                                            color={selectedRecipeLogId === null ? "#fff" : colors.text}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.mealOptionText,
+                                                selectedRecipeLogId === null && styles.mealOptionTextSelected,
+                                            ]}
+                                        >
+                                            {t("log.noRecipe")}
+                                        </Text>
+                                    </Pressable>
+                                    {recipeGroups.map((recipe) => {
+                                        const disabled = isRecipeDisabled(recipe);
+                                        const isSelected = selectedRecipeLogId === recipe.recipeLogId;
+                                        return (
+                                            <Pressable
+                                                key={recipe.recipeLogId}
+                                                style={[
+                                                    styles.mealOption,
+                                                    isSelected && styles.mealOptionSelected,
+                                                    disabled && styles.mealOptionDisabled,
+                                                ]}
+                                                onPress={() => {
+                                                    if (!disabled) {
+                                                        setSelectedRecipeLogId(isSelected ? null : recipe.recipeLogId);
+                                                    }
+                                                }}
+                                            >
+                                                <Ionicons
+                                                    name="book-outline"
+                                                    size={16}
+                                                    color={isSelected ? "#fff" : disabled ? colors.textTertiary : colors.text}
+                                                />
+                                                <Text
+                                                    style={[
+                                                        styles.mealOptionText,
+                                                        isSelected && styles.mealOptionTextSelected,
+                                                        disabled && styles.mealOptionTextDisabled,
+                                                    ]}
+                                                >
+                                                    {recipe.recipeName}
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </>
+                        )}
+
                         {/* Action buttons */}
                         <View style={styles.actions}>
                             <Button
                                 title={t("log.move")}
-                                onPress={() => onConfirm(targetDate, selectedMeal, "move")}
+                                onPress={() => onConfirm(targetDate, selectedMeal, "move", selectedRecipeLogId)}
                                 style={{ flex: 1 }}
                             />
                             <Button
                                 title={t("log.copy")}
                                 variant="outline"
-                                onPress={() => onConfirm(targetDate, selectedMeal, "copy")}
+                                onPress={() => onConfirm(targetDate, selectedMeal, "copy", selectedRecipeLogId)}
                                 style={{ flex: 1 }}
                             />
                         </View>
+                        </ScrollView>
                     </Pressable>
                 </Pressable>
             </Modal>
@@ -205,6 +298,7 @@ function createStyles(colors: ThemeColors) {
             padding: spacing.lg,
             width: "100%",
             maxWidth: 360,
+            maxHeight: "85%",
         },
         title: {
             fontSize: fontSize.lg,
@@ -270,6 +364,12 @@ function createStyles(colors: ThemeColors) {
         },
         mealOptionTextSelected: {
             color: "#fff",
+        },
+        mealOptionDisabled: {
+            opacity: 0.4,
+        },
+        mealOptionTextDisabled: {
+            color: colors.textTertiary,
         },
         actions: {
             flexDirection: "row",
