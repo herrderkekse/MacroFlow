@@ -114,6 +114,12 @@ export default function WorkoutScreen() {
 
     useFocusEffect(
         useCallback(() => {
+            workout.reload();
+        }, [workout.reload]),
+    );
+
+    useFocusEffect(
+        useCallback(() => {
             const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
                 handleBack();
                 return true;
