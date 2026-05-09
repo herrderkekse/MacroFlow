@@ -54,7 +54,8 @@ export function initDB() {
       protein REAL NOT NULL DEFAULT 150,
       carbs REAL NOT NULL DEFAULT 250,
       fat REAL NOT NULL DEFAULT 70,
-      unit_system TEXT NOT NULL DEFAULT 'metric'
+      unit_system TEXT NOT NULL DEFAULT 'metric',
+      keep_awake INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS recipe_items (
@@ -185,6 +186,7 @@ export function initDB() {
     "ALTER TABLE foods ADD COLUMN last_logged_amount REAL",
     "ALTER TABLE foods ADD COLUMN last_logged_unit TEXT",
     "ALTER TABLE goals ADD COLUMN appearance_mode TEXT NOT NULL DEFAULT 'system'",
+    "ALTER TABLE goals ADD COLUMN keep_awake INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE foods ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE recipes ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE foods ADD COLUMN last_logged_meal TEXT",

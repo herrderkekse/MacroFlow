@@ -62,6 +62,8 @@ const de = {
         exportData: "Daten exportieren",
         importData: "Daten importieren",
         language: "SPRACHE",
+        keepAwakeInWorkout: "BILDSCHIRM WÄHREND DES TRAININGS AKTIV HALTEN",
+        keepAwakeInWorkoutDescription: "Verhindert, dass das Gerät in den Ruhezustand wechselt, solange der Trainingsbildschirm geöffnet ist.",
         saved: "Gespeichert",
         goalsUpdated: "Deine Ziele wurden aktualisiert.",
         invalid: "Ungültig",

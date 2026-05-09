@@ -1,17 +1,19 @@
 import "@/polyfills";
-import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
-import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
+import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
+import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
 import i18n from "@/src/i18n";
 import { initDB } from "@/src/services/db";
+import { deactivateKeepAwakeAsync, KEEP_AWAKE_DEFAULT_TAG, WORKOUT_KEEP_AWAKE_TAG } from "@/src/services/keepAwake";
 import { scheduleAllReminders } from "@/src/services/notifications";
 import { ThemeProvider, useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import type { AppearanceMode, Language, MealType, UnitSystem } from "@/src/shared/types";
 import Constants from "expo-constants";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useEffect } from "react";
+import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const LAST_SEEN_VERSION_KEY = "last_seen_app_version";
@@ -32,6 +34,9 @@ function InnerLayout() {
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
   const setUnitSystem = useAppStore((s) => s.setUnitSystem);
+  const setKeepAwakeInWorkout = useAppStore((s) => s.setKeepAwakeInWorkout);
+  const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
+  const pathname = usePathname();
 
   useEffect(() => {
     const goals = getGoals();
@@ -46,6 +51,7 @@ function InnerLayout() {
     if (goals?.unit_system === "metric" || goals?.unit_system === "imperial") {
       setUnitSystem(goals.unit_system as UnitSystem);
     }
+    setKeepAwakeInWorkout(goals?.keep_awake === 1);
 
     // Schedule notification reminders on app start
     const mealLabels: Record<MealType, string> = {
@@ -55,7 +61,32 @@ function InnerLayout() {
       snack: i18n.t("settings.notificationSnack"),
     };
     scheduleAllReminders(mealLabels, i18n.t("settings.notificationWeight"), getNotificationSettings() ?? null, new Set(getEntriesByDate(new Date()).map(e => e.entries.meal_type as MealType)), getWeightLogsForDate(new Date()).length > 0);
-  }, [setLanguage, setAppearanceMode, setUnitSystem]);
+  }, [setLanguage, setAppearanceMode, setUnitSystem, setKeepAwakeInWorkout]);
+
+  useEffect(() => {
+    const isWorkoutRoute = pathname?.startsWith("/workout") ?? false;
+    const shouldAllowKeepAwake = isWorkoutRoute && keepAwakeInWorkout;
+    if (shouldAllowKeepAwake) return;
+
+    const releaseKeepAwake = () => {
+      void deactivateKeepAwakeAsync(WORKOUT_KEEP_AWAKE_TAG).catch(() => { });
+      void deactivateKeepAwakeAsync(KEEP_AWAKE_DEFAULT_TAG).catch(() => { });
+    };
+
+    releaseKeepAwake();
+
+    const interval = setInterval(releaseKeepAwake, 3000);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        releaseKeepAwake();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [keepAwakeInWorkout, pathname]);
 
   return (
     <Stack

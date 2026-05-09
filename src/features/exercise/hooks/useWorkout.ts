@@ -40,6 +40,9 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
     const [isResumed, setIsResumed] = useState(false);
     const [elapsedMs, setElapsedMs] = useState(0);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const workoutIdRef = useRef<number | null>(null);
+    const currentWorkout = data?.workout ?? null;
+    const currentExercises = data?.exercises ?? [];
 
     const loadWorkout = useCallback((id: number) => {
         const result = getWorkoutById(id);
@@ -48,8 +51,12 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
     }, []);
 
     const reload = useCallback(() => {
-        if (data?.workout.id) loadWorkout(data.workout.id);
-    }, [data?.workout.id, loadWorkout]);
+        if (workoutIdRef.current) loadWorkout(workoutIdRef.current);
+    }, [loadWorkout]);
+
+    useEffect(() => {
+        workoutIdRef.current = currentWorkout?.id ?? null;
+    }, [currentWorkout]);
 
     // Auto-load or auto-resume on mount
     useEffect(() => {
@@ -71,14 +78,14 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
     useEffect(() => {
         if (timerRef.current) clearInterval(timerRef.current);
 
-        if (data?.workout && !data.workout.ended_at) {
-            const tick = () => setElapsedMs(Date.now() - data.workout.started_at);
+        if (currentWorkout && !currentWorkout.ended_at) {
+            const tick = () => setElapsedMs(Date.now() - currentWorkout.started_at);
             tick();
             timerRef.current = setInterval(tick, 60000);
         } else {
             setElapsedMs(
-                data?.workout.ended_at && data?.workout.started_at
-                    ? data.workout.ended_at - data.workout.started_at
+                currentWorkout?.ended_at && currentWorkout.started_at
+                    ? currentWorkout.ended_at - currentWorkout.started_at
                     : 0,
             );
         }
@@ -86,7 +93,7 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [data?.workout?.id, data?.workout?.started_at, data?.workout?.ended_at]);
+    }, [currentWorkout]);
 
     const startWorkout = useCallback((startDate?: Date) => {
         const dateKey = formatDateKey(startDate ?? new Date());
@@ -98,83 +105,83 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
     }, []);
 
     const finishCurrentWorkout = useCallback(() => {
-        if (!data?.workout) return false;
-        finishWorkout(data.workout.id);
-        loadWorkout(data.workout.id);
+        if (!currentWorkout) return false;
+        finishWorkout(currentWorkout.id);
+        loadWorkout(currentWorkout.id);
         return true;
-    }, [data?.workout, loadWorkout]);
+    }, [currentWorkout, loadWorkout]);
 
     const updateTitle = useCallback(
         (title: string) => {
-            if (!data?.workout) return;
-            updateWorkout(data.workout.id, { title });
+            if (!currentWorkout) return;
+            updateWorkout(currentWorkout.id, { title });
             setData((prev) =>
                 prev ? { ...prev, workout: { ...prev.workout, title } } : null,
             );
         },
-        [data?.workout],
+        [currentWorkout],
     );
 
     const updateStartTime = useCallback(
         (epoch: number) => {
-            if (!data?.workout) return;
-            updateWorkout(data.workout.id, { started_at: epoch });
+            if (!currentWorkout) return;
+            updateWorkout(currentWorkout.id, { started_at: epoch });
             setData((prev) =>
                 prev ? { ...prev, workout: { ...prev.workout, started_at: epoch } } : null,
             );
         },
-        [data?.workout],
+        [currentWorkout],
     );
 
     const updateEndTime = useCallback(
         (epoch: number) => {
-            if (!data?.workout) return;
-            updateWorkout(data.workout.id, { ended_at: epoch });
+            if (!currentWorkout) return;
+            updateWorkout(currentWorkout.id, { ended_at: epoch });
             setData((prev) =>
                 prev ? { ...prev, workout: { ...prev.workout, ended_at: epoch } } : null,
             );
         },
-        [data?.workout],
+        [currentWorkout],
     );
 
     const addExercise = useCallback(
         (templateId: number) => {
-            if (!data?.workout) return undefined;
+            if (!currentWorkout) return undefined;
             const we = addExerciseToWorkout({
-                workout_id: data.workout.id,
+                workout_id: currentWorkout.id,
                 exercise_template_id: templateId,
-                sort_order: data.exercises.length + 1,
+                sort_order: currentExercises.length + 1,
             });
-            const exercises = getExercisesForWorkout(data.workout.id);
+            const exercises = getExercisesForWorkout(currentWorkout.id);
             setData((prev) => (prev ? { ...prev, exercises } : null));
             return we.id;
         },
-        [data?.workout, data?.exercises.length],
+        [currentWorkout, currentExercises.length],
     );
 
     const removeExercise = useCallback(
         (workoutExerciseId: number) => {
-            if (!data?.workout) return;
+            if (!currentWorkout) return;
             removeExerciseFromWorkout(workoutExerciseId);
-            const exercises = getExercisesForWorkout(data.workout.id);
+            const exercises = getExercisesForWorkout(currentWorkout.id);
             setData((prev) => (prev ? { ...prev, exercises } : null));
         },
-        [data?.workout],
+        [currentWorkout],
     );
 
     const moveExercise = useCallback(
         (workoutExerciseId: number, newOrder: number) => {
-            if (!data?.workout) return;
+            if (!currentWorkout) return;
             reorderExercise(workoutExerciseId, newOrder);
-            const exercises = getExercisesForWorkout(data.workout.id);
+            const exercises = getExercisesForWorkout(currentWorkout.id);
             setData((prev) => (prev ? { ...prev, exercises } : null));
         },
-        [data?.workout],
+        [currentWorkout],
     );
 
     const hasUnfinishedSets = useMemo(
-        () => data?.workout ? hasUnfinishedScheduledSets(data.workout.id) : false,
-        [data?.workout?.id, data?.exercises],
+        () => currentWorkout ? hasUnfinishedScheduledSets(currentWorkout.id) : false,
+        [currentWorkout],
     );
 
     return {
