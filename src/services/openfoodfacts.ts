@@ -95,6 +95,8 @@ export async function searchProducts(
     logger.info("[API] Searching products", { query, page });
 
     const params = new URLSearchParams({
+        action: "process",
+        search_simple: "1",
         search_terms: query,
         json: "1",
         page: String(page),
