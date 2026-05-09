@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Alert, BackHandler, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { FlatList, Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
@@ -161,7 +161,7 @@ export default function WorkoutScreen() {
     }
 
     return (
-        <View style={styles.screen}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
             <Stack.Screen options={{ headerShown: false }} />
 
             <WorkoutHeader
@@ -243,6 +243,6 @@ export default function WorkoutScreen() {
                     }}
                 />
             )}
-        </View>
+        </KeyboardAvoidingView>
     );
 }
