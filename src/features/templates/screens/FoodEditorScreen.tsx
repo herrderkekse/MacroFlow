@@ -3,7 +3,7 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
 
 export default function FoodEditorScreen() {
     const { foodId } = useLocalSearchParams<{ foodId?: string }>();
@@ -11,7 +11,10 @@ export default function FoodEditorScreen() {
     const colors = useThemeColors();
 
     return (
-        <View style={[styles.flex, { backgroundColor: colors.background }]}>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={[styles.flex, { backgroundColor: colors.background }]}
+        >
             <Stack.Screen
                 options={{
                     headerShown: true,
@@ -27,7 +30,7 @@ export default function FoodEditorScreen() {
                 foodId={foodId ? Number(foodId) : undefined}
                 onSaved={() => router.back()}
             />
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 
