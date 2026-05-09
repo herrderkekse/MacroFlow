@@ -29,19 +29,13 @@ const menuItemStyles = StyleSheet.create({
 interface ExerciseCardMenuProps {
     visible: boolean;
     onClose: () => void;
-    index: number;
-    totalExercises: number;
     isFinished: boolean;
     hasNote: boolean;
     hasTemplate: boolean;
-    onMoveUp: () => void;
-    onMoveDown: () => void;
     onEditNote: () => void;
     onCopyFromLast: () => void;
     onRemove: () => void;
     labels: {
-        moveUp: string;
-        moveDown: string;
         editNote: string;
         addNote: string;
         copyFromLast: string;
@@ -50,9 +44,9 @@ interface ExerciseCardMenuProps {
 }
 
 export function ExerciseCardMenu({
-    visible, onClose, index, totalExercises, isFinished,
+    visible, onClose, isFinished,
     hasNote, hasTemplate,
-    onMoveUp, onMoveDown, onEditNote, onCopyFromLast, onRemove,
+    onEditNote, onCopyFromLast, onRemove,
     labels,
 }: ExerciseCardMenuProps) {
     const colors = useThemeColors();
@@ -62,12 +56,6 @@ export function ExerciseCardMenu({
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose}>
                 <View style={styles.menu}>
-                    {index > 0 && (
-                        <MenuItem label={labels.moveUp} icon="arrow-up" onPress={onMoveUp} colors={colors} />
-                    )}
-                    {index < totalExercises - 1 && (
-                        <MenuItem label={labels.moveDown} icon="arrow-down" onPress={onMoveDown} colors={colors} />
-                    )}
                     <MenuItem
                         label={hasNote ? labels.editNote : labels.addNote}
                         icon="create-outline"

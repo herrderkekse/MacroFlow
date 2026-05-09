@@ -14,7 +14,6 @@ import SetInputRow, { type SetValues } from "./SetInputRow";
 interface ExpandedExerciseCardProps {
     item: WorkoutExerciseWithSets;
     index: number;
-    totalExercises: number;
     isFinished: boolean;
     name: string;
     exerciseType: ExerciseType;
@@ -22,13 +21,12 @@ interface ExpandedExerciseCardProps {
     lastWorkoutSets: ExerciseSet[];
     menuOpen: boolean;
     setMenuOpen: (v: boolean) => void;
+    onDragStart: () => void;
     noteOpen: boolean;
     setNoteOpen: (v: boolean) => void;
     noteDraft: string;
     setNoteDraft: (v: string) => void;
     onRemove: (workoutExerciseId: number) => void;
-    onMoveUp: (workoutExerciseId: number) => void;
-    onMoveDown: (workoutExerciseId: number) => void;
     onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
@@ -44,10 +42,10 @@ interface ExpandedExerciseCardProps {
 }
 
 export function ExpandedExerciseCard({
-    item, index, totalExercises, isFinished, name, exerciseType, template,
+    item, index, isFinished, name, exerciseType, template,
     lastWorkoutSets,
-    menuOpen, setMenuOpen, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
-    onRemove, onMoveUp, onMoveDown, onNoteChange,
+    menuOpen, setMenuOpen, onDragStart, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
+    onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExpandedExerciseCardProps) {
@@ -87,7 +85,7 @@ export function ExpandedExerciseCard({
     }
 
     return (
-        <View style={styles.card}>
+        <Pressable style={styles.card} onLongPress={onDragStart} delayLongPress={180}>
             {/* Title row */}
             <View style={styles.titleRow}>
                 <Text style={styles.orderNum}>{index + 1}.</Text>
@@ -175,19 +173,13 @@ export function ExpandedExerciseCard({
             <ExerciseCardMenu
                 visible={menuOpen}
                 onClose={() => setMenuOpen(false)}
-                index={index}
-                totalExercises={totalExercises}
                 isFinished={isFinished}
                 hasNote={!!item.workoutExercise.notes}
                 hasTemplate={!!template}
-                onMoveUp={() => { onMoveUp(item.workoutExercise.id); setMenuOpen(false); }}
-                onMoveDown={() => { onMoveDown(item.workoutExercise.id); setMenuOpen(false); }}
                 onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
                 onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
                 onRemove={handleRemove}
                 labels={{
-                    moveUp: t("exercise.exerciseCard.moveUp"),
-                    moveDown: t("exercise.exerciseCard.moveDown"),
                     editNote: t("exercise.exerciseCard.editNote"),
                     addNote: t("exercise.exerciseCard.addNote"),
                     copyFromLast: t("exercise.exerciseCard.copyFromLast"),
@@ -207,6 +199,6 @@ export function ExpandedExerciseCard({
                     save: t("common.save"),
                 }}
             />
-        </View>
+        </Pressable>
     );
 }

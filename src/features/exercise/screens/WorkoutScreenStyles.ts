@@ -25,5 +25,9 @@ export function createWorkoutScreenStyles(colors: ThemeColors) {
         addBtn: {
             marginTop: spacing.sm,
         },
+        draggingCard: {
+            opacity: 0.95,
+            transform: [{ scale: 1.01 }],
+        },
     });
 }
