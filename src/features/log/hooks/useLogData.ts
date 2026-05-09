@@ -35,7 +35,7 @@ export function useLogData() {
     const [nextGrouped, setNextGrouped] = useState(emptyGrouped);
     const [dailyGoals, setDailyGoals] = useState<Goals>({
         id: 1, calories: 2000, protein: 150, carbs: 250, fat: 70,
-        unit_system: "metric", language: "en", appearance_mode: "system",
+        unit_system: "metric", language: "en", appearance_mode: "system", keep_awake: 0,
     });
 
     const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
@@ -62,6 +62,7 @@ export function useLogData() {
             if (g.unit_system === "metric" || g.unit_system === "imperial") {
                 useAppStore.getState().setUnitSystem(g.unit_system as "metric" | "imperial");
             }
+            useAppStore.getState().setKeepAwakeInWorkout(g.keep_awake !== 0);
         }
         const dayWeights = getWeightLogsForDate(center);
         setDayWeightLogs(dayWeights);

@@ -63,6 +63,8 @@ const en = {
         exportData: "Export Data",
         importData: "Import Data",
         language: "LANGUAGE",
+        keepAwakeInWorkout: "KEEP SCREEN AWAKE DURING WORKOUTS",
+        keepAwakeInWorkoutDescription: "Prevent the device from sleeping while the workout screen is open.",
         saved: "Saved",
         goalsUpdated: "Your goals have been updated.",
         invalid: "Invalid",

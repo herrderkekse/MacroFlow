@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NotificationSettings from "../components/NotificationSettings";
+import SettingsToggleRow from "../components/SettingsToggleRow";
 import { setGoals } from "../services/settingsDb";
 
 const LANGUAGE_LABELS: Record<Language, string> = {
@@ -30,6 +31,8 @@ export default function SettingsScreen() {
     const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
     const language = useAppStore((s) => s.language);
     const setLanguage = useAppStore((s) => s.setLanguage);
+    const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
+    const setKeepAwakeInWorkout = useAppStore((s) => s.setKeepAwakeInWorkout);
 
     const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
         { key: "metric", label: t("settings.unitsMetric") },
@@ -50,6 +53,11 @@ export default function SettingsScreen() {
     function handleLanguageChange(lang: Language) {
         setLanguage(lang);
         setGoals({ language: lang });
+    }
+
+    function handleKeepAwakeChange(value: boolean) {
+        setKeepAwakeInWorkout(value);
+        setGoals({ keep_awake: value ? 1 : 0 });
     }
 
     return (
@@ -109,6 +117,14 @@ export default function SettingsScreen() {
                     </Pressable>
                 ))}
             </View>
+
+            <SettingsToggleRow
+                colors={colors}
+                label={t("settings.keepAwakeInWorkout")}
+                description={t("settings.keepAwakeInWorkoutDescription")}
+                value={keepAwakeInWorkout}
+                onValueChange={handleKeepAwakeChange}
+            />
 
             <NotificationSettings colors={colors} />
         </ScrollView>

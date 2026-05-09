@@ -1,23 +1,25 @@
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { useAppStore } from "@/src/shared/store/useAppStore";
 import { parseDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { Alert, BackHandler, FlatList, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
 import ExerciseCard from "../components/ExerciseCard";
 import WorkoutHeader from "../components/WorkoutHeader";
+import WorkoutKeepAwake from "../components/WorkoutKeepAwake";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
 import { useWorkoutActions } from "../hooks/useWorkoutActions";
-import { createWorkoutScreenStyles } from "./WorkoutScreenStyles";
 import {
     copySetsFromLastSession, type ExerciseTemplate, type WorkoutExerciseWithSets,
 } from "../services/exerciseDb";
+import { createWorkoutScreenStyles } from "./WorkoutScreenStyles";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -38,6 +40,10 @@ export default function WorkoutScreen() {
     const workout = useWorkout({ workoutId, date: workoutDate });
     const restTimer = useRestTimer();
     const actions = useWorkoutActions(workout, restTimer);
+    const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
+    const workoutData = workout.data;
+    const reloadWorkout = workout.reload;
+    const finishCurrentWorkout = workout.finishCurrentWorkout;
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
     const [showTimesModal, setShowTimesModal] = useState(false);
@@ -50,7 +56,7 @@ export default function WorkoutScreen() {
         if (!workout.data && !workoutId && !workout.isResumed) {
             workout.startWorkout(workoutDate);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workout.data, workoutId, workout.isResumed, workout.startWorkout, workoutDate]);
 
     // Auto-expand an exercise when data loads
@@ -88,7 +94,7 @@ export default function WorkoutScreen() {
     }
 
     function handleFinish() {
-        workout.finishCurrentWorkout();
+        finishCurrentWorkout();
         router.back();
     }
 
@@ -98,7 +104,7 @@ export default function WorkoutScreen() {
     }
 
     const handleBack = useCallback(() => {
-        const isInProgress = workout.data?.workout && !workout.data.workout.ended_at;
+        const isInProgress = workoutData?.workout && !workoutData.workout.ended_at;
         if (!isInProgress) { router.back(); return; }
 
         Alert.alert(
@@ -106,16 +112,16 @@ export default function WorkoutScreen() {
             t("exercise.workout.leaveMessage"),
             [
                 { text: t("exercise.workout.leaveContinue"), style: "cancel" },
-                { text: t("exercise.workout.leaveFinish"), onPress: () => { workout.finishCurrentWorkout(); router.back(); } },
+                { text: t("exercise.workout.leaveFinish"), onPress: () => { finishCurrentWorkout(); router.back(); } },
                 { text: t("exercise.workout.leaveWithout"), style: "destructive", onPress: () => router.back() },
             ],
         );
-    }, [workout, router, t]);
+    }, [finishCurrentWorkout, router, t, workoutData]);
 
     useFocusEffect(
         useCallback(() => {
-            workout.reload();
-        }, [workout.reload]),
+            reloadWorkout();
+        }, [reloadWorkout]),
     );
 
     useFocusEffect(
@@ -163,6 +169,7 @@ export default function WorkoutScreen() {
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
             <Stack.Screen options={{ headerShown: false }} />
+            <WorkoutKeepAwake enabled={keepAwakeInWorkout} />
 
             <WorkoutHeader
                 title={workout.data?.workout.title || t("exercise.workout.defaultTitle")}

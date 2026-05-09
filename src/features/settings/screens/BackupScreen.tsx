@@ -23,6 +23,7 @@ export default function BackupScreen() {
 
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
     const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
+    const setKeepAwakeInWorkout = useAppStore((s) => s.setKeepAwakeInWorkout);
 
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
@@ -63,6 +64,7 @@ export default function BackupScreen() {
                 if (g.appearance_mode === "light" || g.appearance_mode === "dark" || g.appearance_mode === "system") {
                     setAppearanceMode(g.appearance_mode as AppearanceMode);
                 }
+                setKeepAwakeInWorkout(g.keep_awake !== 0);
             }
             Alert.alert(
                 t("settings.importComplete"),

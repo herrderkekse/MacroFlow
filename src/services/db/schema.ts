@@ -48,6 +48,7 @@ export const goals = sqliteTable("goals", {
     unit_system: text("unit_system").notNull().default("metric"),
     language: text("language").notNull().default("en"),
     appearance_mode: text("appearance_mode").notNull().default("system"),
+    keep_awake: integer("keep_awake").notNull().default(0),
 });
 
 export const recipes = sqliteTable("recipes", {
