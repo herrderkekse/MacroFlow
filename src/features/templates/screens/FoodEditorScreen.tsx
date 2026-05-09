@@ -1,5 +1,6 @@
 import FoodForm from "@/src/features/templates/components/FoodForm";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -9,10 +10,12 @@ export default function FoodEditorScreen() {
     const { foodId } = useLocalSearchParams<{ foodId?: string }>();
     const { t } = useTranslation();
     const colors = useThemeColors();
+    const headerHeight = useHeaderHeight();
 
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
             style={[styles.flex, { backgroundColor: colors.background }]}
         >
             <Stack.Screen
