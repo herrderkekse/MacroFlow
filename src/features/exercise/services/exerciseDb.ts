@@ -40,6 +40,7 @@ export {
     getLastCompletedSetsForTemplate,
     getSetsForExercise,
     updateSet,
+    reorderSet,
 } from "./exerciseSetDb";
 export type { ExerciseSet, NewExerciseSet } from "./exerciseSetDb";
 

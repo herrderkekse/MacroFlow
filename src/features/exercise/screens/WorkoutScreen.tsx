@@ -170,6 +170,7 @@ export default function WorkoutScreen() {
                     onSetTypeChange={actions.handleSetTypeChange}
                     onAddSet={actions.handleAddSet}
                     onCopyFromLast={actions.handleCopyFromLast}
+                    onReorderSets={actions.handleReorderSets}
                     restTimerActive={timerActive}
                     restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
                     restTimerTarget={timerActive ? restTimer.targetSeconds : 0}

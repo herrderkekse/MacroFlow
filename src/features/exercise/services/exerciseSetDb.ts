@@ -35,6 +35,25 @@ export function deleteSet(id: number) {
     exerciseDbSupport.normalizeSetOrder(set.workout_exercise_id);
 }
 
+export function reorderSet(id: number, newOrder: number) {
+    const set = exerciseDbSupport.getExerciseSetOrThrow(id);
+    const sets = exerciseDbSupport.listSetsForExercise(set.workout_exercise_id);
+
+    const sourceIndex = sets.findIndex((s) => s.id === id);
+    if (sourceIndex === -1) throw new Error(`Exercise set ${id} not found`);
+
+    const [setToMove] = sets.splice(sourceIndex, 1);
+    const targetIndex = Math.max(0, Math.min(newOrder - 1, sets.length));
+    sets.splice(targetIndex, 0, setToMove);
+
+    sets.forEach((s, index) => {
+        const sortOrder = index + 1;
+        if (s.set_order !== sortOrder) {
+            db.update(exerciseSets).set({ set_order: sortOrder }).where(eq(exerciseSets.id, s.id)).run();
+        }
+    });
+}
+
 export function getSetsForExercise(workoutExerciseId: number): ExerciseSet[] {
     exerciseDbSupport.getWorkoutExerciseOrThrow(workoutExerciseId);
     return exerciseDbSupport.listSetsForExercise(workoutExerciseId);

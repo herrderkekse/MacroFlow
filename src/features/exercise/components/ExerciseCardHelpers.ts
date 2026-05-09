@@ -108,6 +108,7 @@ export function createExerciseCardStyles(colors: ThemeColors) {
             textTransform: "uppercase",
         },
         setCol: { width: 32 },
+        handleCol: { width: 24 },
         valueCol: { flex: 1, textAlign: "center" as const },
         rirCol: { width: 36, textAlign: "center" as const },
         emptyCol: { width: 28, alignItems: "center" as const },

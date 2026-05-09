@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
+import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { createExerciseCardStyles, getPrefillForSet, isActiveSet } from "./ExerciseCardHelpers";
@@ -34,6 +35,7 @@ interface ExpandedExerciseCardProps {
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
     onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
+    onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
     restTimerActive: boolean;
     restTimerElapsed: number;
     restTimerTarget: number;
@@ -47,6 +49,7 @@ export function ExpandedExerciseCard({
     menuOpen, setMenuOpen, onDragStart, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
     onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
+    onReorderSets,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
 }: ExpandedExerciseCardProps) {
     const colors = useThemeColors();
@@ -107,6 +110,7 @@ export function ExpandedExerciseCard({
 
             {/* Column headers */}
             <View style={styles.headerRow}>
+                <View style={styles.handleCol} />
                 <Text style={[styles.headerCell, styles.setCol]}>{t("exercise.exerciseCard.set")}</Text>
                 {exerciseType === "weight" && (
                     <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.weight")}</Text>
@@ -127,38 +131,47 @@ export function ExpandedExerciseCard({
             </View>
 
             {/* Set rows */}
-            {item.sets.map((set, si) => {
-                const prefill = getPrefillForSet(si, item.sets, lastWorkoutSets);
-                const isActive = isActiveSet(set, si, item.sets);
-                return (
-                    <React.Fragment key={set.id}>
-                        {isActive && restTimerActive && (
-                            <RestTimer
-                                elapsedSeconds={restTimerElapsed}
-                                targetSeconds={restTimerTarget}
-                                isTargetReached={restTimerReached}
-                                onSkip={onRestTimerSkip}
+            <DraggableFlatList
+                data={item.sets}
+                keyExtractor={(set) => String(set.id)}
+                scrollEnabled={false}
+                activationDistance={0}
+                onDragEnd={({ from, to }) => onReorderSets(item.workoutExercise.id, from, to)}
+                renderItem={({ item: set, drag, getIndex }: RenderItemParams<ExerciseSet>) => {
+                    const si = getIndex() ?? 0;
+                    const prefill = getPrefillForSet(si, item.sets, lastWorkoutSets);
+                    const active = isActiveSet(set, si, item.sets);
+                    return (
+                        <React.Fragment key={set.id}>
+                            {active && restTimerActive && (
+                                <RestTimer
+                                    elapsedSeconds={restTimerElapsed}
+                                    targetSeconds={restTimerTarget}
+                                    isTargetReached={restTimerReached}
+                                    onSkip={onRestTimerSkip}
+                                />
+                            )}
+                            <SetInputRow
+                                set={set}
+                                index={si}
+                                exerciseType={exerciseType}
+                                isActive={active}
+                                isFinished={isFinished}
+                                prefillWeight={prefill.weight}
+                                prefillReps={prefill.reps}
+                                prefillRir={prefill.rir}
+                                prefillDuration={prefill.duration}
+                                prefillDistance={prefill.distance}
+                                onConfirm={onConfirmSet}
+                                onUpdate={onUpdateSet}
+                                onDelete={onDeleteSet}
+                                onTypeChange={onSetTypeChange}
+                                onDragStart={drag}
                             />
-                        )}
-                        <SetInputRow
-                            set={set}
-                            index={si}
-                            exerciseType={exerciseType}
-                            isActive={isActive}
-                            isFinished={isFinished}
-                            prefillWeight={prefill.weight}
-                            prefillReps={prefill.reps}
-                            prefillRir={prefill.rir}
-                            prefillDuration={prefill.duration}
-                            prefillDistance={prefill.distance}
-                            onConfirm={onConfirmSet}
-                            onUpdate={onUpdateSet}
-                            onDelete={onDeleteSet}
-                            onTypeChange={onSetTypeChange}
-                        />
-                    </React.Fragment>
-                );
-            })}
+                        </React.Fragment>
+                    );
+                }}
+            />
 
             {/* Empty state */}
             {item.sets.length === 0 && (
