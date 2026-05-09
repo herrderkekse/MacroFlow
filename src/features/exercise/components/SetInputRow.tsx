@@ -23,6 +23,7 @@ interface SetInputRowProps {
     onUpdate: (id: number, values: SetValues) => void;
     onDelete: (id: number) => void;
     onTypeChange: (id: number, type: string) => void;
+    onDragStart?: () => void;
 }
 
 export type { SetValues } from "../types";
@@ -30,7 +31,7 @@ export type { SetValues } from "../types";
 export default function SetInputRow({
     set, index, exerciseType, isActive, isFinished,
     prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance,
-    onConfirm, onUpdate, onDelete, onTypeChange,
+    onConfirm, onUpdate, onDelete, onTypeChange, onDragStart,
 }: SetInputRowProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -116,6 +117,9 @@ export default function SetInputRow({
     if (isScheduled && !isActive) {
         return (
             <Pressable style={[styles.setRow, styles.setRowScheduled]} onLongPress={handleLongPressSetNum}>
+                <Pressable style={styles.handleCol} onLongPress={onDragStart} hitSlop={8}>
+                    <Ionicons name="reorder-two-outline" size={16} color={colors.textTertiary} />
+                </Pressable>
                 <Text style={[styles.setCell, styles.setCol, { color: colors.textTertiary }]}>
                     {typeLabel}{index + 1}
                 </Text>
@@ -133,6 +137,9 @@ export default function SetInputRow({
 
     return (
         <View style={[styles.setRow, isActiveSet && styles.activeRow]}>
+            <Pressable style={styles.handleCol} onLongPress={onDragStart} hitSlop={8}>
+                <Ionicons name="reorder-two-outline" size={16} color={colors.textTertiary} />
+            </Pressable>
             <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol}>
                 <Text style={[
                     styles.setCell,

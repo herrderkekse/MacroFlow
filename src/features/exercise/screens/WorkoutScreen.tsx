@@ -4,9 +4,10 @@ import { useAppStore } from "@/src/shared/store/useAppStore";
 import { parseDateKey } from "@/src/utils/date";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, BackHandler, FlatList, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import AddExerciseModal from "../components/AddExerciseModal";
 import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
@@ -47,10 +48,10 @@ export default function WorkoutScreen() {
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showCopySheet, setShowCopySheet] = useState(false);
     const [showTimesModal, setShowTimesModal] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Focus state: which exercise is expanded (null = none)
     const [expandedId, setExpandedId] = useState<number | null>(null);
-    const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
         if (!workout.data && !workoutId && !workout.isResumed) {
@@ -72,13 +73,11 @@ export default function WorkoutScreen() {
     const isFinished = !!workout.data?.workout.ended_at;
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
 
-    const handleExpand = useCallback((weId: number, index: number) => {
+    const handleExpand = useCallback((weId: number) => {
+        if (isDragging) return;
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setExpandedId(weId);
-        setTimeout(() => {
-            flatListRef.current?.scrollToIndex({ index, animated: true, viewOffset: 8 });
-        }, 100);
-    }, []);
+    }, [isDragging]);
 
     function handleExerciseSelected(template: ExerciseTemplate, copyFromLast: boolean) {
         const weId = workout.addExercise(template.id);
@@ -134,35 +133,51 @@ export default function WorkoutScreen() {
         }, [handleBack]),
     );
 
-    function renderExercise({ item, index }: { item: WorkoutExerciseWithSets; index: number }) {
+    const exercises = useMemo(
+        () => workout.data?.exercises ?? [],
+        [workout.data?.exercises],
+    );
+
+    const handleDragEnd = useCallback(({ from, to }: { from: number; to: number }) => {
+        setIsDragging(false);
+        if (from === to) return;
+        const movedExercise = exercises[from];
+        if (!movedExercise) return;
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        workout.moveExercise(movedExercise.workoutExercise.id, to + 1);
+    }, [exercises, workout]);
+
+    function renderExercise({ item, drag, isActive, getIndex }: RenderItemParams<WorkoutExerciseWithSets>) {
+        const index = getIndex() ?? 0;
         const tid = item.workoutExercise.exercise_template_id;
         const timerActive = restTimer.isRunning;
         const isExpanded = expandedId === item.workoutExercise.id;
         return (
-            <ExerciseCard
-                item={item}
-                index={index}
-                totalExercises={workout.data?.exercises.length ?? 0}
-                isFinished={isFinished}
-                isExpanded={isExpanded}
-                onExpand={() => handleExpand(item.workoutExercise.id, index)}
-                lastWorkoutSets={tid ? (actions.lastSetsCache.get(tid) ?? []) : []}
-                onRemove={workout.removeExercise}
-                onMoveUp={actions.handleMoveUp}
-                onMoveDown={actions.handleMoveDown}
-                onNoteChange={actions.handleNoteChange}
-                onConfirmSet={actions.handleConfirmSet}
-                onUpdateSet={actions.handleUpdateSet}
-                onDeleteSet={actions.handleDeleteSet}
-                onSetTypeChange={actions.handleSetTypeChange}
-                onAddSet={actions.handleAddSet}
-                onCopyFromLast={actions.handleCopyFromLast}
-                restTimerActive={timerActive}
-                restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
-                restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
-                restTimerReached={timerActive ? restTimer.isTargetReached : false}
-                onRestTimerSkip={restTimer.skip}
-            />
+            <View style={isActive ? styles.draggingCard : undefined}>
+                <ExerciseCard
+                    item={item}
+                    index={index}
+                    isFinished={isFinished}
+                    isExpanded={isExpanded}
+                    onExpand={() => handleExpand(item.workoutExercise.id)}
+                    onDragStart={drag}
+                    lastWorkoutSets={tid ? (actions.lastSetsCache.get(tid) ?? []) : []}
+                    onRemove={workout.removeExercise}
+                    onNoteChange={actions.handleNoteChange}
+                    onConfirmSet={actions.handleConfirmSet}
+                    onUpdateSet={actions.handleUpdateSet}
+                    onDeleteSet={actions.handleDeleteSet}
+                    onSetTypeChange={actions.handleSetTypeChange}
+                    onAddSet={actions.handleAddSet}
+                    onCopyFromLast={actions.handleCopyFromLast}
+                    onReorderSets={actions.handleReorderSets}
+                    restTimerActive={timerActive}
+                    restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
+                    restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
+                    restTimerReached={timerActive ? restTimer.isTargetReached : false}
+                    onRestTimerSkip={restTimer.skip}
+                />
+            </View>
         );
     }
 
@@ -182,12 +197,16 @@ export default function WorkoutScreen() {
                 onTimerPress={() => setShowTimesModal(true)}
             />
 
-            <FlatList
-                ref={flatListRef}
-                data={workout.data?.exercises ?? []}
+            <DraggableFlatList
+                data={exercises}
                 keyExtractor={(item) => String(item.workoutExercise.id)}
                 renderItem={renderExercise}
                 contentContainerStyle={styles.list}
+                activationDistance={0}
+                autoscrollThreshold={80}
+                autoscrollSpeed={180}
+                onDragBegin={() => setIsDragging(true)}
+                onDragEnd={handleDragEnd}
                 ListEmptyComponent={
                     <View style={styles.emptyWrap}>
                         <Ionicons name="barbell-outline" size={48} color={colors.textTertiary} />

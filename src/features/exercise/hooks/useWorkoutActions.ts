@@ -6,7 +6,7 @@ import type { UseRestTimerReturn } from "./useRestTimer";
 import type { UseWorkoutReturn } from "./useWorkout";
 import {
     addSet, completeSet, copySetsFromLastSession, deleteSet,
-    getLastCompletedSetsForTemplate, updateSet,
+    getLastCompletedSetsForTemplate, updateSet, reorderSet,
     updateWorkoutExercise, type ExerciseSet,
 } from "../services/exerciseDb";
 
@@ -88,6 +88,16 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         workout.reload();
     }, [workout, t]);
 
+    const handleReorderSets = useCallback((workoutExerciseId: number, from: number, to: number) => {
+        if (from === to) return;
+        const ex = workout.data?.exercises.find((e) => e.workoutExercise.id === workoutExerciseId);
+        if (!ex) return;
+        const movedSet = ex.sets[from];
+        if (!movedSet) return;
+        reorderSet(movedSet.id, to + 1);
+        workout.reload();
+    }, [workout]);
+
     const lastSetsCache = useMemo(() => {
         const cache = new Map<number, ExerciseSet[]>();
         for (const ex of workout.data?.exercises ?? []) {
@@ -109,6 +119,7 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         handleSetTypeChange,
         handleAddSet,
         handleCopyFromLast,
+        handleReorderSets,
         lastSetsCache,
     };
 }
