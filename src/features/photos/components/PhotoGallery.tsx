@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import PhotoModal from "./PhotoModal";
 import type { PhotoWithRelations } from "../types";
 
 interface PhotoGalleryProps {
@@ -53,6 +54,8 @@ export default function PhotoGallery({ photos, onPhotoPress, emptyLabel }: Photo
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const [modalVisible, setModalVisible] = React.useState(false);
+    const [activePhotoIndex, setActivePhotoIndex] = React.useState(0);
 
     const resolveTag = useCallback(
         (photo: PhotoWithRelations): string => {
@@ -76,36 +79,51 @@ export default function PhotoGallery({ photos, onPhotoPress, emptyLabel }: Photo
         );
     }
 
+    function handlePhotoPress(photo: PhotoWithRelations, index: number) {
+        setActivePhotoIndex(index);
+        setModalVisible(true);
+        onPhotoPress?.(photo, index);
+    }
+
     return (
-        <FlatList
-            data={photos}
-            horizontal
-            nestedScrollEnabled
-            directionalLockEnabled
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            keyExtractor={(item) => String(item.id)}
-            onStartShouldSetResponderCapture={() => true}
-            onMoveShouldSetResponderCapture={() => true}
-            initialNumToRender={4}
-            maxToRenderPerBatch={6}
-            windowSize={5}
-            removeClippedSubviews
-            getItemLayout={(_, index) => ({
-                index,
-                length: TILE_WIDTH,
-                offset: TILE_WIDTH * index,
-            })}
-            renderItem={({ item, index }) => (
-                <PhotoTile
-                    photo={item}
-                    index={index}
-                    onPress={onPhotoPress}
-                    tagText={resolveTag(item)}
-                    styles={styles}
-                />
-            )}
-        />
+        <>
+            <FlatList
+                data={photos}
+                horizontal
+                nestedScrollEnabled
+                directionalLockEnabled
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.listContent}
+                keyExtractor={(item) => String(item.id)}
+                onStartShouldSetResponderCapture={() => true}
+                onMoveShouldSetResponderCapture={() => true}
+                initialNumToRender={4}
+                maxToRenderPerBatch={6}
+                windowSize={5}
+                removeClippedSubviews
+                getItemLayout={(_, index) => ({
+                    index,
+                    length: TILE_WIDTH,
+                    offset: TILE_WIDTH * index,
+                })}
+                renderItem={({ item, index }) => (
+                    <PhotoTile
+                        photo={item}
+                        index={index}
+                        onPress={handlePhotoPress}
+                        tagText={resolveTag(item)}
+                        styles={styles}
+                    />
+                )}
+            />
+
+            <PhotoModal
+                visible={modalVisible}
+                photos={photos}
+                initialIndex={activePhotoIndex}
+                onClose={() => setModalVisible(false)}
+            />
+        </>
     );
 }
 
