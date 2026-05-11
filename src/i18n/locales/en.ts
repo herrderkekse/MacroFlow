@@ -175,6 +175,8 @@ const en = {
         photosPermissionTitle: "Permission needed",
         photosLibraryPermissionMessage: "Photo library access is required to pick images.",
         photosCameraPermissionMessage: "Camera access is required to take photos.",
+        photosGalleryNoWorkoutTag: "No workout tag",
+        photosGalleryWorkoutFallback: "Photo taken after {{workout}}",
         photoDetailsTitle: "Photo Details",
         photoDetailsSummary_one: "You selected {{count}} photo.",
         photoDetailsSummary_other: "You selected {{count}} photos.",
