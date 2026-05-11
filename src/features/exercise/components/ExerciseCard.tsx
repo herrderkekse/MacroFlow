@@ -32,6 +32,7 @@ interface ExerciseCardProps {
     restTimerTarget: number;
     restTimerReached: boolean;
     onRestTimerSkip: () => void;
+    onRestTimerChangeDuration: (seconds: number) => void;
 }
 
 export default function ExerciseCard({
@@ -39,6 +40,7 @@ export default function ExerciseCard({
     onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast, onReorderSets,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
+    onRestTimerChangeDuration,
 }: ExerciseCardProps) {
     const { t } = useTranslation();
     const template = item.exerciseTemplate;
@@ -139,6 +141,7 @@ export default function ExerciseCard({
             restTimerTarget={restTimerTarget}
             restTimerReached={restTimerReached}
             onRestTimerSkip={onRestTimerSkip}
+            onRestTimerChangeDuration={onRestTimerChangeDuration}
         />
     );
 }

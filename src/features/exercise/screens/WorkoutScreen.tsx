@@ -176,6 +176,7 @@ export default function WorkoutScreen() {
                     restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
                     restTimerReached={timerActive ? restTimer.isTargetReached : false}
                     onRestTimerSkip={restTimer.skip}
+                    onRestTimerChangeDuration={restTimer.setDuration}
                 />
             </View>
         );

@@ -394,9 +394,11 @@ const en = {
             editTimes: "Edit Workout Times",
         },
         restTimer: {
+            label: "Rest",
             rest: "Rest",
             skip: "Skip",
             target: "Target",
+            adjustDuration: "Adjust duration",
         },
         quickAdd: {
             title: "Quick Add Exercise",

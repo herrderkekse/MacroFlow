@@ -13,11 +13,13 @@ interface TimerState {
     startedAtEpoch: number;
     targetDurationSeconds: number;
     workoutExerciseId: number | null;
+    lastUsedDuration: number | null;
 }
 
 interface TimerStore extends TimerState {
     start: (workoutExerciseId: number, setType: string) => void;
     stop: () => void;
+    setDuration: (seconds: number) => void;
 }
 
 const useTimerStore = create<TimerStore>((set) => ({
@@ -25,15 +27,20 @@ const useTimerStore = create<TimerStore>((set) => ({
     startedAtEpoch: 0,
     targetDurationSeconds: 120,
     workoutExerciseId: null,
+    lastUsedDuration: null,
     start: (workoutExerciseId, setType) =>
-        set({
+        set((state) => ({
             isRunning: true,
             startedAtEpoch: Date.now(),
-            targetDurationSeconds: REST_DEFAULTS[setType] ?? 120,
+            targetDurationSeconds: state.lastUsedDuration ?? REST_DEFAULTS[setType] ?? 120,
             workoutExerciseId,
-        }),
+        })),
     stop: () =>
         set({ isRunning: false, startedAtEpoch: 0, workoutExerciseId: null }),
+    setDuration: (seconds) => {
+        const clamped = Math.max(15, seconds);
+        set({ targetDurationSeconds: clamped, lastUsedDuration: clamped });
+    },
 }));
 
 export interface UseRestTimerReturn {
@@ -43,6 +50,7 @@ export interface UseRestTimerReturn {
     workoutExerciseId: number | null;
     start: (workoutExerciseId: number, setType: string) => void;
     skip: () => void;
+    setDuration: (seconds: number) => void;
     isTargetReached: boolean;
 }
 
@@ -89,6 +97,7 @@ export function useRestTimer(): UseRestTimerReturn {
         workoutExerciseId: store.workoutExerciseId,
         start: store.start,
         skip,
+        setDuration: store.setDuration,
         isTargetReached: elapsedSeconds >= store.targetDurationSeconds,
     };
 }
