@@ -166,3 +166,14 @@ export const exerciseSets = sqliteTable("exercise_sets", {
     completed_at: integer("completed_at"),
     is_scheduled: integer("is_scheduled").notNull().default(0),
 });
+
+export const progressPhotos = sqliteTable("progress_photos", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    log_entry_id: integer("log_entry_id").references(() => entries.id),
+    image_path: text("image_path"),
+    image_data: text("image_data"),
+    workout_tag_id: integer("workout_tag_id").references(() => workouts.id),
+    notes: text("notes"),
+    created_at: integer("created_at").notNull(),
+    updated_at: integer("updated_at").notNull(),
+});
