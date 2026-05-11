@@ -13,9 +13,11 @@ import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { MEAL_TYPES, type MealType } from "@/src/shared/types";
+import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -29,7 +31,6 @@ import WeightSection from "../components/WeightSection";
 import { computeTotals, type EntryWithFood } from "../helpers/logHelpers";
 import { useLogData } from "../hooks/useLogData";
 import type { WeightLog } from "../services/logDb";
-import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -69,6 +70,7 @@ function DayPage({
     const totals = computeTotals(grouped);
     return (
         <View style={pageStyles.dayPage}>
+            <Button title="open photos/photos route" onPress={() => { router.push("/photos/photos"); }} />
             <ScrollView contentContainerStyle={pageStyles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                 <DailyProgressBar totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
                 {MEAL_TYPES.map((meal) => (
