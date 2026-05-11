@@ -163,6 +163,17 @@ export function initDB() {
       is_scheduled INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS progress_photos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      log_entry_id INTEGER REFERENCES entries(id),
+      image_path TEXT,
+      image_data TEXT,
+      workout_tag_id INTEGER REFERENCES workouts(id),
+      notes TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
     INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
   `);
