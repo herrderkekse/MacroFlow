@@ -1,6 +1,6 @@
 import { getWorkoutsByDate, type Workout } from "@/src/features/exercise/services/workoutDb";
 import WorkoutPickerModal from "@/src/features/photos/components/WorkoutPickerModal";
-import { createPhoto } from "@/src/features/photos/services/photoDb";
+import { createPhoto, createPhotoForDate } from "@/src/features/photos/services/photoDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
@@ -76,14 +76,21 @@ export default function PhotoDetailsScreen() {
         setIsSaving(true);
         try {
             const builtNotes = buildNotes();
+            const dateKey = Array.isArray(params.dateKey) ? params.dateKey[0] : params.dateKey;
             for (const uri of imageUris) {
-                createPhoto({
+                const payload = {
                     log_entry_id: null,
                     image_path: uri,
                     image_data: null,
                     workout_tag_id: selectedWorkoutId,
                     notes: builtNotes,
-                });
+                };
+
+                if (dateKey) {
+                    createPhotoForDate(payload, dateKey);
+                } else {
+                    createPhoto(payload);
+                }
             }
 
             Alert.alert(t("log.photoDetailsTitle"), t("log.photoDetailsSaveSuccess", { count: imageUris.length }));

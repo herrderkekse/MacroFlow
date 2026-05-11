@@ -8,6 +8,9 @@ import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSum
 // eslint-disable-next-line boundaries/dependencies
 import AddExerciseModal from "@/src/features/exercise/components/AddExerciseModal";
 import { addExerciseToWorkout, copySetsFromLastSession, createWorkout, finishWorkout, getWorkoutsByDate, type ExerciseTemplate } from "@/src/features/exercise/services/exerciseDb";
+// eslint-disable-next-line boundaries/dependencies
+import PhotoGallery from "@/src/features/photos/components/PhotoGallery";
+import { listPhotosByDateWithRelations } from "@/src/features/photos/services/photoDb";
 import type { Goals } from "@/src/features/settings/services/settingsDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
@@ -18,9 +21,9 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DailyProgressBar from "../components/DailyProgressBar";
 import DateSelectorBar from "../components/DateSelectorBar";
@@ -33,6 +36,60 @@ import { useLogData } from "../hooks/useLogData";
 import type { WeightLog } from "../services/logDb";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+
+function PhotosSection({ dateKey, refreshKey }: { dateKey?: string; refreshKey?: number }) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
+    const [photos, setPhotos] = useState<ReturnType<typeof listPhotosByDateWithRelations>>([]);
+    const [loading, setLoading] = useState(false);
+
+    const loadPhotos = useCallback(() => {
+        if (!dateKey) {
+            setPhotos([]);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        setPhotos(listPhotosByDateWithRelations(dateKey));
+        setLoading(false);
+    }, [dateKey]);
+
+    useEffect(() => {
+        loadPhotos();
+    }, [loadPhotos, refreshKey]);
+
+    function navigateToAddPhotos() {
+        router.push({ pathname: "/photos/photos", params: dateKey ? { dateKey } : undefined });
+    }
+
+    return (
+        <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+                <Ionicons name="images-outline" size={18} color={colors.textSecondary} />
+                <Text style={styles.sectionHeaderLabel}>{t("log.photosTitle")}</Text>
+                <Text style={styles.sectionCountLabel}>{t("log.photosLoggedCount", { count: photos.length })}</Text>
+                <Pressable onPress={navigateToAddPhotos} hitSlop={8}>
+                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+                </Pressable>
+            </View>
+
+            {loading ? (
+                <View style={styles.photosLoadingRow}>
+                    <ActivityIndicator color={colors.primary} size="small" />
+                    <Text style={styles.photosLoadingText}>{t("log.photosLoading")}</Text>
+                </View>
+            ) : photos.length === 0 ? (
+                <View style={styles.photosEmptyState}>
+                    <Text style={styles.photosEmptyText}>{t("log.noPhotosLogged")}</Text>
+                    <Button title={t("log.photosCta")} onPress={navigateToAddPhotos} />
+                </View>
+            ) : (
+                <PhotoGallery photos={photos} emptyLabel={t("log.noPhotosLogged")} />
+            )}
+        </View>
+    );
+}
 
 // ── DayPage ────────────────────────────────────────────────
 
@@ -70,7 +127,6 @@ function DayPage({
     const totals = computeTotals(grouped);
     return (
         <View style={pageStyles.dayPage}>
-            <Button title="open photos/photos route" onPress={() => { router.push({ pathname: "/photos/photos", params: { dateKey } }); }} />
             <ScrollView contentContainerStyle={pageStyles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                 <DailyProgressBar totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
                 {MEAL_TYPES.map((meal) => (
@@ -86,6 +142,7 @@ function DayPage({
                 ))}
                 <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />
                 {dateKey && <WorkoutSummarySection date={dateKey} onQuickAdd={onQuickAdd} refreshKey={workoutRefreshKey} />}
+                <PhotosSection dateKey={dateKey} refreshKey={workoutRefreshKey} />
             </ScrollView>
         </View>
     );
@@ -256,5 +313,47 @@ function createStyles(colors: ThemeColors) {
         },
         portionInputContainer: { flex: 1, marginBottom: 0 },
         portionInputText: { textAlign: "center", fontSize: fontSize.lg, fontWeight: "700" },
+        sectionContainer: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+        },
+        sectionHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+        },
+        sectionHeaderLabel: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.textSecondary,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+        },
+        sectionCountLabel: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
+        },
+        photosLoadingRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            marginTop: spacing.sm,
+            paddingVertical: spacing.sm,
+        },
+        photosLoadingText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+        },
+        photosEmptyState: {
+            marginTop: spacing.sm,
+            gap: spacing.sm,
+        },
+        photosEmptyText: {
+            fontSize: fontSize.sm,
+            color: colors.textTertiary,
+        },
     });
 }
