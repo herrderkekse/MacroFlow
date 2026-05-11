@@ -70,7 +70,7 @@ function DayPage({
     const totals = computeTotals(grouped);
     return (
         <View style={pageStyles.dayPage}>
-            <Button title="open photos/photos route" onPress={() => { router.push("/photos/photos"); }} />
+            <Button title="open photos/photos route" onPress={() => { router.push({ pathname: "/photos/photos", params: { dateKey } }); }} />
             <ScrollView contentContainerStyle={pageStyles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                 <DailyProgressBar totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
                 {MEAL_TYPES.map((meal) => (

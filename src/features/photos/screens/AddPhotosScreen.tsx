@@ -4,7 +4,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
@@ -21,6 +21,7 @@ export default function AddPhotosScreen() {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const router = useRouter();
+    const params = useLocalSearchParams<{ dateKey?: string | string[] }>();
     const [images, setImages] = useState<SelectedImage[]>([]);
     const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
 
@@ -80,9 +81,15 @@ export default function AddPhotosScreen() {
     }
 
     function handleNext() {
+        const imageUris = images.map((image) => image.uri);
+        const dateKey = Array.isArray(params.dateKey) ? params.dateKey[0] : params.dateKey;
         router.push({
             pathname: "/photos/photo-details",
-            params: { count: String(images.length) },
+            params: {
+                count: String(images.length),
+                images: JSON.stringify(imageUris),
+                dateKey: dateKey || "",
+            },
         });
     }
 
