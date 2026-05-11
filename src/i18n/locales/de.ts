@@ -174,6 +174,8 @@ const de = {
         photosPermissionTitle: "Berechtigung erforderlich",
         photosLibraryPermissionMessage: "Zugriff auf die Fotobibliothek wird benötigt, um Bilder auszuwählen.",
         photosCameraPermissionMessage: "Kamerazugriff wird benötigt, um Fotos aufzunehmen.",
+        photosGalleryNoWorkoutTag: "Kein Trainings-Tag",
+        photosGalleryWorkoutFallback: "Foto nach dem Training {{workout}} aufgenommen",
         photoDetailsTitle: "Fotodetails",
         photoDetailsSummary_one: "Du hast {{count}} Foto ausgewählt.",
         photoDetailsSummary_other: "Du hast {{count}} Fotos ausgewählt.",
