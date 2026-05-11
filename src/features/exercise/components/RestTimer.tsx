@@ -175,8 +175,6 @@ function createStyles(colors: ThemeColors) {
             paddingHorizontal: spacing.sm,
             paddingBottom: spacing.sm,
             paddingTop: spacing.xs,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
             gap: spacing.sm,
         },
         sectionLabel: {
@@ -186,12 +184,13 @@ function createStyles(colors: ThemeColors) {
         },
         presetsRow: {
             flexDirection: "row",
+            justifyContent: "space-between",
             gap: spacing.xs,
-            flexWrap: "wrap",
         },
         presetBtn: {
+            flex: 1,
+            alignItems: "center",
             paddingVertical: spacing.xs,
-            paddingHorizontal: spacing.sm,
             borderRadius: borderRadius.sm,
             borderWidth: 1,
             borderColor: colors.border,

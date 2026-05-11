@@ -13,6 +13,7 @@ interface TimerState {
     startedAtEpoch: number;
     targetDurationSeconds: number;
     workoutExerciseId: number | null;
+    lastUsedDuration: number | null;
 }
 
 interface TimerStore extends TimerState {
@@ -26,17 +27,20 @@ const useTimerStore = create<TimerStore>((set) => ({
     startedAtEpoch: 0,
     targetDurationSeconds: 120,
     workoutExerciseId: null,
+    lastUsedDuration: null,
     start: (workoutExerciseId, setType) =>
-        set({
+        set((state) => ({
             isRunning: true,
             startedAtEpoch: Date.now(),
-            targetDurationSeconds: REST_DEFAULTS[setType] ?? 120,
+            targetDurationSeconds: state.lastUsedDuration ?? REST_DEFAULTS[setType] ?? 120,
             workoutExerciseId,
-        }),
+        })),
     stop: () =>
         set({ isRunning: false, startedAtEpoch: 0, workoutExerciseId: null }),
-    setDuration: (seconds) =>
-        set({ targetDurationSeconds: Math.max(15, seconds) }),
+    setDuration: (seconds) => {
+        const clamped = Math.max(15, seconds);
+        set({ targetDurationSeconds: clamped, lastUsedDuration: clamped });
+    },
 }));
 
 export interface UseRestTimerReturn {
