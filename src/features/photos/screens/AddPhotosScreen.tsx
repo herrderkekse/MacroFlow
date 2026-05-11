@@ -80,9 +80,13 @@ export default function AddPhotosScreen() {
     }
 
     function handleNext() {
+        const imageUris = images.map((image) => image.uri);
         router.push({
             pathname: "/photos/photo-details",
-            params: { count: String(images.length) },
+            params: {
+                count: String(images.length),
+                images: JSON.stringify(imageUris),
+            },
         });
     }
 
