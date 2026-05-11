@@ -396,9 +396,11 @@ const de = {
             editTimes: "Trainingszeiten bearbeiten",
         },
         restTimer: {
+            label: "Pause",
             rest: "Pause",
             skip: "Überspringen",
             target: "Ziel",
+            adjustDuration: "Dauer anpassen",
         },
         quickAdd: {
             title: "Übung schnell hinzufügen",

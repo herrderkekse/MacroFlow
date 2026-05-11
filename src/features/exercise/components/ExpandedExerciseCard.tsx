@@ -41,6 +41,7 @@ interface ExpandedExerciseCardProps {
     restTimerTarget: number;
     restTimerReached: boolean;
     onRestTimerSkip: () => void;
+    onRestTimerChangeDuration: (seconds: number) => void;
 }
 
 export function ExpandedExerciseCard({
@@ -51,6 +52,7 @@ export function ExpandedExerciseCard({
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
     onReorderSets,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
+    onRestTimerChangeDuration,
 }: ExpandedExerciseCardProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -149,6 +151,7 @@ export function ExpandedExerciseCard({
                                     targetSeconds={restTimerTarget}
                                     isTargetReached={restTimerReached}
                                     onSkip={onRestTimerSkip}
+                                    onChangeDuration={onRestTimerChangeDuration}
                                 />
                             )}
                             <SetInputRow
