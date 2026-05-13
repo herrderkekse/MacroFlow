@@ -1,6 +1,6 @@
 import { getRecipeById, getRecipeItems, type Food } from "@/src/features/templates/services/templateDb";
 import { db } from "@/src/services/db";
-import { entries, foods, recipeLogs, weightLogs } from "@/src/services/db/schema";
+import { entries, foods, recipeItems, recipeLogs, recipes, weightLogs } from "@/src/services/db/schema";
 import { diffCalendarDays, formatDateKey as formatLocalDateKey, parseDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -394,6 +394,42 @@ export function copyEntriesToRecipeLog(
             })),
         )
         .run();
+}
+
+export function createRecipeFromEntries(entryIds: number[], recipeName: string): number | null {
+    if (entryIds.length === 0) return null;
+
+    const rows = db
+        .select({
+            food_id: entries.food_id,
+            quantity_grams: entries.quantity_grams,
+            quantity_unit: entries.quantity_unit,
+        })
+        .from(entries)
+        .where(inArray(entries.id, entryIds))
+        .all();
+
+    const validRows = rows.filter((row) => row.food_id !== null);
+    if (validRows.length === 0) return null;
+
+    let createdRecipeId: number | null = null;
+    db.transaction((tx) => {
+        const recipe = tx.insert(recipes).values({ name: recipeName }).returning().get();
+        createdRecipeId = recipe.id;
+
+        for (const row of validRows) {
+            tx.insert(recipeItems)
+                .values({
+                    recipe_id: recipe.id,
+                    food_id: row.food_id as number,
+                    quantity_grams: row.quantity_grams,
+                    quantity_unit: row.quantity_unit ?? "g",
+                })
+                .run();
+        }
+    });
+
+    return createdRecipeId;
 }
 
 // ── Weight Logging ─────────────────────────────────────────

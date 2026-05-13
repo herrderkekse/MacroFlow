@@ -7,13 +7,15 @@ import logger from "@/src/utils/logger";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
 import { computeWeightTrend, loadGrouped, type EntryWithFood } from "../helpers/logHelpers";
-import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, copyEntriesToRecipeLog, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, moveEntriesToRecipeLog, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
+import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, copyEntriesToRecipeLog, createRecipeFromEntries, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, moveEntriesToRecipeLog, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export function useLogData() {
+    const { t } = useTranslation();
     const selectedDate = useAppStore((s) => s.selectedDate);
     const setSelectedDate = useAppStore((s) => s.setSelectedDate);
     const dateRef = useRef(selectedDate);
@@ -232,6 +234,22 @@ export function useLogData() {
         setSelectedDate(targetDate);
     }
 
+    function handleCreateRecipeFromSelection() {
+        const selectedIds = Object.values(grouped)
+            .flat()
+            .filter((row) => selectedEntryIds.has(row.entries.id))
+            .map((row) => row.entries.id);
+
+        if (selectedIds.length === 0) return;
+
+        const recipeName = t("log.newRecipeFromSelection", { date: formatDateKey(selectedDate) });
+        const recipeId = createRecipeFromEntries(selectedIds, recipeName);
+        if (!recipeId) return;
+
+        exitSelectionMode();
+        router.push({ pathname: "/templates/edit", params: { recipeId: String(recipeId) } });
+    }
+
     function handleDateChange(newDate: Date) {
         exitSelectionMode();
         const diff = diffCalendarDays(newDate, dateRef.current);
@@ -258,7 +276,7 @@ export function useLogData() {
         handleEdit, handleEditRecipeGroup, handleSavePortionMultiplier,
         navigateToAdd, exitSelectionMode,
         handleToggleEntries, handleActivateSelection, handleActivateSelectionMultiple,
-        handleMoveCopy, handleDateChange,
+        handleMoveCopy, handleCreateRecipeFromSelection, handleDateChange,
         loadAllDays, SCREEN_WIDTH,
     };
 }

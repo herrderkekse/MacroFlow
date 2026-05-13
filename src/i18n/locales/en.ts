@@ -154,6 +154,7 @@ const en = {
         keepMeal: "Keep original meal",
         selectRecipe: "Move into Recipe (optional)",
         noRecipe: "No recipe",
+        newRecipeFromSelection: "Recipe {{date}}",
         move: "Move",
         copy: "Copy",
         logWeight: "Log Weight",
