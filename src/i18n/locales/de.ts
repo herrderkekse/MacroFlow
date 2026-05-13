@@ -454,6 +454,8 @@ const de = {
             estimated1RM: "Geschätztes 1RM",
             personalBest: "Persönliche Bestleistung",
             current: "Aktuell",
+            selectedPoint: "Ausgewählt",
+            tapPointHint: "Tippe auf einen Diagrammpunkt für exakte Details",
             copyToCurrent: "Sätze übernehmen",
             noHistory: "Noch kein Verlauf",
             copiedSets: "{{count}} Sätze kopiert",

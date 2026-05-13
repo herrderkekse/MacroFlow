@@ -452,6 +452,8 @@ const en = {
             estimated1RM: "Estimated 1RM",
             personalBest: "Personal Best",
             current: "Current",
+            selectedPoint: "Selected",
+            tapPointHint: "Tap a graph point to view exact details",
             copyToCurrent: "Copy Sets to Current",
             noHistory: "No history yet",
             copiedSets: "Copied {{count}} sets",
