@@ -162,6 +162,7 @@ export default function LogScreen() {
     const insets = useSafeAreaInsets();
     const tabBarHeight = useBottomTabBarHeight();
     const d = useLogData();
+    const fabBottom = d.chatBarVisible ? CHAT_BAR_TOTAL_HEIGHT + 8 : 24;
     const [showAddExercise, setShowAddExercise] = useState(false);
 
     function handleQuickAddExercise(template: ExerciseTemplate, copyFromLast: boolean) {
@@ -238,8 +239,17 @@ export default function LogScreen() {
                 onClose={() => d.setEditingEntry(null)}
                 onSaved={() => { d.setEditingEntry(null); d.loadAllDays(d.selectedDate); }} />
 
+            {d.selectionMode && (
+                <Pressable
+                    style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 }, pressed && styles.secondaryFabPressed]}
+                    onPress={d.handleCreateRecipeFromSelection}
+                >
+                    <Ionicons name="book-outline" size={24} color={colors.primary} />
+                </Pressable>
+            )}
+
             <Pressable
-                style={({ pressed }) => [styles.fab, { bottom: d.chatBarVisible ? CHAT_BAR_TOTAL_HEIGHT + 8 : 24 }, pressed && styles.fabPressed]}
+                style={({ pressed }) => [styles.fab, { bottom: fabBottom }, pressed && styles.fabPressed]}
                 onPress={() => { if (d.selectionMode) d.setMoveModalVisible(true); else d.navigateToAdd(); }}
             >
                 <Ionicons name={d.selectionMode ? "move-outline" : "add"} size={28} color="#fff" />
@@ -302,6 +312,14 @@ function createStyles(colors: ThemeColors) {
             shadowOpacity: 0.25, shadowRadius: 4,
         },
         fabPressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
+        secondaryFab: {
+            position: "absolute", right: 24, width: 56, height: 56, borderRadius: 28,
+            backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
+            borderWidth: 1, borderColor: colors.border,
+            elevation: 3, shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2, shadowRadius: 3,
+        },
+        secondaryFabPressed: { opacity: 0.85, transform: [{ scale: 0.95 }] },
         overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: spacing.lg },
         portionModal: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, width: "100%", maxWidth: 340 },
         portionModalTitle: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text, marginBottom: spacing.xs },

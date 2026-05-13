@@ -153,6 +153,7 @@ const de = {
         keepMeal: "Mahlzeit beibehalten",
         selectRecipe: "In Rezept verschieben (optional)",
         noRecipe: "Kein Rezept",
+        newRecipeFromSelection: "Rezept {{date}}",
         move: "Verschieben",
         copy: "Kopieren",
         logWeight: "Gewicht erfassen",
