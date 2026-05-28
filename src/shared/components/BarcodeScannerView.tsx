@@ -14,6 +14,7 @@ import {
     Text,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface BarcodeScannerViewProps<TFood> {
     visible: boolean;
@@ -38,7 +39,8 @@ export default function BarcodeScannerView<TFood>({
     onNotFound,
 }: BarcodeScannerViewProps<TFood>) {
     const colors = useThemeColors();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
+    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const { t } = useTranslation();
     const [permission, requestPermission] = useCameraPermissions();
     const [state, setState] = useState<ScanState>({ status: "scanning" });
@@ -229,7 +231,7 @@ export default function BarcodeScannerView<TFood>({
     );
 }
 
-function createStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors, insetsTop: number) {
     return StyleSheet.create({
         container: { flex: 1, backgroundColor: colors.background },
         header: {
@@ -237,7 +239,7 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             justifyContent: "space-between",
             paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
+            paddingTop: insetsTop + spacing.md,
             paddingBottom: spacing.md,
             backgroundColor: colors.surface,
             borderBottomWidth: StyleSheet.hairlineWidth,
