@@ -8,7 +8,7 @@ import {
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
@@ -73,9 +73,10 @@ interface WorkoutSummarySectionProps {
     date: string;
     refreshKey?: number;
     onQuickAdd?: () => void;
+    hideWhenEmpty?: boolean;
 }
 
-export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd }: WorkoutSummarySectionProps) {
+export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd, hideWhenEmpty = false }: WorkoutSummarySectionProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -95,6 +96,12 @@ export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd }: 
     useEffect(() => {
         load();
     }, [load, refreshKey]);
+
+    useFocusEffect(
+        useCallback(() => {
+            load();
+        }, [load]),
+    );
 
     function handleDelete(workoutId: number) {
         Alert.alert(
@@ -116,6 +123,10 @@ export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd }: 
 
     function handleStartWorkout() {
         router.push({ pathname: "/workout", params: { date } });
+    }
+
+    if (hideWhenEmpty && workoutsData.length === 0) {
+        return null;
     }
 
     return (

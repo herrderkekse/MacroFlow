@@ -4,154 +4,29 @@
 // eslint-disable-next-line boundaries/dependencies
 import AiChatOverlay, { CHAT_BAR_TOTAL_HEIGHT } from "@/src/features/ai/components/AiChatOverlay";
 // eslint-disable-next-line boundaries/dependencies
-import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSummarySection";
-// eslint-disable-next-line boundaries/dependencies
 import AddExerciseModal from "@/src/features/exercise/components/AddExerciseModal";
-import { addExerciseToWorkout, copySetsFromLastSession, createWorkout, finishWorkout, getWorkoutsByDate, type ExerciseTemplate } from "@/src/features/exercise/services/exerciseDb";
-// eslint-disable-next-line boundaries/dependencies
-import PhotoGallery from "@/src/features/photos/components/PhotoGallery";
-import { listPhotosByDateWithRelations } from "@/src/features/photos/services/photoDb";
-import type { Goals } from "@/src/features/settings/services/settingsDb";
+import { addExerciseToWorkout, copySetsFromLastSession, createWorkout, finishWorkout, getExercisesForWorkout, getWorkoutsByDate, type ExerciseTemplate } from "@/src/features/exercise/services/exerciseDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { MEAL_TYPES, type MealType } from "@/src/shared/types";
+import { useAppStore } from "@/src/shared/store/useAppStore";
 import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import DailyProgressBar from "../components/DailyProgressBar";
 import DateSelectorBar from "../components/DateSelectorBar";
 import EntryModal from "../components/EntryModal";
-import MealSection, { type RecipeGroup } from "../components/MealSection";
+import LogDayPage from "../components/LogDayPage";
 import MoveCopyModal from "../components/MoveCopyModal";
-import WeightSection from "../components/WeightSection";
-import { computeTotals, type EntryWithFood } from "../helpers/logHelpers";
 import { useLogData } from "../hooks/useLogData";
-import type { WeightLog } from "../services/logDb";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-
-function PhotosSection({ dateKey, refreshKey }: { dateKey?: string; refreshKey?: number }) {
-    const colors = useThemeColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
-    const { t } = useTranslation();
-    const [photos, setPhotos] = useState<ReturnType<typeof listPhotosByDateWithRelations>>([]);
-    const [loading, setLoading] = useState(false);
-
-    const loadPhotos = useCallback(() => {
-        if (!dateKey) {
-            setPhotos([]);
-            setLoading(false);
-            return;
-        }
-        setLoading(true);
-        setPhotos(listPhotosByDateWithRelations(dateKey));
-        setLoading(false);
-    }, [dateKey]);
-
-    useEffect(() => {
-        loadPhotos();
-    }, [loadPhotos, refreshKey]);
-
-    function navigateToAddPhotos() {
-        router.push({ pathname: "/photos/photos", params: dateKey ? { dateKey } : undefined });
-    }
-
-    return (
-        <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-                <Ionicons name="images-outline" size={18} color={colors.textSecondary} />
-                <Text style={styles.sectionHeaderLabel}>{t("log.photosTitle")}</Text>
-                <Text style={styles.sectionCountLabel}>{t("log.photosLoggedCount", { count: photos.length })}</Text>
-                <Pressable onPress={navigateToAddPhotos} hitSlop={8}>
-                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
-                </Pressable>
-            </View>
-
-            {loading ? (
-                <View style={styles.photosLoadingRow}>
-                    <ActivityIndicator color={colors.primary} size="small" />
-                    <Text style={styles.photosLoadingText}>{t("log.photosLoading")}</Text>
-                </View>
-            ) : photos.length === 0 ? (
-                <View style={styles.photosEmptyState}>
-                    <Text style={styles.photosEmptyText}>{t("log.noPhotosLogged")}</Text>
-                    <Button title={t("log.photosCta")} onPress={navigateToAddPhotos} />
-                </View>
-            ) : (
-                <PhotoGallery photos={photos} emptyLabel={t("log.noPhotosLogged")} />
-            )}
-        </View>
-    );
-}
-
-// ── DayPage ────────────────────────────────────────────────
-
-function DayPage({
-    grouped, goals, onAdd, onDelete, onEdit, onEditRecipeGroup, onDeleteRecipeLog,
-    onConfirmEntry, onConfirmRecipeLog,
-    selectionMode, selectedEntryIds, onToggleEntries, onActivateSelection, onActivateSelectionMultiple,
-    meanWeightKg, weightTrend, weightDaysAgo, weightLogs, onAddWeight, onDeleteWeight,
-    dateKey, onQuickAdd, workoutRefreshKey,
-}: {
-    grouped: Record<MealType, EntryWithFood[]>;
-    goals: Goals;
-    onAdd: (mt: MealType) => void;
-    onDelete: (id: number) => void;
-    onEdit: (row: EntryWithFood) => void;
-    onEditRecipeGroup: (group: RecipeGroup, multiplier: number) => void;
-    onDeleteRecipeLog: (recipeLogId: number) => void;
-    onConfirmEntry?: (id: number) => void;
-    onConfirmRecipeLog?: (recipeLogId: number) => void;
-    selectionMode?: boolean;
-    selectedEntryIds?: Set<number>;
-    onToggleEntries?: (entryIds: number[]) => void;
-    onActivateSelection?: (entryId: number) => void;
-    onActivateSelectionMultiple?: (entryIds: number[]) => void;
-    meanWeightKg?: number | null;
-    weightTrend?: "up" | "down" | "flat" | null;
-    weightDaysAgo?: number | null;
-    weightLogs?: WeightLog[];
-    onAddWeight?: (weightKg: number) => void;
-    onDeleteWeight?: (id: number) => void;
-    dateKey?: string;
-    onQuickAdd?: () => void;
-    workoutRefreshKey?: number;
-}) {
-    const totals = computeTotals(grouped);
-    return (
-        <View style={pageStyles.dayPage}>
-            <ScrollView contentContainerStyle={pageStyles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                <DailyProgressBar totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
-                {MEAL_TYPES.map((meal) => (
-                    <MealSection
-                        key={meal.key} mealType={meal.key} icon={meal.icon} items={grouped[meal.key]}
-                        onAdd={() => onAdd(meal.key)} onDeleteEntry={onDelete} onEdit={onEdit}
-                        onEditRecipeGroup={onEditRecipeGroup} onDeleteRecipeLog={onDeleteRecipeLog}
-                        onConfirmEntry={onConfirmEntry} onConfirmRecipeLog={onConfirmRecipeLog}
-                        selectionMode={selectionMode} selectedEntryIds={selectedEntryIds}
-                        onToggleEntries={onToggleEntries} onActivateSelection={onActivateSelection}
-                        onActivateSelectionMultiple={onActivateSelectionMultiple}
-                    />
-                ))}
-                <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />
-                {dateKey && <WorkoutSummarySection date={dateKey} onQuickAdd={onQuickAdd} refreshKey={workoutRefreshKey} />}
-                <PhotosSection dateKey={dateKey} refreshKey={workoutRefreshKey} />
-            </ScrollView>
-        </View>
-    );
-}
-
-const pageStyles = StyleSheet.create({
-    dayPage: { width: SCREEN_WIDTH },
-    content: { padding: spacing.md, paddingBottom: 160 },
-});
+const KG_TO_LB = 2.20462;
 
 // ── Screen ─────────────────────────────────────────────────
 
@@ -161,26 +36,34 @@ export default function LogScreen() {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
     const tabBarHeight = useBottomTabBarHeight();
+    const unitSystem = useAppStore((s) => s.unitSystem);
+    const isImperial = unitSystem === "imperial";
     const d = useLogData();
     const fabBottom = d.chatBarVisible ? CHAT_BAR_TOTAL_HEIGHT + 8 : 24;
+    const quickActionBaseOffset = 72;
+    const quickActionStep = 62;
     const [showAddExercise, setShowAddExercise] = useState(false);
+    const [showQuickActions, setShowQuickActions] = useState(false);
+    const [showWeightModal, setShowWeightModal] = useState(false);
+    const [weightInput, setWeightInput] = useState("");
+    const selectedDateKey = formatDateKey(d.selectedDate);
 
     function handleQuickAddExercise(template: ExerciseTemplate, copyFromLast: boolean) {
-        const dateKey = formatDateKey(d.selectedDate);
         const now = Date.now();
-        const existing = getWorkoutsByDate(dateKey);
+        const existing = getWorkoutsByDate(selectedDateKey);
         let workoutId: number;
         let autoFinish = false;
 
         if (existing.length > 0 && !existing[0].ended_at) {
             workoutId = existing[0].id;
         } else {
-            const w = createWorkout({ date: dateKey, started_at: now });
+            const w = createWorkout({ date: selectedDateKey, started_at: now });
             workoutId = w.id;
             autoFinish = true;
         }
 
-        const we = addExerciseToWorkout({ workout_id: workoutId, exercise_template_id: template.id });
+        const sortOrder = getExercisesForWorkout(workoutId).length + 1;
+        const we = addExerciseToWorkout({ workout_id: workoutId, exercise_template_id: template.id, sort_order: sortOrder });
 
         if (copyFromLast) {
             copySetsFromLastSession(template.id, we.id);
@@ -192,6 +75,35 @@ export default function LogScreen() {
 
         setShowAddExercise(false);
         d.bumpWorkoutRefreshKey();
+    }
+
+    function handleOpenFoodAdd() {
+        setShowQuickActions(false);
+        d.navigateToAdd();
+    }
+
+    function handleOpenWeightAdd() {
+        setShowQuickActions(false);
+        setShowWeightModal(true);
+    }
+
+    function handleOpenWorkoutAdd() {
+        setShowQuickActions(false);
+        router.push({ pathname: "/workout", params: { date: selectedDateKey } });
+    }
+
+    function handleOpenPhotosAdd() {
+        setShowQuickActions(false);
+        router.push({ pathname: "/photos/photos", params: { dateKey: selectedDateKey } });
+    }
+
+    function handleSaveWeight() {
+        const value = parseFloat(weightInput);
+        if (!value || value <= 0) return;
+        const valueKg = isImperial ? value / KG_TO_LB : value;
+        d.handleAddWeight(valueKg);
+        setShowWeightModal(false);
+        setWeightInput("");
     }
 
     return (
@@ -207,14 +119,14 @@ export default function LogScreen() {
                 contentOffset={{ x: SCREEN_WIDTH, y: 0 }}
                 style={styles.carousel} scrollEnabled={!d.selectionMode}
             >
-                <DayPage grouped={d.prevGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
+                <LogDayPage width={SCREEN_WIDTH} grouped={d.prevGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
                     meanWeightKg={d.meanWeightKg} weightTrend={d.weightTrend} weightDaysAgo={d.weightDaysAgo}
                     dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, -1))}
                     workoutRefreshKey={d.workoutRefreshKey} />
-                <DayPage grouped={d.grouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
+                <LogDayPage width={SCREEN_WIDTH} grouped={d.grouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
@@ -226,7 +138,7 @@ export default function LogScreen() {
                     dateKey={formatDateKey(d.selectedDate)}
                     onQuickAdd={() => setShowAddExercise(true)}
                     workoutRefreshKey={d.workoutRefreshKey} />
-                <DayPage grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
+                <LogDayPage width={SCREEN_WIDTH} grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
@@ -248,12 +160,64 @@ export default function LogScreen() {
                 </Pressable>
             )}
 
+            {!d.selectionMode && showQuickActions && (
+                <>
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryFab, styles.quickActionFab, { bottom: fabBottom + quickActionBaseOffset + quickActionStep * 3 }, pressed && styles.secondaryFabPressed]}
+                        onPress={handleOpenPhotosAdd}
+                    >
+                        <Ionicons name="images-outline" size={22} color={colors.primary} />
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryFab, styles.quickActionFab, { bottom: fabBottom + quickActionBaseOffset + quickActionStep * 2 }, pressed && styles.secondaryFabPressed]}
+                        onPress={handleOpenWorkoutAdd}
+                    >
+                        <Ionicons name="barbell-outline" size={22} color={colors.primary} />
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryFab, styles.quickActionFab, { bottom: fabBottom + quickActionBaseOffset + quickActionStep }, pressed && styles.secondaryFabPressed]}
+                        onPress={handleOpenWeightAdd}
+                    >
+                        <Ionicons name="scale-outline" size={22} color={colors.primary} />
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryFab, styles.quickActionFab, { bottom: fabBottom + quickActionBaseOffset }, pressed && styles.secondaryFabPressed]}
+                        onPress={handleOpenFoodAdd}
+                    >
+                        <Ionicons name="fast-food-outline" size={22} color={colors.primary} />
+                    </Pressable>
+                </>
+            )}
+
             <Pressable
                 style={({ pressed }) => [styles.fab, { bottom: fabBottom }, pressed && styles.fabPressed]}
-                onPress={() => { if (d.selectionMode) d.setMoveModalVisible(true); else d.navigateToAdd(); }}
+                onPress={() => {
+                    if (d.selectionMode) {
+                        d.setMoveModalVisible(true);
+                        return;
+                    }
+                    setShowQuickActions((prev) => !prev);
+                }}
             >
-                <Ionicons name={d.selectionMode ? "move-outline" : "add"} size={28} color="#fff" />
+                <Ionicons name={d.selectionMode ? "move-outline" : showQuickActions ? "close" : "add"} size={32} color="#fff" />
             </Pressable>
+
+            <Modal visible={showWeightModal} transparent animationType="fade" onRequestClose={() => setShowWeightModal(false)}>
+                <Pressable style={styles.overlay} onPress={() => setShowWeightModal(false)}>
+                    <Pressable style={styles.portionModal} onPress={() => { }}>
+                        <Text style={styles.portionModalTitle}>{t("log.logWeight")}</Text>
+                        <Input
+                            value={weightInput}
+                            onChangeText={setWeightInput}
+                            keyboardType="decimal-pad"
+                            placeholder={isImperial ? "lb" : "kg"}
+                            containerStyle={{ marginBottom: spacing.md }}
+                            autoFocus
+                        />
+                        <Button title={t("common.save")} onPress={handleSaveWeight} />
+                    </Pressable>
+                </Pressable>
+            </Modal>
 
 
             <Modal visible={!!d.editingRecipeGroup} transparent animationType="fade" onRequestClose={() => d.setEditingRecipeGroup(null)}>
@@ -306,7 +270,7 @@ function createStyles(colors: ThemeColors) {
         dateSelectorWrapper: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
         carousel: { flex: 1 },
         fab: {
-            position: "absolute", right: 24, width: 56, height: 56, borderRadius: 28,
+            position: "absolute", right: 20, width: 64, height: 64, borderRadius: 32,
             backgroundColor: colors.primary, alignItems: "center", justifyContent: "center",
             elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25, shadowRadius: 4,
@@ -318,6 +282,13 @@ function createStyles(colors: ThemeColors) {
             borderWidth: 1, borderColor: colors.border,
             elevation: 3, shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.2, shadowRadius: 3,
+        },
+        quickActionFab: {
+            zIndex: 5,
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            right: 28,
         },
         secondaryFabPressed: { opacity: 0.85, transform: [{ scale: 0.95 }] },
         overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: spacing.lg },
@@ -352,25 +323,6 @@ function createStyles(colors: ThemeColors) {
         },
         sectionCountLabel: {
             fontSize: fontSize.xs,
-            color: colors.textTertiary,
-        },
-        photosLoadingRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginTop: spacing.sm,
-            paddingVertical: spacing.sm,
-        },
-        photosLoadingText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        photosEmptyState: {
-            marginTop: spacing.sm,
-            gap: spacing.sm,
-        },
-        photosEmptyText: {
-            fontSize: fontSize.sm,
             color: colors.textTertiary,
         },
     });
