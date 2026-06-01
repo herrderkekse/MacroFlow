@@ -152,7 +152,13 @@ export function useLogData() {
         loadAllDays(selectedDate);
     };
 
-    const handleEdit = (row: EntryWithFood) => setEditingEntry(row);
+    const handleEdit = (row: EntryWithFood) => {
+        if (row.foods?.deleted === 1) {
+            router.push({ pathname: "/log/quick-add", params: { entryId: String(row.entries.id) } });
+            return;
+        }
+        setEditingEntry(row);
+    };
 
     const handleEditRecipeGroup = (group: RecipeGroup, multiplier: number) => {
         setEditingRecipeGroup({ group, multiplier });

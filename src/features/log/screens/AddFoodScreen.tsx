@@ -1,8 +1,10 @@
 import Button from "@/src/shared/atoms/Button";
+import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import type { MealType } from "@/src/shared/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
+import type { Href } from "expo-router";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -16,7 +18,6 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import EntryModal from "../components/EntryModal";
 import FoodListItem from "../components/FoodListItem";
 import ManualFoodForm from "../components/ManualFoodForm";
@@ -68,6 +69,20 @@ export default function AddFoodScreen() {
                     icon={<Ionicons name="create-outline" size={18} color={colors.text} />}
                     onPress={() => search.setShowManualForm(true)}
                     style={styles.actionButton}
+                />
+            </View>
+            <View style={styles.quickAddRow}>
+                <Button
+                    title={t("log.quickAdd")}
+                    variant="secondary"
+                    icon={<Ionicons name="flash-outline" size={18} color={colors.primary} />}
+                    onPress={() => {
+                        const target = mealType
+                            ? `/log/quick-add?mealType=${mealType}`
+                            : "/log/quick-add";
+                        router.push(target as unknown as Href);
+                    }}
+                    style={styles.quickAddButton}
                 />
             </View>
 
@@ -241,6 +256,11 @@ function createStyles(colors: ThemeColors) {
             marginTop: spacing.md,
         },
         actionButton: { flex: 1 },
+        quickAddRow: {
+            paddingHorizontal: spacing.md,
+            marginTop: spacing.sm,
+        },
+        quickAddButton: { width: "100%" },
         results: { padding: spacing.md, paddingBottom: 40 },
         sectionLabel: {
             fontSize: fontSize.xs,
