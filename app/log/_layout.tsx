@@ -15,6 +15,7 @@ export default function LogLayout() {
             }}
         >
             <Stack.Screen name="add" options={{ title: t("log.addFoodTitle") }} />
+            <Stack.Screen name="quick-add" options={{ title: t("log.quickAddTitle") }} />
         </Stack>
     );
 }
