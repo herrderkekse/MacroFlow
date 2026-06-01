@@ -23,7 +23,6 @@ export default function WeightSection({ weights, onAdd, onDelete }: WeightSectio
     const styles = useMemo(() => createStyles(colors), [colors]);
     const unitSystem = useAppStore((s) => s.unitSystem);
     const isImperial = unitSystem === "imperial";
-
     const [showModal, setShowModal] = useState(false);
     const [weightInput, setWeightInput] = useState("");
 
