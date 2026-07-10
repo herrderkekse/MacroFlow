@@ -1,5 +1,6 @@
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { StyleSheet } from "react-native";
+import { parseCustomValues, type CustomValues } from "../helpers/customFields";
 import type { ExerciseSet } from "../services/exerciseDb";
 
 export interface Prefill {
@@ -8,6 +9,7 @@ export interface Prefill {
     rir: number | null;
     duration: number | null;
     distance: number | null;
+    custom: CustomValues;
 }
 
 /** Determine if a set is the "active" (first non-completed) set. */
@@ -22,22 +24,25 @@ export function getPrefillForSet(index: number, sets: ExerciseSet[], lastWorkout
     // 1. Previous completed set in same exercise
     for (let i = index - 1; i >= 0; i--) {
         if (sets[i].completed_at) {
-            return {
-                weight: sets[i].weight, reps: sets[i].reps, rir: sets[i].rir,
-                duration: sets[i].duration_seconds, distance: sets[i].distance_meters,
-            };
+            return prefillFromSet(sets[i]);
         }
     }
     // 2. Matching set from last workout
     if (lastWorkoutSets.length > index) {
-        const lw = lastWorkoutSets[index];
-        return { weight: lw.weight, reps: lw.reps, rir: lw.rir, duration: lw.duration_seconds, distance: lw.distance_meters };
+        return prefillFromSet(lastWorkoutSets[index]);
     }
     if (lastWorkoutSets.length > 0) {
-        const lw = lastWorkoutSets[lastWorkoutSets.length - 1];
-        return { weight: lw.weight, reps: lw.reps, rir: lw.rir, duration: lw.duration_seconds, distance: lw.distance_meters };
+        return prefillFromSet(lastWorkoutSets[lastWorkoutSets.length - 1]);
     }
-    return { weight: null, reps: null, rir: null, duration: null, distance: null };
+    return { weight: null, reps: null, rir: null, duration: null, distance: null, custom: {} };
+}
+
+function prefillFromSet(s: ExerciseSet): Prefill {
+    return {
+        weight: s.weight, reps: s.reps, rir: s.rir,
+        duration: s.duration_seconds, distance: s.distance_meters,
+        custom: parseCustomValues(s.custom_values),
+    };
 }
 
 /** Build a compact summary string for a set list, e.g. "80kg × 8" for the best completed set. */

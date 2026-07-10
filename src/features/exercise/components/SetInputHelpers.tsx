@@ -1,14 +1,19 @@
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, TextInput } from "react-native";
+import { parseCustomValues, type CustomField, type CustomValues } from "../helpers/customFields";
 import type { ExerciseSet } from "../services/exerciseDb";
 
-type ExerciseType = "weight" | "bodyweight" | "cardio";
+type ExerciseType = "weight" | "bodyweight" | "cardio" | "other";
 
-export function ScheduledCells({ set, exerciseType, textColor, styles }: {
-    set: ExerciseSet; exerciseType: ExerciseType; textColor: string;
+export function ScheduledCells({ set, exerciseType, customFields, textColor, styles }: {
+    set: ExerciseSet; exerciseType: ExerciseType; customFields: CustomField[]; textColor: string;
     styles: ReturnType<typeof createSetInputStyles>;
 }) {
+    const useCustom = exerciseType === "other" && customFields.length > 0;
+    if (useCustom) {
+        return <CustomReadonlyCells fields={customFields} values={parseCustomValues(set.custom_values)} textColor={textColor} styles={styles} />;
+    }
     return (
         <>
             {exerciseType === "weight" && (
@@ -36,6 +41,60 @@ export function ScheduledCells({ set, exerciseType, textColor, styles }: {
                     {set.rir ?? "—"}
                 </Text>
             )}
+        </>
+    );
+}
+
+/** Read-only display of a set's custom field values (one flex cell per field). */
+export function CustomReadonlyCells({ fields, values, textColor, styles }: {
+    fields: CustomField[]; values: CustomValues; textColor: string;
+    styles: { setCell: object; valueCol: object };
+}) {
+    return (
+        <>
+            {fields.map((f) => (
+                <Text key={f.id} style={[styles.setCell, styles.valueCol, { color: textColor }]}>
+                    {values[f.id] != null ? `${values[f.id]}${f.unit ? ` ${f.unit}` : ""}` : "—"}
+                </Text>
+            ))}
+        </>
+    );
+}
+
+/** Editable inputs for a set's custom fields (one per field), used in active/completed rows. */
+export function CustomEditableCells({ fields, inputs, cleared, prefill, focusedField, textColor, placeholderColor, onFocusField, onChangeField, onBlurField, styles }: {
+    fields: CustomField[];
+    inputs: Record<string, string>;
+    cleared: Partial<Record<string, boolean>>;
+    prefill: CustomValues;
+    focusedField: string | null;
+    textColor: string;
+    placeholderColor: string;
+    onFocusField: (key: string) => void;
+    onChangeField: (id: string, text: string) => void;
+    onBlurField: (key: string) => void;
+    styles: ReturnType<typeof createSetInputStyles>;
+}) {
+    return (
+        <>
+            {fields.map((f) => {
+                const key = `cf_${f.id}`;
+                const showPrefill = !cleared[f.id] && prefill[f.id] != null;
+                return (
+                    <TextInput
+                        key={f.id}
+                        style={[focusedField === key ? styles.input : styles.inlineInput, styles.valueCol, { color: textColor }]}
+                        value={inputs[f.id] ?? ""}
+                        onChangeText={(text) => onChangeField(f.id, text)}
+                        placeholder={showPrefill ? String(prefill[f.id]) : "—"}
+                        placeholderTextColor={placeholderColor}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                        onFocus={() => onFocusField(key)}
+                        onBlur={() => onBlurField(key)}
+                    />
+                );
+            })}
         </>
     );
 }

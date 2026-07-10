@@ -128,6 +128,9 @@ export const exerciseTemplates = sqliteTable("exercise_templates", {
     resistance_mode: text("resistance_mode").notNull().default("resistance"),
     default_weight_unit: text("default_weight_unit").notNull().default("kg"),
     notes: text("notes"),
+    // JSON array of custom set-tracking fields for "other" type exercises:
+    // [{ id, name, unit, higherIsBetter }]. Null/empty for standard exercises.
+    custom_fields: text("custom_fields"),
     deleted: integer("deleted").notNull().default(0),
     created_at: integer("created_at").notNull(),
 });
@@ -163,6 +166,8 @@ export const exerciseSets = sqliteTable("exercise_sets", {
     distance_meters: real("distance_meters"),
     rir: integer("rir"),
     rest_seconds: integer("rest_seconds"),
+    // JSON object of values for the template's custom fields: { [fieldId]: number }.
+    custom_values: text("custom_values"),
     completed_at: integer("completed_at"),
     is_scheduled: integer("is_scheduled").notNull().default(0),
 });

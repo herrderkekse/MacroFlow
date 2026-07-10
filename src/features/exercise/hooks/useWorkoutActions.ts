@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
+import { serializeCustomValues } from "../helpers/customFields";
 import type { SetValues } from "../types";
 import type { UseRestTimerReturn } from "./useRestTimer";
 import type { UseWorkoutReturn } from "./useWorkout";
@@ -38,6 +39,7 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
             rir: values.rir,
             duration_seconds: values.duration_seconds,
             distance_meters: values.distance_meters,
+            custom_values: serializeCustomValues(values.custom_values),
             type: values.type,
         });
         completeSet(setId);
@@ -59,6 +61,7 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
             rir: values.rir,
             duration_seconds: values.duration_seconds,
             distance_meters: values.distance_meters,
+            custom_values: serializeCustomValues(values.custom_values),
             type: values.type,
         });
         workout.reload();

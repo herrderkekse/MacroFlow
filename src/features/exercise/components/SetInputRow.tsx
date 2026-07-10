@@ -3,9 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { parseCustomValues, type CustomField, type CustomValues } from "../helpers/customFields";
 import type { ExerciseSet } from "../services/exerciseDb";
-import type { ExerciseType } from "../types";
-import { ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
+import type { ExerciseType, SetValues } from "../types";
+import { CustomEditableCells, ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
 
 const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
 type SetType = (typeof SET_TYPES)[number];
@@ -16,9 +17,11 @@ const SET_TYPE_LABELS: Record<SetType, string> = {
 
 interface SetInputRowProps {
     set: ExerciseSet; index: number; exerciseType: ExerciseType;
+    customFields: CustomField[];
     isActive: boolean; isFinished: boolean;
     prefillWeight: number | null; prefillReps: number | null; prefillRir: number | null;
     prefillDuration: number | null; prefillDistance: number | null;
+    prefillCustom: CustomValues;
     onConfirm: (id: number, values: SetValues) => void;
     onUpdate: (id: number, values: SetValues) => void;
     onDelete: (id: number) => void;
@@ -26,11 +29,20 @@ interface SetInputRowProps {
     onDragStart?: () => void;
 }
 
-export type { SetValues } from "../types";
+export type { SetValues };
+
+function customValuesToInputs(json: string | null | undefined): Record<string, string> {
+    const values = parseCustomValues(json);
+    const inputs: Record<string, string> = {};
+    for (const [key, value] of Object.entries(values)) {
+        if (value != null) inputs[key] = String(value);
+    }
+    return inputs;
+}
 
 export default function SetInputRow({
-    set, index, exerciseType, isActive, isFinished,
-    prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance,
+    set, index, exerciseType, customFields, isActive, isFinished,
+    prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance, prefillCustom,
     onConfirm, onUpdate, onDelete, onTypeChange, onDragStart,
 }: SetInputRowProps) {
     const colors = useThemeColors();
@@ -40,6 +52,7 @@ export default function SetInputRow({
     const isCompleted = !!set.completed_at;
     const isScheduled = !!set.is_scheduled && !isCompleted;
     const isActiveSet = isActive && !isFinished;
+    const useCustom = exerciseType === "other" && customFields.length > 0;
 
     const [weight, setWeight] = useState(set.weight != null ? String(set.weight) : "");
     const [reps, setReps] = useState(set.reps != null ? String(set.reps) : "");
@@ -47,10 +60,11 @@ export default function SetInputRow({
     const [duration, setDuration] = useState(set.duration_seconds != null ? String(set.duration_seconds) : "");
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
     const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
+    const [customInputs, setCustomInputs] = useState<Record<string, string>>(() => customValuesToInputs(set.custom_values));
     const [focusedField, setFocusedField] = useState<string | null>(null);
     // Tracks fields the user has explicitly cleared; used to distinguish "never set" (show prefill)
     // from "intentionally cleared" (show "—" and save null). Reset when navigating to a new set.
-    const [clearedFields, setClearedFields] = useState<Partial<Record<"weight" | "reps" | "rir" | "duration" | "distance", boolean>>>({});
+    const [clearedFields, setClearedFields] = useState<Partial<Record<string, boolean>>>({});
 
     // Sync input state from DB when set values change (e.g., after a save)
     useEffect(() => {
@@ -59,8 +73,9 @@ export default function SetInputRow({
         setRir(set.rir != null ? String(set.rir) : "");
         setDuration(set.duration_seconds != null ? String(set.duration_seconds) : "");
         setDistance(set.distance_meters != null ? String(set.distance_meters) : "");
+        setCustomInputs(customValuesToInputs(set.custom_values));
         setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
-    }, [set.id, set.weight, set.reps, set.rir, set.duration_seconds, set.distance_meters, set.weight_unit]);
+    }, [set.id, set.weight, set.reps, set.rir, set.duration_seconds, set.distance_meters, set.custom_values, set.weight_unit]);
 
     // Reset cleared-field tracking only when switching to a different set
     useEffect(() => {
@@ -69,16 +84,29 @@ export default function SetInputRow({
 
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";
 
-    const buildValues = useCallback((): SetValues => ({
-        weight: weight ? parseFloat(weight) : (clearedFields.weight ? null : prefillWeight),
-        weight_unit: unit,
-        reps: reps ? parseInt(reps, 10) : (clearedFields.reps ? null : prefillReps),
-        rir: rir ? parseInt(rir, 10) : (clearedFields.rir ? null : prefillRir),
-        duration_seconds: duration ? parseInt(duration, 10) : (clearedFields.duration ? null : prefillDuration),
-        distance_meters: distance ? parseFloat(distance) : (clearedFields.distance ? null : prefillDistance),
-        type: set.type,
-    }), [weight, reps, rir, duration, distance, unit, set.type, clearedFields,
-        prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance]);
+    const buildValues = useCallback((): SetValues => {
+        const custom_values: CustomValues = {};
+        for (const f of customFields) {
+            const raw = customInputs[f.id];
+            custom_values[f.id] = raw ? parseFloat(raw) : (clearedFields[f.id] ? null : (prefillCustom[f.id] ?? null));
+        }
+        return {
+            weight: weight ? parseFloat(weight) : (clearedFields.weight ? null : prefillWeight),
+            weight_unit: unit,
+            reps: reps ? parseInt(reps, 10) : (clearedFields.reps ? null : prefillReps),
+            rir: rir ? parseInt(rir, 10) : (clearedFields.rir ? null : prefillRir),
+            duration_seconds: duration ? parseInt(duration, 10) : (clearedFields.duration ? null : prefillDuration),
+            distance_meters: distance ? parseFloat(distance) : (clearedFields.distance ? null : prefillDistance),
+            custom_values,
+            type: set.type,
+        };
+    }, [weight, reps, rir, duration, distance, unit, set.type, clearedFields, customFields, customInputs,
+        prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance, prefillCustom]);
+
+    const handleChangeCustom = useCallback((id: string, text: string) => {
+        setCustomInputs((prev) => ({ ...prev, [id]: text }));
+        setClearedFields((prev) => ({ ...prev, [id]: text === "" }));
+    }, []);
 
     const handleToggleUnit = useCallback(() => {
         const newUnit = unit === "kg" ? "lb" : "kg";
@@ -123,7 +151,7 @@ export default function SetInputRow({
                 <Text style={[styles.setCell, styles.setCol, { color: colors.textTertiary }]}>
                     {typeLabel}{index + 1}
                 </Text>
-                <ScheduledCells set={set} exerciseType={exerciseType} textColor={colors.textTertiary} styles={styles} />
+                <ScheduledCells set={set} exerciseType={exerciseType} customFields={customFields} textColor={colors.textTertiary} styles={styles} />
                 <Pressable style={styles.checkCol} onPress={handleDelete}>
                     <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
                 </Pressable>
@@ -172,7 +200,7 @@ export default function SetInputRow({
                 </View>
             )}
 
-            {exerciseType !== "cardio" && (
+            {exerciseType !== "cardio" && !useCustom && (
                 <TextInput
                     style={[fieldStyle("reps"), styles.valueCol, { color: textColor }]}
                     value={reps}
@@ -222,7 +250,23 @@ export default function SetInputRow({
                 </>
             )}
 
-            {exerciseType !== "cardio" && (
+            {useCustom && (
+                <CustomEditableCells
+                    fields={customFields}
+                    inputs={customInputs}
+                    cleared={clearedFields}
+                    prefill={prefillCustom}
+                    focusedField={focusedField}
+                    textColor={textColor}
+                    placeholderColor={colors.textTertiary}
+                    onFocusField={setFocusedField}
+                    onChangeField={handleChangeCustom}
+                    onBlurField={handleBlurSave}
+                    styles={styles}
+                />
+            )}
+
+            {exerciseType !== "cardio" && !useCustom && (
                 <TextInput
                     style={[fieldStyle("rir"), styles.rirCol, { color: textColor }]}
                     value={rir}

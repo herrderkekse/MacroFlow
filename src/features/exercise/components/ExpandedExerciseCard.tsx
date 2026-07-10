@@ -5,6 +5,7 @@ import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
+import { parseCustomFields } from "../helpers/customFields";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { createExerciseCardStyles, getPrefillForSet, isActiveSet } from "./ExerciseCardHelpers";
@@ -58,6 +59,8 @@ export function ExpandedExerciseCard({
     const { t } = useTranslation();
     const styles = useMemo(() => createExerciseCardStyles(colors), [colors]);
     const router = useRouter();
+    const customFields = parseCustomFields(template?.custom_fields);
+    const useCustom = exerciseType === "other" && customFields.length > 0;
 
     function handleRemove() {
         Alert.alert(
@@ -117,7 +120,7 @@ export function ExpandedExerciseCard({
                 {exerciseType === "weight" && (
                     <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.weight")}</Text>
                 )}
-                {exerciseType !== "cardio" && (
+                {exerciseType !== "cardio" && !useCustom && (
                     <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.reps")}</Text>
                 )}
                 {exerciseType === "cardio" && (
@@ -126,7 +129,12 @@ export function ExpandedExerciseCard({
                         <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.distance")}</Text>
                     </>
                 )}
-                {exerciseType !== "cardio" && (
+                {useCustom && customFields.map((f) => (
+                    <Text key={f.id} style={[styles.headerCell, styles.valueCol]} numberOfLines={1}>
+                        {f.name}{f.unit ? ` (${f.unit})` : ""}
+                    </Text>
+                ))}
+                {exerciseType !== "cardio" && !useCustom && (
                     <Text style={[styles.headerCell, styles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
                 )}
                 <Text style={[styles.headerCell, styles.emptyCol]}></Text>
@@ -158,6 +166,7 @@ export function ExpandedExerciseCard({
                                 set={set}
                                 index={si}
                                 exerciseType={exerciseType}
+                                customFields={customFields}
                                 isActive={active}
                                 isFinished={isFinished}
                                 prefillWeight={prefill.weight}
@@ -165,6 +174,7 @@ export function ExpandedExerciseCard({
                                 prefillRir={prefill.rir}
                                 prefillDuration={prefill.duration}
                                 prefillDistance={prefill.distance}
+                                prefillCustom={prefill.custom}
                                 onConfirm={onConfirmSet}
                                 onUpdate={onUpdateSet}
                                 onDelete={onDeleteSet}

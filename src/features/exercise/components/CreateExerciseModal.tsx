@@ -16,9 +16,11 @@ import {
     View,
 } from "react-native";
 import { EQUIPMENT_LIST, EXERCISE_TYPES, MUSCLE_GROUPS } from "../constants";
+import { parseCustomFields, serializeCustomFields, type CustomField } from "../helpers/customFields";
 import { createExerciseTemplate, getExerciseTemplateById, updateExerciseTemplate, type ExerciseTemplate } from "../services/exerciseDb";
 import type { Equipment, ExerciseType, MuscleGroup, ResistanceMode, WeightUnit } from "../types";
 import ChipSelect from "./ChipSelect";
+import CustomFieldsEditor from "./CustomFieldsEditor";
 
 interface CreateExerciseModalProps {
     visible: boolean;
@@ -40,6 +42,7 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
     const [equipment, setEquipment] = useState<Equipment | null>(null);
     const [resistanceMode, setResistanceMode] = useState<ResistanceMode>("resistance");
     const [defaultUnit, setDefaultUnit] = useState<WeightUnit>("kg");
+    const [customFields, setCustomFields] = useState<CustomField[]>([]);
     const [nameError, setNameError] = useState(false);
 
     useEffect(() => {
@@ -54,10 +57,12 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
             setEquipment((existing.equipment as Equipment) ?? null);
             setResistanceMode((existing.resistance_mode as ResistanceMode) ?? "resistance");
             setDefaultUnit((existing.default_weight_unit as WeightUnit) ?? "kg");
+            setCustomFields(parseCustomFields(existing.custom_fields));
             return;
         }
 
         setName(initialName?.trim() ?? "");
+        setCustomFields([]);
         setNameError(false);
     }, [visible, exerciseId, initialName]);
 
@@ -68,6 +73,7 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
         setEquipment(null);
         setResistanceMode("resistance");
         setDefaultUnit("kg");
+        setCustomFields([]);
         setNameError(false);
     }
 
@@ -82,6 +88,7 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
             setNameError(true);
             return;
         }
+        const customFieldsJson = type === "other" ? serializeCustomFields(customFields) : null;
         if (isEditing) {
             updateExerciseTemplate(exerciseId, {
                 name: trimmed,
@@ -90,6 +97,7 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
                 equipment,
                 resistance_mode: resistanceMode,
                 default_weight_unit: defaultUnit,
+                custom_fields: customFieldsJson,
             });
             const updated = getExerciseTemplateById(exerciseId)!;
             resetForm();
@@ -102,6 +110,7 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
                 equipment,
                 resistance_mode: resistanceMode,
                 default_weight_unit: defaultUnit,
+                custom_fields: customFieldsJson,
             });
             resetForm();
             onCreated(template);
@@ -159,6 +168,10 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
                         onSelect={setEquipment}
                         noneLabel={t("exercise.createExercise.none")}
                     />
+
+                    {type === "other" && (
+                        <CustomFieldsEditor fields={customFields} onChange={setCustomFields} />
+                    )}
 
                     {type === "weight" && (
                         <>
