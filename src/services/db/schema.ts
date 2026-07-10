@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 export const foods = sqliteTable("foods", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -67,6 +67,8 @@ export const recipes = sqliteTable("recipes", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
     deleted: integer("deleted").notNull().default(0),
+    // Set on variant recipes; points at the base recipe of the variant group.
+    parent_recipe_id: integer("parent_recipe_id").references((): AnySQLiteColumn => recipes.id),
 });
 
 export const recipeItems = sqliteTable("recipe_items", {

@@ -218,6 +218,7 @@ export function initDB() {
     "ALTER TABLE entries ADD COLUMN is_scheduled INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE exercise_templates ADD COLUMN custom_fields TEXT",
     "ALTER TABLE exercise_sets ADD COLUMN custom_values TEXT",
+    "ALTER TABLE recipes ADD COLUMN parent_recipe_id INTEGER REFERENCES recipes(id)",
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }

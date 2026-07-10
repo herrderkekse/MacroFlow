@@ -14,6 +14,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import ForkRecipeModal from "../components/ForkRecipeModal";
 import TemplateCard from "../components/TemplateCard";
 import { useTemplateList, type TemplateItem } from "../hooks/useTemplateList";
 import type { Food, Recipe } from "../services/templateDb";
@@ -27,15 +28,38 @@ export default function TemplatesScreen() {
     const list = useTemplateList();
 
     function renderItem({ item }: { item: TemplateItem }) {
-        const subtitle =
-            item.kind === "recipe" ? list.recipeSummary((item.data as Recipe).id) :
-            item.kind === "exercise" ? list.exerciseSummary(item.data as ExerciseTemplate) :
-            list.foodSummary(item.data as Food);
-
         const handleDelete =
             item.kind === "recipe" ? () => list.handleDeleteRecipe(item.data as Recipe) :
             item.kind === "exercise" ? () => list.handleDeleteExercise(item.data as ExerciseTemplate) :
             () => list.handleDeleteFood(item.data as Food);
+
+        if (item.kind === "recipe") {
+            const recipe = item.data as Recipe;
+            const subtitleParts = [list.recipeSummary(recipe.id)];
+            if (item.variants.length > 0) {
+                subtitleParts.push(t("templates.variantCount", { count: item.variants.length }));
+            }
+            return (
+                <TemplateCard
+                    kind="recipe"
+                    data={recipe}
+                    subtitle={subtitleParts.join(" · ")}
+                    onDelete={handleDelete}
+                    onFork={() => list.setForkTarget({ recipe })}
+                    variants={item.variants}
+                    variantSubtitle={(v) => list.recipeSummary(v.id)}
+                    expanded={list.expandedIds.has(recipe.id)}
+                    onToggleExpand={() => list.toggleExpanded(recipe.id)}
+                    onForkVariant={(v) => list.setForkTarget({ recipe: v })}
+                    onDeleteVariant={(v) => list.handleDeleteRecipe(v)}
+                />
+            );
+        }
+
+        const subtitle =
+            item.kind === "exercise"
+                ? list.exerciseSummary(item.data as ExerciseTemplate)
+                : list.foodSummary(item.data as Food);
 
         return (
             <TemplateCard
@@ -181,6 +205,12 @@ export default function TemplatesScreen() {
                     </Pressable>
                 </>
             )}
+
+            <ForkRecipeModal
+                target={list.forkTarget}
+                onClose={() => list.setForkTarget(null)}
+                onSubmit={list.handleForkSubmit}
+            />
         </View>
     );
 }

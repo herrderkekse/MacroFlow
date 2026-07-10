@@ -37,6 +37,9 @@ export function useRecipeEditor() {
     recipeIdRef.current = recipeId;
 
     const [name, setName] = useState("");
+    // Base recipe name when editing a variant (whose own name is just the
+    // specification, e.g. "with sprinkles").
+    const [baseName, setBaseName] = useState<string | null>(null);
     const [items, setItems] = useState<ItemWithFood[]>([]);
 
     // food search
@@ -56,7 +59,11 @@ export function useRecipeEditor() {
     useEffect(() => {
         if (!recipeId) return;
         const recipe = getRecipeById(Number(recipeId));
-        if (recipe) setName(recipe.name);
+        if (recipe) {
+            setName(recipe.name);
+            const base = recipe.parent_recipe_id != null ? getRecipeById(recipe.parent_recipe_id) : undefined;
+            setBaseName(base?.name ?? null);
+        }
         loadItems(Number(recipeId));
     }, [recipeId]);
 
@@ -223,6 +230,7 @@ export function useRecipeEditor() {
         isEditing,
         name,
         setName,
+        baseName,
         items,
         totalCals,
         foodQuery,

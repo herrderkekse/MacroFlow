@@ -1,3 +1,4 @@
+import { getRecipeDisplayName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getRecipeById } from "@/src/features/templates/services/templateDb";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import type { MealType } from "@/src/shared/types";
@@ -55,10 +56,12 @@ function groupEntries(items: EntryWithFood[]) {
             continue;
         }
         const recipe = getRecipeById(recipeLog.recipe_id);
+        const display = recipe ? getRecipeDisplayName(recipe) : null;
         recipeGroups.push({
             recipeLogId,
             recipeId: recipeLog.recipe_id,
-            recipeName: recipe?.name ?? "Recipe",
+            recipeName: display?.name ?? "Recipe",
+            recipeVariant: display?.variant ?? null,
             portion: recipeLog.portion,
             rows,
         });

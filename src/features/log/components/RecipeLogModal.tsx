@@ -1,3 +1,4 @@
+import { getRecipeDisplayName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getRecipeItems, getServingUnits, type Recipe } from "@/src/features/templates/services/templateDb";
 import { cancelMealReminderIfLogged } from "@/src/services/notifications";
 import Button from "@/src/shared/atoms/Button";
@@ -50,6 +51,8 @@ export default function RecipeLogModal({
     React.useEffect(() => {
         if (recipe) setPortionInput("1");
     }, [recipe]);
+
+    const displayName = React.useMemo(() => (recipe ? getRecipeDisplayName(recipe) : null), [recipe]);
 
     const items = React.useMemo(() => (recipe ? getRecipeItems(recipe.id) : []), [recipe]);
     const servingUnitGramsByFoodId = React.useMemo(() => {
@@ -104,7 +107,10 @@ export default function RecipeLogModal({
                 </View>
 
                 <ScrollView contentContainerStyle={styles.content}>
-                    <Text style={styles.recipeName}>{recipe.name}</Text>
+                    <Text style={styles.recipeName}>{displayName?.name ?? recipe.name}</Text>
+                    {displayName?.variant != null && (
+                        <Text style={styles.recipeVariant}>{displayName.variant}</Text>
+                    )}
                     <Text style={styles.summary}>
                         {t("common.itemCount", { count: items.length })} · {Math.round(totalCals)} {t("common.cal")}
                     </Text>
@@ -206,6 +212,11 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
             fontSize: fontSize.xl,
             fontWeight: "700",
             color: colors.text,
+            marginBottom: spacing.xs,
+        },
+        recipeVariant: {
+            fontSize: fontSize.md,
+            color: colors.textSecondary,
             marginBottom: spacing.xs,
         },
         summary: {

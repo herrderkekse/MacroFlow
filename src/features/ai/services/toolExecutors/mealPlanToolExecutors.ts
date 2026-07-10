@@ -1,4 +1,5 @@
 import { getGoals } from "@/src/features/settings/services/settingsDb";
+import { formatRecipeName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getAllFoods, getAllRecipes, getRecipeItems } from "@/src/features/templates/services/templateDb";
 import i18n from "@/src/i18n";
 import type { AiToolResult } from "../../types/toolDefinitionTypes";
@@ -27,7 +28,7 @@ function executeCreateMealPlan(args: Record<string, unknown>): AiToolResult {
     const allRecipes = getAllRecipes();
     const recipePayload: AiRecipePayload[] = allRecipes.map((r) => {
         const items = getRecipeItems(r.id);
-        return { id: r.id, name: r.name, items: items.map((i) => ({ food_id: i.recipe_items.food_id, quantity_grams: i.recipe_items.quantity_grams })) };
+        return { id: r.id, name: formatRecipeName(r), items: items.map((i) => ({ food_id: i.recipe_items.food_id, quantity_grams: i.recipe_items.quantity_grams })) };
     });
 
     const goalsPayload: AiGoalsPayload = { calories: goals.calories, protein: goals.protein, carbs: goals.carbs, fat: goals.fat };

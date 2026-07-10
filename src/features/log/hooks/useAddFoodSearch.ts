@@ -1,9 +1,9 @@
+import { getRecipeGroups, type RecipeGroup } from "@/src/features/templates/services/recipeVariantsDb";
 import {
     addFood,
     getFoodByBarcode,
     getFoodByOpenfoodfactsId,
     searchFoodsByName,
-    searchRecipesByName,
     type Food,
     type Recipe,
 } from "@/src/features/templates/services/templateDb";
@@ -37,14 +37,27 @@ export function useAddFoodSearch() {
     const [showManualForm, setShowManualForm] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
 
-    // ── Recipe search ──────────────────────────────────────
-    const [recipeResults, setRecipeResults] = useState<Recipe[]>([]);
+    // ── Recipe search (variants grouped under their base, collapsed) ──
+    const [recipeResults, setRecipeResults] = useState<RecipeGroup[]>([]);
+    const [expandedRecipeIds, setExpandedRecipeIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         if (query.trim().length < 2) { setRecipeResults([]); return; }
-        const timer = setTimeout(() => setRecipeResults(searchRecipesByName(query.trim())), 200);
+        const timer = setTimeout(() => {
+            setExpandedRecipeIds(new Set());
+            setRecipeResults(getRecipeGroups(query.trim()));
+        }, 200);
         return () => clearTimeout(timer);
     }, [query]);
+
+    function toggleRecipeExpanded(recipeId: number) {
+        setExpandedRecipeIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(recipeId)) next.delete(recipeId);
+            else next.add(recipeId);
+            return next;
+        });
+    }
 
     // ── Local search (debounced, search-as-you-type) ──────
     useEffect(() => {
@@ -169,6 +182,8 @@ export function useAddFoodSearch() {
         setQuery,
         localResults,
         recipeResults,
+        expandedRecipeIds,
+        toggleRecipeExpanded,
         offResults: filteredOFF,
         isSearchingOFF,
         offError,

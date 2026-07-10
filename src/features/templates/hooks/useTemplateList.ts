@@ -10,14 +10,13 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
+import { forkRecipe, getRecipeGroups } from "../services/recipeVariantsDb";
 import {
     deleteFood,
     deleteRecipe,
     getAllFoods,
-    getAllRecipes,
     getRecipeItems,
     searchFoodsByName,
-    searchRecipesByName,
     softDeleteFood,
     softDeleteRecipe,
     type Food,
@@ -28,8 +27,12 @@ type FilterType = "all" | "recipes" | "foods" | "exercises";
 
 export type TemplateItem =
     | { kind: "food"; data: Food }
-    | { kind: "recipe"; data: Recipe }
+    | { kind: "recipe"; data: Recipe; variants: Recipe[] }
     | { kind: "exercise"; data: ExerciseTemplate };
+
+export interface ForkTarget {
+    recipe: Recipe;
+}
 
 export function useTemplateList() {
     const { t } = useTranslation();
@@ -38,6 +41,8 @@ export function useTemplateList() {
     const [filter, setFilter] = useState<FilterType>("all");
     const [filterExpanded, setFilterExpanded] = useState(false);
     const [fabExpanded, setFabExpanded] = useState(false);
+    const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+    const [forkTarget, setForkTarget] = useState<ForkTarget | null>(null);
 
     const load = useCallback(() => {
         const q = query.trim();
@@ -45,8 +50,9 @@ export function useTemplateList() {
         const result: TemplateItem[] = [];
 
         if (filter === "all" || filter === "recipes") {
-            const recipeList = hasQuery ? searchRecipesByName(q) : getAllRecipes();
-            for (const r of recipeList) result.push({ kind: "recipe", data: r });
+            for (const group of getRecipeGroups(hasQuery ? q : undefined)) {
+                result.push({ kind: "recipe", data: group.recipe, variants: group.variants });
+            }
         }
         if (filter === "all" || filter === "foods") {
             const foodList = hasQuery ? searchFoodsByName(q) : getAllFoods();
@@ -62,6 +68,27 @@ export function useTemplateList() {
     }, [filter, query]);
 
     useFocusEffect(load);
+
+    function toggleExpanded(recipeId: number) {
+        setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(recipeId)) next.delete(recipeId);
+            else next.add(recipeId);
+            return next;
+        });
+    }
+
+    function handleForkSubmit(variantName: string) {
+        if (!forkTarget) return;
+        const variant = forkRecipe(forkTarget.recipe.id, variantName);
+        logger.info("[DB] Forked recipe", { source: forkTarget.recipe.id, variant: variant.id });
+        setForkTarget(null);
+        if (variant.parent_recipe_id != null) {
+            // Expand the group so the new variant is visible.
+            setExpandedIds((prev) => new Set(prev).add(variant.parent_recipe_id!));
+        }
+        load();
+    }
 
     function handleDeleteRecipe(recipe: Recipe) {
         Alert.alert(t("templates.deleteRecipe"), t("templates.deleteTitle"), [
@@ -178,6 +205,11 @@ export function useTemplateList() {
         setFilterExpanded,
         fabExpanded,
         setFabExpanded,
+        expandedIds,
+        toggleExpanded,
+        forkTarget,
+        setForkTarget,
+        handleForkSubmit,
         handleDeleteRecipe,
         handleDeleteFood,
         handleDeleteExercise,

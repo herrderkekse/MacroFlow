@@ -267,6 +267,13 @@ const en = {
         editRewriteHistory: "Update all entries",
         removeFoodSoft: 'Hide "{{name}}" from searches? Past log entries will be preserved.',
         removeRecipeSoft: 'Hide "{{name}}" from searches? Past log entries will be preserved.',
+        createVariant: "Create variant",
+        forkDescription: 'Creates a new variant of "{{name}}" with a copy of its items to customize. Name it after just the specification, e.g. "with sprinkles".',
+        variantName: "Variant name",
+        variantNamePlaceholder: "e.g. with sprinkles",
+        variantOf: 'Variant of "{{name}}"',
+        variantCount_one: "{{count}} variant",
+        variantCount_other: "{{count}} variants",
     },
     analytics: {
         title: "Analytics",
