@@ -248,6 +248,16 @@ export function deleteRecipeLog(recipeLogId: number) {
     db.delete(recipeLogs).where(eq(recipeLogs.id, recipeLogId)).run();
 }
 
+export function deleteEntriesAndRecipeLogs(standaloneEntryIds: number[], recipeLogIds: number[]) {
+    if (standaloneEntryIds.length > 0) {
+        db.delete(entries).where(inArray(entries.id, standaloneEntryIds)).run();
+    }
+    for (const rlId of recipeLogIds) {
+        db.delete(entries).where(eq(entries.recipe_log_id, rlId)).run();
+        db.delete(recipeLogs).where(eq(recipeLogs.id, rlId)).run();
+    }
+}
+
 // ── Move / Copy entries ────────────────────────────────────
 
 export function moveEntriesToDate(

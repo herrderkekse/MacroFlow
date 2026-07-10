@@ -168,6 +168,8 @@ const de = {
         newRecipeFromSelection: "Rezept {{date}}",
         move: "Verschieben",
         copy: "Kopieren",
+        deleteSelectedTitle: "{{count}} ausgewählte Einträge löschen?",
+        deleteSelectedMessage: "Dies kann nicht rückgängig gemacht werden.",
         logWeight: "Gewicht erfassen",
         weight: "Gewicht",
         noWeightsLogged: "Noch kein Gewicht erfasst",

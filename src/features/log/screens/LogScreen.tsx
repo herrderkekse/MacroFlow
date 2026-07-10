@@ -17,7 +17,7 @@ import { useBottomTabBarHeight } from "expo-router/js-tabs";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateSelectorBar from "../components/DateSelectorBar";
 import EntryModal from "../components/EntryModal";
@@ -97,6 +97,17 @@ export default function LogScreen() {
         router.push({ pathname: "/photos/photos", params: { dateKey: selectedDateKey } });
     }
 
+    function handleDeleteSelection() {
+        Alert.alert(
+            t("log.deleteSelectedTitle", { count: d.selectedEntryIds.size }),
+            t("log.deleteSelectedMessage"),
+            [
+                { text: t("common.cancel"), style: "cancel" },
+                { text: t("common.delete"), style: "destructive", onPress: d.handleDeleteSelection },
+            ],
+        );
+    }
+
     function handleSaveWeight() {
         const value = parseFloat(weightInput);
         if (!value || value <= 0) return;
@@ -154,12 +165,20 @@ export default function LogScreen() {
                 onSaved={() => { d.setEditingEntry(null); d.loadAllDays(d.selectedDate); }} />
 
             {d.selectionMode && (
-                <Pressable
-                    style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 }, pressed && styles.secondaryFabPressed]}
-                    onPress={d.handleCreateRecipeFromSelection}
-                >
-                    <Ionicons name="book-outline" size={24} color={colors.primary} />
-                </Pressable>
+                <>
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 + 62 }, pressed && styles.secondaryFabPressed]}
+                        onPress={handleDeleteSelection}
+                    >
+                        <Ionicons name="trash-outline" size={24} color={colors.danger} />
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 }, pressed && styles.secondaryFabPressed]}
+                        onPress={d.handleCreateRecipeFromSelection}
+                    >
+                        <Ionicons name="book-outline" size={24} color={colors.primary} />
+                    </Pressable>
+                </>
             )}
 
             {!d.selectionMode && showQuickActions && (

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
 import { computeWeightTrend, loadGrouped, type EntryWithFood } from "../helpers/logHelpers";
-import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, copyEntriesToRecipeLog, createRecipeFromEntries, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, moveEntriesToRecipeLog, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
+import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, copyEntriesToRecipeLog, createRecipeFromEntries, deleteEntriesAndRecipeLogs, deleteEntry, deleteRecipeLog, deleteWeightLog, formatDateKey, getEntriesByDate, getWeightLogsForDate, getWeightLogsForRange, moveEntriesToDate, moveEntriesToRecipeLog, updateRecipeLogPortion, type RecipeGroup, type WeightLog } from "../services/logDb";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -204,12 +204,37 @@ export function useLogData() {
     const handleActivateSelection = (entryId: number) => { setSelectionMode(true); setSelectedEntryIds(new Set([entryId])); };
     const handleActivateSelectionMultiple = (entryIds: number[]) => { setSelectionMode(true); setSelectedEntryIds(new Set(entryIds)); };
 
-    function handleMoveCopy(targetDate: Date, targetMealType: string | null, action: "move" | "copy", targetRecipeLogId: number | null) {
+    // Splits the current selection into standalone entry ids and recipe log ids
+    // that are selected in full (every entry belonging to that recipe log is selected).
+    function partitionSelection() {
         const allEntries = Object.values(grouped).flat();
+        const recipeLogEntryMap = new Map<number, number[]>();
+        for (const row of allEntries) {
+            const rlId = row.entries.recipe_log_id;
+            if (rlId) {
+                const list = recipeLogEntryMap.get(rlId) ?? [];
+                list.push(row.entries.id);
+                recipeLogEntryMap.set(rlId, list);
+            }
+        }
+        const fullySelectedRecipeLogIds: number[] = [];
+        const standaloneEntryIds: number[] = [];
+        for (const [rlId, entryIds] of recipeLogEntryMap) {
+            if (entryIds.every((id) => selectedEntryIds.has(id))) fullySelectedRecipeLogIds.push(rlId);
+            else entryIds.filter((id) => selectedEntryIds.has(id)).forEach((id) => standaloneEntryIds.push(id));
+        }
+        for (const row of allEntries) {
+            if (!row.entries.recipe_log_id && selectedEntryIds.has(row.entries.id)) standaloneEntryIds.push(row.entries.id);
+        }
+        return { standaloneEntryIds, fullySelectedRecipeLogIds };
+    }
+
+    function handleMoveCopy(targetDate: Date, targetMealType: string | null, action: "move" | "copy", targetRecipeLogId: number | null) {
         const dateKey = formatDateKey(targetDate);
 
         if (targetRecipeLogId !== null) {
             // Move/copy all selected entries into the target recipe log
+            const allEntries = Object.values(grouped).flat();
             const allSelectedEntryIds = allEntries
                 .filter((row) => selectedEntryIds.has(row.entries.id))
                 .map((row) => row.entries.id);
@@ -222,24 +247,7 @@ export function useLogData() {
                 copyEntriesToRecipeLog(allSelectedEntryIds, targetRecipeLogId, dateKey, recipeMealType);
             }
         } else {
-            const recipeLogEntryMap = new Map<number, number[]>();
-            for (const row of allEntries) {
-                const rlId = row.entries.recipe_log_id;
-                if (rlId) {
-                    const list = recipeLogEntryMap.get(rlId) ?? [];
-                    list.push(row.entries.id);
-                    recipeLogEntryMap.set(rlId, list);
-                }
-            }
-            const fullySelectedRecipeLogIds: number[] = [];
-            const standaloneEntryIds: number[] = [];
-            for (const [rlId, entryIds] of recipeLogEntryMap) {
-                if (entryIds.every((id) => selectedEntryIds.has(id))) fullySelectedRecipeLogIds.push(rlId);
-                else entryIds.filter((id) => selectedEntryIds.has(id)).forEach((id) => standaloneEntryIds.push(id));
-            }
-            for (const row of allEntries) {
-                if (!row.entries.recipe_log_id && selectedEntryIds.has(row.entries.id)) standaloneEntryIds.push(row.entries.id);
-            }
+            const { standaloneEntryIds, fullySelectedRecipeLogIds } = partitionSelection();
             if (action === "move") moveEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
             else copyEntriesToDate(standaloneEntryIds, fullySelectedRecipeLogIds, dateKey, targetMealType);
         }
@@ -247,6 +255,17 @@ export function useLogData() {
         setMoveModalVisible(false);
         loadAllDays(targetDate);
         setSelectedDate(targetDate);
+    }
+
+    function handleDeleteSelection() {
+        const { standaloneEntryIds, fullySelectedRecipeLogIds } = partitionSelection();
+        deleteEntriesAndRecipeLogs(standaloneEntryIds, fullySelectedRecipeLogIds);
+        logger.info("[DB] Deleted selected entries", { entryCount: standaloneEntryIds.length, recipeLogCount: fullySelectedRecipeLogIds.length });
+        const settings = getNotificationSettings() ?? null;
+        const loggedMealTypes = new Set(getEntriesByDate(new Date()).map(e => e.entries.meal_type as MealType));
+        syncTodayMealReminders(settings, loggedMealTypes);
+        exitSelectionMode();
+        loadAllDays(selectedDate);
     }
 
     function handleCreateRecipeFromSelection() {
@@ -291,7 +310,7 @@ export function useLogData() {
         handleEdit, handleEditRecipeGroup, handleSavePortionMultiplier,
         navigateToAdd, exitSelectionMode,
         handleToggleEntries, handleActivateSelection, handleActivateSelectionMultiple,
-        handleMoveCopy, handleCreateRecipeFromSelection, handleDateChange,
+        handleMoveCopy, handleDeleteSelection, handleCreateRecipeFromSelection, handleDateChange,
         loadAllDays, SCREEN_WIDTH,
     };
 }
