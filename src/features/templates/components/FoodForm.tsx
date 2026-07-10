@@ -10,6 +10,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { addFood, addServingUnit, deleteServingUnit, duplicateFood, getFoodById, getServingUnits, softDeleteFood, updateFood, updateServingUnit, type Food, type ServingUnit } from "../services/templateDb";
+import BarcodeField from "./BarcodeField";
 import ServingUnitEditor, { type ServingUnitRow } from "./ServingUnitEditor";
 
 interface FoodFormProps {
@@ -35,6 +36,7 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
     const [carbs, setCarbs] = useState("");
     const [fat, setFat] = useState("");
     const [defaultUnit, setDefaultUnit] = useState<FoodUnit>("g");
+    const [barcode, setBarcode] = useState("");
     const [servingUnitRows, setServingUnitRows] = useState<ServingUnitRow[]>([]);
 
     useEffect(() => {
@@ -47,6 +49,7 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
             setCarbs(String(food.carbs_per_100g));
             setFat(String(food.fat_per_100g));
             setDefaultUnit(food.default_unit as FoodUnit);
+            setBarcode(food.barcode ?? "");
             const units = getServingUnits(foodId);
             setServingUnitRows(
                 units.map((u) => ({ id: u.id, name: u.name, grams: String(u.grams) })),
@@ -84,6 +87,7 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
                     carbs_per_100g: parseFloat(carbs) || 0,
                     fat_per_100g: parseFloat(fat) || 0,
                     default_unit: defaultUnit,
+                    barcode: barcode.trim() || undefined,
                 };
                 Alert.alert(
                     t("templates.editTitle"),
@@ -131,6 +135,7 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
                     fat_per_100g: parseFloat(fat) || 0,
                     source: "manual",
                     default_unit: defaultUnit,
+                    barcode: barcode.trim() || undefined,
                 });
                 saveServingUnits(created.id, []);
                 logger.info("[DB] Created food", { id: created.id, name: name.trim() });
@@ -230,6 +235,8 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
 
             <Text style={styles.sectionLabel}>{t("templates.servingUnits")}</Text>
             <ServingUnitEditor rows={servingUnitRows} onChange={setServingUnitRows} />
+
+            <BarcodeField value={barcode} onChange={setBarcode} />
 
             <Button
                 title={submitLabel ?? t("common.save")}

@@ -224,9 +224,10 @@ export default function AddFoodScreen() {
             {/* Modals */}
             <ManualFoodForm
                 visible={search.showManualForm}
-                onClose={() => search.setShowManualForm(false)}
+                onClose={search.handleCloseManualForm}
                 onFoodCreated={search.handleFoodCreated}
                 initialName={search.query.trim()}
+                initialBarcode={search.pendingBarcode}
             />
 
             <BarcodeScannerView

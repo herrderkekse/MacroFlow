@@ -22,6 +22,8 @@ interface ManualFoodFormProps {
     onClose: () => void;
     onFoodCreated: (food: Food) => void;
     initialName?: string;
+    /** Pre-fill the barcode field (e.g. after a barcode scan found no matching product) */
+    initialBarcode?: string;
 }
 
 export default function ManualFoodForm({
@@ -29,6 +31,7 @@ export default function ManualFoodForm({
     onClose,
     onFoodCreated,
     initialName,
+    initialBarcode,
 }: ManualFoodFormProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
@@ -40,6 +43,14 @@ export default function ManualFoodForm({
     const [carbs, setCarbs] = useState("");
     const [fat, setFat] = useState("");
     const [defaultUnit, setDefaultUnit] = useState<FoodUnit>("g");
+    const [barcode, setBarcode] = useState(initialBarcode ?? "");
+
+    // Re-sync the barcode field with the latest scan whenever the modal opens.
+    const [prevVisible, setPrevVisible] = useState(visible);
+    if (visible !== prevVisible) {
+        setPrevVisible(visible);
+        if (visible) setBarcode(initialBarcode ?? "");
+    }
 
     function handleSave() {
         if (!name.trim()) return;
@@ -51,6 +62,7 @@ export default function ManualFoodForm({
             fat_per_100g: parseFloat(fat) || 0,
             source: "manual",
             default_unit: defaultUnit,
+            barcode: barcode.trim() || undefined,
         });
         setName("");
         setCalories("");
@@ -58,6 +70,7 @@ export default function ManualFoodForm({
         setCarbs("");
         setFat("");
         setDefaultUnit("g");
+        setBarcode("");
         onFoodCreated(food);
     }
 
@@ -130,6 +143,14 @@ export default function ManualFoodForm({
                         value={fat}
                         onChangeText={setFat}
                         keyboardType="decimal-pad"
+                        containerStyle={styles.field}
+                    />
+                    <Input
+                        label={t("log.barcode")}
+                        placeholder={t("log.barcodePlaceholder")}
+                        value={barcode}
+                        onChangeText={setBarcode}
+                        keyboardType="number-pad"
                         containerStyle={styles.field}
                     />
                     <Button
