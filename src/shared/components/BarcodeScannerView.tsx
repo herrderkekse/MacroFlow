@@ -22,7 +22,7 @@ interface BarcodeScannerViewProps<TFood> {
     /** Resolves to the found food, or null if not found. May throw on network error. */
     onBarcodeScanned: (barcode: string) => Promise<TFood | null>;
     onFoodFound: (food: TFood) => void;
-    onNotFound: () => void;
+    onNotFound: (barcode: string) => void;
 }
 
 type ScanState =
@@ -82,8 +82,10 @@ export default function BarcodeScannerView<TFood>({
     }
 
     function handleCreateManually() {
+        if (state.status !== "not-found") return;
+        const barcode = state.barcode;
         resetAndClose();
-        onNotFound();
+        onNotFound(barcode);
     }
 
     // ── Permission states ──────────────────────────────────

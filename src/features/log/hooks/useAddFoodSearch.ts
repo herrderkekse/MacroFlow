@@ -36,6 +36,7 @@ export function useAddFoodSearch() {
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [showManualForm, setShowManualForm] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
+    const [pendingBarcode, setPendingBarcode] = useState<string | undefined>(undefined);
 
     // ── Recipe search (variants grouped under their base, collapsed) ──
     const [recipeResults, setRecipeResults] = useState<RecipeGroup[]>([]);
@@ -152,6 +153,7 @@ export function useAddFoodSearch() {
 
     function handleFoodCreated(food: Food) {
         setShowManualForm(false);
+        setPendingBarcode(undefined);
         setTimeout(() => setSelectedFood(food), 300);
     }
 
@@ -160,9 +162,15 @@ export function useAddFoodSearch() {
         setTimeout(() => setSelectedFood(food), 300);
     }
 
-    function handleBarcodeNotFound() {
+    function handleBarcodeNotFound(barcode: string) {
         setShowScanner(false);
+        setPendingBarcode(barcode);
         setTimeout(() => setShowManualForm(true), 300);
+    }
+
+    function handleCloseManualForm() {
+        setShowManualForm(false);
+        setPendingBarcode(undefined);
     }
 
     function handleEntrySaved() {
@@ -194,6 +202,7 @@ export function useAddFoodSearch() {
         setSelectedRecipe,
         showManualForm,
         setShowManualForm,
+        pendingBarcode,
         showScanner,
         setShowScanner,
         showLocalSection,
@@ -203,6 +212,7 @@ export function useAddFoodSearch() {
         handleFoodCreated,
         handleBarcodeFound,
         handleBarcodeNotFound,
+        handleCloseManualForm,
         handleEntrySaved,
         lookupBarcode,
     };
