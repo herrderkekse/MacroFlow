@@ -169,6 +169,8 @@ const en = {
         newRecipeFromSelection: "Recipe {{date}}",
         move: "Move",
         copy: "Copy",
+        deleteSelectedTitle: "Delete {{count}} selected entries?",
+        deleteSelectedMessage: "This can't be undone.",
         logWeight: "Log Weight",
         weight: "Weight",
         noWeightsLogged: "No weight logged yet",
