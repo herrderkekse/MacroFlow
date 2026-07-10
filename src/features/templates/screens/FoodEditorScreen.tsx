@@ -1,6 +1,6 @@
 import FoodForm from "@/src/features/templates/components/FoodForm";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";

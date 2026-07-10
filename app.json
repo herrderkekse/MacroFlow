@@ -43,7 +43,13 @@
       "expo-sqlite",
       "expo-localization",
       "expo-notifications",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      "expo-image",
+      "expo-sharing",
+      "expo-web-browser",
+      "expo-status-bar",
+      "./plugins/withDebugApplicationIdSuffix"
     ],
     "experiments": {
       "typedRoutes": true,
