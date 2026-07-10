@@ -77,7 +77,7 @@ export function useRestTimer(): UseRestTimerReturn {
             tick();
             intervalRef.current = setInterval(tick, 1000);
         } else {
-            setElapsedSeconds(0);
+            queueMicrotask(() => setElapsedSeconds(0));
             hapticFiredRef.current = false;
         }
 

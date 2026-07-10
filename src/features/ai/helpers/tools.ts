@@ -1,5 +1,6 @@
 import { formatDateKey } from "@/src/utils/date";
 import { jsonSchema } from "ai";
+import type { JSONSchema7 } from "json-schema";
 import { AI_TOOLS } from "../constants/toolDefinitions";
 
 // Re-export everything so existing consumers keep working
@@ -56,12 +57,12 @@ export function buildToolSystemPrompt(memories: string[] = []): string {
 
 // ── Converters ────────────────────────────────────────────
 
-export function toAiSdkTools(): Record<string, { description: string; parameters: ReturnType<typeof jsonSchema> }> {
+export function toAiSdkTools(): Record<string, { description: string; inputSchema: ReturnType<typeof jsonSchema> }> {
     const tools: Record<string, { description: string; inputSchema: ReturnType<typeof jsonSchema> }> = {};
     for (const tool of AI_TOOLS) {
         tools[tool.name] = {
             description: tool.description,
-            inputSchema: jsonSchema(tool.parameters),
+            inputSchema: jsonSchema(tool.parameters as JSONSchema7),
         };
     }
     return tools;

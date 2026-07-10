@@ -6,7 +6,7 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 export type ExerciseSet = typeof exerciseSets.$inferSelect;
 export type NewExerciseSet = typeof exerciseSets.$inferInsert;
 
-export function addSet(data: NewExerciseSet): ExerciseSet {
+export function addSet(data: Omit<NewExerciseSet, "set_order"> & { set_order?: number }): ExerciseSet {
     const { set_order, ...rest } = data;
     exerciseDbSupport.getWorkoutExerciseOrThrow(data.workout_exercise_id);
     return db

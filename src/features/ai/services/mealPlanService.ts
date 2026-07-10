@@ -1,7 +1,7 @@
 import { addEntry } from "@/src/features/log/services/logDb";
 import { formatDateKey as formatLocalDateKey } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 import { streamText } from "ai";
 import { createModelFromConfig } from "../helpers/createModelFromConfig";
 import type {
@@ -22,8 +22,8 @@ export function buildMealPlanPrompt(
     recipes: AiRecipePayload[],
     goals: AiGoalsPayload,
     prefs: MealPlanPreferences,
-): CoreMessage[] {
-    const system: CoreMessage = {
+): ModelMessage[] {
+    const system: ModelMessage = {
         role: "system",
         content: [
             "You are a meal planning assistant. You generate structured meal plans in JSON format.",
@@ -64,7 +64,7 @@ export function buildMealPlanPrompt(
         userContent.push(`Foods I don't like: ${prefs.dislikedFoods}`);
     }
 
-    const user: CoreMessage = { role: "user", content: userContent.join("\n") };
+    const user: ModelMessage = { role: "user", content: userContent.join("\n") };
 
     return [system, user];
 }
@@ -241,7 +241,7 @@ export function validateMealPlanMacros(
 export function buildRefinementMessage(
     previousResponse: string,
     issues: string[],
-): CoreMessage {
+): ModelMessage {
     return {
         role: "user",
         content: [
@@ -297,7 +297,7 @@ export async function generateMealPlan(opts: GenerateMealPlanOptions): Promise<A
     let plan = parseMealPlanResponse(raw, validFoodIds, goals, foods);
     onPartialEntries?.(plan.entries);
 
-    const conversationHistory: CoreMessage[] = [...messages, { role: "assistant" as const, content: raw }];
+    const conversationHistory: ModelMessage[] = [...messages, { role: "assistant" as const, content: raw }];
 
     for (let i = 0; i < MAX_REFINEMENTS; i++) {
         if (signal?.aborted) break;

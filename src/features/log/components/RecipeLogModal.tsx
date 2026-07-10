@@ -45,11 +45,11 @@ export default function RecipeLogModal({
     const [portionInput, setPortionInput] = useState("1");
 
     React.useEffect(() => {
-        if (defaultMealType) setMealType(defaultMealType);
+        if (defaultMealType) queueMicrotask(() => setMealType(defaultMealType));
     }, [defaultMealType]);
 
     React.useEffect(() => {
-        if (recipe) setPortionInput("1");
+        if (recipe) queueMicrotask(() => setPortionInput("1"));
     }, [recipe]);
 
     const displayName = React.useMemo(() => (recipe ? getRecipeDisplayName(recipe) : null), [recipe]);

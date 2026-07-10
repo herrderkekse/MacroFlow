@@ -32,21 +32,23 @@ export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, on
 
     useEffect(() => {
         if (!visible) return;
-        const recents = getRecentWorkouts(20);
-        const filtered = recents.filter((w) => w.id !== targetWorkoutId && w.ended_at !== null);
-        setRows(filtered.map((w) => {
-            const exercises = getExercisesForWorkout(w.id);
-            const muscleGroups = [...new Set(
-                exercises
-                    .map((e) => e.exerciseTemplate?.muscle_group)
-                    .filter((g): g is string => !!g),
-            )];
-            return {
-                workout: w,
-                exerciseCount: exercises.length,
-                muscleGroups,
-            };
-        }));
+        queueMicrotask(() => {
+            const recents = getRecentWorkouts(20);
+            const filtered = recents.filter((w) => w.id !== targetWorkoutId && w.ended_at !== null);
+            setRows(filtered.map((w) => {
+                const exercises = getExercisesForWorkout(w.id);
+                const muscleGroups = [...new Set(
+                    exercises
+                        .map((e) => e.exerciseTemplate?.muscle_group)
+                        .filter((g): g is string => !!g),
+                )];
+                return {
+                    workout: w,
+                    exerciseCount: exercises.length,
+                    muscleGroups,
+                };
+            }));
+        });
     }, [visible, targetWorkoutId]);
 
     function handleCopy(sourceId: number) {

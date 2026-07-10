@@ -64,7 +64,7 @@ export default function WorkoutScreen() {
         const exercises = workout.data?.exercises ?? [];
         if (exercises.length > 0 && expandedId === null) {
             const targetIndex = exercises.findIndex((ex) => ex.sets.some((s) => !s.completed_at));
-            setExpandedId(exercises[targetIndex === -1 ? 0 : targetIndex].workoutExercise.id);
+            queueMicrotask(() => setExpandedId(exercises[targetIndex === -1 ? 0 : targetIndex].workoutExercise.id));
         }
     }, [workout.data?.exercises, expandedId]);
 

@@ -31,7 +31,7 @@ export function useAnalyticsData() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setLoading(true);
+        queueMicrotask(() => setLoading(true));
         const id = requestAnimationFrame(() => {
             const endDate = formatDateKey(new Date());
             const startDate = timeSpan === "all" ? "2000-01-01" : daysAgo(timeSpan);

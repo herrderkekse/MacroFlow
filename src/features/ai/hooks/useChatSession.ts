@@ -1,8 +1,8 @@
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, FlatList, Keyboard, type ScrollView, type TextInput } from "react-native";
+import { Alert, Keyboard, type FlatList, type ScrollView, type TextInput } from "react-native";
 import type { AiToolCall } from "../helpers/tools";
 import { loadAiConfig } from "../services/aiConfig";
 import type { UiChatMessage } from "../services/chat";
@@ -57,9 +57,12 @@ function deriveSessionTitle(text: string): string {
 interface UseChatSessionOptions {
     onVisibilityChange?: (visible: boolean) => void;
     onDataChanged?: () => void;
+    sessionListRef: RefObject<FlatList | null>;
+    scrollRef: RefObject<ScrollView | null>;
+    inputRef: RefObject<TextInput | null>;
 }
 
-export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSessionOptions) {
+export function useChatSession({ onVisibilityChange, onDataChanged, sessionListRef, scrollRef, inputRef }: UseChatSessionOptions) {
     const { t } = useTranslation();
 
     const [hasAiConfig, setHasAiConfig] = useState(false);
@@ -75,12 +78,11 @@ export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSes
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
     const [isAtLatestSession, setIsAtLatestSession] = useState(true);
-    const sessionListRef = useRef<FlatList>(null);
 
-    const scrollRef = useRef<ScrollView>(null);
-    const inputRef = useRef<TextInput>(null);
     const messagesRef = useRef<UiChatMessage[]>([]);
-    messagesRef.current = messages;
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
 
     const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -97,7 +99,7 @@ export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSes
             showSub.remove();
             hideSub.remove();
         };
-    }, []);
+    }, [scrollRef]);
 
     // ── AI config check ───────────────────────────────────
     useFocusEffect(
@@ -112,20 +114,22 @@ export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSes
 
     // ── Session initialization ────────────────────────────
     useEffect(() => {
-        const existing = getAllChatSessions();
-        const newest = existing[0];
-        const newestIsEmpty = newest ? getChatMessages(newest.id).length === 0 : false;
+        queueMicrotask(() => {
+            const existing = getAllChatSessions();
+            const newest = existing[0];
+            const newestIsEmpty = newest ? getChatMessages(newest.id).length === 0 : false;
 
-        if (newestIsEmpty && newest) {
-            setSessions(existing);
-            setActiveSessionId(newest.id);
-        } else {
-            const fresh = createChatSession(t("chat.newSession"));
-            setSessions([fresh, ...existing]);
-            setActiveSessionId(fresh.id);
-        }
-        setMessages([]);
-        setIsAtLatestSession(true);
+            if (newestIsEmpty && newest) {
+                setSessions(existing);
+                setActiveSessionId(newest.id);
+            } else {
+                const fresh = createChatSession(t("chat.newSession"));
+                setSessions([fresh, ...existing]);
+                setActiveSessionId(fresh.id);
+            }
+            setMessages([]);
+            setIsAtLatestSession(true);
+        });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Session management ────────────────────────────────
@@ -159,7 +163,7 @@ export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSes
         setStreamingToolData(null);
         setIsAtLatestSession(true);
         setTimeout(() => sessionListRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
-    }, [loading, t, messages.length, activeSessionId]);
+    }, [loading, t, messages.length, activeSessionId, sessionListRef]);
 
     const handleDeleteSession = useCallback((session: ChatSession) => {
         if (loading) return;
@@ -193,7 +197,7 @@ export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSes
         if (messages.length > 0 || streamingText) {
             setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
         }
-    }, [messages, streamingText]);
+    }, [messages, streamingText, scrollRef]);
 
     // ── Message persistence + title ───────────────────────
     const addMessage = useCallback((msg: UiChatMessage) => {
@@ -275,10 +279,6 @@ export function useChatSession({ onVisibilityChange, onDataChanged }: UseChatSes
         isAtLatestSession,
         keyboardHeight,
         lastAssistantActionIdx,
-        // Refs
-        scrollRef,
-        inputRef,
-        sessionListRef,
         // Handlers
         switchSession,
         handleNewSession,

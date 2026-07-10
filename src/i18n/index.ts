@@ -12,6 +12,7 @@ export const defaultLanguage: Language = SUPPORTED_LANGUAGES.includes(deviceLang
     ? (deviceLang as Language)
     : "en";
 
+// eslint-disable-next-line import/no-named-as-default-member -- i18next's default export intentionally exposes `.use()`; not the named `use` from react-i18next.
 i18n.use(initReactI18next).init({
     resources: {
         en: { translation: en },

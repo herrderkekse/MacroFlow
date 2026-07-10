@@ -14,6 +14,7 @@ import {
     StyleSheet,
     Text,
     View,
+    type TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useChatSession } from "../hooks/useChatSession";
@@ -43,9 +44,12 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
     const insets = useSafeAreaInsets();
 
     const sheetRef = useRef<BottomSheetRef>(null);
+    const sessionListRef = useRef<FlatList>(null);
+    const scrollRef = useRef<ScrollView>(null);
+    const inputRef = useRef<TextInput>(null);
     const [isOpen, setIsOpen] = useState(false);
 
-    const chat = useChatSession({ onVisibilityChange, onDataChanged });
+    const chat = useChatSession({ onVisibilityChange, onDataChanged, sessionListRef, scrollRef, inputRef });
 
     const screenHeight = Dimensions.get("window").height;
     const sheetOpenHeight = Math.round(screenHeight * 0.9);
@@ -101,7 +105,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                 {/* Session selector */}
                 <View style={styles.sessionBar}>
                     <FlatList
-                        ref={chat.sessionListRef}
+                        ref={sessionListRef}
                         horizontal
                         data={chat.sessions}
                         keyExtractor={(s) => String(s.id)}
@@ -153,7 +157,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
 
                 {/* Messages */}
                 <ScrollView
-                    ref={chat.scrollRef}
+                    ref={scrollRef}
                     style={styles.messageList}
                     contentContainerStyle={[
                         styles.messageListContent,
@@ -236,7 +240,7 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
 
             {/* Floating input bar */}
             <ChatInputBar
-                inputRef={chat.inputRef}
+                inputRef={inputRef}
                 inputText={chat.inputText}
                 onChangeText={chat.setInputText}
                 loading={chat.loading}

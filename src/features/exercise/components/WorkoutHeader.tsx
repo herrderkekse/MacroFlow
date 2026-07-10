@@ -1,5 +1,5 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

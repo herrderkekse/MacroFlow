@@ -203,7 +203,7 @@ export default function AnalyticsChart({
 
         logger.warn("[UI] Unknown metric type for analytics chart", { metric });
         return null;
-    }, [data, weightData, metric, colors, isImperial]);
+    }, [data, weightData, metric, colors, isImperial, timeSpan, KG_TO_LB]);
 
     if (loading) {
         return (

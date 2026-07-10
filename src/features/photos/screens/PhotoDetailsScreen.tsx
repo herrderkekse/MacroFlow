@@ -27,23 +27,25 @@ export default function PhotoDetailsScreen() {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const dateKey = Array.isArray(params.dateKey) ? params.dateKey[0] : params.dateKey;
-        if (dateKey) {
-            const dayWorkouts = getWorkoutsByDate(dateKey);
-            setWorkouts(dayWorkouts);
-        }
-
-        const raw = Array.isArray(params.images) ? params.images[0] : params.images;
-        if (!raw) return;
-
-        try {
-            const parsed = JSON.parse(raw) as string[];
-            if (Array.isArray(parsed)) {
-                setImageUris(parsed.filter((uri) => typeof uri === "string" && uri.length > 0));
+        queueMicrotask(() => {
+            const dateKey = Array.isArray(params.dateKey) ? params.dateKey[0] : params.dateKey;
+            if (dateKey) {
+                const dayWorkouts = getWorkoutsByDate(dateKey);
+                setWorkouts(dayWorkouts);
             }
-        } catch {
-            setImageUris([]);
-        }
+
+            const raw = Array.isArray(params.images) ? params.images[0] : params.images;
+            if (!raw) return;
+
+            try {
+                const parsed = JSON.parse(raw) as string[];
+                if (Array.isArray(parsed)) {
+                    setImageUris(parsed.filter((uri) => typeof uri === "string" && uri.length > 0));
+                }
+            } catch {
+                setImageUris([]);
+            }
+        });
     }, [params.images, params.dateKey]);
 
     function getWorkoutLabel(workoutId: number | null) {

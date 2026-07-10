@@ -38,7 +38,7 @@ export function useExerciseHistory(templateId: number | undefined): UseExerciseH
     }, [templateId]);
 
     useEffect(() => {
-        load();
+        queueMicrotask(load);
     }, [load]);
 
     return { history, e1rmSeries, personalBest, isLoading, refresh: load };

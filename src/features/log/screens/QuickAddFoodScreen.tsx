@@ -58,15 +58,17 @@ export default function QuickAddFoodScreen() {
             return;
         }
 
-        setTitle(food.name);
-        setCalories(String(Math.round(food.calories_per_100g * 10) / 10));
-        setProtein(String(Math.round(food.protein_per_100g * 10) / 10));
-        setCarbs(String(Math.round(food.carbs_per_100g * 10) / 10));
-        setFat(String(Math.round(food.fat_per_100g * 10) / 10));
-        setSelectedMeal(isMealType(entry.meal_type) ? entry.meal_type : "breakfast");
-        setShowMacros(
-            food.protein_per_100g > 0 || food.carbs_per_100g > 0 || food.fat_per_100g > 0,
-        );
+        queueMicrotask(() => {
+            setTitle(food.name);
+            setCalories(String(Math.round(food.calories_per_100g * 10) / 10));
+            setProtein(String(Math.round(food.protein_per_100g * 10) / 10));
+            setCarbs(String(Math.round(food.carbs_per_100g * 10) / 10));
+            setFat(String(Math.round(food.fat_per_100g * 10) / 10));
+            setSelectedMeal(isMealType(entry.meal_type) ? entry.meal_type : "breakfast");
+            setShowMacros(
+                food.protein_per_100g > 0 || food.carbs_per_100g > 0 || food.fat_per_100g > 0,
+            );
+        });
     }, [entryId, isEditMode, numericEntryId]);
 
     function handleSave() {

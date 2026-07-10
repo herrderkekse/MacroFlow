@@ -48,22 +48,24 @@ export default function CreateExerciseModal({ visible, exerciseId, initialName, 
     useEffect(() => {
         if (!visible) return;
 
-        if (exerciseId != null) {
-            const existing = getExerciseTemplateById(exerciseId);
-            if (!existing) return;
-            setName(existing.name);
-            setType((existing.type as ExerciseType) ?? "weight");
-            setMuscleGroup((existing.muscle_group as MuscleGroup) ?? null);
-            setEquipment((existing.equipment as Equipment) ?? null);
-            setResistanceMode((existing.resistance_mode as ResistanceMode) ?? "resistance");
-            setDefaultUnit((existing.default_weight_unit as WeightUnit) ?? "kg");
-            setCustomFields(parseCustomFields(existing.custom_fields));
-            return;
-        }
+        queueMicrotask(() => {
+            if (exerciseId != null) {
+                const existing = getExerciseTemplateById(exerciseId);
+                if (!existing) return;
+                setName(existing.name);
+                setType((existing.type as ExerciseType) ?? "weight");
+                setMuscleGroup((existing.muscle_group as MuscleGroup) ?? null);
+                setEquipment((existing.equipment as Equipment) ?? null);
+                setResistanceMode((existing.resistance_mode as ResistanceMode) ?? "resistance");
+                setDefaultUnit((existing.default_weight_unit as WeightUnit) ?? "kg");
+                setCustomFields(parseCustomFields(existing.custom_fields));
+                return;
+            }
 
-        setName(initialName?.trim() ?? "");
-        setCustomFields([]);
-        setNameError(false);
+            setName(initialName?.trim() ?? "");
+            setCustomFields([]);
+            setNameError(false);
+        });
     }, [visible, exerciseId, initialName]);
 
     function resetForm() {
