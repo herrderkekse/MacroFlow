@@ -29,23 +29,25 @@ export default function HistoricalWorkoutList({ excludeWorkoutId, onCopied }: Hi
     const [rows, setRows] = useState<WorkoutRow[]>([]);
 
     useEffect(() => {
-        const recents = getRecentWorkouts(20);
-        const filtered = recents.filter(
-            (w) => w.ended_at !== null && w.id !== excludeWorkoutId,
-        );
-        setRows(filtered.map((w) => {
-            const exercises = getExercisesForWorkout(w.id);
-            const muscleGroups = [...new Set(
-                exercises
-                    .map((e) => e.exerciseTemplate?.muscle_group)
-                    .filter((g): g is string => !!g),
-            )];
-            return {
-                workout: w,
-                exerciseCount: exercises.length,
-                muscleGroups,
-            };
-        }));
+        queueMicrotask(() => {
+            const recents = getRecentWorkouts(20);
+            const filtered = recents.filter(
+                (w) => w.ended_at !== null && w.id !== excludeWorkoutId,
+            );
+            setRows(filtered.map((w) => {
+                const exercises = getExercisesForWorkout(w.id);
+                const muscleGroups = [...new Set(
+                    exercises
+                        .map((e) => e.exerciseTemplate?.muscle_group)
+                        .filter((g): g is string => !!g),
+                )];
+                return {
+                    workout: w,
+                    exerciseCount: exercises.length,
+                    muscleGroups,
+                };
+            }));
+        });
     }, [excludeWorkoutId]);
 
     function handleCopy(sourceId: number) {

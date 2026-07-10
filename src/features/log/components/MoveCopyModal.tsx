@@ -45,15 +45,17 @@ export default function MoveCopyModal({
 
     React.useEffect(() => {
         if (visible) {
-            setTargetDate(initialDate);
-            setSelectedMeal(null);
-            setSelectedRecipeLogId(null);
+            queueMicrotask(() => {
+                setTargetDate(initialDate);
+                setSelectedMeal(null);
+                setSelectedRecipeLogId(null);
+            });
         }
     }, [visible, initialDate]);
 
     // Reset recipe selection when meal or date changes
     React.useEffect(() => {
-        setSelectedRecipeLogId(null);
+        queueMicrotask(() => setSelectedRecipeLogId(null));
     }, [selectedMeal, targetDate]);
 
     function shiftDate(days: number) {

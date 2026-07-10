@@ -4,7 +4,7 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
 
 export default function FoodEditorScreen() {
     const { foodId } = useLocalSearchParams<{ foodId?: string }>();

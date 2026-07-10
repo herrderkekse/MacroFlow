@@ -94,7 +94,7 @@ export default function WorkoutSummarySection({ date, refreshKey, onQuickAdd, hi
     }, [date]);
 
     useEffect(() => {
-        load();
+        queueMicrotask(load);
     }, [load, refreshKey]);
 
     useFocusEffect(

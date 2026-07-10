@@ -62,8 +62,10 @@ export default function CalendarPicker({
         if (visible) {
             const year = selectedDate.getFullYear();
             const month = selectedDate.getMonth();
-            setViewYear(year);
-            setViewMonth(month);
+            queueMicrotask(() => {
+                setViewYear(year);
+                setViewMonth(month);
+            });
             onViewMonthChange?.(year, month);
         }
     }, [onViewMonthChange, selectedDate, visible]);

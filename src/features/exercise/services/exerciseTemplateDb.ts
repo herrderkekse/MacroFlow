@@ -9,7 +9,7 @@ export type NewExerciseTemplate = typeof exerciseTemplates.$inferInsert;
 
 const DEFAULT_RECENT_LIMIT = 10;
 
-export function createExerciseTemplate(data: NewExerciseTemplate): ExerciseTemplate {
+export function createExerciseTemplate(data: Omit<NewExerciseTemplate, "created_at"> & { created_at?: number }): ExerciseTemplate {
     const { created_at, deleted, ...rest } = data;
     return db
         .insert(exerciseTemplates)

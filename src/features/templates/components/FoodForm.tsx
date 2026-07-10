@@ -41,20 +41,22 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
 
     useEffect(() => {
         if (!foodId) return;
-        const food = getFoodById(foodId);
-        if (food) {
-            setName(food.name);
-            setCalories(String(food.calories_per_100g));
-            setProtein(String(food.protein_per_100g));
-            setCarbs(String(food.carbs_per_100g));
-            setFat(String(food.fat_per_100g));
-            setDefaultUnit(food.default_unit as FoodUnit);
-            setBarcode(food.barcode ?? "");
-            const units = getServingUnits(foodId);
-            setServingUnitRows(
-                units.map((u) => ({ id: u.id, name: u.name, grams: String(u.grams) })),
-            );
-        }
+        queueMicrotask(() => {
+            const food = getFoodById(foodId);
+            if (food) {
+                setName(food.name);
+                setCalories(String(food.calories_per_100g));
+                setProtein(String(food.protein_per_100g));
+                setCarbs(String(food.carbs_per_100g));
+                setFat(String(food.fat_per_100g));
+                setDefaultUnit(food.default_unit as FoodUnit);
+                setBarcode(food.barcode ?? "");
+                const units = getServingUnits(foodId);
+                setServingUnitRows(
+                    units.map((u) => ({ id: u.id, name: u.name, grams: String(u.grams) })),
+                );
+            }
+        });
     }, [foodId]);
 
     function saveServingUnits(targetFoodId: number, existingUnits: ServingUnit[]) {

@@ -34,7 +34,7 @@ export default function LogPhotosSection({ dateKey, refreshKey }: LogPhotosSecti
     }, [dateKey]);
 
     useEffect(() => {
-        loadPhotos();
+        queueMicrotask(loadPhotos);
     }, [loadPhotos, refreshKey]);
 
     useFocusEffect(

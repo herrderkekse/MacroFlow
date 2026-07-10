@@ -15,7 +15,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "expo-router/js-tabs";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,7 +38,8 @@ export default function LogScreen() {
     const tabBarHeight = useBottomTabBarHeight();
     const unitSystem = useAppStore((s) => s.unitSystem);
     const isImperial = unitSystem === "imperial";
-    const d = useLogData();
+    const carouselRef = useRef<ScrollView>(null);
+    const d = useLogData(carouselRef);
     const fabBottom = d.chatBarVisible ? CHAT_BAR_TOTAL_HEIGHT + 8 : 24;
     const quickActionBaseOffset = 72;
     const quickActionStep = 62;
@@ -126,7 +127,7 @@ export default function LogScreen() {
             </View>
 
             <ScrollView
-                ref={d.carouselRef}
+                ref={carouselRef}
                 horizontal pagingEnabled showsHorizontalScrollIndicator={false}
                 scrollEventThrottle={16} onMomentumScrollEnd={d.handleScrollEnd}
                 contentOffset={{ x: SCREEN_WIDTH, y: 0 }}

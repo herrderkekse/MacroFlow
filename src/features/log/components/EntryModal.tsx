@@ -73,7 +73,7 @@ export default function EntryModal({
                     <Input
                         label={t("log.quantity")}
                         value={form.quantity}
-                        onChangeText={(text) => { form.amountTouched.current = true; form.setQuantity(text); }}
+                        onChangeText={(text) => { form.markAmountTouched(); form.setQuantity(text); }}
                         keyboardType="decimal-pad"
                         suffix={form.customServingUnit ? form.customServingUnit.name : unitLabel(form.unit)}
                         containerStyle={styles.quantityInput}

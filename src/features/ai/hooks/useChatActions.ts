@@ -30,27 +30,32 @@ interface UseChatActionsOptions {
 
 export function useChatActions(opts: UseChatActionsOptions) {
     const { t } = useTranslation();
+    const {
+        messagesRef, loading, setLoading, setStreamingText, setStreamingToolData,
+        pendingToolCall, setPendingToolCall, pendingToolCallId, setPendingToolCallId,
+        addMessage, inputText, setInputText, messages, setMessages, onDataChanged,
+    } = opts;
     const abortRef = useRef<AbortController | null>(null);
     const streamingTextRef = useRef("");
 
     const handleSend = useCallback(async (openSheet: () => void, isOpen: boolean) => {
-        const text = opts.inputText.trim();
-        if (!text || opts.loading) return;
+        const text = inputText.trim();
+        if (!text || loading) return;
 
         if (!isOpen) openSheet();
-        opts.setInputText("");
-        opts.setLoading(true);
-        opts.setStreamingText("");
+        setInputText("");
+        setLoading(true);
+        setStreamingText("");
         const abort = new AbortController();
         abortRef.current = abort;
 
         try {
             await sendChatMessage({
-                messages: opts.messagesRef.current,
+                messages: messagesRef.current,
                 userText: text,
-                onMessage: opts.addMessage,
+                onMessage: addMessage,
                 onStreamToken: (accumulated) => {
-                    opts.setStreamingText(accumulated);
+                    setStreamingText(accumulated);
                     streamingTextRef.current = accumulated;
                 },
                 signal: abort.signal,
@@ -59,7 +64,7 @@ export function useChatActions(opts: UseChatActionsOptions) {
             if (e.name === "AbortError") {
                 const partial = streamingTextRef.current.trim();
                 if (partial) {
-                    opts.addMessage({
+                    addMessage({
                         id: `stop_${Date.now()}`,
                         role: "assistant",
                         content: partial,
@@ -68,45 +73,45 @@ export function useChatActions(opts: UseChatActionsOptions) {
                 }
                 return;
             }
-            opts.addMessage({
+            addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
                 content: t("chat.error", { message: e.message ?? t("common.unknownError") }),
                 timestamp: Date.now(),
             });
         } finally {
-            opts.setLoading(false);
-            opts.setStreamingText("");
+            setLoading(false);
+            setStreamingText("");
             streamingTextRef.current = "";
             abortRef.current = null;
         }
-    }, [opts.inputText, opts.loading, opts.addMessage, t]);
+    }, [inputText, loading, addMessage, t, setInputText, setLoading, setStreamingText, messagesRef]);
 
     const handleApproveTool = useCallback(async () => {
-        if (!opts.pendingToolCall || opts.loading) return;
+        if (!pendingToolCall || loading) return;
 
-        const toolCall = opts.pendingToolCall;
-        const toolCallId = opts.pendingToolCallId;
-        opts.setPendingToolCall(null);
-        opts.setPendingToolCallId(undefined);
-        opts.setLoading(true);
-        opts.setStreamingText("");
+        const toolCall = pendingToolCall;
+        const toolCallId = pendingToolCallId;
+        setPendingToolCall(null);
+        setPendingToolCallId(undefined);
+        setLoading(true);
+        setStreamingText("");
         const abort = new AbortController();
         abortRef.current = abort;
 
         try {
             await executeApprovedTool({
-                messages: opts.messagesRef.current,
+                messages: messagesRef.current,
                 toolCall,
                 toolCallId,
-                onMessage: opts.addMessage,
+                onMessage: addMessage,
                 onStreamToken: (accumulated) => {
-                    opts.setStreamingText(accumulated);
+                    setStreamingText(accumulated);
                     streamingTextRef.current = accumulated;
                 },
                 onStreamingToolData: (data) => {
                     if (data.mealPlanEntries && data.mealPlanEntries.length > 0) {
-                        opts.setStreamingToolData(data.mealPlanEntries);
+                        setStreamingToolData(data.mealPlanEntries);
                     }
                 },
                 signal: abort.signal,
@@ -115,7 +120,7 @@ export function useChatActions(opts: UseChatActionsOptions) {
             if (e.name === "AbortError") {
                 const partial = streamingTextRef.current.trim();
                 if (partial) {
-                    opts.addMessage({
+                    addMessage({
                         id: `stop_${Date.now()}`,
                         role: "assistant",
                         content: partial,
@@ -124,41 +129,41 @@ export function useChatActions(opts: UseChatActionsOptions) {
                 }
                 return;
             }
-            opts.addMessage({
+            addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
                 content: t("chat.error", { message: e.message ?? t("common.unknownError") }),
                 timestamp: Date.now(),
             });
         } finally {
-            opts.setLoading(false);
-            opts.setStreamingText("");
+            setLoading(false);
+            setStreamingText("");
             streamingTextRef.current = "";
-            opts.setStreamingToolData(null);
+            setStreamingToolData(null);
             abortRef.current = null;
         }
-    }, [opts.pendingToolCall, opts.pendingToolCallId, opts.loading, opts.addMessage, t]);
+    }, [pendingToolCall, pendingToolCallId, loading, addMessage, t, setPendingToolCall, setPendingToolCallId, setLoading, setStreamingText, setStreamingToolData, messagesRef]);
 
     const handleDeclineTool = useCallback(async () => {
-        if (!opts.pendingToolCall || opts.loading) return;
+        if (!pendingToolCall || loading) return;
 
-        const toolCall = opts.pendingToolCall;
-        const toolCallId = opts.pendingToolCallId;
-        opts.setPendingToolCall(null);
-        opts.setPendingToolCallId(undefined);
-        opts.setLoading(true);
-        opts.setStreamingText("");
+        const toolCall = pendingToolCall;
+        const toolCallId = pendingToolCallId;
+        setPendingToolCall(null);
+        setPendingToolCallId(undefined);
+        setLoading(true);
+        setStreamingText("");
         const abort = new AbortController();
         abortRef.current = abort;
 
         try {
             await declineToolCall({
-                messages: opts.messagesRef.current,
+                messages: messagesRef.current,
                 toolCall,
                 toolCallId,
-                onMessage: opts.addMessage,
+                onMessage: addMessage,
                 onStreamToken: (accumulated) => {
-                    opts.setStreamingText(accumulated);
+                    setStreamingText(accumulated);
                     streamingTextRef.current = accumulated;
                 },
                 signal: abort.signal,
@@ -167,7 +172,7 @@ export function useChatActions(opts: UseChatActionsOptions) {
             if (e.name === "AbortError") {
                 const partial = streamingTextRef.current.trim();
                 if (partial) {
-                    opts.addMessage({
+                    addMessage({
                         id: `stop_${Date.now()}`,
                         role: "assistant",
                         content: partial,
@@ -176,26 +181,26 @@ export function useChatActions(opts: UseChatActionsOptions) {
                 }
                 return;
             }
-            opts.addMessage({
+            addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
                 content: t("chat.error", { message: e.message ?? t("common.unknownError") }),
                 timestamp: Date.now(),
             });
         } finally {
-            opts.setLoading(false);
-            opts.setStreamingText("");
+            setLoading(false);
+            setStreamingText("");
             streamingTextRef.current = "";
             abortRef.current = null;
         }
-    }, [opts.pendingToolCall, opts.pendingToolCallId, opts.loading, opts.addMessage, t]);
+    }, [pendingToolCall, pendingToolCallId, loading, addMessage, t, setPendingToolCall, setPendingToolCallId, setLoading, setStreamingText, messagesRef]);
 
     const handleMealPlanImport = useCallback((msgId: string) => {
-        opts.setMessages((prev) => {
+        setMessages((prev) => {
             const msg = prev.find((m) => m.id === msgId);
             if (!msg?.toolResultData?.mealPlanEntries) return prev;
             const count = importMealPlanEntries(msg.toolResultData.mealPlanEntries);
-            opts.onDataChanged?.();
+            onDataChanged?.();
             return prev.map((m) =>
                 m.id === msgId
                     ? {
@@ -206,10 +211,10 @@ export function useChatActions(opts: UseChatActionsOptions) {
                     : m,
             );
         });
-    }, [t, opts.onDataChanged]);
+    }, [t, onDataChanged, setMessages]);
 
     const handleMealPlanDismiss = useCallback((msgId: string) => {
-        opts.setMessages((prev) =>
+        setMessages((prev) =>
             prev.map((m) =>
                 m.id === msgId
                     ? {
@@ -220,31 +225,30 @@ export function useChatActions(opts: UseChatActionsOptions) {
                     : m,
             ),
         );
-    }, [t]);
+    }, [t, setMessages]);
 
     const handleStop = useCallback(() => {
         abortRef.current?.abort();
     }, []);
 
     const handleRetry = useCallback(async () => {
-        if (opts.loading) return;
+        if (loading) return;
 
         let lastUserIdx = -1;
-        for (let i = opts.messages.length - 1; i >= 0; i--) {
-            if (opts.messages[i].role === "user") {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === "user") {
                 lastUserIdx = i;
                 break;
             }
         }
         if (lastUserIdx < 0) return;
 
-        const lastUserMsg = opts.messages[lastUserIdx];
-        const kept = opts.messages.slice(0, lastUserIdx);
-        opts.setMessages(kept);
-        opts.messagesRef.current = kept;
+        const lastUserMsg = messages[lastUserIdx];
+        const kept = messages.slice(0, lastUserIdx);
+        setMessages(kept);
 
-        opts.setLoading(true);
-        opts.setStreamingText("");
+        setLoading(true);
+        setStreamingText("");
         const abort = new AbortController();
         abortRef.current = abort;
 
@@ -252,24 +256,24 @@ export function useChatActions(opts: UseChatActionsOptions) {
             await sendChatMessage({
                 messages: kept,
                 userText: lastUserMsg.content,
-                onMessage: opts.addMessage,
-                onStreamToken: (accumulated) => opts.setStreamingText(accumulated),
+                onMessage: addMessage,
+                onStreamToken: (accumulated) => setStreamingText(accumulated),
                 signal: abort.signal,
             });
         } catch (e: any) {
             if (e.name === "AbortError") return;
-            opts.addMessage({
+            addMessage({
                 id: `err_${Date.now()}`,
                 role: "assistant",
                 content: t("chat.error", { message: e.message ?? t("common.unknownError") }),
                 timestamp: Date.now(),
             });
         } finally {
-            opts.setLoading(false);
-            opts.setStreamingText("");
+            setLoading(false);
+            setStreamingText("");
             abortRef.current = null;
         }
-    }, [opts.loading, opts.messages, opts.addMessage, t]);
+    }, [loading, messages, addMessage, t, setMessages, setLoading, setStreamingText]);
 
     return {
         handleSend,

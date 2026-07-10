@@ -41,24 +41,26 @@ export default function NotificationSettings({ colors }: NotificationSettingsPro
     });
 
     useEffect(() => {
-        const s = getNotificationSettings();
-        if (s) {
-            setNotifEnabled(!!s.enabled);
-            setNotifTimes({
-                breakfast_time: s.breakfast_time,
-                lunch_time: s.lunch_time,
-                dinner_time: s.dinner_time,
-                snack_time: s.snack_time,
-                weight_time: s.weight_time,
-            });
-            setNotifRowEnabled({
-                breakfast_enabled: s.breakfast_enabled !== 0,
-                lunch_enabled: s.lunch_enabled !== 0,
-                dinner_enabled: s.dinner_enabled !== 0,
-                snack_enabled: s.snack_enabled !== 0,
-                weight_enabled: s.weight_enabled !== 0,
-            });
-        }
+        queueMicrotask(() => {
+            const s = getNotificationSettings();
+            if (s) {
+                setNotifEnabled(!!s.enabled);
+                setNotifTimes({
+                    breakfast_time: s.breakfast_time,
+                    lunch_time: s.lunch_time,
+                    dinner_time: s.dinner_time,
+                    snack_time: s.snack_time,
+                    weight_time: s.weight_time,
+                });
+                setNotifRowEnabled({
+                    breakfast_enabled: s.breakfast_enabled !== 0,
+                    lunch_enabled: s.lunch_enabled !== 0,
+                    dinner_enabled: s.dinner_enabled !== 0,
+                    snack_enabled: s.snack_enabled !== 0,
+                    weight_enabled: s.weight_enabled !== 0,
+                });
+            }
+        });
     }, []);
 
     function getMealLabels() {

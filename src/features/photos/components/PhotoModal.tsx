@@ -37,7 +37,7 @@ export default function PhotoModal({ visible, photos, initialIndex, onClose }: P
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList<PhotoWithRelations>>(null);
-    const translateY = useRef(new Animated.Value(0)).current;
+    const [translateY] = useState(() => new Animated.Value(0));
 
     const safeInitialIndex = clampIndex(initialIndex, photos.length);
     const [activeIndex, setActiveIndex] = useState(safeInitialIndex);
@@ -49,10 +49,10 @@ export default function PhotoModal({ visible, photos, initialIndex, onClose }: P
         }
         if (photos.length === 0) return;
         const nextIndex = clampIndex(initialIndex, photos.length);
-        setActiveIndex(nextIndex);
         requestAnimationFrame(() => {
             flatListRef.current?.scrollToIndex({ index: nextIndex, animated: false });
         });
+        setActiveIndex(nextIndex);
     }, [initialIndex, photos.length, translateY, visible]);
 
     const panResponder = useMemo(

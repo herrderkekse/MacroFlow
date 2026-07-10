@@ -44,26 +44,28 @@ export default function RecipeItemModal({
     const [foodServingUnits, setFoodServingUnits] = useState<ServingUnit[]>([]);
 
     React.useEffect(() => {
-        if (item && food) {
-            const sUnits = food.id ? getServingUnits(food.id) : [];
-            setFoodServingUnits(sUnits);
-            const matchServing = sUnits.find((s) => s.name === item.quantity_unit);
-            if (matchServing) {
-                setCustomServingUnit(matchServing);
-                setUnit("g");
-                setQuantity(String(Math.round((item.quantity_grams / matchServing.grams) * 10) / 10));
-            } else {
+        queueMicrotask(() => {
+            if (item && food) {
+                const sUnits = food.id ? getServingUnits(food.id) : [];
+                setFoodServingUnits(sUnits);
+                const matchServing = sUnits.find((s) => s.name === item.quantity_unit);
+                if (matchServing) {
+                    setCustomServingUnit(matchServing);
+                    setUnit("g");
+                    setQuantity(String(Math.round((item.quantity_grams / matchServing.grams) * 10) / 10));
+                } else {
+                    setCustomServingUnit(null);
+                    const itemUnit = (item.quantity_unit ?? "g") as FoodUnit;
+                    setUnit(itemUnit);
+                    setQuantity(
+                        String(Math.round(fromGrams(item.quantity_grams, itemUnit) * 10) / 10),
+                    );
+                }
+            } else if (food) {
+                setFoodServingUnits(food.id ? getServingUnits(food.id) : []);
                 setCustomServingUnit(null);
-                const itemUnit = (item.quantity_unit ?? "g") as FoodUnit;
-                setUnit(itemUnit);
-                setQuantity(
-                    String(Math.round(fromGrams(item.quantity_grams, itemUnit) * 10) / 10),
-                );
             }
-        } else if (food) {
-            setFoodServingUnits(food.id ? getServingUnits(food.id) : []);
-            setCustomServingUnit(null);
-        }
+        });
     }, [item, food]);
 
     const qty = parseFloat(quantity) || 0;

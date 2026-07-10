@@ -5,7 +5,7 @@ import { type MealType } from "@/src/shared/types";
 import { diffCalendarDays, diffDateKeys, shiftCalendarDate } from "@/src/utils/date";
 import logger from "@/src/utils/logger";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollView } from "react-native";
 import { computeWeightTrend, loadGrouped, type EntryWithFood } from "../helpers/logHelpers";
@@ -13,14 +13,15 @@ import { addWeightLog, confirmEntry, confirmRecipeLog, copyEntriesToDate, copyEn
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-export function useLogData() {
+export function useLogData(carouselRef: RefObject<ScrollView | null>) {
     const { t } = useTranslation();
     const selectedDate = useAppStore((s) => s.selectedDate);
     const setSelectedDate = useAppStore((s) => s.setSelectedDate);
     const dateRef = useRef(selectedDate);
-    dateRef.current = selectedDate;
+    useEffect(() => {
+        dateRef.current = selectedDate;
+    }, [selectedDate]);
 
-    const carouselRef = useRef<ScrollView>(null);
     const isSettling = useRef(false);
     const [chatBarVisible, setChatBarVisible] = useState(false);
 
@@ -110,7 +111,7 @@ export function useLogData() {
         carouselRef.current?.scrollTo({ x: SCREEN_WIDTH, animated: false });
         const timer = setTimeout(() => { isSettling.current = false; }, 150);
         return () => clearTimeout(timer);
-    }, [selectedDate]);
+    }, [selectedDate, carouselRef]);
 
     function handleScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
         if (isSettling.current) return;
@@ -297,7 +298,7 @@ export function useLogData() {
     }
 
     return {
-        selectedDate, carouselRef, chatBarVisible, setChatBarVisible,
+        selectedDate, chatBarVisible, setChatBarVisible,
         grouped, prevGrouped, nextGrouped, dailyGoals, prevGoals, nextGoals,
         editingEntry, setEditingEntry, editingRecipeGroup, setEditingRecipeGroup,
         portionInput, setPortionInput,

@@ -34,7 +34,9 @@ export function useRecipeEditor() {
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
     const isEditing = !!recipeId;
     const recipeIdRef = useRef(recipeId);
-    recipeIdRef.current = recipeId;
+    useEffect(() => {
+        recipeIdRef.current = recipeId;
+    }, [recipeId]);
 
     const [name, setName] = useState("");
     // Base recipe name when editing a variant (whose own name is just the
@@ -55,18 +57,6 @@ export function useRecipeEditor() {
     // modal for editing an ingredient's quantity + unit
     const [editingItem, setEditingItem] = useState<ItemWithFood | null>(null);
 
-    // ── Load existing recipe ──────────────────────────────
-    useEffect(() => {
-        if (!recipeId) return;
-        const recipe = getRecipeById(Number(recipeId));
-        if (recipe) {
-            setName(recipe.name);
-            const base = recipe.parent_recipe_id != null ? getRecipeById(recipe.parent_recipe_id) : undefined;
-            setBaseName(base?.name ?? null);
-        }
-        loadItems(Number(recipeId));
-    }, [recipeId]);
-
     function loadItems(id: number) {
         const rows = getRecipeItems(id);
         setItems(rows.map((r) => ({
@@ -75,6 +65,20 @@ export function useRecipeEditor() {
             servingUnits: r.foods ? getServingUnits(r.foods.id) : [],
         })));
     }
+
+    // ── Load existing recipe ──────────────────────────────
+    useEffect(() => {
+        if (!recipeId) return;
+        queueMicrotask(() => {
+            const recipe = getRecipeById(Number(recipeId));
+            if (recipe) {
+                setName(recipe.name);
+                const base = recipe.parent_recipe_id != null ? getRecipeById(recipe.parent_recipe_id) : undefined;
+                setBaseName(base?.name ?? null);
+            }
+            loadItems(Number(recipeId));
+        });
+    }, [recipeId]);
 
     function ensureRecipe(): number {
         if (recipeIdRef.current) {
@@ -89,15 +93,20 @@ export function useRecipeEditor() {
 
     // ── Food search (debounced local) ─────────────────────
     useEffect(() => {
-        if (foodQuery.trim().length < 2) { setLocalResults([]); return; }
+        if (foodQuery.trim().length < 2) {
+            queueMicrotask(() => setLocalResults([]));
+            return;
+        }
         const timer = setTimeout(() => setLocalResults(searchFoodsByName(foodQuery.trim())), 200);
         return () => clearTimeout(timer);
     }, [foodQuery]);
 
     useEffect(() => {
-        setOffResults([]);
-        setOffError(null);
-        setHasSearchedOFF(false);
+        queueMicrotask(() => {
+            setOffResults([]);
+            setOffError(null);
+            setHasSearchedOFF(false);
+        });
     }, [foodQuery]);
 
     const handleSearchOFF = useCallback(async () => {

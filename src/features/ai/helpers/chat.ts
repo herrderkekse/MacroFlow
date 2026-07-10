@@ -1,5 +1,5 @@
 import logger from "@/src/utils/logger";
-import type { CoreMessage, LanguageModel } from "ai";
+import type { LanguageModel, ModelMessage } from "ai";
 import { streamText } from "ai";
 import { getAllMemories } from "../services/aiMemoriesDb";
 import type { UiChatMessage } from "../types/chatTypes";
@@ -9,7 +9,7 @@ import { buildToolSystemPrompt, toAiSdkTools } from "./tools";
 
 export async function callAi(
     config: AiProviderConfig,
-    messages: CoreMessage[],
+    messages: ModelMessage[],
     opts: { onStreamStatus?: (s: string) => void; onStreamToken?: (t: string) => void; signal?: AbortSignal },
     model: LanguageModel
 ): Promise<AiCallResult> {
@@ -61,14 +61,14 @@ export function formatToolResultForAi(msg: UiChatMessage): string {
     return summary;
 }
 
-/** Convert UI messages to AI SDK CoreMessage array. */
-export function toApiMessages(uiMessages: UiChatMessage[]): CoreMessage[] {
-    const systemMsg: CoreMessage = {
+/** Convert UI messages to AI SDK ModelMessage array. */
+export function toApiMessages(uiMessages: UiChatMessage[]): ModelMessage[] {
+    const systemMsg: ModelMessage = {
         role: "system",
         content: buildToolSystemPrompt(getAllMemories().map((m) => m.content)),
     };
 
-    const history: CoreMessage[] = [];
+    const history: ModelMessage[] = [];
     for (const m of uiMessages) {
         switch (m.role) {
             case "user":

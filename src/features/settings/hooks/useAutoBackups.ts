@@ -13,7 +13,7 @@ export function useAutoBackups() {
     }, []);
 
     useEffect(() => {
-        refresh();
+        queueMicrotask(refresh);
     }, [refresh]);
 
     const share = useCallback(async (uri: string) => {

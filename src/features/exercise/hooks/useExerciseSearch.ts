@@ -19,12 +19,12 @@ export function useExerciseSearch() {
     }, []);
 
     useEffect(() => {
-        loadRecent();
+        queueMicrotask(loadRecent);
     }, [loadRecent]);
 
     useEffect(() => {
         if (query.trim().length < 2) {
-            setSearchResults([]);
+            queueMicrotask(() => setSearchResults([]));
             return;
         }
         const timer = setTimeout(() => {
@@ -35,10 +35,10 @@ export function useExerciseSearch() {
 
     useEffect(() => {
         if (!selectedMuscleGroup) {
-            setMuscleGroupResults([]);
+            queueMicrotask(() => setMuscleGroupResults([]));
             return;
         }
-        setMuscleGroupResults(getExerciseTemplatesByMuscleGroup(selectedMuscleGroup));
+        queueMicrotask(() => setMuscleGroupResults(getExerciseTemplatesByMuscleGroup(selectedMuscleGroup)));
     }, [selectedMuscleGroup]);
 
     function handleSelectMuscleGroup(group: MuscleGroup) {

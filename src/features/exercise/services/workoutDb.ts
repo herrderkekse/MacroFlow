@@ -221,7 +221,7 @@ export function getExercisesForWorkout(workoutId: number): WorkoutExerciseWithSe
 export function copyWorkoutAsScheduled(sourceWorkoutId: number, targetWorkoutId: number): void {
     const sourceExercises = listWorkoutExercisesForWorkout(sourceWorkoutId);
     const sourceWorkout = exerciseDbSupport.getWorkoutOrThrow(sourceWorkoutId);
-    const targetWorkout = exerciseDbSupport.getWorkoutOrThrow(targetWorkoutId);
+    exerciseDbSupport.getWorkoutOrThrow(targetWorkoutId);
 
     if (sourceWorkout.title) {
         db.update(workouts).set({ title: sourceWorkout.title }).where(eq(workouts.id, targetWorkoutId)).run();

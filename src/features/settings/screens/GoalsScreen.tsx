@@ -24,13 +24,15 @@ export default function GoalsScreen() {
     const [fat, setFat] = useState("70");
 
     useEffect(() => {
-        const g = getGoals();
-        if (g) {
-            setCalories(String(g.calories));
-            setProtein(String(g.protein));
-            setCarbs(String(g.carbs));
-            setFat(String(g.fat));
-        }
+        queueMicrotask(() => {
+            const g = getGoals();
+            if (g) {
+                setCalories(String(g.calories));
+                setProtein(String(g.protein));
+                setCarbs(String(g.carbs));
+                setFat(String(g.fat));
+            }
+        });
     }, []);
 
     function handleSave() {

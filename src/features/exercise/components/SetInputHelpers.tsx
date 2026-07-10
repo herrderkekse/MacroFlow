@@ -107,7 +107,7 @@ export function createSetInputStyles(colors: ThemeColors) {
             paddingVertical: spacing.sm,
         },
         activeRow: {
-            backgroundColor: colors.surfaceVariant ?? colors.background,
+            backgroundColor: colors.surface,
             borderRadius: borderRadius.sm,
             marginHorizontal: -(spacing.xs - 2),
             paddingHorizontal: spacing.xs,

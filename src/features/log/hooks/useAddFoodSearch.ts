@@ -43,7 +43,7 @@ export function useAddFoodSearch() {
     const [expandedRecipeIds, setExpandedRecipeIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
-        if (query.trim().length < 2) { setRecipeResults([]); return; }
+        if (query.trim().length < 2) { queueMicrotask(() => setRecipeResults([])); return; }
         const timer = setTimeout(() => {
             setExpandedRecipeIds(new Set());
             setRecipeResults(getRecipeGroups(query.trim()));
@@ -63,7 +63,7 @@ export function useAddFoodSearch() {
     // ── Local search (debounced, search-as-you-type) ──────
     useEffect(() => {
         if (query.trim().length < 2) {
-            setLocalResults([]);
+            queueMicrotask(() => setLocalResults([]));
             return;
         }
         const timer = setTimeout(() => {
@@ -75,9 +75,11 @@ export function useAddFoodSearch() {
 
     // Reset OFF results when query changes
     useEffect(() => {
-        setOffResults([]);
-        setOffError(null);
-        setHasSearchedOFF(false);
+        queueMicrotask(() => {
+            setOffResults([]);
+            setOffError(null);
+            setHasSearchedOFF(false);
+        });
     }, [query]);
 
     // ── OpenFoodFacts search (user-triggered) ─────────────

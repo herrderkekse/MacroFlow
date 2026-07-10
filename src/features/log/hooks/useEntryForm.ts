@@ -31,79 +31,83 @@ export function useEntryForm({ food, defaultMealType, entry, onClose, onSaved }:
     const amountTouched = useRef(false);
 
     React.useEffect(() => {
-        if (!food) {
-            setRecipeGroups([]);
-            setSelectedGroup(null);
-            setFoodServingUnits([]);
-            setCustomServingUnit(null);
-            amountTouched.current = false;
-            return;
-        }
-
-        setFoodServingUnits(food.id ? getServingUnits(food.id) : []);
-
-        if (entry) {
-            const entryUnit = (entry.quantity_unit ?? "g") as FoodUnit;
-            const sUnits = food.id ? getServingUnits(food.id) : [];
-            const matchServing = sUnits.find((s) => s.name === entry.quantity_unit);
-            if (matchServing) {
-                setCustomServingUnit(matchServing);
-                setUnit("g");
-                setQuantity(String(Math.round((entry.quantity_grams / matchServing.grams) * 10) / 10));
-            } else {
-                setCustomServingUnit(null);
-                setUnit(entryUnit);
-                setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
-            }
-            setMealType(entry.meal_type as MealType);
-            amountTouched.current = true;
-
-            const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
-            setRecipeGroups(groups);
-            if (entry.recipe_log_id) {
-                const match = groups.find((g) => g.recipeLogId === entry.recipe_log_id);
-                setSelectedGroup(match ?? null);
-            } else {
+        queueMicrotask(() => {
+            if (!food) {
+                setRecipeGroups([]);
                 setSelectedGroup(null);
+                setFoodServingUnits([]);
+                setCustomServingUnit(null);
+                amountTouched.current = false;
+                return;
             }
-        } else {
-            const sUnits = food.id ? getServingUnits(food.id) : [];
-            if (food.last_logged_amount != null && food.last_logged_unit != null) {
-                const lastUnit = food.last_logged_unit;
-                const matchServing = sUnits.find((s) => s.name === lastUnit);
+
+            setFoodServingUnits(food.id ? getServingUnits(food.id) : []);
+
+            if (entry) {
+                const entryUnit = (entry.quantity_unit ?? "g") as FoodUnit;
+                const sUnits = food.id ? getServingUnits(food.id) : [];
+                const matchServing = sUnits.find((s) => s.name === entry.quantity_unit);
                 if (matchServing) {
                     setCustomServingUnit(matchServing);
                     setUnit("g");
+                    setQuantity(String(Math.round((entry.quantity_grams / matchServing.grams) * 10) / 10));
                 } else {
                     setCustomServingUnit(null);
-                    setUnit(lastUnit as FoodUnit);
+                    setUnit(entryUnit);
+                    setQuantity(String(Math.round(fromGrams(entry.quantity_grams, entryUnit) * 10) / 10));
                 }
-                setQuantity(String(food.last_logged_amount));
-            } else {
-                const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
-                setUnit(defaultUnit);
-                setCustomServingUnit(null);
-                setQuantity(String(food.serving_size ?? 100));
-            }
-            amountTouched.current = false;
-            const meal = defaultMealType ?? (food.last_logged_meal as MealType | null) ?? "breakfast";
-            setMealType(meal);
+                setMealType(entry.meal_type as MealType);
+                amountTouched.current = true;
 
-            const dateKey = formatDateKey(selectedDate);
-            const groups = getLoggedRecipeGroups(dateKey, meal);
-            setRecipeGroups(groups);
-            setSelectedGroup(null);
-        }
+                const groups = getLoggedRecipeGroups(entry.date, entry.meal_type);
+                setRecipeGroups(groups);
+                if (entry.recipe_log_id) {
+                    const match = groups.find((g) => g.recipeLogId === entry.recipe_log_id);
+                    setSelectedGroup(match ?? null);
+                } else {
+                    setSelectedGroup(null);
+                }
+            } else {
+                const sUnits = food.id ? getServingUnits(food.id) : [];
+                if (food.last_logged_amount != null && food.last_logged_unit != null) {
+                    const lastUnit = food.last_logged_unit;
+                    const matchServing = sUnits.find((s) => s.name === lastUnit);
+                    if (matchServing) {
+                        setCustomServingUnit(matchServing);
+                        setUnit("g");
+                    } else {
+                        setCustomServingUnit(null);
+                        setUnit(lastUnit as FoodUnit);
+                    }
+                    setQuantity(String(food.last_logged_amount));
+                } else {
+                    const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
+                    setUnit(defaultUnit);
+                    setCustomServingUnit(null);
+                    setQuantity(String(food.serving_size ?? 100));
+                }
+                amountTouched.current = false;
+                const meal = defaultMealType ?? (food.last_logged_meal as MealType | null) ?? "breakfast";
+                setMealType(meal);
+
+                const dateKey = formatDateKey(selectedDate);
+                const groups = getLoggedRecipeGroups(dateKey, meal);
+                setRecipeGroups(groups);
+                setSelectedGroup(null);
+            }
+        });
     }, [entry, food, defaultMealType, selectedDate]);
 
     React.useEffect(() => {
         if (!food) return;
-        const dateKey = entry ? entry.date : formatDateKey(selectedDate);
-        const groups = getLoggedRecipeGroups(dateKey, mealType);
-        setRecipeGroups(groups);
-        setSelectedGroup((prev) =>
-            prev && groups.some((g) => g.recipeLogId === prev.recipeLogId) ? prev : null,
-        );
+        queueMicrotask(() => {
+            const dateKey = entry ? entry.date : formatDateKey(selectedDate);
+            const groups = getLoggedRecipeGroups(dateKey, mealType);
+            setRecipeGroups(groups);
+            setSelectedGroup((prev) =>
+                prev && groups.some((g) => g.recipeLogId === prev.recipeLogId) ? prev : null,
+            );
+        });
     }, [mealType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const qty = parseFloat(quantity) || 0;
@@ -179,6 +183,10 @@ export function useEntryForm({ food, defaultMealType, entry, onClose, onSaved }:
         onSaved();
     }
 
+    function markAmountTouched() {
+        amountTouched.current = true;
+    }
+
     function handleServingUnitCreated(saved: ServingUnit) {
         setFoodServingUnits(food?.id ? getServingUnits(food.id) : []);
         setCustomServingUnit(saved);
@@ -214,6 +222,7 @@ export function useEntryForm({ food, defaultMealType, entry, onClose, onSaved }:
         calculated,
         unitOptions,
         handleSave,
+        markAmountTouched,
         handleServingUnitCreated,
         handleClose,
     };

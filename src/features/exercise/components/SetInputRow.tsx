@@ -68,18 +68,20 @@ export default function SetInputRow({
 
     // Sync input state from DB when set values change (e.g., after a save)
     useEffect(() => {
-        setWeight(set.weight != null ? String(set.weight) : "");
-        setReps(set.reps != null ? String(set.reps) : "");
-        setRir(set.rir != null ? String(set.rir) : "");
-        setDuration(set.duration_seconds != null ? String(set.duration_seconds) : "");
-        setDistance(set.distance_meters != null ? String(set.distance_meters) : "");
-        setCustomInputs(customValuesToInputs(set.custom_values));
-        setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
+        queueMicrotask(() => {
+            setWeight(set.weight != null ? String(set.weight) : "");
+            setReps(set.reps != null ? String(set.reps) : "");
+            setRir(set.rir != null ? String(set.rir) : "");
+            setDuration(set.duration_seconds != null ? String(set.duration_seconds) : "");
+            setDistance(set.distance_meters != null ? String(set.distance_meters) : "");
+            setCustomInputs(customValuesToInputs(set.custom_values));
+            setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
+        });
     }, [set.id, set.weight, set.reps, set.rir, set.duration_seconds, set.distance_meters, set.custom_values, set.weight_unit]);
 
     // Reset cleared-field tracking only when switching to a different set
     useEffect(() => {
-        setClearedFields({});
+        queueMicrotask(() => setClearedFields({}));
     }, [set.id]);
 
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";

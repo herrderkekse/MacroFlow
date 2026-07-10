@@ -60,18 +60,20 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
 
     // Auto-load or auto-resume on mount
     useEffect(() => {
-        if (workoutId) {
-            loadWorkout(workoutId);
-            setIsResumed(true);
-            return;
-        }
+        queueMicrotask(() => {
+            if (workoutId) {
+                loadWorkout(workoutId);
+                setIsResumed(true);
+                return;
+            }
 
-        const dateKey = formatDateKey(date ?? new Date());
-        const unfinished = getUnfinishedWorkoutByDate(dateKey);
-        if (unfinished) {
-            setData(unfinished);
-            setIsResumed(true);
-        }
+            const dateKey = formatDateKey(date ?? new Date());
+            const unfinished = getUnfinishedWorkoutByDate(dateKey);
+            if (unfinished) {
+                setData(unfinished);
+                setIsResumed(true);
+            }
+        });
     }, [workoutId, date, loadWorkout]);
 
     // Elapsed time ticker
@@ -83,11 +85,11 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
             tick();
             timerRef.current = setInterval(tick, 60000);
         } else {
-            setElapsedMs(
+            queueMicrotask(() => setElapsedMs(
                 currentWorkout?.ended_at && currentWorkout.started_at
                     ? currentWorkout.ended_at - currentWorkout.started_at
                     : 0,
-            );
+            ));
         }
 
         return () => {

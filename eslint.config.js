@@ -2,11 +2,19 @@
 const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');
 const boundaries = require('eslint-plugin-boundaries');
+const globals = require('globals');
 
 module.exports = defineConfig([
   expoConfig,
   {
     ignores: ['dist/*', 'app-example/**'],
+  },
+  // Standalone Node CLI scripts (not part of the app bundle): give them Node globals.
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
   },
   // ─── Architecture boundary rules ───────────────────────────────────────────
   // Enforces the layered architecture defined in CONTRIBUTING.md:
