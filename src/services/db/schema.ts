@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, real, sqliteTable, text, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 export const foods = sqliteTable("foods", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -16,6 +16,7 @@ export const foods = sqliteTable("foods", {
     last_logged_unit: text("last_logged_unit"),
     last_logged_meal: text("last_logged_meal"),
     deleted: integer("deleted").notNull().default(0),
+    uuid: text("uuid"),
 });
 
 export const recipeLogs = sqliteTable("recipe_logs", {
@@ -25,6 +26,7 @@ export const recipeLogs = sqliteTable("recipe_logs", {
     meal_type: text("meal_type").notNull(),
     portion: real("portion").notNull().default(1),
     timestamp: integer("timestamp").notNull(),
+    uuid: text("uuid"),
 });
 
 export const entries = sqliteTable("entries", {
@@ -37,6 +39,7 @@ export const entries = sqliteTable("entries", {
     meal_type: text("meal_type").notNull(),
     recipe_log_id: integer("recipe_log_id").references(() => recipeLogs.id),
     is_scheduled: integer("is_scheduled").notNull().default(0),
+    uuid: text("uuid"),
 });
 
 export const goals = sqliteTable("goals", {
@@ -49,6 +52,7 @@ export const goals = sqliteTable("goals", {
     language: text("language").notNull().default("en"),
     appearance_mode: text("appearance_mode").notNull().default("system"),
     keep_awake: integer("keep_awake").notNull().default(0),
+    uuid: text("uuid"),
 });
 
 // Point-in-time snapshots of nutrition goals. `date` is the day the goal
@@ -61,6 +65,7 @@ export const goalHistory = sqliteTable("goal_history", {
     protein: real("protein").notNull(),
     carbs: real("carbs").notNull(),
     fat: real("fat").notNull(),
+    uuid: text("uuid"),
 });
 
 export const recipes = sqliteTable("recipes", {
@@ -69,6 +74,7 @@ export const recipes = sqliteTable("recipes", {
     deleted: integer("deleted").notNull().default(0),
     // Set on variant recipes; points at the base recipe of the variant group.
     parent_recipe_id: integer("parent_recipe_id").references((): AnySQLiteColumn => recipes.id),
+    uuid: text("uuid"),
 });
 
 export const recipeItems = sqliteTable("recipe_items", {
@@ -77,6 +83,7 @@ export const recipeItems = sqliteTable("recipe_items", {
     food_id: integer("food_id").notNull().references(() => foods.id),
     quantity_grams: real("quantity_grams").notNull(),
     quantity_unit: text("quantity_unit").notNull().default("g"),
+    uuid: text("uuid"),
 });
 
 export const servingUnits = sqliteTable("serving_units", {
@@ -84,6 +91,7 @@ export const servingUnits = sqliteTable("serving_units", {
     food_id: integer("food_id").notNull().references(() => foods.id),
     name: text("name").notNull(),
     grams: real("grams").notNull(),
+    uuid: text("uuid"),
 });
 
 export const weightLogs = sqliteTable("weight_logs", {
@@ -91,6 +99,7 @@ export const weightLogs = sqliteTable("weight_logs", {
     weight_kg: real("weight_kg").notNull(),
     date: text("date").notNull(),
     timestamp: integer("timestamp").notNull(),
+    uuid: text("uuid"),
 });
 
 export const notificationSettings = sqliteTable("notification_settings", {
@@ -106,6 +115,7 @@ export const notificationSettings = sqliteTable("notification_settings", {
     dinner_enabled: integer("dinner_enabled").notNull().default(1),
     snack_enabled: integer("snack_enabled").notNull().default(1),
     weight_enabled: integer("weight_enabled").notNull().default(1),
+    uuid: text("uuid"),
 });
 
 export const chatSessions = sqliteTable("chat_sessions", {
@@ -113,6 +123,7 @@ export const chatSessions = sqliteTable("chat_sessions", {
     title: text("title").notNull().default("New Chat"),
     created_at: integer("created_at").notNull(),
     updated_at: integer("updated_at").notNull(),
+    uuid: text("uuid"),
 });
 
 export const chatMessages = sqliteTable("chat_messages", {
@@ -125,12 +136,14 @@ export const chatMessages = sqliteTable("chat_messages", {
     tool_result_data_json: text("tool_result_data_json"),
     tool_call_id: text("tool_call_id"),
     timestamp: integer("timestamp").notNull(),
+    uuid: text("uuid"),
 });
 
 export const aiMemories = sqliteTable("ai_memories", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     content: text("content").notNull(),
     created_at: integer("created_at").notNull(),
+    uuid: text("uuid"),
 });
 
 export const exerciseTemplates = sqliteTable("exercise_templates", {
@@ -147,6 +160,7 @@ export const exerciseTemplates = sqliteTable("exercise_templates", {
     custom_fields: text("custom_fields"),
     deleted: integer("deleted").notNull().default(0),
     created_at: integer("created_at").notNull(),
+    uuid: text("uuid"),
 });
 
 export const workouts = sqliteTable("workouts", {
@@ -157,6 +171,7 @@ export const workouts = sqliteTable("workouts", {
     ended_at: integer("ended_at"),
     notes: text("notes"),
     is_scheduled: integer("is_scheduled").notNull().default(0),
+    uuid: text("uuid"),
 });
 
 export const workoutExercises = sqliteTable("workout_exercises", {
@@ -166,6 +181,7 @@ export const workoutExercises = sqliteTable("workout_exercises", {
     sort_order: integer("sort_order").notNull(),
     notes: text("notes"),
     started_at: integer("started_at"),
+    uuid: text("uuid"),
 });
 
 export const exerciseSets = sqliteTable("exercise_sets", {
@@ -184,6 +200,7 @@ export const exerciseSets = sqliteTable("exercise_sets", {
     custom_values: text("custom_values"),
     completed_at: integer("completed_at"),
     is_scheduled: integer("is_scheduled").notNull().default(0),
+    uuid: text("uuid"),
 });
 
 export const progressPhotos = sqliteTable("progress_photos", {
@@ -195,4 +212,38 @@ export const progressPhotos = sqliteTable("progress_photos", {
     notes: text("notes"),
     created_at: integer("created_at").notNull(),
     updated_at: integer("updated_at").notNull(),
+    uuid: text("uuid"),
 });
+
+// ── Sync infrastructure (never synced themselves) ──────────
+
+// Oplog of local changes waiting to be pushed to the sync server. Populated
+// by AFTER INSERT/UPDATE/DELETE triggers created in initDB().
+export const syncQueue = sqliteTable("sync_queue", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    table_name: text("table_name").notNull(),
+    row_uuid: text("row_uuid").notNull(),
+    op: text("op").notNull(), // 'upsert' | 'delete'
+    updated_at: integer("updated_at").notNull(), // ms since epoch
+});
+
+// Key-value store for sync bookkeeping: device id, server cursor, the
+// non-secret half of the sync settings, and the trigger-suppression flag.
+export const syncMeta = sqliteTable("sync_meta", {
+    key: text("key").primaryKey(),
+    value: text("value"),
+});
+
+// Timestamp of the version of each row we last pushed to / pulled from the
+// server. Used for last-write-wins conflict resolution.
+export const syncRowVersions = sqliteTable(
+    "sync_row_versions",
+    {
+        table_name: text("table_name").notNull(),
+        row_uuid: text("row_uuid").notNull(),
+        updated_at: integer("updated_at").notNull(),
+    },
+    (t) => ({
+        pk: primaryKey({ columns: [t.table_name, t.row_uuid] }),
+    }),
+);
