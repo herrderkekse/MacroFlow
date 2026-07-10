@@ -419,6 +419,9 @@ export function createRecipeFromEntries(entryIds: number[], recipeName: string):
             food_id: entries.food_id,
             quantity_grams: entries.quantity_grams,
             quantity_unit: entries.quantity_unit,
+            date: entries.date,
+            meal_type: entries.meal_type,
+            recipe_log_id: entries.recipe_log_id,
         })
         .from(entries)
         .where(inArray(entries.id, entryIds))
@@ -426,6 +429,11 @@ export function createRecipeFromEntries(entryIds: number[], recipeName: string):
 
     const validRows = rows.filter((row) => row.food_id !== null);
     if (validRows.length === 0) return null;
+
+    // Only replace the logged entries with the new recipe when they all belong to the
+    // same meal — otherwise it's ambiguous which meal the recipe log should go in.
+    const sameMeal = validRows.every((row) => row.meal_type === validRows[0].meal_type)
+        && validRows.every((row) => row.date === validRows[0].date);
 
     let createdRecipeId: number | null = null;
     db.transaction((tx) => {
@@ -441,6 +449,44 @@ export function createRecipeFromEntries(entryIds: number[], recipeName: string):
                     quantity_unit: row.quantity_unit ?? "g",
                 })
                 .run();
+        }
+
+        if (sameMeal) {
+            const { date, meal_type } = validRows[0];
+            const recipeLog = tx
+                .insert(recipeLogs)
+                .values({ recipe_id: recipe.id, date, meal_type, portion: 1, timestamp: Date.now() })
+                .returning()
+                .get();
+
+            const affectedRecipeLogIds = new Set(
+                validRows.map((row) => row.recipe_log_id).filter((id): id is number => id !== null),
+            );
+
+            tx.delete(entries).where(inArray(entries.id, entryIds)).run();
+
+            for (const rlId of affectedRecipeLogIds) {
+                const remaining = tx.select({ id: entries.id }).from(entries).where(eq(entries.recipe_log_id, rlId)).all();
+                if (remaining.length === 0) {
+                    tx.delete(recipeLogs).where(eq(recipeLogs.id, rlId)).run();
+                }
+            }
+
+            const ts = Date.now();
+            for (const row of validRows) {
+                tx.insert(entries)
+                    .values({
+                        food_id: row.food_id,
+                        quantity_grams: row.quantity_grams,
+                        quantity_unit: row.quantity_unit ?? "g",
+                        timestamp: ts,
+                        date,
+                        meal_type,
+                        recipe_log_id: recipeLog.id,
+                        is_scheduled: 0,
+                    })
+                    .run();
+            }
         }
     });
 
