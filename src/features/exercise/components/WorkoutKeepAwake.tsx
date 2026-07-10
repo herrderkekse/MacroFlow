@@ -1,5 +1,5 @@
 import { WORKOUT_KEEP_AWAKE_TAG, useKeepAwake } from "@/src/services/keepAwake";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router";
 
 interface WorkoutKeepAwakeProps {
     enabled: boolean;

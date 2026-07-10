@@ -69,12 +69,12 @@ export default function TabsLayout() {
 
     return (
         <Tabs
-            screenOptions={({ route }: { route: { name: string } }) => ({
+            screenOptions={({ route }) => ({
                 headerShown: false,
                 tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
                 tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.textSecondary,
-                tabBarIcon: ({ color, size }: { color: string; size: number }) => {
+                tabBarIcon: ({ color, size }) => {
                     const name = icons[route.name] ?? 'help';
                     if (route.name === 'index' && streak > 0) {
                         return (

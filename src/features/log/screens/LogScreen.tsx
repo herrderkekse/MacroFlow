@@ -13,7 +13,7 @@ import { useAppStore } from "@/src/shared/store/useAppStore";
 import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useBottomTabBarHeight } from "expo-router/js-tabs";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
