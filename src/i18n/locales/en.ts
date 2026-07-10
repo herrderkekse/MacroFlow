@@ -300,6 +300,7 @@ const en = {
         statistics: "Statistics",
         min: "Min",
         avg: "Avg",
+        median: "Median",
         max: "Max",
         stdDev: "Std Dev",
         variance: "Variance",
