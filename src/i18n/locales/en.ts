@@ -437,7 +437,6 @@ const en = {
             elapsed: "Elapsed",
             addExercise: "Add Exercise",
             emptyState: "Add an exercise to get started",
-            copyFromHistory: "Start from History",
             startedAt: "Started at",
             endedAt: "Ended at",
             leaveTitle: "Workout in Progress",
@@ -476,6 +475,7 @@ const en = {
             subtitle: "Tap to copy as scheduled workout",
             noWorkouts: "No previous workouts found",
             exercises: "{{count}} exercises",
+            recentHeader: "Recent Workouts",
         },
         units: {
             kg: "kg",

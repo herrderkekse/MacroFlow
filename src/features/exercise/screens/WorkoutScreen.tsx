@@ -9,9 +9,9 @@ import { useTranslation } from "react-i18next";
 import { Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import AddExerciseModal from "../components/AddExerciseModal";
-import CopyWorkoutSheet from "../components/CopyWorkoutSheet";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
 import ExerciseCard from "../components/ExerciseCard";
+import HistoricalWorkoutList from "../components/HistoricalWorkoutList";
 import WorkoutHeader from "../components/WorkoutHeader";
 import WorkoutKeepAwake from "../components/WorkoutKeepAwake";
 import { useRestTimer } from "../hooks/useRestTimer";
@@ -46,7 +46,6 @@ export default function WorkoutScreen() {
     const reloadWorkout = workout.reload;
     const finishCurrentWorkout = workout.finishCurrentWorkout;
     const [showAddExercise, setShowAddExercise] = useState(false);
-    const [showCopySheet, setShowCopySheet] = useState(false);
     const [showTimesModal, setShowTimesModal] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -219,11 +218,9 @@ export default function WorkoutScreen() {
                             onPress={() => setShowAddExercise(true)}
                             style={styles.addBtn}
                         />
-                        <Button
-                            title={t("exercise.workout.copyFromHistory")}
-                            variant="ghost"
-                            icon={<Ionicons name="copy-outline" size={18} color={colors.primary} />}
-                            onPress={() => setShowCopySheet(true)}
+                        <HistoricalWorkoutList
+                            excludeWorkoutId={workout.data?.workout.id}
+                            onCopied={workout.reload}
                         />
                     </View>
                 }
@@ -245,15 +242,6 @@ export default function WorkoutScreen() {
                 onClose={() => setShowAddExercise(false)}
                 onSelect={handleExerciseSelected}
             />
-
-            {workout.data?.workout.id && (
-                <CopyWorkoutSheet
-                    visible={showCopySheet}
-                    targetWorkoutId={workout.data.workout.id}
-                    onClose={() => setShowCopySheet(false)}
-                    onCopied={workout.reload}
-                />
-            )}
 
             {workout.data?.workout && (
                 <EditWorkoutTimesModal

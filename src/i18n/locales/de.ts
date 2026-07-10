@@ -439,7 +439,6 @@ const de = {
             elapsed: "Dauer",
             addExercise: "Übung hinzufügen",
             emptyState: "Füge eine Übung hinzu, um loszulegen",
-            copyFromHistory: "Aus Verlauf starten",
             startedAt: "Gestartet um",
             endedAt: "Beendet um",
             leaveTitle: "Training läuft",
@@ -478,6 +477,7 @@ const de = {
             subtitle: "Tippen, um als geplantes Training zu kopieren",
             noWorkouts: "Keine früheren Trainings gefunden",
             exercises: "{{count}} Übungen",
+            recentHeader: "Letzte Trainings",
         },
         units: {
             kg: "kg",
