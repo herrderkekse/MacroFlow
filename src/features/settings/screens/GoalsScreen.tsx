@@ -8,7 +8,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getGoals, setGoals } from "../services/settingsDb";
+import { formatDateKey } from "@/src/utils/date";
+import { getGoals, setNutritionGoals } from "../services/settingsDb";
 
 export default function GoalsScreen() {
     const { t } = useTranslation();
@@ -43,7 +44,7 @@ export default function GoalsScreen() {
             return;
         }
 
-        setGoals({ calories: cal, protein: p, carbs: c, fat: f });
+        setNutritionGoals({ calories: cal, protein: p, carbs: c, fat: f }, formatDateKey(new Date()));
         Alert.alert(t("settings.saved"), t("settings.goalsUpdated"));
     }
 

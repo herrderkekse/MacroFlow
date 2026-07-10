@@ -119,7 +119,7 @@ export default function LogScreen() {
                 contentOffset={{ x: SCREEN_WIDTH, y: 0 }}
                 style={styles.carousel} scrollEnabled={!d.selectionMode}
             >
-                <LogDayPage width={SCREEN_WIDTH} grouped={d.prevGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
+                <LogDayPage width={SCREEN_WIDTH} grouped={d.prevGrouped} goals={d.prevGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}
@@ -138,7 +138,7 @@ export default function LogScreen() {
                     dateKey={formatDateKey(d.selectedDate)}
                     onQuickAdd={() => setShowAddExercise(true)}
                     workoutRefreshKey={d.workoutRefreshKey} />
-                <LogDayPage width={SCREEN_WIDTH} grouped={d.nextGrouped} goals={d.dailyGoals} onAdd={d.navigateToAdd}
+                <LogDayPage width={SCREEN_WIDTH} grouped={d.nextGrouped} goals={d.nextGoals} onAdd={d.navigateToAdd}
                     onDelete={d.handleDelete} onEdit={d.handleEdit} onEditRecipeGroup={d.handleEditRecipeGroup}
                     onDeleteRecipeLog={d.handleDeleteRecipeLog} onConfirmEntry={d.handleConfirmEntry}
                     onConfirmRecipeLog={d.handleConfirmRecipeLog}

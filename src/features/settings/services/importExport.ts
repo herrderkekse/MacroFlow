@@ -7,6 +7,7 @@ import {
     exerciseSets,
     exerciseTemplates,
     foods,
+    goalHistory,
     goals,
     notificationSettings,
     recipeItems,
@@ -29,6 +30,7 @@ interface ExportPayload {
     foods: (typeof foods.$inferSelect)[];
     entries: (typeof entries.$inferSelect)[];
     goals: (typeof goals.$inferSelect)[];
+    goalHistory?: (typeof goalHistory.$inferSelect)[];
     recipes: (typeof recipes.$inferSelect)[];
     recipeItems: (typeof recipeItems.$inferSelect)[];
     recipeLogs?: (typeof recipeLogs.$inferSelect)[];
@@ -53,6 +55,7 @@ export async function exportData(): Promise<void> {
         foods: db.select().from(foods).all(),
         entries: db.select().from(entries).all(),
         goals: db.select().from(goals).all(),
+        goalHistory: db.select().from(goalHistory).all(),
         recipes: db.select().from(recipes).all(),
         recipeItems: db.select().from(recipeItems).all(),
         recipeLogs: db.select().from(recipeLogs).all(),
@@ -116,6 +119,7 @@ export async function importData(): Promise<{ inserted: number }> {
         tx.delete(servingUnits).run();
         tx.delete(foods).run();
         tx.delete(weightLogs).run();
+        tx.delete(goalHistory).run();
         tx.delete(notificationSettings).run();
 
         for (const row of data.foods) {
@@ -158,6 +162,12 @@ export async function importData(): Promise<{ inserted: number }> {
                 tx.insert(goals).values(row).run();
             }
             inserted++;
+        }
+        if (data.goalHistory) {
+            for (const row of data.goalHistory) {
+                tx.insert(goalHistory).values(row).run();
+                inserted++;
+            }
         }
         if (data.notificationSettings) {
             for (const row of data.notificationSettings) {
@@ -226,6 +236,9 @@ function validate(data: unknown): asserts data is ExportPayload {
         if (!Array.isArray(d[key])) {
             throw new Error(`Invalid backup file: missing "${key}" array.`);
         }
+    }
+    if (d.goalHistory !== undefined && !Array.isArray(d.goalHistory)) {
+        throw new Error(`Invalid backup file: "goalHistory" must be an array.`);
     }
     // recipeLogs is optional for backwards compat with older exports
     if (d.recipeLogs !== undefined && !Array.isArray(d.recipeLogs)) {
