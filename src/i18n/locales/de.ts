@@ -300,6 +300,7 @@ const de = {
         statistics: "Statistik",
         min: "Min",
         avg: "Ø",
+        median: "Median",
         max: "Max",
         stdDev: "Std Abw",
         variance: "Varianz",

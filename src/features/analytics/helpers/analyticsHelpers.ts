@@ -68,12 +68,15 @@ export function computeStats(values: number[]) {
     const max = Math.max(...values);
     const sum = values.reduce((a, b) => a + b, 0);
     const avg = sum / values.length;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
     const variance = values.reduce((a, v) => a + (v - avg) ** 2, 0) / values.length;
     const stdDev = Math.sqrt(variance);
     const first = values[0];
     const last = values[values.length - 1];
     const trend = last > first ? "up" : last < first ? "down" : "flat";
-    return { min, max, avg, stdDev, variance, trend };
+    return { min, max, avg, median, stdDev, variance, trend };
 }
 
 export function formatNum(v: number, decimals = 1): string {

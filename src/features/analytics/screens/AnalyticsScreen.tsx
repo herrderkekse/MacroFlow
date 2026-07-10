@@ -115,6 +115,7 @@ export default function AnalyticsScreen() {
                         <View style={styles.statsRow}>
                             <StatCell label={t("analytics.min")} value={`${a.formatNum(a.stats.min)} ${a.statsUnit}`} colors={colors} />
                             <StatCell label={t("analytics.avg")} value={`${a.formatNum(a.stats.avg)} ${a.statsUnit}`} colors={colors} />
+                            <StatCell label={t("analytics.median")} value={`${a.formatNum(a.stats.median)} ${a.statsUnit}`} colors={colors} />
                             <StatCell label={t("analytics.max")} value={`${a.formatNum(a.stats.max)} ${a.statsUnit}`} colors={colors} />
                         </View>
                         {a.statsOpen && (
