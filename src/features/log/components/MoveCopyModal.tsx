@@ -242,7 +242,7 @@ export default function MoveCopyModal({
                                                         disabled && styles.mealOptionTextDisabled,
                                                     ]}
                                                 >
-                                                    {recipe.recipeName}
+                                                    {recipe.recipeName}{recipe.recipeVariant ? ` · ${recipe.recipeVariant}` : ""}
                                                 </Text>
                                             </Pressable>
                                         );

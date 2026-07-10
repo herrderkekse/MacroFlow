@@ -106,6 +106,8 @@ export default function LogScreen() {
         setWeightInput("");
     }
 
+    const editingGroup = d.editingRecipeGroup?.group;
+
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
             <View style={styles.dateSelectorWrapper}>
@@ -224,7 +226,7 @@ export default function LogScreen() {
                 <Pressable style={styles.overlay} onPress={() => d.setEditingRecipeGroup(null)}>
                     <Pressable style={styles.portionModal} onPress={() => { }}>
                         <Text style={styles.portionModalTitle}>{t("log.adjustPortions")}</Text>
-                        <Text style={styles.portionModalSubtitle}>{d.editingRecipeGroup?.group.recipeName}</Text>
+                        <Text style={styles.portionModalSubtitle}>{[editingGroup?.recipeName, editingGroup?.recipeVariant].filter(Boolean).join(" · ")}</Text>
                         <View style={styles.portionRow}>
                             <Pressable
                                 onPress={() => { const v = Math.max(0.25, (parseFloat(d.portionInput) || 1) - 0.25); d.setPortionInput(String(Math.round(v * 100) / 100)); }}

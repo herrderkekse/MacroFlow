@@ -100,9 +100,16 @@ export default function RecipeGroupRow({
                     color={isGroupScheduled ? colors.disabled : (isModified ? colors.textSecondary : colors.primary)}
                     style={{ marginLeft: 4 }}
                 />
-                <Text style={[styles.recipeName, isGroupScheduled && styles.scheduledText]} numberOfLines={1}>
-                    {displayName}
-                </Text>
+                <View style={styles.nameColumn}>
+                    <Text style={[styles.recipeName, isGroupScheduled && styles.scheduledText]} numberOfLines={1}>
+                        {displayName}
+                    </Text>
+                    {group.recipeVariant != null && (
+                        <Text style={[styles.recipeVariant, isGroupScheduled && styles.scheduledText]} numberOfLines={1}>
+                            {group.recipeVariant}
+                        </Text>
+                    )}
+                </View>
                 <Text style={[styles.recipeDetail, isGroupScheduled && styles.scheduledText]}>
                     {t("common.itemCount", { count: group.rows.length })} · {Math.round(totalCals)} {t("common.cal")}
                 </Text>
@@ -183,11 +190,15 @@ function createStyles(colors: ThemeColors) {
             paddingVertical: spacing.sm,
             gap: spacing.xs,
         },
+        nameColumn: { flex: 1 },
         recipeName: {
-            flex: 1,
             fontSize: fontSize.sm,
             fontWeight: "600",
             color: colors.primary,
+        },
+        recipeVariant: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
         },
         recipeDetail: {
             fontSize: fontSize.xs,

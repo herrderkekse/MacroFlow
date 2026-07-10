@@ -16,6 +16,7 @@ import {
     updateRecipe,
     type NewFood,
 } from "@/src/features/templates/services/templateDb";
+import { formatRecipeName } from "@/src/features/templates/services/recipeVariantsDb";
 import i18n from "@/src/i18n";
 import { resolveQuantityToGrams } from "../unitResolution";
 import type { AiToolResult } from "../../types/toolDefinitionTypes";
@@ -38,7 +39,7 @@ function executeSearchLibrary(args: Record<string, unknown>): AiToolResult {
             serving_units: servingUnits,
         };
     });
-    const matchedRecipes = searchRecipesByName(query).map((r) => ({ type: "recipe" as const, id: r.id, name: r.name }));
+    const matchedRecipes = searchRecipesByName(query).map((r) => ({ type: "recipe" as const, id: r.id, name: formatRecipeName(r) }));
     const results = [...matchedFoods, ...matchedRecipes];
 
     return { success: true, summary: i18n.t("chat.toolResult.searchLibrary", { foodCount: matchedFoods.length, recipeCount: matchedRecipes.length, query }), data: results };

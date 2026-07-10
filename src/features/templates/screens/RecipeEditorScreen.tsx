@@ -71,9 +71,18 @@ export default function RecipeEditorScreen() {
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"
             >
+                {recipe.baseName != null && (
+                    <Text style={styles.variantOf}>
+                        {t("templates.variantOf", { name: recipe.baseName })}
+                    </Text>
+                )}
                 <Input
-                    label={t("templates.recipeName")}
-                    placeholder={t("templates.recipeNamePlaceholder")}
+                    label={recipe.baseName != null ? t("templates.variantName") : t("templates.recipeName")}
+                    placeholder={
+                        recipe.baseName != null
+                            ? t("templates.variantNamePlaceholder")
+                            : t("templates.recipeNamePlaceholder")
+                    }
                     value={recipe.name}
                     onChangeText={recipe.setName}
                     containerStyle={styles.nameInput}
@@ -252,6 +261,11 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
         content: { padding: spacing.lg, paddingBottom: SHEET_COLLAPSED + spacing.lg },
+        variantOf: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            marginBottom: spacing.sm,
+        },
         nameInput: { marginBottom: spacing.md },
         summary: {
             fontSize: fontSize.sm,

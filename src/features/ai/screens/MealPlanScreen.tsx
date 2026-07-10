@@ -1,5 +1,6 @@
 import { addEntry } from "@/src/features/log/services/logDb";
 import { getGoals } from "@/src/features/settings/services/settingsDb";
+import { formatRecipeName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getAllFoods, getAllRecipes, getRecipeItems } from "@/src/features/templates/services/templateDb";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
@@ -89,7 +90,7 @@ export default function MealPlanScreen() {
             const items = getRecipeItems(r.id);
             return {
                 id: r.id,
-                name: r.name,
+                name: formatRecipeName(r),
                 items: items.map((i) => ({
                     food_id: i.recipe_items.food_id,
                     quantity_grams: i.recipe_items.quantity_grams,

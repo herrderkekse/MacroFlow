@@ -172,7 +172,7 @@ export default function EntryModal({
                                             style={[styles.recipeGroupName, isSelected && styles.recipeGroupNameActive]}
                                             numberOfLines={1}
                                         >
-                                            {g.recipeName}{g.portion !== 1 ? ` (${g.portion}x)` : ""}
+                                            {g.recipeName}{g.recipeVariant ? ` · ${g.recipeVariant}` : ""}{g.portion !== 1 ? ` (${g.portion}x)` : ""}
                                         </Text>
                                     </Pressable>
                                 );

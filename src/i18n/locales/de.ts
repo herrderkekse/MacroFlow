@@ -267,6 +267,13 @@ const de = {
         editRewriteHistory: "Alle Einträge aktualisieren",
         removeFoodSoft: '"{{name}}" aus der Suche ausblenden? Vergangene Protokolleinträge bleiben erhalten.',
         removeRecipeSoft: '"{{name}}" aus der Suche ausblenden? Vergangene Protokolleinträge bleiben erhalten.',
+        createVariant: "Variante erstellen",
+        forkDescription: 'Erstellt eine neue Variante von "{{name}}" mit einer Kopie ihrer Zutaten zum Anpassen. Benenne sie nur nach der Spezifikation, z. B. "mit Streuseln".',
+        variantName: "Name der Variante",
+        variantNamePlaceholder: "z. B. mit Streuseln",
+        variantOf: 'Variante von "{{name}}"',
+        variantCount_one: "{{count}} Variante",
+        variantCount_other: "{{count}} Varianten",
     },
     analytics: {
         title: "Analyse",

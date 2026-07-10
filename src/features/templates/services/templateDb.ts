@@ -155,12 +155,19 @@ export function updateRecipe(id: number, name: string) {
     db.update(recipes).set({ name }).where(eq(recipes.id, id)).run();
 }
 
+// Deleting a base recipe promotes its variants to standalone recipes.
+function promoteVariants(baseId: number) {
+    db.update(recipes).set({ parent_recipe_id: null }).where(eq(recipes.parent_recipe_id, baseId)).run();
+}
+
 export function deleteRecipe(id: number) {
+    promoteVariants(id);
     db.delete(recipeItems).where(eq(recipeItems.recipe_id, id)).run();
     db.delete(recipes).where(eq(recipes.id, id)).run();
 }
 
 export function softDeleteRecipe(id: number) {
+    promoteVariants(id);
     db.update(recipes).set({ deleted: 1 }).where(eq(recipes.id, id)).run();
 }
 

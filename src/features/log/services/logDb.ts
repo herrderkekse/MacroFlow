@@ -1,3 +1,4 @@
+import { getRecipeDisplayName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getRecipeById, getRecipeItems, type Food } from "@/src/features/templates/services/templateDb";
 import { db } from "@/src/services/db";
 import { entries, foods, recipeItems, recipeLogs, recipes, weightLogs } from "@/src/services/db/schema";
@@ -16,6 +17,7 @@ export interface RecipeGroup {
     recipeLogId: number;
     recipeId: number;
     recipeName: string;
+    recipeVariant: string | null;
     portion: number;
     rows: EntryWithFood[];
 }
@@ -129,6 +131,7 @@ export interface LoggedRecipeGroup {
     recipeLogId: number;
     recipeId: number;
     recipeName: string;
+    recipeVariant: string | null;
     portion: number;
     isScheduled: boolean;
 }
@@ -151,6 +154,7 @@ export function getLoggedRecipeGroups(date: string, mealType: string): LoggedRec
 
     return rows.map((row) => {
         const recipe = getRecipeById(row.recipeId);
+        const display = recipe ? getRecipeDisplayName(recipe) : null;
         const groupEntries = db
             .select({ is_scheduled: entries.is_scheduled })
             .from(entries)
@@ -160,7 +164,8 @@ export function getLoggedRecipeGroups(date: string, mealType: string): LoggedRec
         return {
             recipeLogId: row.recipeLogId,
             recipeId: row.recipeId,
-            recipeName: recipe?.name ?? "Recipe",
+            recipeName: display?.name ?? "Recipe",
+            recipeVariant: display?.variant ?? null,
             portion: row.portion,
             isScheduled,
         };

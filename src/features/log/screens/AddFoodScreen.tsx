@@ -96,17 +96,46 @@ export default function AddFoodScreen() {
                 {search.showLocalSection && search.recipeResults.length > 0 && (
                     <>
                         <Text style={styles.sectionLabel}>{t("log.sectionRecipes")}</Text>
-                        {search.recipeResults.map((r) => (
-                            <Pressable
-                                key={r.id}
-                                style={styles.recipeRow}
-                                onPress={() => search.setSelectedRecipe(r)}
-                            >
-                                <Ionicons name="book-outline" size={18} color={colors.primary} />
-                                <Text style={styles.recipeRowName} numberOfLines={1}>{r.name}</Text>
-                                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-                            </Pressable>
-                        ))}
+                        {search.recipeResults.map((group) => {
+                            const expanded = search.expandedRecipeIds.has(group.recipe.id);
+                            return (
+                                <View key={group.recipe.id} style={styles.recipeCard}>
+                                    <Pressable
+                                        style={styles.recipeRow}
+                                        onPress={() => search.setSelectedRecipe(group.recipe)}
+                                    >
+                                        <Ionicons name="book-outline" size={18} color={colors.primary} />
+                                        <Text style={styles.recipeRowName} numberOfLines={1}>{group.recipe.name}</Text>
+                                        {group.variants.length > 0 && (
+                                            <Pressable
+                                                onPress={() => search.toggleRecipeExpanded(group.recipe.id)}
+                                                hitSlop={8}
+                                                style={styles.variantToggle}
+                                            >
+                                                <Text style={styles.variantToggleText}>{group.variants.length}</Text>
+                                                <Ionicons
+                                                    name={expanded ? "chevron-up" : "chevron-down"}
+                                                    size={16}
+                                                    color={colors.textTertiary}
+                                                />
+                                            </Pressable>
+                                        )}
+                                        <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                                    </Pressable>
+                                    {expanded && group.variants.map((variant) => (
+                                        <Pressable
+                                            key={variant.id}
+                                            style={[styles.recipeRow, styles.recipeVariantRow]}
+                                            onPress={() => search.setSelectedRecipe(variant)}
+                                        >
+                                            <Ionicons name="return-down-forward-outline" size={18} color={colors.textTertiary} />
+                                            <Text style={styles.recipeRowName} numberOfLines={1}>{variant.name}</Text>
+                                            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            );
+                        })}
                     </>
                 )}
 
@@ -303,20 +332,38 @@ function createStyles(colors: ThemeColors) {
             marginTop: spacing.md,
             maxWidth: 220,
         },
+        recipeCard: {
+            backgroundColor: colors.surface,
+            borderRadius: borderRadius.md,
+            marginBottom: spacing.sm,
+        },
         recipeRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.sm,
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
             padding: spacing.md,
-            marginBottom: spacing.sm,
         },
         recipeRowName: {
             flex: 1,
             fontSize: fontSize.sm,
             fontWeight: "500",
             color: colors.text,
+        },
+        recipeVariantRow: {
+            marginHorizontal: spacing.md,
+            paddingHorizontal: spacing.xs,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+        },
+        variantToggle: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 2,
+            paddingHorizontal: spacing.xs,
+        },
+        variantToggleText: {
+            fontSize: fontSize.xs,
+            color: colors.textTertiary,
         },
     });
 }
