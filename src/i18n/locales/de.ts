@@ -418,6 +418,11 @@ const de = {
             defaultUnit: "Standardeinheit",
             none: "Keine",
             nameRequired: "Name ist erforderlich",
+            customFields: "Eigene Felder",
+            customFieldsHint: "Verfolge alles: z. B. Haltezeit, Ringabstand. Der Pfeil legt fest, ob höher oder niedriger besser ist.",
+            customFieldName: "Feldname",
+            customFieldUnit: "Einheit",
+            addCustomField: "Feld hinzufügen",
         },
         workoutSummary: {
             title: "Training",

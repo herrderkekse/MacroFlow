@@ -94,6 +94,7 @@ export function copySetsFromLastSession(templateId: number, targetWorkoutExercis
                 duration_seconds: s.duration_seconds,
                 distance_meters: s.distance_meters,
                 rir: s.rir,
+                custom_values: s.custom_values,
                 rest_seconds: s.rest_seconds,
                 is_scheduled: 1,
             })
@@ -122,6 +123,7 @@ export function copySetsFromWorkoutExercise(sourceWorkoutExerciseId: number, tar
                 duration_seconds: s.duration_seconds,
                 distance_meters: s.distance_meters,
                 rir: s.rir,
+                custom_values: s.custom_values,
                 rest_seconds: s.rest_seconds,
                 is_scheduled: 1,
             })

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { parseCustomFields, parseCustomValues, type CustomField } from "../helpers/customFields";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 
@@ -17,6 +18,8 @@ export default function ReadOnlyExerciseCard({ item, onCopy }: ReadOnlyExerciseC
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const exerciseType: ExerciseType = (item.exerciseTemplate?.type as ExerciseType) ?? "weight";
+    const customFields = parseCustomFields(item.exerciseTemplate?.custom_fields);
+    const useCustom = exerciseType === "other" && customFields.length > 0;
     const completedSets = item.sets.filter((s) => !!s.completed_at);
 
     return (
@@ -37,7 +40,7 @@ export default function ReadOnlyExerciseCard({ item, onCopy }: ReadOnlyExerciseC
                 {exerciseType === "weight" && (
                     <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.weight")}</Text>
                 )}
-                {exerciseType !== "cardio" && (
+                {exerciseType !== "cardio" && !useCustom && (
                     <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.reps")}</Text>
                 )}
                 {exerciseType === "cardio" && (
@@ -46,14 +49,19 @@ export default function ReadOnlyExerciseCard({ item, onCopy }: ReadOnlyExerciseC
                         <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.distance")}</Text>
                     </>
                 )}
-                {exerciseType !== "cardio" && (
+                {useCustom && customFields.map((f) => (
+                    <Text key={f.id} style={[styles.headerCell, styles.valueCol]} numberOfLines={1}>
+                        {f.name}{f.unit ? ` (${f.unit})` : ""}
+                    </Text>
+                ))}
+                {exerciseType !== "cardio" && !useCustom && (
                     <Text style={[styles.headerCell, styles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
                 )}
             </View>
 
             {/* Set rows */}
             {completedSets.map((set, i) => (
-                <ReadOnlySetRow key={set.id} set={set} index={i} exerciseType={exerciseType} styles={styles} colors={colors} />
+                <ReadOnlySetRow key={set.id} set={set} index={i} exerciseType={exerciseType} customFields={customFields} styles={styles} colors={colors} />
             ))}
 
             {completedSets.length === 0 && (
@@ -63,11 +71,13 @@ export default function ReadOnlyExerciseCard({ item, onCopy }: ReadOnlyExerciseC
     );
 }
 
-function ReadOnlySetRow({ set, index, exerciseType, styles, colors }: {
-    set: ExerciseSet; index: number; exerciseType: ExerciseType;
+function ReadOnlySetRow({ set, index, exerciseType, customFields, styles, colors }: {
+    set: ExerciseSet; index: number; exerciseType: ExerciseType; customFields: CustomField[];
     styles: ReturnType<typeof createStyles>; colors: ReturnType<typeof useThemeColors>;
 }) {
     const textColor = colors.text;
+    const useCustom = exerciseType === "other" && customFields.length > 0;
+    const customValues = useCustom ? parseCustomValues(set.custom_values) : {};
     return (
         <View style={styles.setRow}>
             <Text style={[styles.setCell, styles.setCol, { color: colors.textSecondary }]}>{index + 1}</Text>
@@ -76,7 +86,7 @@ function ReadOnlySetRow({ set, index, exerciseType, styles, colors }: {
                     {set.weight != null ? `${set.weight} ${set.weight_unit}` : "—"}
                 </Text>
             )}
-            {exerciseType !== "cardio" && (
+            {exerciseType !== "cardio" && !useCustom && (
                 <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
                     {set.reps ?? "—"}
                 </Text>
@@ -91,7 +101,12 @@ function ReadOnlySetRow({ set, index, exerciseType, styles, colors }: {
                     </Text>
                 </>
             )}
-            {exerciseType !== "cardio" && (
+            {useCustom && customFields.map((f) => (
+                <Text key={f.id} style={[styles.setCell, styles.valueCol, { color: textColor }]}>
+                    {customValues[f.id] != null ? `${customValues[f.id]}${f.unit ? ` ${f.unit}` : ""}` : "—"}
+                </Text>
+            ))}
+            {exerciseType !== "cardio" && !useCustom && (
                 <Text style={[styles.setCell, styles.rirCol, { color: textColor }]}>
                     {set.rir ?? "—"}
                 </Text>

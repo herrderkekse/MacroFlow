@@ -417,6 +417,11 @@ const en = {
             defaultUnit: "Default Unit",
             none: "None",
             nameRequired: "Name is required",
+            customFields: "Custom Fields",
+            customFieldsHint: "Track anything: e.g. hold time, ring distance. Arrow sets whether higher or lower is better.",
+            customFieldName: "Field name",
+            customFieldUnit: "Unit",
+            addCustomField: "Add field",
         },
         workoutSummary: {
             title: "Workouts",

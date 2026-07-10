@@ -16,5 +16,7 @@ export interface SetValues {
     rir: number | null;
     duration_seconds: number | null;
     distance_meters: number | null;
+    /** Values for an "other" exercise's custom fields, keyed by field id. */
+    custom_values: Record<string, number | null>;
     type: string;
 }
