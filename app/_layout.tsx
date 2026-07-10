@@ -2,6 +2,7 @@ import "@/polyfills";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
 import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
 import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
+import { syncIfConfigured } from "@/src/features/settings/services/syncEngine";
 import i18n from "@/src/i18n";
 import { initDB } from "@/src/services/db";
 import { deactivateKeepAwakeAsync, KEEP_AWAKE_DEFAULT_TAG, WORKOUT_KEEP_AWAKE_TAG } from "@/src/services/keepAwake";
@@ -62,6 +63,16 @@ function InnerLayout() {
     };
     scheduleAllReminders(mealLabels, i18n.t("settings.notificationWeight"), getNotificationSettings() ?? null, new Set(getEntriesByDate(new Date()).map(e => e.entries.meal_type as MealType)), getWeightLogsForDate(new Date()).length > 0);
   }, [setLanguage, setAppearanceMode, setUnitSystem, setKeepAwakeInWorkout]);
+
+  // Best-effort background sync on app start and whenever the app returns to
+  // the foreground; a no-op while sync is unconfigured or the device is offline.
+  useEffect(() => {
+    void syncIfConfigured();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void syncIfConfigured();
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     const isWorkoutRoute = pathname?.startsWith("/workout") ?? false;

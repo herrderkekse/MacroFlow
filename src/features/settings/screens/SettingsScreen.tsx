@@ -11,6 +11,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import NotificationSettings from "../components/NotificationSettings";
 import SettingsToggleRow from "../components/SettingsToggleRow";
+import SyncSettings from "../components/SyncSettings";
 import { setGoals } from "../services/settingsDb";
 
 const LANGUAGE_LABELS: Record<Language, string> = {
@@ -127,6 +128,8 @@ export default function SettingsScreen() {
             />
 
             <NotificationSettings colors={colors} />
+
+            <SyncSettings colors={colors} />
         </ScrollView>
     );
 }

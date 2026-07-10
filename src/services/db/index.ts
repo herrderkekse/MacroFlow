@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite";
 import * as schema from "./schema";
+import { SYNC_TABLES, singletonUuid } from "./syncTables";
 
 const DB_NAME = "macroflow.db";
 
@@ -219,6 +220,8 @@ export function initDB() {
     "ALTER TABLE exercise_templates ADD COLUMN custom_fields TEXT",
     "ALTER TABLE exercise_sets ADD COLUMN custom_values TEXT",
     "ALTER TABLE recipes ADD COLUMN parent_recipe_id INTEGER REFERENCES recipes(id)",
+    // Sync: stable cross-device row identity (see SYNC.md)
+    ...SYNC_TABLES.map((t) => `ALTER TABLE ${t.name} ADD COLUMN uuid TEXT`),
   ];
   for (const sql of migrations) {
     try { expoDb.execSync(sql); } catch { /* column already exists */ }
@@ -271,6 +274,91 @@ export function initDB() {
     expoDb.execSync(`
       INSERT INTO goal_history (date, calories, protein, carbs, fat)
       SELECT '1970-01-01', calories, protein, carbs, fat FROM goals WHERE id = 1;
+    `);
+  }
+
+  initSyncInfrastructure();
+}
+
+// ── Sync infrastructure (see SYNC.md) ──────────────────────
+// Every synced table gets a `uuid` (stable cross-device identity, added in
+// the migrations list above) and a set of AFTER INSERT/UPDATE/DELETE triggers
+// that record changes into the `sync_queue` oplog. The triggers no-op while
+// the sync engine is applying remote changes (sync_meta key 'sync_applying').
+
+/** Current time in ms since epoch, as a SQL expression (for trigger bodies). */
+const NOW_MS_SQL = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+
+function initSyncInfrastructure() {
+  expoDb.execSync(`
+    CREATE TABLE IF NOT EXISTS sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      table_name TEXT NOT NULL,
+      row_uuid TEXT NOT NULL,
+      op TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_row_versions (
+      table_name TEXT NOT NULL,
+      row_uuid TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (table_name, row_uuid)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sync_queue_row ON sync_queue (table_name, row_uuid);
+  `);
+
+  // Singleton settings rows sync under the same deterministic uuid on every
+  // device so they merge into one logical row. Enforced every start because a
+  // backup import can replace the row with a foreign/missing uuid.
+  for (const t of SYNC_TABLES) {
+    if (t.singletonId == null) continue;
+    expoDb.runSync(
+      `UPDATE ${t.name} SET uuid = ? WHERE id = ? AND (uuid IS NULL OR uuid <> ?)`,
+      [singletonUuid(t), t.singletonId, singletonUuid(t)],
+    );
+  }
+
+  // Backfill uuids for rows that predate the sync feature. Runs before the
+  // triggers are (first) created, so the backfill itself is not recorded.
+  for (const t of SYNC_TABLES) {
+    expoDb.execSync(
+      `UPDATE ${t.name} SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL`,
+    );
+    expoDb.execSync(`CREATE INDEX IF NOT EXISTS idx_${t.name}_uuid ON ${t.name} (uuid)`);
+  }
+
+  const applyingGuard =
+    "NOT EXISTS (SELECT 1 FROM sync_meta WHERE key = 'sync_applying' AND value = '1')";
+  for (const t of SYNC_TABLES) {
+    expoDb.execSync(`
+      CREATE TRIGGER IF NOT EXISTS sync_trg_${t.name}_insert AFTER INSERT ON ${t.name}
+      BEGIN
+        UPDATE ${t.name} SET uuid = lower(hex(randomblob(16))) WHERE id = NEW.id AND uuid IS NULL;
+        INSERT INTO sync_queue (table_name, row_uuid, op, updated_at)
+        SELECT '${t.name}', uuid, 'upsert', ${NOW_MS_SQL} FROM ${t.name}
+        WHERE id = NEW.id AND ${applyingGuard};
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS sync_trg_${t.name}_update AFTER UPDATE ON ${t.name}
+      WHEN OLD.uuid IS NOT NULL AND ${applyingGuard}
+      BEGIN
+        INSERT INTO sync_queue (table_name, row_uuid, op, updated_at)
+        VALUES ('${t.name}', NEW.uuid, 'upsert', ${NOW_MS_SQL});
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS sync_trg_${t.name}_delete AFTER DELETE ON ${t.name}
+      WHEN OLD.uuid IS NOT NULL AND ${applyingGuard}
+      BEGIN
+        INSERT INTO sync_queue (table_name, row_uuid, op, updated_at)
+        VALUES ('${t.name}', OLD.uuid, 'delete', ${NOW_MS_SQL});
+      END;
     `);
   }
 }

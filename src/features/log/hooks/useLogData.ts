@@ -38,6 +38,7 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
     const defaultGoals: Goals = {
         id: 1, calories: 2000, protein: 150, carbs: 250, fat: 70,
         unit_system: "metric", language: "en", appearance_mode: "system", keep_awake: 0,
+        uuid: null,
     };
     const [dailyGoals, setDailyGoals] = useState<Goals>(defaultGoals);
     const [prevGoals, setPrevGoals] = useState<Goals>(defaultGoals);
