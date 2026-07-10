@@ -59,15 +59,14 @@ export default function WorkoutScreen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workout.data, workoutId, workout.isResumed, workout.startWorkout, workoutDate]);
 
-    // Auto-expand an exercise when data loads
+    // Auto-expand the first exercise that still has an unfinished set when data loads
     useEffect(() => {
         const exercises = workout.data?.exercises ?? [];
         if (exercises.length > 0 && expandedId === null) {
-            const isRunningWorkout = workout.data?.workout?.ended_at == null;
-            const targetIndex = isRunningWorkout ? exercises.length - 1 : 0;
-            setExpandedId(exercises[targetIndex].workoutExercise.id);
+            const targetIndex = exercises.findIndex((ex) => ex.sets.some((s) => !s.completed_at));
+            setExpandedId(exercises[targetIndex === -1 ? 0 : targetIndex].workoutExercise.id);
         }
-    }, [workout.data?.exercises, workout.data?.workout?.ended_at, expandedId]);
+    }, [workout.data?.exercises, expandedId]);
 
     const isFinished = !!workout.data?.workout.ended_at;
     const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
