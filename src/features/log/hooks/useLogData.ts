@@ -1,4 +1,4 @@
-import { getGoals, getNotificationSettings, type Goals } from "@/src/features/settings/services/settingsDb";
+import { getGoals, getGoalsForDate, getNotificationSettings, type Goals } from "@/src/features/settings/services/settingsDb";
 import { cancelWeightReminderIfLogged, syncTodayMealReminders, syncTodayWeightReminder } from "@/src/services/notifications";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { type MealType } from "@/src/shared/types";
@@ -34,10 +34,13 @@ export function useLogData() {
     const [grouped, setGrouped] = useState(emptyGrouped);
     const [prevGrouped, setPrevGrouped] = useState(emptyGrouped);
     const [nextGrouped, setNextGrouped] = useState(emptyGrouped);
-    const [dailyGoals, setDailyGoals] = useState<Goals>({
+    const defaultGoals: Goals = {
         id: 1, calories: 2000, protein: 150, carbs: 250, fat: 70,
         unit_system: "metric", language: "en", appearance_mode: "system", keep_awake: 0,
-    });
+    };
+    const [dailyGoals, setDailyGoals] = useState<Goals>(defaultGoals);
+    const [prevGoals, setPrevGoals] = useState<Goals>(defaultGoals);
+    const [nextGoals, setNextGoals] = useState<Goals>(defaultGoals);
 
     const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
     const [editingRecipeGroup, setEditingRecipeGroup] = useState<{ group: RecipeGroup; multiplier: number } | null>(null);
@@ -54,12 +57,19 @@ export function useLogData() {
     const [workoutRefreshKey, setWorkoutRefreshKey] = useState(0);
 
     function loadAllDays(center: Date) {
+        const prevDate = shiftCalendarDate(center, -1);
+        const nextDate = shiftCalendarDate(center, +1);
         setGrouped(loadGrouped(center));
-        setPrevGrouped(loadGrouped(shiftCalendarDate(center, -1)));
-        setNextGrouped(loadGrouped(shiftCalendarDate(center, +1)));
+        setPrevGrouped(loadGrouped(prevDate));
+        setNextGrouped(loadGrouped(nextDate));
+        const centerGoals = getGoalsForDate(formatDateKey(center));
+        if (centerGoals) setDailyGoals(centerGoals);
+        const prevDayGoals = getGoalsForDate(formatDateKey(prevDate));
+        if (prevDayGoals) setPrevGoals(prevDayGoals);
+        const nextDayGoals = getGoalsForDate(formatDateKey(nextDate));
+        if (nextDayGoals) setNextGoals(nextDayGoals);
         const g = getGoals();
         if (g) {
-            setDailyGoals(g);
             if (g.unit_system === "metric" || g.unit_system === "imperial") {
                 useAppStore.getState().setUnitSystem(g.unit_system as "metric" | "imperial");
             }
@@ -269,7 +279,7 @@ export function useLogData() {
 
     return {
         selectedDate, carouselRef, chatBarVisible, setChatBarVisible,
-        grouped, prevGrouped, nextGrouped, dailyGoals,
+        grouped, prevGrouped, nextGrouped, dailyGoals, prevGoals, nextGoals,
         editingEntry, setEditingEntry, editingRecipeGroup, setEditingRecipeGroup,
         portionInput, setPortionInput,
         selectionMode, selectedEntryIds, moveModalVisible, setMoveModalVisible,

@@ -58,6 +58,15 @@ export function initDB() {
       keep_awake INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS goal_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      calories REAL NOT NULL,
+      protein REAL NOT NULL,
+      carbs REAL NOT NULL,
+      fat REAL NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS recipe_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       recipe_id INTEGER NOT NULL REFERENCES recipes(id),
@@ -248,5 +257,19 @@ export function initDB() {
       `UPDATE entries SET recipe_log_id = ? WHERE recipe_log_group = ?`,
       [newId, g.recipe_log_group],
     );
+  }
+
+  // Seed goal history for existing installs: without a starting snapshot, past
+  // days would have no goal to resolve to. Backfill the current goals dated at
+  // the epoch so every existing/past day keeps using them, while future goal
+  // changes only affect days from the day they were made onward.
+  const goalHistoryCount = expoDb.getFirstSync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM goal_history`,
+  );
+  if (!goalHistoryCount || goalHistoryCount.count === 0) {
+    expoDb.execSync(`
+      INSERT INTO goal_history (date, calories, protein, carbs, fat)
+      SELECT '1970-01-01', calories, protein, carbs, fat FROM goals WHERE id = 1;
+    `);
   }
 }

@@ -51,6 +51,18 @@ export const goals = sqliteTable("goals", {
     keep_awake: integer("keep_awake").notNull().default(0),
 });
 
+// Point-in-time snapshots of nutrition goals. `date` is the day the goal
+// became effective; the goal applied to any given day is the most recent row
+// with date <= that day. Only one row per date (latest save of the day wins).
+export const goalHistory = sqliteTable("goal_history", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    date: text("date").notNull(),
+    calories: real("calories").notNull(),
+    protein: real("protein").notNull(),
+    carbs: real("carbs").notNull(),
+    fat: real("fat").notNull(),
+});
+
 export const recipes = sqliteTable("recipes", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
