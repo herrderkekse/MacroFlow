@@ -38,6 +38,7 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
     const defaultGoals: Goals = {
         id: 1, calories: 2000, protein: 150, carbs: 250, fat: 70,
         unit_system: "metric", language: "en", appearance_mode: "system", keep_awake: 0,
+        exercise_timer_sound: "off",
         uuid: null,
     };
     const [dailyGoals, setDailyGoals] = useState<Goals>(defaultGoals);
@@ -76,6 +77,9 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
                 useAppStore.getState().setUnitSystem(g.unit_system as "metric" | "imperial");
             }
             useAppStore.getState().setKeepAwakeInWorkout(g.keep_awake !== 0);
+            if (g.exercise_timer_sound === "off" || g.exercise_timer_sound === "on" || g.exercise_timer_sound === "bluetooth") {
+                useAppStore.getState().setExerciseTimerSound(g.exercise_timer_sound);
+            }
         }
         const dayWeights = getWeightLogsForDate(center);
         setDayWeightLogs(dayWeights);

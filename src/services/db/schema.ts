@@ -52,6 +52,7 @@ export const goals = sqliteTable("goals", {
     language: text("language").notNull().default("en"),
     appearance_mode: text("appearance_mode").notNull().default("system"),
     keep_awake: integer("keep_awake").notNull().default(0),
+    exercise_timer_sound: text("exercise_timer_sound").notNull().default("off"),
     uuid: text("uuid"),
 });
 

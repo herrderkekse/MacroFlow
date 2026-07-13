@@ -42,14 +42,20 @@
       ],
       "expo-sqlite",
       "expo-localization",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/rest_timer_done.wav"]
+        }
+      ],
       "expo-secure-store",
       "expo-font",
       "expo-image",
       "expo-sharing",
       "expo-web-browser",
       "expo-status-bar",
-      "./plugins/withDebugApplicationIdSuffix"
+      "./plugins/withDebugApplicationIdSuffix",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

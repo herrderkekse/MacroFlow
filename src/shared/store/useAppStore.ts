@@ -1,5 +1,5 @@
 import i18n, { defaultLanguage } from "@/src/i18n";
-import type { AppearanceMode, Language, UnitSystem } from "@/src/shared/types";
+import type { AppearanceMode, ExerciseTimerSound, Language, UnitSystem } from "@/src/shared/types";
 import { normalizeCalendarDate } from "@/src/utils/date";
 import { create } from "zustand";
 
@@ -14,6 +14,8 @@ interface AppState {
     setLanguage: (lang: Language) => void;
     keepAwakeInWorkout: boolean;
     setKeepAwakeInWorkout: (value: boolean) => void;
+    exerciseTimerSound: ExerciseTimerSound;
+    setExerciseTimerSound: (value: ExerciseTimerSound) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -30,4 +32,6 @@ export const useAppStore = create<AppState>((set) => ({
     },
     keepAwakeInWorkout: false,
     setKeepAwakeInWorkout: (value) => set({ keepAwakeInWorkout: value }),
+    exerciseTimerSound: "off",
+    setExerciseTimerSound: (value) => set({ exerciseTimerSound: value }),
 }));

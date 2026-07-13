@@ -58,3 +58,6 @@ app-example
 /ios
 /android
 releases/
+
+# local module build output
+modules/*/android/build/

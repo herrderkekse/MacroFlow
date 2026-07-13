@@ -6,6 +6,8 @@ export type AppearanceMode = "light" | "dark" | "system";
 
 export type Language = "en" | "de";
 
+export type ExerciseTimerSound = "off" | "on" | "bluetooth";
+
 export type { FoodUnit, UnitSystem } from "@/src/utils/units";
 
 export const MEAL_TYPES: { key: MealType; icon: string }[] = [

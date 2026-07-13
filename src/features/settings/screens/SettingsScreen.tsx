@@ -1,14 +1,15 @@
 import { SUPPORTED_LANGUAGES } from "@/src/i18n";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
-import type { AppearanceMode, Language, UnitSystem } from "@/src/shared/types";
+import type { AppearanceMode, ExerciseTimerSound, Language, UnitSystem } from "@/src/shared/types";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { requestNotificationPermission } from "@/src/features/exercise/services/restTimerNotifications";
 import NotificationSettings from "../components/NotificationSettings";
 import SettingsToggleRow from "../components/SettingsToggleRow";
 import SyncSettings from "../components/SyncSettings";
@@ -34,6 +35,8 @@ export default function SettingsScreen() {
     const setLanguage = useAppStore((s) => s.setLanguage);
     const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
     const setKeepAwakeInWorkout = useAppStore((s) => s.setKeepAwakeInWorkout);
+    const exerciseTimerSound = useAppStore((s) => s.exerciseTimerSound);
+    const setExerciseTimerSound = useAppStore((s) => s.setExerciseTimerSound);
 
     const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
         { key: "metric", label: t("settings.unitsMetric") },
@@ -44,6 +47,12 @@ export default function SettingsScreen() {
         { key: "system", label: t("settings.appearanceSystem") },
         { key: "light", label: t("settings.appearanceLight") },
         { key: "dark", label: t("settings.appearanceDark") },
+    ];
+
+    const TIMER_SOUND_OPTIONS: { key: ExerciseTimerSound; label: string }[] = [
+        { key: "off", label: t("settings.exerciseTimerSoundOff") },
+        { key: "on", label: t("settings.exerciseTimerSoundOn") },
+        { key: "bluetooth", label: t("settings.exerciseTimerSoundBluetooth") },
     ];
 
     function handleUnitChange(system: UnitSystem) {
@@ -59,6 +68,19 @@ export default function SettingsScreen() {
     function handleKeepAwakeChange(value: boolean) {
         setKeepAwakeInWorkout(value);
         setGoals({ keep_awake: value ? 1 : 0 });
+    }
+
+    async function handleTimerSoundChange(value: ExerciseTimerSound) {
+        setExerciseTimerSound(value);
+        setGoals({ exercise_timer_sound: value });
+        // Enabling the sound relies on notifications for the off-screen chime;
+        // ask up front rather than surprising the user mid-workout.
+        if (value !== "off") {
+            const granted = await requestNotificationPermission();
+            if (!granted) {
+                Alert.alert(t("settings.title"), t("settings.notificationPermissionDenied"));
+            }
+        }
     }
 
     return (
@@ -127,6 +149,22 @@ export default function SettingsScreen() {
                 onValueChange={handleKeepAwakeChange}
             />
 
+            <Text style={styles.sectionLabel}>{t("settings.exerciseTimerSound")}</Text>
+            <Text style={styles.sectionDescription}>{t("settings.exerciseTimerSoundDescription")}</Text>
+            <View style={styles.chipRow}>
+                {TIMER_SOUND_OPTIONS.map((opt) => (
+                    <Pressable
+                        key={opt.key}
+                        style={[styles.chip, exerciseTimerSound === opt.key && styles.chipActive]}
+                        onPress={() => handleTimerSoundChange(opt.key)}
+                    >
+                        <Text style={[styles.chipText, exerciseTimerSound === opt.key && styles.chipTextActive]}>
+                            {opt.label}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
+
             <NotificationSettings colors={colors} />
 
             <SyncSettings colors={colors} />
@@ -157,6 +195,11 @@ function createStyles(colors: ThemeColors) {
             letterSpacing: 0.5,
             marginBottom: spacing.sm,
             marginTop: spacing.md,
+        },
+        sectionDescription: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            marginBottom: spacing.md,
         },
         chipRow: {
             flexDirection: "row",

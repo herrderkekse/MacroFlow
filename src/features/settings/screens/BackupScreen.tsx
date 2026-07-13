@@ -1,7 +1,7 @@
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
-import type { AppearanceMode, UnitSystem } from "@/src/shared/types";
+import type { AppearanceMode, ExerciseTimerSound, UnitSystem } from "@/src/shared/types";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,6 +24,7 @@ export default function BackupScreen() {
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
     const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
     const setKeepAwakeInWorkout = useAppStore((s) => s.setKeepAwakeInWorkout);
+    const setExerciseTimerSound = useAppStore((s) => s.setExerciseTimerSound);
 
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
@@ -65,6 +66,9 @@ export default function BackupScreen() {
                     setAppearanceMode(g.appearance_mode as AppearanceMode);
                 }
                 setKeepAwakeInWorkout(g.keep_awake !== 0);
+                if (g.exercise_timer_sound === "off" || g.exercise_timer_sound === "on" || g.exercise_timer_sound === "bluetooth") {
+                    setExerciseTimerSound(g.exercise_timer_sound as ExerciseTimerSound);
+                }
             }
             Alert.alert(
                 t("settings.importComplete"),
