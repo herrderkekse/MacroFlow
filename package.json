@@ -19,6 +19,7 @@
     "ai": "^6.0.156",
     "drizzle-orm": "^0.45.1",
     "expo": "^57.0.0",
+    "expo-audio": "~57.0.0",
     "expo-camera": "~57.0.1",
     "expo-clipboard": "~57.0.0",
     "expo-constants": "~57.0.3",
