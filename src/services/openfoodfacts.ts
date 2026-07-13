@@ -5,9 +5,12 @@ import type { FoodUnit } from "@/src/utils/units";
 const BASE_URL = "https://world.openfoodfacts.org";
 const USER_AGENT = "MacroFlow/1.0 (React Native; open-source nutrient tracker)";
 
-// Client-side rate limiter for search (10 req/min ≈ 1 per 6 s)
-const SEARCH_MIN_INTERVAL_MS = 6_000;
-let lastSearchTimestamp = 0;
+// Client-side rate limiter for search: OpenFoodFacts allows 10 req/min/IP.
+// Track request timestamps in a sliding 60 s window so users can burst a few
+// requests quickly (or space them out) as long as the window stays under the cap.
+const SEARCH_WINDOW_MS = 60_000;
+const SEARCH_MAX_PER_WINDOW = 10;
+const searchTimestamps: number[] = [];
 
 export interface OFFProduct {
     code: string;
@@ -83,14 +86,17 @@ export async function searchProducts(
     page = 1,
 ): Promise<OFFProduct[]> {
     const now = Date.now();
-    const elapsed = now - lastSearchTimestamp;
-    if (elapsed < SEARCH_MIN_INTERVAL_MS) {
+    // Drop timestamps that have aged out of the sliding window.
+    while (searchTimestamps.length && now - searchTimestamps[0] >= SEARCH_WINDOW_MS) {
+        searchTimestamps.shift();
+    }
+    if (searchTimestamps.length >= SEARCH_MAX_PER_WINDOW) {
         const waitSec = Math.ceil(
-            (SEARCH_MIN_INTERVAL_MS - elapsed) / 1000,
+            (SEARCH_WINDOW_MS - (now - searchTimestamps[0])) / 1000,
         );
         throw new Error(i18n.t("common.rateLimitedWait", { seconds: waitSec }));
     }
-    lastSearchTimestamp = now;
+    searchTimestamps.push(now);
 
     logger.info("[API] Searching products", { query, page });
 
