@@ -23,6 +23,7 @@ export default function MoreScreen() {
     const router = useRouter();
 
     const menuItems: MenuItem[] = [
+        { icon: "person-circle", labelKey: "more.account", route: "/(tabs)/account", color: "#3B82F6" },
         { icon: "bar-chart", labelKey: "more.analytics", route: "/(tabs)/analytics", color: "#6C63FF" },
         { icon: "flag", labelKey: "more.goals", route: "/(tabs)/goals", color: "#FF6B6B" },
         { icon: "archive", labelKey: "more.backup", route: "/(tabs)/backup", color: "#4ECDC4" },
