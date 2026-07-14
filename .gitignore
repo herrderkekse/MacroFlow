@@ -61,3 +61,4 @@ releases/
 
 # local module build output
 modules/*/android/build/
+modules/*/android/.gradle/
