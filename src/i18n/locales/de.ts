@@ -372,6 +372,8 @@ const de = {
         errorPasswordTooShort: "Das Passwort muss mindestens {{count}} Zeichen haben.",
         errorPasswordMismatch: "Die Passwörter stimmen nicht überein.",
         signedInAs: "Angemeldet als {{username}}",
+        storageUsed: "{{used}} Speicher belegt",
+        storageUsedOf: "{{used}} von {{total}} belegt",
         signedInHint: "Die Synchronisierung verwaltest du unter Einstellungen → Synchronisierung. Beim Abmelden wird die Synchronisierung gestoppt, deine Daten bleiben aber auf diesem Gerät.",
         signOut: "Abmelden",
         signOutConfirmTitle: "Abmelden?",

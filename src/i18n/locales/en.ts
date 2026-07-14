@@ -370,6 +370,8 @@ const en = {
         errorPasswordTooShort: "Password must be at least {{count}} characters.",
         errorPasswordMismatch: "The passwords don't match.",
         signedInAs: "Signed in as {{username}}",
+        storageUsed: "{{used}} of storage used",
+        storageUsedOf: "{{used}} of {{total}} used",
         signedInHint: "Manage syncing from Settings → Sync. Signing out stops syncing but keeps your data on this device.",
         signOut: "Sign Out",
         signOutConfirmTitle: "Sign out?",

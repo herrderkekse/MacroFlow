@@ -4,7 +4,7 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
     Alert,
@@ -17,7 +17,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { login, register } from "../services/syncClient";
+import { getUsage, login, register, type UsageInfo } from "../services/syncClient";
 import {
     clearSyncSettings,
     loadSyncSettings,
@@ -25,6 +25,19 @@ import {
 } from "../services/syncSettings";
 
 const MIN_PASSWORD_LENGTH = 8;
+
+/** Formats a byte count as a short human-readable size, e.g. "4.9 MB". */
+function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KB", "MB", "GB", "TB"];
+    let value = bytes / 1024;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit++;
+    }
+    return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
 
 type Mode = "signIn" | "signUp";
 
@@ -37,6 +50,7 @@ export default function AccountScreen() {
 
     // Signed-in state, loaded once on mount.
     const [signedInAs, setSignedInAs] = useState<{ username: string; url: string } | null>(null);
+    const [usage, setUsage] = useState<UsageInfo | null>(null);
     const [signingOut, setSigningOut] = useState(false);
 
     // Form state.
@@ -47,6 +61,18 @@ export default function AccountScreen() {
     const [confirm, setConfirm] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // Loads storage usage for the saved account. Usage is informational, so a
+    // failure just leaves it hidden rather than surfacing an error.
+    const refreshUsage = useCallback(async () => {
+        const settings = await loadSyncSettings();
+        if (!settings) return;
+        try {
+            setUsage(await getUsage(settings));
+        } catch {
+            setUsage(null);
+        }
+    }, []);
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -55,11 +81,12 @@ export default function AccountScreen() {
             setSignedInAs({ username: settings.username, url: settings.url });
             // Pre-fill the URL so a re-sign-in on the same server is one tap.
             setUrl(settings.url);
+            refreshUsage();
         })();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [refreshUsage]);
 
     function goBack() {
         router.navigate("/(tabs)/more" as any);
@@ -98,6 +125,7 @@ export default function AccountScreen() {
             setSignedInAs({ username: creds.username, url: url.trim().replace(/\/+$/, "") });
             setPassword("");
             setConfirm("");
+            refreshUsage();
             Alert.alert(
                 t("account.title"),
                 mode === "signUp" ? t("account.signUpSuccess") : t("account.signInSuccess"),
@@ -123,6 +151,7 @@ export default function AccountScreen() {
                         setSigningOut(true);
                         await clearSyncSettings();
                         setSignedInAs(null);
+                        setUsage(null);
                         setPassword("");
                         setConfirm("");
                     } finally {
@@ -156,6 +185,36 @@ export default function AccountScreen() {
                             {t("account.signedInAs", { username: signedInAs.username })}
                         </Text>
                         <Text style={styles.signedInServer}>{signedInAs.url}</Text>
+
+                        {usage && (
+                            <View style={styles.usageBlock}>
+                                <Text style={styles.usageText}>
+                                    {usage.quota > 0
+                                        ? t("account.storageUsedOf", {
+                                              used: formatBytes(usage.bytes),
+                                              total: formatBytes(usage.quota),
+                                          })
+                                        : t("account.storageUsed", { used: formatBytes(usage.bytes) })}
+                                </Text>
+                                {usage.quota > 0 &&
+                                    (() => {
+                                        const ratio = Math.min(1, usage.bytes / usage.quota);
+                                        return (
+                                            <View style={styles.usageBarTrack}>
+                                                <View
+                                                    style={[
+                                                        styles.usageBarFill,
+                                                        { flex: ratio },
+                                                        ratio >= 0.9 && { backgroundColor: colors.danger },
+                                                    ]}
+                                                />
+                                                {ratio < 1 && <View style={{ flex: 1 - ratio }} />}
+                                            </View>
+                                        );
+                                    })()}
+                            </View>
+                        )}
+
                         <Text style={styles.signedInHint}>{t("account.signedInHint")}</Text>
                         <Button
                             title={t("account.signOut")}
@@ -326,6 +385,27 @@ function createStyles(colors: ThemeColors) {
             fontSize: fontSize.sm,
             color: colors.textSecondary,
             textAlign: "center",
+        },
+        usageBlock: {
+            alignSelf: "stretch",
+            marginTop: spacing.sm,
+            gap: spacing.xs,
+        },
+        usageText: {
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+            textAlign: "center",
+        },
+        usageBarTrack: {
+            flexDirection: "row",
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: colors.border,
+            overflow: "hidden",
+        },
+        usageBarFill: {
+            backgroundColor: colors.primary,
+            borderRadius: 3,
         },
         signedInHint: {
             fontSize: fontSize.sm,

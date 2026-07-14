@@ -33,6 +33,16 @@ export interface PullResult {
     hasMore: boolean;
 }
 
+/** Storage usage for the authenticated user, as returned by /usage. */
+export interface UsageInfo {
+    /** Logical bytes the user's stored change log occupies. */
+    bytes: number;
+    /** Number of stored rows. */
+    rows: number;
+    /** Per-user cap in bytes, or 0 when the server sets no limit. */
+    quota: number;
+}
+
 const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Credentials without the server URL, used by the account endpoints. */
@@ -67,6 +77,16 @@ export async function login(url: string, account: Account): Promise<void> {
 
 export async function testConnection(creds: SyncCredentials): Promise<void> {
     await request(creds, "/api/v1/sync/ping");
+}
+
+/** Fetches the signed-in user's storage usage and quota. */
+export async function getUsage(creds: SyncCredentials): Promise<UsageInfo> {
+    const body = await request(creds, "/api/v1/sync/usage");
+    return {
+        bytes: Number(body?.bytes ?? 0),
+        rows: Number(body?.rows ?? 0),
+        quota: Number(body?.quota ?? 0),
+    };
 }
 
 export async function pullChanges(
@@ -171,6 +191,11 @@ async function request(
         });
         if (res.status === 401 || res.status === 403) {
             throw new Error("Sync server rejected the credentials.");
+        }
+        if (res.status === 507) {
+            throw new Error(
+                "Your account is out of storage on the sync server. Free up space or ask the server owner to raise your limit.",
+            );
         }
         if (!res.ok) {
             throw new Error(`Sync server error (HTTP ${res.status}).`);
