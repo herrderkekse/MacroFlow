@@ -35,6 +35,36 @@ export interface PullResult {
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
+/** Credentials without the server URL, used by the account endpoints. */
+export interface Account {
+    username: string;
+    password: string;
+}
+
+/**
+ * Creates an account on the server (POST /api/v1/auth/register). Throws with a
+ * user-facing message on conflict, invalid input, or a disabled signup.
+ */
+export async function register(url: string, account: Account): Promise<void> {
+    await authRequest(url, "/api/v1/auth/register", account, (status, message) => {
+        if (status === 409) return message || "That username is already taken.";
+        if (status === 403) return message || "Sign-up is disabled on this server.";
+        if (status === 400) return message || "Please choose a valid username and password.";
+        return null;
+    });
+}
+
+/**
+ * Verifies credentials against the server (POST /api/v1/auth/login). Throws with
+ * a user-facing message when the credentials are rejected.
+ */
+export async function login(url: string, account: Account): Promise<void> {
+    await authRequest(url, "/api/v1/auth/login", account, (status) => {
+        if (status === 401) return "Incorrect username or password.";
+        return null;
+    });
+}
+
 export async function testConnection(creds: SyncCredentials): Promise<void> {
     await request(creds, "/api/v1/sync/ping");
 }
@@ -70,6 +100,56 @@ export async function pushChanges(
 }
 
 // ── Plumbing ───────────────────────────────────────────────
+
+/**
+ * POSTs an account payload to an unauthenticated auth endpoint. `statusMessage`
+ * maps a non-OK HTTP status to a user-facing error; when it returns null a
+ * generic message is used. The server's `{error}` body is passed through when
+ * present so validation details reach the user.
+ */
+async function authRequest(
+    url: string,
+    path: string,
+    account: Account,
+    statusMessage: (status: number, serverMessage: string) => string | null,
+): Promise<void> {
+    const base = url.trim().replace(/\/+$/, "");
+    if (!base) throw new Error("Please enter the sync server URL.");
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res: Response;
+    try {
+        res = await fetch(`${base}${path}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                username: account.username.trim(),
+                password: account.password,
+            }),
+            signal: controller.signal,
+        });
+    } catch {
+        throw new Error("Could not reach the sync server. Check the URL and your connection.");
+    } finally {
+        clearTimeout(timeout);
+    }
+
+    if (res.ok) return;
+
+    let serverMessage = "";
+    try {
+        const text = await res.text();
+        serverMessage = text ? (JSON.parse(text).error ?? "") : "";
+    } catch {
+        // Non-JSON error body; fall back to the mapped/generic message.
+    }
+    throw new Error(
+        statusMessage(res.status, serverMessage) ??
+            serverMessage ??
+            `Sync server error (HTTP ${res.status}).`,
+    );
+}
 
 async function request(
     creds: SyncCredentials,

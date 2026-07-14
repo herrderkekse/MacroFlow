@@ -51,6 +51,16 @@ export async function loadSyncSettings(): Promise<SyncCredentials | null> {
     return { url, username, password };
 }
 
+/** Clears the saved account so the app stops syncing (a "sign out"). Local data
+ * is untouched; the cursor is reset so a later sign-in re-syncs cleanly. */
+export async function clearSyncSettings(): Promise<void> {
+    setSyncMeta(URL_KEY, "");
+    setSyncMeta(USERNAME_KEY, "");
+    setSyncMeta(CURSOR_KEY, "0");
+    setSyncMeta(INITIAL_ENQUEUE_KEY, "0");
+    await SecureStore.deleteItemAsync(PASSWORD_SECURE_KEY);
+}
+
 export async function saveSyncSettings(settings: SyncCredentials): Promise<void> {
     const url = settings.url.trim().replace(/\/+$/, "");
     const previousUrl = getSyncMeta(URL_KEY);

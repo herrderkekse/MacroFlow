@@ -12,7 +12,7 @@ const icons: Record<string, string> = {
     more: 'ellipsis-horizontal'
 };
 
-const HIDDEN_TABS = new Set(["analytics", "goals", "backup", "settings", "ai-settings", "meal-plan"]);
+const HIDDEN_TABS = new Set(["analytics", "goals", "backup", "settings", "ai-settings", "meal-plan", "account"]);
 
 export default function TabsLayout() {
     const { t } = useTranslation();
@@ -101,6 +101,7 @@ export default function TabsLayout() {
             <Tabs.Screen name="ai-settings" options={{ href: null }} />
             <Tabs.Screen name="meal-plan" options={{ href: null }} />
             <Tabs.Screen name="ai-memories" options={{ href: null }} />
+            <Tabs.Screen name="account" options={{ href: null }} />
         </Tabs>
     );
 }
