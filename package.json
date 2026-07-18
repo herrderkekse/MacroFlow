@@ -53,6 +53,7 @@
     "react-native-gesture-handler": "~2.32.0",
     "react-native-gifted-charts": "^1.4.76",
     "react-native-markdown-display": "^7.0.2",
+    "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "4.5.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",

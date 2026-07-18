@@ -698,6 +698,31 @@ const de = {
             mealPlanGenerated_other: "Essensplan mit {{count}} Einträgen generiert.",
         },
     },
+    share: {
+        title: "Teilen",
+        creating: "Freigabe-Link wird erstellt…",
+        hint: "Scanne diesen QR-Code mit der Kamera des anderen Geräts oder verschicke den Link.",
+        copy: "Link kopieren",
+        copied: "Kopiert!",
+        shareLink: "Teilen…",
+        notConfiguredTitle: "Teilen nicht verfügbar",
+        notConfiguredMessage:
+            "Zum Teilen wird das Element auf deinen Sync-Server hochgeladen, aber es ist kein Sync-Konto eingerichtet. Lege zuerst unter Mehr → Konto die Server-URL fest und melde dich an.",
+        importTitle: "Geteiltes Element importieren",
+        importLoading: "Geteilte Inhalte werden geladen…",
+        importFailed: "Import fehlgeschlagen",
+        importUnsupported: "Diese Freigabe stammt aus einer neueren App-Version und kann nicht importiert werden.",
+        importSavedToLibrary: "In deiner Bibliothek gespeichert.",
+        importSavedAndLogged: "In deiner Bibliothek gespeichert und zum Log hinzugefügt.",
+        kind_food: "Geteiltes Lebensmittel",
+        kind_recipe: "Geteiltes Rezept",
+        kind_log: "Geteilte Log-Einträge",
+        moreItems: "…und {{count}} weitere",
+        logOnDate: "Loggen am",
+        logToMeal: "Mahlzeit",
+        saveToLibrary: "In Bibliothek speichern",
+        saveAndLog: "Speichern und zum Log hinzufügen",
+    },
 } as const;
 
 export default de;
