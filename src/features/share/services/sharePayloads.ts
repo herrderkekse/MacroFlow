@@ -181,11 +181,63 @@ export function buildLogSelectionPayload(
 // ── Importers ──────────────────────────────────────────────
 
 /**
+ * Per-import dedupe caches. A payload embeds a food once per item that uses
+ * it, so the same food (or the same recipe logged for two meals) appears
+ * multiple times; without the cache each occurrence would create its own
+ * template row.
+ */
+interface ImportCache {
+    foods: Map<string, Food>;
+    recipes: Map<string, number>;
+}
+
+function newImportCache(): ImportCache {
+    return { foods: new Map(), recipes: new Map() };
+}
+
+/** Identity of a shared food within one import: stable id, else full content. */
+function foodKey(shared: SharedFood): string {
+    if (shared.openfoodfacts_id) return `off:${shared.openfoodfacts_id}`;
+    if (shared.barcode) return `bc:${shared.barcode}`;
+    return (
+        "c:" +
+        JSON.stringify([
+            shared.name,
+            shared.calories_per_100g,
+            shared.protein_per_100g,
+            shared.carbs_per_100g,
+            shared.fat_per_100g,
+            shared.default_unit,
+            shared.serving_size,
+            (shared.serving_units ?? []).map((u) => [u.name, u.grams]),
+        ])
+    );
+}
+
+function recipeKey(payload: RecipeSharePayload): string {
+    return JSON.stringify([
+        payload.name,
+        payload.items.map((item) => [foodKey(item.food), item.quantity_grams, item.quantity_unit]),
+    ]);
+}
+
+/**
  * Reuses an existing food when a stable identifier matches, otherwise creates
  * one from the shared values (with numeric coercion so a malformed payload
- * cannot write NaN into the DB).
+ * cannot write NaN into the DB). Within one import, identical foods are
+ * created once and reused via `cache`.
  */
-export function findOrCreateFood(shared: SharedFood): Food {
+export function findOrCreateFood(shared: SharedFood, cache: ImportCache = newImportCache()): Food {
+    const key = foodKey(shared);
+    const cached = cache.foods.get(key);
+    if (cached) return cached;
+
+    const found = lookupOrCreateFood(shared);
+    cache.foods.set(key, found);
+    return found;
+}
+
+function lookupOrCreateFood(shared: SharedFood): Food {
     if (shared.openfoodfacts_id) {
         const existing = getFoodByOpenfoodfactsId(String(shared.openfoodfacts_id));
         if (existing && !existing.deleted) return existing;
@@ -225,15 +277,26 @@ export function importFoodPayload(payload: FoodSharePayload): Food {
     return findOrCreateFood(payload.food);
 }
 
-/** Creates a new recipe (never merges into an existing one) and returns its id. */
-export function importRecipePayload(payload: RecipeSharePayload): number {
+/**
+ * Creates a new recipe (never merges into an existing one) and returns its
+ * id. Within one import, identical recipes are created once and reused via
+ * `cache`.
+ */
+export function importRecipePayload(
+    payload: RecipeSharePayload,
+    cache: ImportCache = newImportCache(),
+): number {
     if (!payload?.name || !Array.isArray(payload.items)) {
         throw new Error("Invalid shared recipe.");
     }
+    const key = recipeKey(payload);
+    const cached = cache.recipes.get(key);
+    if (cached !== undefined) return cached;
+
     const recipe = addRecipe(String(payload.name));
     for (const item of payload.items) {
         if (!item?.food) continue;
-        const food = findOrCreateFood(item.food);
+        const food = findOrCreateFood(item.food, cache);
         const grams = Number(item.quantity_grams);
         addRecipeItem({
             recipe_id: recipe.id,
@@ -242,14 +305,16 @@ export function importRecipePayload(payload: RecipeSharePayload): number {
             quantity_unit: item.quantity_unit ? String(item.quantity_unit) : "g",
         });
     }
+    cache.recipes.set(key, recipe.id);
     return recipe.id;
 }
 
 /** Saves everything a log share contains into the library, without logging. */
 export function importLogPayloadToLibrary(payload: LogSharePayload): void {
+    const cache = newImportCache();
     for (const item of validLogItems(payload)) {
-        if (item.type === "food") findOrCreateFood(item.food);
-        else importRecipePayload(item.recipe);
+        if (item.type === "food") findOrCreateFood(item.food, cache);
+        else importRecipePayload(item.recipe, cache);
     }
 }
 
@@ -258,9 +323,10 @@ export function importLogPayloadToLibrary(payload: LogSharePayload): void {
  * every item's original meal.
  */
 export function importLogPayloadToLog(payload: LogSharePayload, dateKey: string): void {
+    const cache = newImportCache();
     for (const item of validLogItems(payload)) {
         if (item.type === "food") {
-            const food = findOrCreateFood(item.food);
+            const food = findOrCreateFood(item.food, cache);
             const grams = Number(item.quantity_grams);
             addEntry({
                 food_id: food.id,
@@ -271,7 +337,7 @@ export function importLogPayloadToLog(payload: LogSharePayload, dateKey: string)
                 meal_type: normalizeMeal(item.meal_type),
             });
         } else {
-            const recipeId = importRecipePayload(item.recipe);
+            const recipeId = importRecipePayload(item.recipe, cache);
             const portion = Number(item.portion);
             logRecipeToMeal(
                 recipeId,
