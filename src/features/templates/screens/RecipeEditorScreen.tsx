@@ -1,16 +1,19 @@
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import ManualFoodForm from "../components/ManualFoodForm";
+import { isShareConfigured, shareRecipe } from "@/src/features/share/services/shareService";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
 import BottomSheet, { type BottomSheetRef } from "@/src/shared/components/BottomSheet";
+import ShareModal from "@/src/shared/components/ShareModal";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { fromGrams, unitLabel, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack } from "expo-router";
-import React, { useCallback, useMemo, useRef } from "react";
+import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+    Alert,
     Keyboard,
     Pressable,
     ScrollView,
@@ -32,8 +35,34 @@ export default function RecipeEditorScreen() {
     const { height: screenHeight } = useWindowDimensions();
     const sheetRef = useRef<BottomSheetRef>(null);
     const snapPoints = useMemo(() => [SHEET_COLLAPSED, Math.round(screenHeight * 0.8)], [screenHeight]);
+    const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
 
     const recipe = useRecipeEditor();
+
+    const [shareAvailable, setShareAvailable] = useState(false);
+    const [shareVisible, setShareVisible] = useState(false);
+
+    // Re-checked on focus so signing in under Account and coming back
+    // immediately enables the share button.
+    useFocusEffect(
+        useCallback(() => {
+            let cancelled = false;
+            isShareConfigured().then((available) => {
+                if (!cancelled) setShareAvailable(available);
+            });
+            return () => {
+                cancelled = true;
+            };
+        }, []),
+    );
+
+    const handleSharePress = useCallback(() => {
+        if (!shareAvailable) {
+            Alert.alert(t("share.notConfiguredTitle"), t("share.notConfiguredMessage"));
+            return;
+        }
+        setShareVisible(true);
+    }, [shareAvailable, t]);
 
     const handleSearchFocus = useCallback(() => {
         sheetRef.current?.snapTo(1);
@@ -65,6 +94,18 @@ export default function RecipeEditorScreen() {
                     title: recipe.isEditing
                         ? t("templates.recipeEditorTitle")
                         : t("templates.newRecipeTitle"),
+                    // Only an already-saved recipe can be shared.
+                    headerRight: recipe.isEditing
+                        ? () => (
+                              <Pressable
+                                  onPress={handleSharePress}
+                                  hitSlop={8}
+                                  style={{ opacity: shareAvailable ? 1 : 0.4 }}
+                              >
+                                  <Ionicons name="share-outline" size={22} color={colors.text} />
+                              </Pressable>
+                          )
+                        : undefined,
                 }}
             />
             <ScrollView
@@ -253,6 +294,14 @@ export default function RecipeEditorScreen() {
                 onFoodFound={recipe.handleBarcodeFound}
                 onNotFound={recipe.handleBarcodeNotFound}
             />
+
+            {recipeId && (
+                <ShareModal
+                    visible={shareVisible}
+                    onClose={() => setShareVisible(false)}
+                    fetchUrl={() => shareRecipe(Number(recipeId))}
+                />
+            )}
         </View>
     );
 }

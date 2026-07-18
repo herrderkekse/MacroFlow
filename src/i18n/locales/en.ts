@@ -695,6 +695,31 @@ const en = {
             mealPlanGenerated_other: "Meal plan generated with {{count}} entries.",
         },
     },
+    share: {
+        title: "Share",
+        creating: "Creating share link…",
+        hint: "Scan this QR code with the other device's camera, or send the link.",
+        copy: "Copy link",
+        copied: "Copied!",
+        shareLink: "Share…",
+        notConfiguredTitle: "Sharing unavailable",
+        notConfiguredMessage:
+            "Sharing uploads the item to your sync server, but no sync account is configured. Set the server URL and sign in under More → Account first.",
+        importTitle: "Import shared item",
+        importLoading: "Fetching shared content…",
+        importFailed: "Import failed",
+        importUnsupported: "This share was created by a newer app version and cannot be imported.",
+        importSavedToLibrary: "Saved to your library.",
+        importSavedAndLogged: "Saved to your library and added to your log.",
+        kind_food: "Shared food",
+        kind_recipe: "Shared recipe",
+        kind_log: "Shared log items",
+        moreItems: "…and {{count}} more",
+        logOnDate: "Log on",
+        logToMeal: "Meal",
+        saveToLibrary: "Save to library",
+        saveAndLog: "Save and add to log",
+    },
 } as const;
 
 export default en;

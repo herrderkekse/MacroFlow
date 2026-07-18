@@ -208,9 +208,11 @@ async function request(
 }
 
 // Hermes does not reliably provide btoa, so encode Basic-auth ourselves.
+// Exported for other features that authenticate against the same server
+// (e.g. share).
 const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-function base64Encode(input: string): string {
+export function base64Encode(input: string): string {
     const bytes = utf8Bytes(input);
     let out = "";
     for (let i = 0; i < bytes.length; i += 3) {

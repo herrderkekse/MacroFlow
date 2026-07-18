@@ -6,16 +6,18 @@ import AiChatOverlay, { CHAT_BAR_TOTAL_HEIGHT } from "@/src/features/ai/componen
 // eslint-disable-next-line boundaries/dependencies
 import AddExerciseModal from "@/src/features/exercise/components/AddExerciseModal";
 import { addExerciseToWorkout, copySetsFromLastSession, createWorkout, finishWorkout, getExercisesForWorkout, getWorkoutsByDate, type ExerciseTemplate } from "@/src/features/exercise/services/exerciseDb";
+import { isShareConfigured, shareLogSelection } from "@/src/features/share/services/shareService";
 import Button from "@/src/shared/atoms/Button";
 import Input from "@/src/shared/atoms/Input";
+import ShareModal from "@/src/shared/components/ShareModal";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "expo-router/js-tabs";
-import { router } from "expo-router";
-import React, { useMemo, useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -47,7 +49,31 @@ export default function LogScreen() {
     const [showQuickActions, setShowQuickActions] = useState(false);
     const [showWeightModal, setShowWeightModal] = useState(false);
     const [weightInput, setWeightInput] = useState("");
+    const [shareAvailable, setShareAvailable] = useState(false);
+    const [shareVisible, setShareVisible] = useState(false);
     const selectedDateKey = formatDateKey(d.selectedDate);
+
+    // Re-checked on focus so signing in under Account and coming back
+    // immediately enables the share action.
+    useFocusEffect(
+        useCallback(() => {
+            let cancelled = false;
+            isShareConfigured().then((available) => {
+                if (!cancelled) setShareAvailable(available);
+            });
+            return () => {
+                cancelled = true;
+            };
+        }, []),
+    );
+
+    function handleShareSelection() {
+        if (!shareAvailable) {
+            Alert.alert(t("share.notConfiguredTitle"), t("share.notConfiguredMessage"));
+            return;
+        }
+        setShareVisible(true);
+    }
 
     function handleQuickAddExercise(template: ExerciseTemplate, copyFromLast: boolean) {
         const now = Date.now();
@@ -168,10 +194,21 @@ export default function LogScreen() {
             {d.selectionMode && (
                 <>
                     <Pressable
-                        style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 + 62 }, pressed && styles.secondaryFabPressed]}
+                        style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 + 124 }, pressed && styles.secondaryFabPressed]}
                         onPress={handleDeleteSelection}
                     >
                         <Ionicons name="trash-outline" size={24} color={colors.danger} />
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.secondaryFab,
+                            { bottom: fabBottom + 68 + 62 },
+                            !shareAvailable && styles.secondaryFabDisabled,
+                            pressed && styles.secondaryFabPressed,
+                        ]}
+                        onPress={handleShareSelection}
+                    >
+                        <Ionicons name="share-outline" size={24} color={colors.primary} />
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.secondaryFab, { bottom: fabBottom + 68 }, pressed && styles.secondaryFabPressed]}
@@ -272,6 +309,12 @@ export default function LogScreen() {
                 onConfirm={d.handleMoveCopy} initialDate={d.selectedDate}
                 selectedEntries={Object.values(d.grouped).flat().filter(e => d.selectedEntryIds.has(e.entries.id))} />
 
+            <ShareModal
+                visible={shareVisible}
+                onClose={() => setShareVisible(false)}
+                fetchUrl={() => shareLogSelection(Object.values(d.grouped).flat(), d.selectedEntryIds)}
+            />
+
             <AiChatOverlay tabBarHeight={tabBarHeight} onVisibilityChange={d.setChatBarVisible}
                 onDataChanged={() => d.loadAllDays(d.selectedDate)} />
 
@@ -313,6 +356,7 @@ function createStyles(colors: ThemeColors) {
             right: 28,
         },
         secondaryFabPressed: { opacity: 0.85, transform: [{ scale: 0.95 }] },
+        secondaryFabDisabled: { opacity: 0.4 },
         overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: spacing.lg },
         portionModal: { backgroundColor: colors.surface, borderRadius: borderRadius.lg, padding: spacing.lg, width: "100%", maxWidth: 340 },
         portionModalTitle: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text, marginBottom: spacing.xs },
