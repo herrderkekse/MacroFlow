@@ -7,8 +7,12 @@ import { base64Encode, type SyncCredentials } from "@/src/features/settings/serv
 
 export type ShareKind = "food" | "recipe" | "log";
 
-/** Bump together with the backend's accepted version when the shape changes. */
-export const SHARE_PAYLOAD_VERSION = 1;
+/**
+ * Bump together with the backend's accepted version when the shape changes.
+ * v2 adds optional `sharedBy` to every payload and optional `edited` to shared
+ * recipe-log items; both are additive, so a v1 reader safely ignores them.
+ */
+export const SHARE_PAYLOAD_VERSION = 2;
 
 export interface ShareCreateResult {
     token: string;

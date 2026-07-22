@@ -48,6 +48,8 @@ export interface SharedFood {
 
 export interface FoodSharePayload {
     food: SharedFood;
+    /** Display name of whoever created the share (best-effort; sync username). */
+    sharedBy?: string;
 }
 
 export interface SharedRecipeItem {
@@ -59,6 +61,7 @@ export interface SharedRecipeItem {
 export interface RecipeSharePayload {
     name: string;
     items: SharedRecipeItem[];
+    sharedBy?: string;
 }
 
 export type SharedLogItem =
@@ -71,13 +74,21 @@ export type SharedLogItem =
       }
     | {
           type: "recipe";
+          /** Base template, per serving. Logging the original uses this × portion. */
           recipe: RecipeSharePayload;
           portion: number;
           meal_type: string;
+          /**
+           * Present only when this logged instance's entries diverged from the
+           * template. Its items are the ACTUAL logged amounts (already scaled by
+           * portion), so the importer diffs `scale(recipe, portion)` against it.
+           */
+          edited?: RecipeSharePayload;
       };
 
 export interface LogSharePayload {
     items: SharedLogItem[];
+    sharedBy?: string;
 }
 
 // ── Builders ───────────────────────────────────────────────
@@ -97,11 +108,11 @@ function toSharedFood(food: Food, units: ServingUnit[]): SharedFood {
     };
 }
 
-export function buildFoodPayload(food: Food): FoodSharePayload {
-    return { food: toSharedFood(food, getServingUnits(food.id)) };
+export function buildFoodPayload(food: Food, sharedBy?: string): FoodSharePayload {
+    return { food: toSharedFood(food, getServingUnits(food.id)), sharedBy };
 }
 
-export function buildRecipePayload(recipeId: number): RecipeSharePayload | null {
+export function buildRecipePayload(recipeId: number, sharedBy?: string): RecipeSharePayload | null {
     const recipe = getRecipeById(recipeId);
     if (!recipe) return null;
     const rows = getRecipeItems(recipeId);
@@ -114,6 +125,7 @@ export function buildRecipePayload(recipeId: number): RecipeSharePayload | null 
                 quantity_grams: row.recipe_items.quantity_grams,
                 quantity_unit: row.recipe_items.quantity_unit ?? "g",
             })),
+        sharedBy,
     };
 }
 
@@ -126,6 +138,7 @@ export function buildRecipePayload(recipeId: number): RecipeSharePayload | null 
 export function buildLogSelectionPayload(
     allRows: EntryWithFood[],
     selectedIds: Set<number>,
+    sharedBy?: string,
 ): LogSharePayload {
     const items: SharedLogItem[] = [];
     const foodRows: EntryWithFood[] = [];
@@ -146,11 +159,26 @@ export function buildLogSelectionPayload(
             const recipeLog = getRecipeLogById(rlId);
             const recipe = recipeLog ? buildRecipePayload(recipeLog.recipe_id) : null;
             if (recipeLog && recipe) {
+                // The logged entries may have been edited after logging. Carry the
+                // actual composition alongside the template so the recipient can
+                // diff and choose which version to import.
+                const actual: SharedRecipeItem[] = selected
+                    .filter((r) => r.foods)
+                    .map((r) => ({
+                        food: toSharedFood(r.foods!, getServingUnits(r.foods!.id)),
+                        quantity_grams: r.entries.quantity_grams,
+                        quantity_unit: r.entries.quantity_unit ?? "g",
+                    }));
+                const baseScaled = scaleRecipeItems(recipe.items, recipeLog.portion);
+                const edited = itemsSignature(actual) === itemsSignature(baseScaled)
+                    ? undefined
+                    : { name: recipe.name, items: actual };
                 items.push({
                     type: "recipe",
                     recipe,
                     portion: recipeLog.portion,
                     meal_type: recipeLog.meal_type,
+                    ...(edited ? { edited } : {}),
                 });
                 continue;
             }
@@ -175,7 +203,38 @@ export function buildLogSelectionPayload(
         });
     }
 
-    return { items };
+    return { items, sharedBy };
+}
+
+// ── Recipe scaling / signatures (edit detection + "already imported") ──
+
+/** Multiplies each item's grams by `portion`, keeping foods and units. */
+export function scaleRecipeItems(items: SharedRecipeItem[], portion: number): SharedRecipeItem[] {
+    const p = Number.isFinite(portion) && portion > 0 ? portion : 1;
+    return items.map((item) => ({ ...item, quantity_grams: item.quantity_grams * p }));
+}
+
+/**
+ * Order-independent signature of a recipe's composition: each item as
+ * (food identity, grams rounded to 3dp), sorted. Two recipes with the same
+ * foods and quantities produce the same signature regardless of item order or
+ * float noise, so it powers both edit detection and the "already imported"
+ * check.
+ */
+export function itemsSignature(items: SharedRecipeItem[]): string {
+    return JSON.stringify(
+        items
+            .map((item) => `${foodKey(item.food)}@${Math.round(item.quantity_grams * 1000) / 1000}`)
+            .sort(),
+    );
+}
+
+/**
+ * Identity of a recipe as "the same recipe already in the library": its name
+ * plus its composition. Used for the import screen's "already imported" check.
+ */
+export function recipeSignature(payload: RecipeSharePayload): string {
+    return JSON.stringify([payload.name, itemsSignature(payload.items)]);
 }
 
 // ── Importers ──────────────────────────────────────────────
@@ -186,7 +245,7 @@ export function buildLogSelectionPayload(
  * multiple times; without the cache each occurrence would create its own
  * template row.
  */
-interface ImportCache {
+export interface ImportCache {
     foods: Map<string, Food>;
     recipes: Map<string, number>;
 }
@@ -272,11 +331,6 @@ function lookupOrCreateFood(shared: SharedFood): Food {
     return created;
 }
 
-export function importFoodPayload(payload: FoodSharePayload): Food {
-    if (!payload?.food) throw new Error("Invalid shared food.");
-    return findOrCreateFood(payload.food);
-}
-
 /**
  * Creates a new recipe (never merges into an existing one) and returns its
  * id. Within one import, identical recipes are created once and reused via
@@ -309,72 +363,59 @@ export function importRecipePayload(
     return recipe.id;
 }
 
-/** Saves everything a log share contains into the library, without logging. */
-export function importLogPayloadToLibrary(payload: LogSharePayload): void {
-    const cache = newImportCache();
-    for (const item of validLogItems(payload)) {
-        if (item.type === "food") findOrCreateFood(item.food, cache);
-        else importRecipePayload(item.recipe, cache);
-    }
-}
-
 /**
- * Saves a log share into the library and logs each item to `dateKey`, keeping
- * every item's original meal.
+ * Saves the edited composition of a shared recipe log as its own template and
+ * logs a single instance of it. The edited items are absolute (already
+ * portion-scaled), so it logs at portion 1. Returns the created recipe id.
  */
-export function importLogPayloadToLog(payload: LogSharePayload, dateKey: string): void {
-    const cache = newImportCache();
-    for (const item of validLogItems(payload)) {
-        if (item.type === "food") {
-            const food = findOrCreateFood(item.food, cache);
-            const grams = Number(item.quantity_grams);
-            addEntry({
-                food_id: food.id,
-                quantity_grams: Number.isFinite(grams) && grams > 0 ? grams : 0,
-                quantity_unit: item.quantity_unit ? String(item.quantity_unit) : "g",
-                timestamp: Date.now(),
-                date: dateKey,
-                meal_type: normalizeMeal(item.meal_type),
-            });
-        } else {
-            const recipeId = importRecipePayload(item.recipe, cache);
-            const portion = Number(item.portion);
-            logRecipeToMeal(
-                recipeId,
-                normalizeMeal(item.meal_type),
-                dateKey,
-                Number.isFinite(portion) && portion > 0 ? portion : 1,
-            );
-        }
-    }
+export function logEditedRecipeInstance(
+    edited: RecipeSharePayload,
+    dateKey: string,
+    mealType: string,
+    cache: ImportCache = newImportCache(),
+): number {
+    const recipeId = importRecipePayload(edited, cache);
+    logRecipeToMeal(recipeId, mealType, dateKey, 1);
+    return recipeId;
 }
 
-/** Logs an already-imported food as one serving of its default size. */
-export function logImportedFood(food: Food, dateKey: string, mealType: string): void {
+/** Creates the ImportCache the commit step threads through every decision. */
+export function createImportCache(): ImportCache {
+    return newImportCache();
+}
+
+/** Saves a shared food to the library and logs it at a specific amount/meal. */
+export function logSharedFood(
+    food: SharedFood,
+    grams: number,
+    unit: string,
+    dateKey: string,
+    mealType: string,
+    cache: ImportCache = newImportCache(),
+): void {
+    const created = findOrCreateFood(food, cache);
+    const g = Number(grams);
+    const fallback = created.serving_size > 0 ? created.serving_size : 100;
     addEntry({
-        food_id: food.id,
-        quantity_grams: food.serving_size > 0 ? food.serving_size : 100,
-        quantity_unit: "g",
+        food_id: created.id,
+        quantity_grams: Number.isFinite(g) && g > 0 ? g : fallback,
+        quantity_unit: unit ? String(unit) : "g",
         timestamp: Date.now(),
         date: dateKey,
         meal_type: mealType,
     });
 }
 
-/** Logs an already-imported recipe at portion 1. */
-export function logImportedRecipe(recipeId: number, dateKey: string, mealType: string): void {
-    logRecipeToMeal(recipeId, mealType, dateKey, 1);
-}
-
-function validLogItems(payload: LogSharePayload): SharedLogItem[] {
-    if (!Array.isArray(payload?.items)) throw new Error("Invalid shared log.");
-    return payload.items.filter(
-        (item) => (item?.type === "food" && item.food) || (item?.type === "recipe" && item.recipe),
-    );
-}
-
-const MEALS = new Set(["breakfast", "lunch", "dinner", "snack"]);
-
-function normalizeMeal(meal: unknown): string {
-    return MEALS.has(String(meal)) ? String(meal) : "snack";
+/** Saves a shared recipe template and logs an instance at the given portion. */
+export function logSharedRecipe(
+    recipe: RecipeSharePayload,
+    portion: number,
+    dateKey: string,
+    mealType: string,
+    cache: ImportCache = newImportCache(),
+): number {
+    const recipeId = importRecipePayload(recipe, cache);
+    const p = Number(portion);
+    logRecipeToMeal(recipeId, mealType, dateKey, Number.isFinite(p) && p > 0 ? p : 1);
+    return recipeId;
 }
