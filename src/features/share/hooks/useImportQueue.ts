@@ -12,6 +12,7 @@ import {
     commitImportPlan,
     logFoodDecision,
     logRecipeDecision,
+    needsTemplatePhase,
     saveFoodDecision,
     saveTemplateDecision,
     skipDecision,
@@ -35,12 +36,6 @@ interface FoodChoice {
 function defaultMeal(slide: Slide | undefined): MealType {
     if (slide?.type === "recipe" && slide.isEntry) return slide.originalMeal as MealType;
     return "snack";
-}
-
-function needsTemplatePhase(slide: RecipeSlide, savedSigs: Set<string>): boolean {
-    const original = slide.originalImported || savedSigs.has(slide.originalSig);
-    const edited = slide.editedImported || (slide.editedSig != null && savedSigs.has(slide.editedSig));
-    return !(original && edited);
 }
 
 export function useImportQueue(share: FetchedShare) {

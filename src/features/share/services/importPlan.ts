@@ -134,7 +134,7 @@ function foodMacros(food: SharedFood, grams: number): Macros {
 
 // ── Diff (base × portion vs. edited) ───────────────────────
 
-function diffItems(baseScaled: SharedRecipeItem[], edited: SharedRecipeItem[]): DiffRow[] {
+export function diffItems(baseScaled: SharedRecipeItem[], edited: SharedRecipeItem[]): DiffRow[] {
     const baseByName = new Map(baseScaled.map((i) => [i.food.name, i.quantity_grams]));
     const editedByName = new Map(edited.map((i) => [i.food.name, i.quantity_grams]));
     const rows: DiffRow[] = [];
@@ -344,6 +344,18 @@ function mealKey(meal: string): string {
 export function commitImportPlan(decisions: Decision[]): void {
     const cache = createImportCache();
     for (const decision of decisions) decision.commit?.(cache);
+}
+
+/**
+ * Whether an edited recipe slide still needs its "save which template" step.
+ * It can be skipped only when BOTH the original and edited templates already
+ * exist — either in the library at load time, or saved earlier this session
+ * (`savedSigs`). Skipping it drops the user straight to "log which version".
+ */
+export function needsTemplatePhase(slide: RecipeSlide, savedSigs: Set<string>): boolean {
+    const original = slide.originalImported || savedSigs.has(slide.originalSig);
+    const edited = slide.editedImported || (slide.editedSig != null && savedSigs.has(slide.editedSig));
+    return !(original && edited);
 }
 
 /** Headline counts for the summary screen. */

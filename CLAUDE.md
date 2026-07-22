@@ -18,7 +18,7 @@ npm run reset-project   # scripts/reset-project.js — resets example assets
 npm run gen-assets      # scripts/generate-images.js
 ```
 
-There is no test suite/runner configured in this repo. `npm run lint` is the only automated check — run it before finishing a change (`--fix` should not be assumed to be non-destructive; review its diff).
+`npm test` runs the Jest (`jest-expo`) suite; coverage is currently focused on the share/import feature's pure logic (`src/features/share/services/__tests__`). Tests mock the DB-owning modules (`templateDb`/`logDb`) so they run without native `expo-sqlite`. `npm run lint` remains the other automated check — run both before finishing a change (`--fix` should not be assumed to be non-destructive; review its diff).
 
 To type-check without emitting: `npx tsc --noEmit`.
 
