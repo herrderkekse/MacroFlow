@@ -8,6 +8,8 @@ import {
     hasUnfinishedScheduledSets,
     removeExerciseFromWorkout,
     reorderExercise,
+    reorderExerciseGroups,
+    supersetExercises,
     updateWorkout,
     type WorkoutWithExercises,
 } from "@/src/features/exercise/services/exerciseDb";
@@ -29,8 +31,10 @@ export interface UseWorkoutReturn {
     updateStartTime: (epoch: number) => void;
     updateEndTime: (epoch: number) => void;
     addExercise: (templateId: number) => number | undefined;
+    supersetExercise: (baseWorkoutExerciseId: number, templateId: number) => number | undefined;
     removeExercise: (workoutExerciseId: number) => void;
     moveExercise: (workoutExerciseId: number, newOrder: number) => void;
+    reorderCards: (orderedExerciseIds: number[]) => void;
     reload: () => void;
     hasUnfinishedSets: boolean;
 }
@@ -161,6 +165,27 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         [currentWorkout, currentExercises.length],
     );
 
+    const supersetExercise = useCallback(
+        (baseWorkoutExerciseId: number, templateId: number) => {
+            if (!currentWorkout) return undefined;
+            const secondExercise = supersetExercises(baseWorkoutExerciseId, templateId);
+            const exercises = getExercisesForWorkout(currentWorkout.id);
+            setData((prev) => (prev ? { ...prev, exercises } : null));
+            return secondExercise.id;
+        },
+        [currentWorkout],
+    );
+
+    const reorderCards = useCallback(
+        (orderedExerciseIds: number[]) => {
+            if (!currentWorkout) return;
+            reorderExerciseGroups(currentWorkout.id, orderedExerciseIds);
+            const exercises = getExercisesForWorkout(currentWorkout.id);
+            setData((prev) => (prev ? { ...prev, exercises } : null));
+        },
+        [currentWorkout],
+    );
+
     const removeExercise = useCallback(
         (workoutExerciseId: number) => {
             if (!currentWorkout) return;
@@ -196,8 +221,10 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         updateStartTime,
         updateEndTime,
         addExercise,
+        supersetExercise,
         removeExercise,
         moveExercise,
+        reorderCards,
         reload,
         hasUnfinishedSets,
     };

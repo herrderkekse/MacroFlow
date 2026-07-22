@@ -1,7 +1,7 @@
 import exerciseDbSupport from "@/src/features/exercise/services/exerciseDbSupport";
 import { db } from "@/src/services/db";
 import { exerciseSets, exerciseTemplates, workoutExercises, workouts } from "@/src/services/db/schema";
-import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lte, sql } from "drizzle-orm";
 
 import type { ExerciseTemplate } from "./exerciseTemplateDb";
 
@@ -177,6 +177,73 @@ export function addExerciseToWorkout(data: NewWorkoutExercise): WorkoutExercise 
         .get();
 }
 
+/** A fresh opaque token that identifies a superset group. Shared by its members. */
+function newSupersetGroup(): string {
+    return `ss_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Groups `baseWorkoutExerciseId` into a superset with a new exercise created from
+ * `secondTemplateId` — the same person alternating between two exercises. The
+ * second exercise is inserted directly after the base so the two stay adjacent,
+ * and both share an opaque `superset_group` token. Returns the new exercise.
+ */
+export function supersetExercises(baseWorkoutExerciseId: number, secondTemplateId: number): WorkoutExercise {
+    const base = exerciseDbSupport.getWorkoutExerciseOrThrow(baseWorkoutExerciseId);
+    exerciseDbSupport.getExerciseTemplateOrThrow(secondTemplateId);
+
+    const group = base.superset_group ?? newSupersetGroup();
+    if (base.superset_group == null) {
+        db.update(workoutExercises).set({ superset_group: group }).where(eq(workoutExercises.id, base.id)).run();
+    }
+
+    // Shift everything after the base down one slot so the second exercise sits adjacent.
+    db.update(workoutExercises)
+        .set({ sort_order: sql`${workoutExercises.sort_order} + 1` })
+        .where(and(eq(workoutExercises.workout_id, base.workout_id), gt(workoutExercises.sort_order, base.sort_order)))
+        .run();
+
+    const secondExercise = db
+        .insert(workoutExercises)
+        .values({
+            workout_id: base.workout_id,
+            exercise_template_id: secondTemplateId,
+            sort_order: base.sort_order + 1,
+            superset_group: group,
+            started_at: Date.now(),
+        })
+        .returning()
+        .get();
+
+    exerciseDbSupport.normalizeExerciseSortOrder(base.workout_id);
+    return secondExercise;
+}
+
+/** After a member leaves a superset, clear the group flag if only one member is left. */
+function dissolveOrphanSuperset(workoutId: number, group: string) {
+    const members = db
+        .select()
+        .from(workoutExercises)
+        .where(and(eq(workoutExercises.workout_id, workoutId), eq(workoutExercises.superset_group, group)))
+        .all();
+    if (members.length <= 1) {
+        for (const member of members) {
+            db.update(workoutExercises).set({ superset_group: null }).where(eq(workoutExercises.id, member.id)).run();
+        }
+    }
+}
+
+/** Persists a full top-to-bottom ordering of a workout's exercises (superset members flattened in place). */
+export function reorderExerciseGroups(workoutId: number, orderedIds: number[]) {
+    exerciseDbSupport.getWorkoutOrThrow(workoutId);
+    orderedIds.forEach((id, index) => {
+        db.update(workoutExercises)
+            .set({ sort_order: index + 1 })
+            .where(and(eq(workoutExercises.id, id), eq(workoutExercises.workout_id, workoutId)))
+            .run();
+    });
+}
+
 export function reorderExercise(id: number, newOrder: number) {
     const targetExercise = exerciseDbSupport.getWorkoutExerciseOrThrow(id);
     const exercises = db
@@ -205,6 +272,9 @@ export function removeExerciseFromWorkout(id: number) {
     const workoutExercise = exerciseDbSupport.getWorkoutExerciseOrThrow(id);
     db.delete(exerciseSets).where(eq(exerciseSets.workout_exercise_id, id)).run();
     db.delete(workoutExercises).where(eq(workoutExercises.id, id)).run();
+    if (workoutExercise.superset_group != null) {
+        dissolveOrphanSuperset(workoutExercise.workout_id, workoutExercise.superset_group);
+    }
     exerciseDbSupport.normalizeExerciseSortOrder(workoutExercise.workout_id);
 }
 
@@ -227,6 +297,9 @@ export function copyWorkoutAsScheduled(sourceWorkoutId: number, targetWorkoutId:
         db.update(workouts).set({ title: sourceWorkout.title }).where(eq(workouts.id, targetWorkoutId)).run();
     }
 
+    // Remaps each source superset group to a fresh token for the copied members.
+    const groupMap = new Map<string, string>();
+
     for (const ex of sourceExercises) {
         const newWe = db
             .insert(workoutExercises)
@@ -238,6 +311,16 @@ export function copyWorkoutAsScheduled(sourceWorkoutId: number, targetWorkoutId:
             })
             .returning()
             .get();
+
+        const srcGroup = ex.workoutExercise.superset_group;
+        if (srcGroup != null) {
+            let newGroup = groupMap.get(srcGroup);
+            if (newGroup == null) {
+                newGroup = newSupersetGroup();
+                groupMap.set(srcGroup, newGroup);
+            }
+            db.update(workoutExercises).set({ superset_group: newGroup }).where(eq(workoutExercises.id, newWe.id)).run();
+        }
 
         for (const set of ex.sets) {
             db.insert(exerciseSets)

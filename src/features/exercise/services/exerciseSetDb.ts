@@ -37,7 +37,8 @@ export function deleteSet(id: number) {
 
 export function reorderSet(id: number, newOrder: number) {
     const set = exerciseDbSupport.getExerciseSetOrThrow(id);
-    const sets = exerciseDbSupport.listSetsForExercise(set.workout_exercise_id);
+    // Scope-aware: within a superset the set moves across the whole combined list.
+    const sets = exerciseDbSupport.listSetsForScope(set.workout_exercise_id);
 
     const sourceIndex = sets.findIndex((s) => s.id === id);
     if (sourceIndex === -1) throw new Error(`Exercise set ${id} not found`);

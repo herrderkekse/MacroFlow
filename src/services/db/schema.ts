@@ -182,6 +182,10 @@ export const workoutExercises = sqliteTable("workout_exercises", {
     sort_order: integer("sort_order").notNull(),
     notes: text("notes"),
     started_at: integer("started_at"),
+    // Superset grouping: exercises sharing the same non-null token are performed
+    // as one superset (their sets alternate). Null = a standalone exercise. An
+    // opaque token (not a foreign key) so it syncs verbatim across devices.
+    superset_group: text("superset_group"),
     uuid: text("uuid"),
 });
 

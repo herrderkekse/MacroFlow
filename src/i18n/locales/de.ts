@@ -459,6 +459,7 @@ const de = {
             editNote: "Notiz bearbeiten",
             replace: "Übung ersetzen",
             copyFromLast: "Letzte Einheit kopieren",
+            superset: "Als Superset kombinieren…",
             noHistory: "Keine vorherige Einheit gefunden",
             note: "Notiz",
             notePlaceholder: "Übungsnotizen…",
@@ -507,6 +508,11 @@ const de = {
             deleteConfirm:
                 "Dieses Training und alle Daten löschen?",
             moreExercises: "+{{count}} weitere",
+        },
+        superset: {
+            copyMember: "Letzte kopieren: {{name}}",
+            removeMember: "Entfernen: {{name}}",
+            removeMemberConfirm: "Diese Übung und alle Sätze entfernen? Die verbleibende Übung ist dann kein Superset mehr.",
         },
         workout: {
             title: "Training",

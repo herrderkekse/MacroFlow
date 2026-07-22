@@ -26,6 +26,8 @@ export {
     hasUnfinishedScheduledSets,
     removeExerciseFromWorkout,
     reorderExercise,
+    reorderExerciseGroups,
+    supersetExercises,
     updateWorkout,
     updateWorkoutExercise,
 } from "./workoutDb";

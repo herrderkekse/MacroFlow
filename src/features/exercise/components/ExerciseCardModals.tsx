@@ -35,10 +35,13 @@ interface ExerciseCardMenuProps {
     onEditNote: () => void;
     onCopyFromLast: () => void;
     onRemove: () => void;
+    /** When provided (and not finished), shows a "Superset with…" action. */
+    onSuperset?: () => void;
     labels: {
         editNote: string;
         addNote: string;
         copyFromLast: string;
+        superset?: string;
         remove: string;
     };
 }
@@ -46,7 +49,7 @@ interface ExerciseCardMenuProps {
 export function ExerciseCardMenu({
     visible, onClose, isFinished,
     hasNote, hasTemplate,
-    onEditNote, onCopyFromLast, onRemove,
+    onEditNote, onCopyFromLast, onRemove, onSuperset,
     labels,
 }: ExerciseCardMenuProps) {
     const colors = useThemeColors();
@@ -63,6 +66,9 @@ export function ExerciseCardMenu({
                     />
                     {hasTemplate && (
                         <MenuItem label={labels.copyFromLast} icon="copy-outline" onPress={onCopyFromLast} colors={colors} />
+                    )}
+                    {!isFinished && onSuperset && labels.superset && (
+                        <MenuItem label={labels.superset} icon="git-merge-outline" onPress={onSuperset} colors={colors} />
                     )}
                     <MenuItem label={labels.remove} icon="trash-outline" onPress={onRemove} colors={colors} destructive />
                 </View>
