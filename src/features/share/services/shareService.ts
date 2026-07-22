@@ -22,13 +22,13 @@ export async function shareFood(foodId: number): Promise<string> {
     const creds = await requireCreds();
     const food = getFoodById(foodId);
     if (!food) throw new Error("Food not found.");
-    const { url } = await createShare(creds, "food", buildFoodPayload(food));
+    const { url } = await createShare(creds, "food", buildFoodPayload(food, creds.username));
     return url;
 }
 
 export async function shareRecipe(recipeId: number): Promise<string> {
     const creds = await requireCreds();
-    const payload = buildRecipePayload(recipeId);
+    const payload = buildRecipePayload(recipeId, creds.username);
     if (!payload) throw new Error("Recipe not found.");
     const { url } = await createShare(creds, "recipe", payload);
     return url;
@@ -39,7 +39,7 @@ export async function shareLogSelection(
     selectedIds: Set<number>,
 ): Promise<string> {
     const creds = await requireCreds();
-    const payload = buildLogSelectionPayload(allRows, selectedIds);
+    const payload = buildLogSelectionPayload(allRows, selectedIds, creds.username);
     if (payload.items.length === 0) throw new Error("Nothing selected to share.");
     const { url } = await createShare(creds, "log", payload);
     return url;
