@@ -12,13 +12,15 @@ import AddExerciseModal from "../components/AddExerciseModal";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
 import ExerciseCard from "../components/ExerciseCard";
 import HistoricalWorkoutList from "../components/HistoricalWorkoutList";
+import SupersetCard from "../components/SupersetCard";
 import WorkoutHeader from "../components/WorkoutHeader";
 import WorkoutKeepAwake from "../components/WorkoutKeepAwake";
+import { groupIntoCards, type WorkoutCard } from "../helpers/supersets";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
 import { useWorkoutActions } from "../hooks/useWorkoutActions";
 import {
-    copySetsFromLastSession, type ExerciseTemplate, type WorkoutExerciseWithSets,
+    copySetsFromLastSession, type ExerciseTemplate,
 } from "../services/exerciseDb";
 import { createWorkoutScreenStyles } from "./WorkoutScreenStyles";
 
@@ -46,6 +48,8 @@ export default function WorkoutScreen() {
     const reloadWorkout = workout.reload;
     const finishCurrentWorkout = workout.finishCurrentWorkout;
     const [showAddExercise, setShowAddExercise] = useState(false);
+    // Set while the add-exercise sheet is picking the second exercise for a superset (base's id).
+    const [supersetBaseId, setSupersetBaseId] = useState<number | null>(null);
     const [showTimesModal, setShowTimesModal] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -78,17 +82,31 @@ export default function WorkoutScreen() {
     }, [isDragging]);
 
     function handleExerciseSelected(template: ExerciseTemplate, copyFromLast: boolean) {
-        const weId = workout.addExercise(template.id);
+        const weId = supersetBaseId != null
+            ? workout.supersetExercise(supersetBaseId, template.id)
+            : workout.addExercise(template.id);
         if (weId) {
             if (copyFromLast) {
                 copySetsFromLastSession(template.id, weId);
             }
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setExpandedId(weId);
+            // Keep the base expanded when supersetting so the combined card stays open.
+            setExpandedId(supersetBaseId ?? weId);
         }
         workout.reload();
         setShowAddExercise(false);
+        setSupersetBaseId(null);
     }
+
+    function handleCloseAddExercise() {
+        setShowAddExercise(false);
+        setSupersetBaseId(null);
+    }
+
+    const handleSuperset = useCallback((baseWorkoutExerciseId: number) => {
+        setSupersetBaseId(baseWorkoutExerciseId);
+        setShowAddExercise(true);
+    }, []);
 
     function handleFinish() {
         finishCurrentWorkout();
@@ -136,28 +154,71 @@ export default function WorkoutScreen() {
         [workout.data?.exercises],
     );
 
+    const cards = useMemo(() => groupIntoCards(exercises), [exercises]);
+
+    const getLastSets = useCallback(
+        (templateId: number | null) => (templateId ? (actions.lastSetsCache.get(templateId) ?? []) : []),
+        [actions.lastSetsCache],
+    );
+
     const handleDragEnd = useCallback(({ from, to }: { from: number; to: number }) => {
         setIsDragging(false);
         if (from === to) return;
-        const movedExercise = exercises[from];
-        if (!movedExercise) return;
+        const reordered = [...cards];
+        const [moved] = reordered.splice(from, 1);
+        if (!moved) return;
+        reordered.splice(to, 0, moved);
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        workout.moveExercise(movedExercise.workoutExercise.id, to + 1);
-    }, [exercises, workout]);
+        workout.reorderCards(reordered.flatMap((c) => c.members.map((m) => m.workoutExercise.id)));
+    }, [cards, workout]);
 
-    function renderExercise({ item, drag, isActive, getIndex }: RenderItemParams<WorkoutExerciseWithSets>) {
+    function renderCard({ item, drag, isActive, getIndex }: RenderItemParams<WorkoutCard>) {
         const index = getIndex() ?? 0;
-        const tid = item.workoutExercise.exercise_template_id;
         const timerActive = restTimer.isRunning;
-        const isExpanded = expandedId === item.workoutExercise.id;
+        const isExpanded = item.members.some((m) => m.workoutExercise.id === expandedId);
+        const wrapStyle = isActive ? styles.draggingCard : undefined;
+
+        if (item.isSuperset) {
+            return (
+                <View style={wrapStyle}>
+                    <SupersetCard
+                        card={item}
+                        index={index}
+                        isFinished={isFinished}
+                        isExpanded={isExpanded}
+                        onExpand={() => handleExpand(item.members[0].workoutExercise.id)}
+                        onDragStart={drag}
+                        getLastSets={getLastSets}
+                        onRemove={workout.removeExercise}
+                        onNoteChange={actions.handleNoteChange}
+                        onConfirmSet={actions.handleConfirmSet}
+                        onUpdateSet={actions.handleUpdateSet}
+                        onDeleteSet={actions.handleDeleteSet}
+                        onSetTypeChange={actions.handleSetTypeChange}
+                        onAddSet={actions.handleAddSet}
+                        onCopyFromLast={actions.handleCopyFromLast}
+                        onReorderSet={actions.handleReorderSupersetSet}
+                        restTimerActive={timerActive}
+                        restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
+                        restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
+                        restTimerReached={timerActive ? restTimer.isTargetReached : false}
+                        onRestTimerSkip={restTimer.skip}
+                        onRestTimerChangeDuration={restTimer.setDuration}
+                    />
+                </View>
+            );
+        }
+
+        const member = item.members[0];
+        const tid = member.workoutExercise.exercise_template_id;
         return (
-            <View style={isActive ? styles.draggingCard : undefined}>
+            <View style={wrapStyle}>
                 <ExerciseCard
-                    item={item}
+                    item={member}
                     index={index}
                     isFinished={isFinished}
                     isExpanded={isExpanded}
-                    onExpand={() => handleExpand(item.workoutExercise.id)}
+                    onExpand={() => handleExpand(member.workoutExercise.id)}
                     onDragStart={drag}
                     lastWorkoutSets={tid ? (actions.lastSetsCache.get(tid) ?? []) : []}
                     onRemove={workout.removeExercise}
@@ -169,6 +230,7 @@ export default function WorkoutScreen() {
                     onAddSet={actions.handleAddSet}
                     onCopyFromLast={actions.handleCopyFromLast}
                     onReorderSets={actions.handleReorderSets}
+                    onSuperset={handleSuperset}
                     restTimerActive={timerActive}
                     restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
                     restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
@@ -197,9 +259,9 @@ export default function WorkoutScreen() {
             />
 
             <DraggableFlatList
-                data={exercises}
-                keyExtractor={(item) => String(item.workoutExercise.id)}
-                renderItem={renderExercise}
+                data={cards}
+                keyExtractor={(item) => item.key}
+                renderItem={renderCard}
                 contentContainerStyle={styles.list}
                 activationDistance={0}
                 autoscrollThreshold={80}
@@ -238,7 +300,7 @@ export default function WorkoutScreen() {
 
             <AddExerciseModal
                 visible={showAddExercise}
-                onClose={() => setShowAddExercise(false)}
+                onClose={handleCloseAddExercise}
                 onSelect={handleExerciseSelected}
             />
 

@@ -37,6 +37,7 @@ interface ExpandedExerciseCardProps {
     onAddSet: (workoutExerciseId: number) => void;
     onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
+    onSuperset: (baseWorkoutExerciseId: number) => void;
     restTimerActive: boolean;
     restTimerElapsed: number;
     restTimerTarget: number;
@@ -51,7 +52,7 @@ export function ExpandedExerciseCard({
     menuOpen, setMenuOpen, onDragStart, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
     onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
-    onReorderSets,
+    onReorderSets, onSuperset,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
     onRestTimerChangeDuration,
 }: ExpandedExerciseCardProps) {
@@ -205,10 +206,12 @@ export function ExpandedExerciseCard({
                 onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
                 onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
                 onRemove={handleRemove}
+                onSuperset={template ? () => { setMenuOpen(false); onSuperset(item.workoutExercise.id); } : undefined}
                 labels={{
                     editNote: t("exercise.exerciseCard.editNote"),
                     addNote: t("exercise.exerciseCard.addNote"),
                     copyFromLast: t("exercise.exerciseCard.copyFromLast"),
+                    superset: t("exercise.exerciseCard.superset"),
                     remove: t("exercise.exerciseCard.remove"),
                 }}
             />

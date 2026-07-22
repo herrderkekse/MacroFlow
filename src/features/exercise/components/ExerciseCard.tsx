@@ -27,6 +27,7 @@ interface ExerciseCardProps {
     onAddSet: (workoutExerciseId: number) => void;
     onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
+    onSuperset: (baseWorkoutExerciseId: number) => void;
     restTimerActive: boolean;
     restTimerElapsed: number;
     restTimerTarget: number;
@@ -39,6 +40,7 @@ export default function ExerciseCard({
     item, index, isFinished, isExpanded, onExpand, onDragStart, lastWorkoutSets,
     onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast, onReorderSets,
+    onSuperset,
     restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
     onRestTimerChangeDuration,
 }: ExerciseCardProps) {
@@ -88,10 +90,12 @@ export default function ExerciseCard({
                     onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
                     onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
                     onRemove={handleRemove}
+                    onSuperset={template ? () => { setMenuOpen(false); onSuperset(item.workoutExercise.id); } : undefined}
                     labels={{
                         editNote: t("exercise.exerciseCard.editNote"),
                         addNote: t("exercise.exerciseCard.addNote"),
                         copyFromLast: t("exercise.exerciseCard.copyFromLast"),
+                        superset: t("exercise.exerciseCard.superset"),
                         remove: t("exercise.exerciseCard.remove"),
                     }}
                 />
@@ -136,6 +140,7 @@ export default function ExerciseCard({
             onAddSet={onAddSet}
             onCopyFromLast={onCopyFromLast}
             onReorderSets={onReorderSets}
+            onSuperset={onSuperset}
             restTimerActive={restTimerActive}
             restTimerElapsed={restTimerElapsed}
             restTimerTarget={restTimerTarget}

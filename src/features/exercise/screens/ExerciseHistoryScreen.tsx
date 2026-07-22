@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import { kgToLb } from "../helpers/exerciseUnits";
 import oneRepMax from "../helpers/oneRepMax";
@@ -22,19 +22,42 @@ export default function ExerciseHistoryScreen() {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { width: windowWidth } = useWindowDimensions();
     const router = useRouter();
-    const { templateId, workoutExerciseId } = useLocalSearchParams<{
-        templateId: string;
+    const { templateId, workoutExerciseId, templateIds, workoutExerciseIds } = useLocalSearchParams<{
+        templateId?: string;
         workoutExerciseId?: string;
+        // Comma-separated lists, present when arriving from a superset (multiple exercises).
+        templateIds?: string;
+        workoutExerciseIds?: string;
     }>();
-    const parsedId = templateId ? Number(templateId) : undefined;
-    const parsedWeId = workoutExerciseId ? Number(workoutExerciseId) : undefined;
 
-    const template: ExerciseTemplate | undefined = useMemo(
-        () => (parsedId ? getExerciseTemplateById(parsedId) : undefined),
-        [parsedId],
+    // The exercises selectable from the header — one, or several when a superset opened this screen.
+    const options = useMemo(() => {
+        const tIds = templateIds ? templateIds.split(",") : templateId ? [templateId] : [];
+        const wIds = workoutExerciseIds ? workoutExerciseIds.split(",") : workoutExerciseId ? [workoutExerciseId] : [];
+        return tIds.map((tid, i) => ({
+            templateId: Number(tid),
+            workoutExerciseId: wIds[i] ? Number(wIds[i]) : undefined,
+        }));
+    }, [templateId, workoutExerciseId, templateIds, workoutExerciseIds]);
+
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const active = options[selectedIndex] ?? options[0];
+    const parsedId = active?.templateId;
+    const parsedWeId = active?.workoutExerciseId;
+
+    const optionTemplates = useMemo(
+        () => options.map((o) => getExerciseTemplateById(o.templateId)),
+        [options],
     );
+    const template: ExerciseTemplate | undefined = optionTemplates[selectedIndex] ?? undefined;
     const { history, e1rmSeries, personalBest, isLoading } = useExerciseHistory(parsedId);
     const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
+
+    // Member colors mirror the superset card's blue (A) / purple (B) tags.
+    const optionColor = useCallback(
+        (i: number) => (i === 0 ? colors.primary : colors.exercise),
+        [colors.primary, colors.exercise],
+    );
 
     const isAssistance = template?.resistance_mode === "assistance";
     const displayUnit = (template?.default_weight_unit as "kg" | "lb") ?? "kg";
@@ -165,6 +188,28 @@ export default function ExerciseHistoryScreen() {
                 contentContainerStyle={styles.listContent}
                 ListHeaderComponent={
                     <>
+                        {options.length > 1 && (
+                            <View style={styles.selectorRow}>
+                                {options.map((opt, i) => {
+                                    const isSel = i === selectedIndex;
+                                    const c = optionColor(i);
+                                    return (
+                                        <Pressable
+                                            key={`${opt.templateId}-${i}`}
+                                            onPress={() => { setSelectedIndex(i); setSelectedPointIndex(null); }}
+                                            style={[styles.selectorPill, isSel && { backgroundColor: c + "22", borderColor: c }]}
+                                        >
+                                            <Text
+                                                style={[styles.selectorText, isSel && { color: c, fontWeight: "700" }]}
+                                                numberOfLines={1}
+                                            >
+                                                {optionTemplates[i]?.name ?? "?"}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        )}
                         {chartData.length > 0 && (
                             <View style={styles.chartCard}>
                                 <Text style={styles.chartTitle}>
@@ -281,6 +326,26 @@ function createStyles(colors: ThemeColors) {
         screen: { flex: 1, backgroundColor: colors.background },
         center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
         listContent: { padding: spacing.md },
+        selectorRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginBottom: spacing.md,
+        },
+        selectorPill: {
+            flex: 1,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            borderRadius: borderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            alignItems: "center",
+        },
+        selectorText: {
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.textSecondary,
+        },
         chartCard: {
             backgroundColor: colors.surface,
             borderRadius: borderRadius.lg,

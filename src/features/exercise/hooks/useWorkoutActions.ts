@@ -44,11 +44,17 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         });
         completeSet(setId);
 
-        for (const ex of workout.data?.exercises ?? []) {
-            if (ex.sets.some((s) => s.id === setId)) {
-                restTimer.start(ex.workoutExercise.id, values.type);
-                break;
-            }
+        const exercises = workout.data?.exercises ?? [];
+        const owner = exercises.find((ex) => ex.sets.some((s) => s.id === setId));
+        if (owner) {
+            // In a superset only the first (base) exercise drives the rest timer, so
+            // finishing the second exercise's set never resets it. `exercises` is
+            // sort-ordered, so the first member found with this group is the base.
+            const group = owner.workoutExercise.superset_group;
+            const isBase = group == null
+                || exercises.find((ex) => ex.workoutExercise.superset_group === group)?.workoutExercise.id
+                    === owner.workoutExercise.id;
+            if (isBase) restTimer.start(owner.workoutExercise.id, values.type);
         }
         workout.reload();
     }, [workout, restTimer]);
@@ -101,6 +107,12 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         workout.reload();
     }, [workout]);
 
+    // Superset rows span two exercises, so reorder by set id and target position.
+    const handleReorderSupersetSet = useCallback((setId: number, toIndex: number) => {
+        reorderSet(setId, toIndex + 1);
+        workout.reload();
+    }, [workout]);
+
     const lastSetsCache = useMemo(() => {
         const cache = new Map<number, ExerciseSet[]>();
         for (const ex of workout.data?.exercises ?? []) {
@@ -123,6 +135,7 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
         handleAddSet,
         handleCopyFromLast,
         handleReorderSets,
+        handleReorderSupersetSet,
         lastSetsCache,
     };
 }

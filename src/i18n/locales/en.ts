@@ -457,6 +457,7 @@ const en = {
             editNote: "Edit Note",
             replace: "Replace Exercise",
             copyFromLast: "Copy from Last Session",
+            superset: "Superset with…",
             noHistory: "No previous session found",
             note: "Note",
             notePlaceholder: "Exercise notes…",
@@ -504,6 +505,11 @@ const en = {
             exercises: "{{count}} exercises",
             deleteConfirm: "Delete this workout and all its data?",
             moreExercises: "+{{count}} more",
+        },
+        superset: {
+            copyMember: "Copy last: {{name}}",
+            removeMember: "Remove: {{name}}",
+            removeMemberConfirm: "Remove this exercise and all its sets? The remaining exercise will no longer be a superset.",
         },
         workout: {
             title: "Workout",

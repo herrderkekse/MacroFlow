@@ -1,6 +1,6 @@
 import { db } from "@/src/services/db";
 import { exerciseSets, exerciseTemplates, workoutExercises, workouts } from "@/src/services/db/schema";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 type ExerciseTemplate = typeof exerciseTemplates.$inferSelect;
 type Workout = typeof workouts.$inferSelect;
@@ -42,11 +42,32 @@ function getNextExerciseSortOrder(workoutId: number): number {
     return (lastExercise?.sortOrder ?? 0) + 1;
 }
 
+/**
+ * The workout-exercise ids that share a set-ordering scope: just the exercise
+ * itself, or — when it belongs to a superset — every member of that group, in
+ * display order. `set_order` is kept unique/dense across this whole scope so a
+ * superset's combined set list can be freely reordered.
+ */
+function getSetScopeExerciseIds(workoutExerciseId: number): number[] {
+    const we = getWorkoutExerciseOrThrow(workoutExerciseId);
+    if (we.superset_group == null) return [we.id];
+    return db
+        .select({ id: workoutExercises.id })
+        .from(workoutExercises)
+        .where(and(eq(workoutExercises.workout_id, we.workout_id), eq(workoutExercises.superset_group, we.superset_group)))
+        .orderBy(asc(workoutExercises.sort_order), asc(workoutExercises.id))
+        .all()
+        .map((r) => r.id);
+}
+
 function getNextSetOrder(workoutExerciseId: number): number {
+    const ids = getSetScopeExerciseIds(workoutExerciseId);
     const lastSet = db
         .select({ setOrder: exerciseSets.set_order })
         .from(exerciseSets)
-        .where(eq(exerciseSets.workout_exercise_id, workoutExerciseId))
+        .where(ids.length === 1
+            ? eq(exerciseSets.workout_exercise_id, ids[0])
+            : inArray(exerciseSets.workout_exercise_id, ids))
         .orderBy(desc(exerciseSets.set_order), desc(exerciseSets.id))
         .get();
 
@@ -58,6 +79,18 @@ function listSetsForExercise(workoutExerciseId: number): ExerciseSet[] {
         .select()
         .from(exerciseSets)
         .where(eq(exerciseSets.workout_exercise_id, workoutExerciseId))
+        .orderBy(asc(exerciseSets.set_order), asc(exerciseSets.id))
+        .all();
+}
+
+/** All sets across the exercise's ordering scope (see getSetScopeExerciseIds), globally ordered. */
+function listSetsForScope(workoutExerciseId: number): ExerciseSet[] {
+    const ids = getSetScopeExerciseIds(workoutExerciseId);
+    if (ids.length === 1) return listSetsForExercise(ids[0]);
+    return db
+        .select()
+        .from(exerciseSets)
+        .where(inArray(exerciseSets.workout_exercise_id, ids))
         .orderBy(asc(exerciseSets.set_order), asc(exerciseSets.id))
         .all();
 }
@@ -79,7 +112,8 @@ function normalizeExerciseSortOrder(workoutId: number) {
 }
 
 function normalizeSetOrder(workoutExerciseId: number) {
-    const orderedSets = listSetsForExercise(workoutExerciseId);
+    // Renumbers across the whole scope so a superset's global order stays dense.
+    const orderedSets = listSetsForScope(workoutExerciseId);
 
     orderedSets.forEach((set, index) => {
         const nextOrder = index + 1;
@@ -96,7 +130,9 @@ const exerciseDbSupport = {
     getExerciseSetOrThrow,
     getNextExerciseSortOrder,
     getNextSetOrder,
+    getSetScopeExerciseIds,
     listSetsForExercise,
+    listSetsForScope,
     normalizeExerciseSortOrder,
     normalizeSetOrder,
 };
