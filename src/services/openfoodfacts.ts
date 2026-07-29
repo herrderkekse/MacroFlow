@@ -170,21 +170,33 @@ function guessUnit(product: OFFProduct): FoodUnit {
 }
 
 /**
+ * Every spelling of a unit OFF's free text uses, most specific first: the
+ * alternations are ordered so `liter` is tried before the bare `l` it starts
+ * with, and `fl oz` before `oz`.
+ *
+ * `(?:^|[^a-z])` stands in for a leading `\b`, which would demand a separator
+ * between the number and the unit and so miss `330ml` (#407). A *letter* in
+ * front is still what disqualifies a match, so `fl` is not a liter and `caramel`
+ * is not a millilitre.
+ */
+const TEXT_UNITS: [RegExp, FoodUnit][] = [
+    [/(?:^|[^a-z])(?:liters?|litres?|ml|cl|l)\b/, "ml"],
+    [/(?:^|[^a-z])fl\s?oz\b/, "fl_oz"],
+    [/(?:^|[^a-z])cup/, "cup"],
+    [/(?:^|[^a-z])tbsp\b/, "tbsp"],
+    [/(?:^|[^a-z])tsp\b/, "tsp"],
+    [/(?:^|[^a-z])oz\b/, "oz"],
+    [/(?:^|[^a-z])lb\b/, "lb"],
+];
+
+/**
  * Fallback for products carrying no normalized unit at all. Note that `cl` maps
  * to `ml` without touching the number: safe only because the number beside it
  * comes from OFF pre-converted ("33 cl" → `serving_quantity: 330`).
  */
 function unitFromText(product: OFFProduct): FoodUnit {
     const text = (product.serving_size ?? product.quantity ?? "").toLowerCase();
-    if (/\bml\b/.test(text) || /\bcl\b/.test(text) || /\bliter|\blitre/.test(text))
-        return "ml";
-    if (/\bfl\s?oz\b/.test(text)) return "fl_oz";
-    if (/\bcup/.test(text)) return "cup";
-    if (/\btbsp\b/.test(text)) return "tbsp";
-    if (/\btsp\b/.test(text)) return "tsp";
-    if (/\boz\b/.test(text)) return "oz";
-    if (/\blb\b/.test(text)) return "lb";
-    return "g";
+    return TEXT_UNITS.find(([pattern]) => pattern.test(text))?.[1] ?? "g";
 }
 
 /**
