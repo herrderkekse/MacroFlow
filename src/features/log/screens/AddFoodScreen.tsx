@@ -29,7 +29,7 @@ export default function AddFoodScreen() {
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
-    const { mealType } = useLocalSearchParams<{ mealType?: string }>();
+    const { mealType, recipeId } = useLocalSearchParams<{ mealType?: string; recipeId?: string }>();
 
     const search = useAddFoodSearch();
 
@@ -44,7 +44,7 @@ export default function AddFoodScreen() {
                     placeholderTextColor={colors.textTertiary}
                     value={search.query}
                     onChangeText={search.setQuery}
-                    autoFocus
+                    autoFocus={!recipeId}
                     returnKeyType="search"
                 />
                 {search.query.length > 0 && (

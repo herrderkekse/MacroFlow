@@ -1,11 +1,9 @@
-import { getProductByBarcode, guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
-import { toGrams } from "@/src/utils/units";
+import { fromGrams, isValidUnit, toGrams } from "@/src/utils/units";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Alert, Keyboard } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Keyboard } from "react-native";
 import {
     addFood,
     addRecipe,
@@ -16,224 +14,245 @@ import {
     getRecipeById,
     getRecipeItems,
     getServingUnits,
-    searchFoodsByName,
+    updateFood,
     updateRecipe,
+    updateRecipeItem,
+    updateRecipeServings,
     type Food,
-    type RecipeItem,
     type ServingUnit,
 } from "../services/templateDb";
+import { useIngredientSearch } from "./useIngredientSearch";
 
-export interface ItemWithFood {
-    recipeItem: RecipeItem;
-    food: Food | null;
+/**
+ * One ingredient as it is being edited. Nothing here exists in the database
+ * until the recipe is saved: `itemId` marks a row that was loaded from an
+ * existing recipe, and a `food` with `id: 0` is a food that still has to be
+ * created (a fresh OpenFoodFacts hit).
+ */
+export interface DraftIngredient {
+    key: string;
+    itemId?: number;
+    food: Food;
+    quantityGrams: number;
+    quantityUnit: string;
     servingUnits: ServingUnit[];
 }
 
+export interface MacroTotals {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+}
+
+const MAX_SERVINGS = 24;
+
+let draftKeySeq = 0;
+const nextDraftKey = () => `draft-${++draftKeySeq}`;
+
+/** The draft's amount expressed in its own unit, e.g. 236.6 g → 1 cup. */
+function amountInOwnUnit(draft: DraftIngredient): number {
+    if (isValidUnit(draft.quantityUnit)) return fromGrams(draft.quantityGrams, draft.quantityUnit);
+    const serving = draft.servingUnits.find((u) => u.name === draft.quantityUnit);
+    return serving && serving.grams > 0 ? draft.quantityGrams / serving.grams : draft.quantityGrams;
+}
+
+/** Comparable shape of the whole editor, for the unsaved-changes check. */
+function snapshot(name: string, servings: number, items: DraftIngredient[]): string {
+    return JSON.stringify([
+        name.trim(),
+        servings,
+        items.map((i) => [i.food.id, i.food.name, i.quantityGrams, i.quantityUnit]),
+    ]);
+}
+
 export function useRecipeEditor() {
-    const { t } = useTranslation();
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
     const isEditing = !!recipeId;
-    const recipeIdRef = useRef(recipeId);
-    useEffect(() => {
-        recipeIdRef.current = recipeId;
-    }, [recipeId]);
 
     const [name, setName] = useState("");
     // Base recipe name when editing a variant (whose own name is just the
     // specification, e.g. "with sprinkles").
     const [baseName, setBaseName] = useState<string | null>(null);
-    const [items, setItems] = useState<ItemWithFood[]>([]);
+    const [items, setItems] = useState<DraftIngredient[]>([]);
+    const [servings, setServingsState] = useState(1);
+    // Snapshot of the recipe as loaded, to tell edited from untouched.
+    const [savedSnapshot, setSavedSnapshot] = useState(() => snapshot("", 1, []));
 
-    // food search
-    const [foodQuery, setFoodQuery] = useState("");
-    const [localResults, setLocalResults] = useState<Food[]>([]);
-    const [offResults, setOffResults] = useState<OFFProduct[]>([]);
-    const [isSearchingOFF, setIsSearchingOFF] = useState(false);
-    const [hasSearchedOFF, setHasSearchedOFF] = useState(false);
-    const [offError, setOffError] = useState<string | null>(null);
-    const [showScanner, setShowScanner] = useState(false);
-    const [showManualForm, setShowManualForm] = useState(false);
+    // The ingredient currently open in the amount sheet, and whether
+    // confirming it appends a new row or updates an existing one.
+    const [editing, setEditing] = useState<{ draft: DraftIngredient; isNew: boolean } | null>(null);
 
-    // modal for editing an ingredient's quantity + unit
-    const [editingItem, setEditingItem] = useState<ItemWithFood | null>(null);
-
-    function loadItems(id: number) {
-        const rows = getRecipeItems(id);
-        setItems(rows.map((r) => ({
-            recipeItem: r.recipe_items,
-            food: r.foods,
-            servingUnits: r.foods ? getServingUnits(r.foods.id) : [],
-        })));
+    /** A food was picked in the search sheet: open the amount sheet for it. */
+    function openDraftForFood(food: Food) {
+        const foodUnit = (food.default_unit ?? "g") as FoodUnit;
+        setEditing({
+            isNew: true,
+            draft: {
+                key: nextDraftKey(),
+                food,
+                quantityGrams: toGrams(food.serving_size ?? 100, foodUnit),
+                quantityUnit: foodUnit,
+                // A food that is not in the library yet cannot have any.
+                servingUnits: food.id ? getServingUnits(food.id) : [],
+            },
+        });
     }
+
+    const search = useIngredientSearch(openDraftForFood);
 
     // ── Load existing recipe ──────────────────────────────
     useEffect(() => {
         if (!recipeId) return;
         queueMicrotask(() => {
             const recipe = getRecipeById(Number(recipeId));
+            const drafts: DraftIngredient[] = getRecipeItems(Number(recipeId))
+                .filter((row) => row.foods)
+                .map((row) => ({
+                    key: nextDraftKey(),
+                    itemId: row.recipe_items.id,
+                    food: row.foods!,
+                    quantityGrams: row.recipe_items.quantity_grams,
+                    quantityUnit: row.recipe_items.quantity_unit ?? "g",
+                    servingUnits: getServingUnits(row.foods!.id),
+                }));
+            setItems(drafts);
             if (recipe) {
                 setName(recipe.name);
+                setServingsState(recipe.servings);
                 const base = recipe.parent_recipe_id != null ? getRecipeById(recipe.parent_recipe_id) : undefined;
                 setBaseName(base?.name ?? null);
+                setSavedSnapshot(snapshot(recipe.name, recipe.servings, drafts));
             }
-            loadItems(Number(recipeId));
         });
     }, [recipeId]);
 
-    function ensureRecipe(): number {
-        if (recipeIdRef.current) {
-            updateRecipe(Number(recipeIdRef.current), name.trim());
-            return Number(recipeIdRef.current);
-        }
-        const r = addRecipe(name.trim() || "Untitled recipe");
-        logger.info("[DB] Created recipe", { id: r.id });
-        router.setParams({ recipeId: String(r.id) });
-        return r.id;
+    function setServings(next: number) {
+        setServingsState(Math.min(MAX_SERVINGS, Math.max(1, Math.round(next))));
     }
 
-    // ── Food search (debounced local) ─────────────────────
-    useEffect(() => {
-        if (foodQuery.trim().length < 2) {
-            queueMicrotask(() => setLocalResults([]));
-            return;
-        }
-        const timer = setTimeout(() => setLocalResults(searchFoodsByName(foodQuery.trim())), 200);
-        return () => clearTimeout(timer);
-    }, [foodQuery]);
+    // ── Ingredient drafts ─────────────────────────────────
 
-    useEffect(() => {
-        queueMicrotask(() => {
-            setOffResults([]);
-            setOffError(null);
-            setHasSearchedOFF(false);
-        });
-    }, [foodQuery]);
-
-    const handleSearchOFF = useCallback(async () => {
-        if (foodQuery.trim().length < 2) return;
-        setIsSearchingOFF(true);
-        setOffError(null);
-        try {
-            const results = await searchProducts(foodQuery.trim());
-            setOffResults(results);
-            setHasSearchedOFF(true);
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : t("common.searchFailed");
-            setOffError(msg);
-        } finally {
-            setIsSearchingOFF(false);
-        }
-    }, [foodQuery, t]);
-
-    function handleSelectLocal(food: Food) {
+    function editIngredient(draft: DraftIngredient) {
         Keyboard.dismiss();
-        addItemForFood(food);
+        setEditing({ draft, isNew: false });
     }
 
-    function handleManualFoodCreated(food: Food) {
-        setShowManualForm(false);
-        setTimeout(() => addItemForFood(food), 300);
+    function closeEditing() {
+        setEditing(null);
     }
 
-    function handleBarcodeFound(food: Food) {
-        setShowScanner(false);
-        setTimeout(() => addItemForFood(food), 300);
-    }
-
-    function handleBarcodeNotFound() {
-        setShowScanner(false);
-        Alert.alert(t("templates.notFound"), t("templates.productNotFound"));
-    }
-
-    async function lookupBarcode(barcode: string): Promise<Food | null> {
-        const local = getFoodByBarcode(barcode);
-        if (local) {
-            logger.info("[SCAN] Found locally", { id: local.id });
-            return local;
-        }
-        const product = await getProductByBarcode(barcode);
-        if (!product) return null;
-        const existing = getFoodByOpenfoodfactsId(product.code);
-        if (existing) return existing;
-        const food = addFood({
-            name: product.product_name ?? t("common.unknown"),
-            calories_per_100g: product.nutriments?.["energy-kcal_100g"] ?? 0,
-            protein_per_100g: product.nutriments?.proteins_100g ?? 0,
-            carbs_per_100g: product.nutriments?.carbohydrates_100g ?? 0,
-            fat_per_100g: product.nutriments?.fat_100g ?? 0,
-            barcode,
-            openfoodfacts_id: product.code,
-            source: "openfoodfacts",
-        });
-        logger.info("[DB] Created food from barcode", { id: food.id, name: food.name });
-        return food;
-    }
-
-    function handleSelectOFF(product: OFFProduct) {
-        Keyboard.dismiss();
-        const existing = getFoodByOpenfoodfactsId(product.code);
-        if (existing) { addItemForFood(existing); return; }
-        const n = product.product_name || t("common.unknown");
-        const nu = product.nutriments ?? {};
-        const food = addFood({
-            name: n,
-            calories_per_100g: nu["energy-kcal_100g"] ?? 0,
-            protein_per_100g: nu.proteins_100g ?? 0,
-            carbs_per_100g: nu.carbohydrates_100g ?? 0,
-            fat_per_100g: nu.fat_100g ?? 0,
-            openfoodfacts_id: product.code,
-            source: "openfoodfacts",
-            default_unit: guessUnit(product),
-            serving_size: parseServingSize(product),
-        });
-        addItemForFood(food);
-    }
-
-    function addItemForFood(food: Food): ItemWithFood {
-        const rid = ensureRecipe();
-        const foodUnit = (food.default_unit ?? "g") as FoodUnit;
-        const servingSize = food.serving_size ?? 100;
-        const qtyGrams = toGrams(servingSize, foodUnit);
-        const ri = addRecipeItem({ recipe_id: rid, food_id: food.id, quantity_grams: qtyGrams, quantity_unit: foodUnit });
-        const sUnits = getServingUnits(food.id);
-        const newEntry: ItemWithFood = { recipeItem: ri, food, servingUnits: sUnits };
-        setItems((prev) => [...prev, newEntry]);
-        setFoodQuery("");
-        setLocalResults([]);
-        setOffResults([]);
-        setEditingItem(newEntry);
-        return newEntry;
-    }
-
-    function handleModalSaved(itemId: number, quantityGrams: number, unit: string) {
+    /** "Add to recipe" / "Update ingredient" in the amount sheet. */
+    function commitEditing(quantityGrams: number, quantityUnit: string, servingUnits: ServingUnit[]) {
+        if (!editing) return;
+        const updated: DraftIngredient = { ...editing.draft, quantityGrams, quantityUnit, servingUnits };
         setItems((prev) =>
-            prev.map((i) => {
-                if (i.recipeItem.id !== itemId) return i;
-                const freshServingUnits = i.food ? getServingUnits(i.food.id) : i.servingUnits;
-                return {
-                    ...i,
-                    recipeItem: { ...i.recipeItem, quantity_grams: quantityGrams, quantity_unit: unit },
-                    servingUnits: freshServingUnits,
-                };
-            }),
+            editing.isNew
+                ? [...prev, updated]
+                : prev.map((i) => (i.key === updated.key ? updated : i)),
         );
-        setEditingItem(null);
+        setEditing(null);
     }
 
-    function handleDeleteItem(itemId: number) {
-        deleteRecipeItem(itemId);
-        setItems((prev) => prev.filter((i) => i.recipeItem.id !== itemId));
+    /** "Remove from recipe" in the amount sheet. */
+    function removeEditing() {
+        if (editing) setItems((prev) => prev.filter((i) => i.key !== editing.draft.key));
+        setEditing(null);
     }
 
-    function handleDone() {
-        if (name.trim()) ensureRecipe();
+    // ── Saving ────────────────────────────────────────────
+
+    /** Resolves a draft's food to a row id, creating the food if it is new. */
+    function materializeFood(food: Food): number {
+        if (food.id) return food.id;
+        const existing =
+            (food.openfoodfacts_id ? getFoodByOpenfoodfactsId(food.openfoodfacts_id) : undefined)
+            ?? (food.barcode ? getFoodByBarcode(food.barcode) : undefined);
+        if (existing) return existing.id;
+        const { id: _id, uuid: _uuid, ...values } = food;
+        const created = addFood(values);
+        logger.info("[DB] Created food for recipe", { id: created.id, name: created.name });
+        return created.id;
+    }
+
+    /**
+     * The single point where the editor touches the database: creates or
+     * updates the recipe and reconciles its items against the drafts.
+     */
+    function commit(): number {
+        const id = recipeId
+            ? Number(recipeId)
+            : addRecipe(name.trim() || "Untitled recipe", servings).id;
+        if (!recipeId) logger.info("[DB] Created recipe", { id });
+        // A blank name field never overwrites the stored one.
+        else if (name.trim()) updateRecipe(id, name.trim(), servings);
+        else updateRecipeServings(id, servings);
+
+        const staleItemIds = new Set(getRecipeItems(id).map((row) => row.recipe_items.id));
+        for (const draft of items) {
+            const foodId = materializeFood(draft.food);
+            const values = {
+                food_id: foodId,
+                quantity_grams: draft.quantityGrams,
+                quantity_unit: draft.quantityUnit,
+            };
+            if (draft.itemId != null && staleItemIds.has(draft.itemId)) {
+                updateRecipeItem(draft.itemId, values);
+                staleItemIds.delete(draft.itemId);
+            } else {
+                addRecipeItem({ recipe_id: id, ...values });
+            }
+            // Remembered for the log screen's amount prefill, as before.
+            updateFood(foodId, {
+                last_logged_amount: amountInOwnUnit(draft),
+                last_logged_unit: draft.quantityUnit,
+            });
+        }
+        for (const staleId of staleItemIds) deleteRecipeItem(staleId);
+
+        setSavedSnapshot(snapshot(name, servings, items));
+        return id;
+    }
+
+    function handleSave() {
+        commit();
         router.back();
     }
 
-    const totalCals = items.reduce((sum, { recipeItem, food }) => {
-        if (!food) return sum;
-        return sum + (food.calories_per_100g * recipeItem.quantity_grams) / 100;
-    }, 0);
+    /**
+     * Saves, then hands off to the log screen with the recipe preselected —
+     * the amount and meal are chosen there rather than guessed here.
+     */
+    function handleSaveAndLog() {
+        router.replace({ pathname: "/log/add", params: { recipeId: String(commit()) } });
+    }
+
+    // ── Derived ───────────────────────────────────────────
+
+    const totals: MacroTotals = items.reduce<MacroTotals>(
+        (sum, { food, quantityGrams }) => {
+            const factor = quantityGrams / 100;
+            return {
+                calories: sum.calories + food.calories_per_100g * factor,
+                protein: sum.protein + food.protein_per_100g * factor,
+                carbs: sum.carbs + food.carbs_per_100g * factor,
+                fat: sum.fat + food.fat_per_100g * factor,
+            };
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    );
+
+    const perServing: MacroTotals = {
+        calories: totals.calories / servings,
+        protein: totals.protein / servings,
+        carbs: totals.carbs / servings,
+        fat: totals.fat / servings,
+    };
+
+    const isDirty = useMemo(
+        () => snapshot(name, servings, items) !== savedSnapshot,
+        [name, servings, items, savedSnapshot],
+    );
 
     return {
         isEditing,
@@ -241,29 +260,20 @@ export function useRecipeEditor() {
         setName,
         baseName,
         items,
-        totalCals,
-        foodQuery,
-        setFoodQuery,
-        localResults,
-        offResults,
-        isSearchingOFF,
-        hasSearchedOFF,
-        offError,
-        showScanner,
-        setShowScanner,
-        showManualForm,
-        setShowManualForm,
-        editingItem,
-        setEditingItem,
-        handleSearchOFF,
-        handleSelectLocal,
-        handleManualFoodCreated,
-        handleBarcodeFound,
-        handleBarcodeNotFound,
-        lookupBarcode,
-        handleSelectOFF,
-        handleModalSaved,
-        handleDeleteItem,
-        handleDone,
+        servings,
+        setServings,
+        totals,
+        perServing,
+        canSave: items.length > 0,
+        isDirty,
+        ...search,
+        editingDraft: editing?.draft ?? null,
+        isNewItem: editing?.isNew ?? false,
+        editIngredient,
+        closeEditing,
+        commitEditing,
+        removeEditing,
+        handleSave,
+        handleSaveAndLog,
     };
 }

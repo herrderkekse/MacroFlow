@@ -42,14 +42,16 @@ export default function RecipeLogModal({
     const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
     const selectedDate = useAppStore((s) => s.selectedDate);
     const [mealType, setMealType] = useState<MealType>(defaultMealType ?? "breakfast");
-    const [portionInput, setPortionInput] = useState("1");
+    // Counted in servings of the recipe; `portion` (the stored multiplier of
+    // the whole recipe) is derived from it.
+    const [servingsInput, setServingsInput] = useState("1");
 
     React.useEffect(() => {
         if (defaultMealType) queueMicrotask(() => setMealType(defaultMealType));
     }, [defaultMealType]);
 
     React.useEffect(() => {
-        if (recipe) queueMicrotask(() => setPortionInput("1"));
+        if (recipe) queueMicrotask(() => setServingsInput("1"));
     }, [recipe]);
 
     const displayName = React.useMemo(() => (recipe ? getRecipeDisplayName(recipe) : null), [recipe]);
@@ -70,7 +72,8 @@ export default function RecipeLogModal({
 
     if (!recipe) return null;
 
-    const portion = Math.max(0, parseFloat(portionInput) || 0);
+    const servingCount = Math.max(0, parseFloat(servingsInput) || 0);
+    const portion = servingCount / Math.max(1, recipe.servings);
     const totalCals = items.reduce((sum, row) => {
         const food = row.foods;
         if (!food) return sum;
@@ -115,29 +118,34 @@ export default function RecipeLogModal({
                         {t("common.itemCount", { count: items.length })} · {Math.round(totalCals)} {t("common.cal")}
                     </Text>
 
-                    {/* Portion multiplier */}
-                    <Text style={styles.sectionLabel}>{t("templates.portions")}</Text>
+                    {/* How many of the recipe's servings are being logged */}
+                    <Text style={styles.sectionLabel}>{t("templates.servingsToLog")}</Text>
+                    {recipe.servings > 1 && (
+                        <Text style={styles.sectionHint}>
+                            {t("templates.recipeMakesServings", { count: recipe.servings })}
+                        </Text>
+                    )}
                     <View style={styles.portionRow}>
                         <Pressable
                             onPress={() => {
-                                const v = Math.max(0.25, (parseFloat(portionInput) || 1) - 0.25);
-                                setPortionInput(String(Math.round(v * 100) / 100));
+                                const v = Math.max(0.25, (parseFloat(servingsInput) || 1) - 0.25);
+                                setServingsInput(String(Math.round(v * 100) / 100));
                             }}
                             style={styles.portionBtn}
                         >
                             <Ionicons name="remove" size={20} color={colors.primary} />
                         </Pressable>
                         <Input
-                            value={portionInput}
-                            onChangeText={setPortionInput}
+                            value={servingsInput}
+                            onChangeText={setServingsInput}
                             keyboardType="decimal-pad"
                             containerStyle={styles.portionInput}
                             style={styles.portionInputText}
                         />
                         <Pressable
                             onPress={() => {
-                                const v = (parseFloat(portionInput) || 1) + 0.25;
-                                setPortionInput(String(Math.round(v * 100) / 100));
+                                const v = (parseFloat(servingsInput) || 1) + 0.25;
+                                setServingsInput(String(Math.round(v * 100) / 100));
                             }}
                             style={styles.portionBtn}
                         >
@@ -239,6 +247,12 @@ function createStyles(colors: ThemeColors, insetsTop = 0) {
             fontWeight: "600",
             color: colors.text,
             marginTop: spacing.lg,
+            marginBottom: spacing.sm,
+        },
+        sectionHint: {
+            fontSize: fontSize.xs,
+            color: colors.textSecondary,
+            marginTop: -spacing.xs,
             marginBottom: spacing.sm,
         },
         mealRow: {

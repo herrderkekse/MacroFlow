@@ -1,43 +1,49 @@
-import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
-import ManualFoodForm from "../components/ManualFoodForm";
 import { isShareConfigured, shareRecipe } from "@/src/features/share/services/shareService";
-import Button from "@/src/shared/atoms/Button";
-import Input from "@/src/shared/atoms/Input";
-import BottomSheet, { type BottomSheetRef } from "@/src/shared/components/BottomSheet";
+import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import ShareModal from "@/src/shared/components/ShareModal";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { fromGrams, unitLabel, type FoodUnit } from "@/src/utils/units";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { spacing, type ThemeColors } from "@/src/utils/theme";
+import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    Alert,
-    Keyboard,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    useWindowDimensions,
-    View,
-} from "react-native";
+import { Alert, BackHandler, Keyboard, Pressable, StyleSheet, View } from "react-native";
+import Animated, {
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue,
+} from "react-native-reanimated";
+import AddIngredientSheet from "../components/AddIngredientSheet";
+import IngredientsSectionHeader from "../components/IngredientsSectionHeader";
+import ManualFoodForm from "../components/ManualFoodForm";
+import RecipeEditorHeader from "../components/RecipeEditorHeader";
+import RecipeIngredientList from "../components/RecipeIngredientList";
 import RecipeItemModal from "../components/RecipeItemModal";
+import RecipeMacroFooter from "../components/RecipeMacroFooter";
+import RecipeServingsRow from "../components/RecipeServingsRow";
 import { useRecipeEditor } from "../hooks/useRecipeEditor";
-
-const SHEET_COLLAPSED = 160;
 
 export default function RecipeEditorScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const { height: screenHeight } = useWindowDimensions();
-    const sheetRef = useRef<BottomSheetRef>(null);
-    const snapPoints = useMemo(() => [SHEET_COLLAPSED, Math.round(screenHeight * 0.8)], [screenHeight]);
     const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
 
     const recipe = useRecipeEditor();
+    const isVariant = recipe.baseName != null;
+
+    // The servings row and the ingredients heading ride above the list rather
+    // than in it. The list is padded down by their height, so the first pixels
+    // of scroll slide the servings row out one-for-one — the list itself only
+    // starts moving under the heading once the row is gone.
+    const [servingsHeight, setServingsHeight] = useState(0);
+    const [headingHeight, setHeadingHeight] = useState(0);
+    const scrollY = useSharedValue(0);
+    const handleScroll = useAnimatedScrollHandler((event) => {
+        scrollY.value = event.contentOffset.y;
+    });
+    const overlayStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: -Math.min(scrollY.value, servingsHeight) }],
+    }));
 
     const [shareAvailable, setShareAvailable] = useState(false);
     const [shareVisible, setShareVisible] = useState(false);
@@ -56,228 +62,137 @@ export default function RecipeEditorScreen() {
         }, []),
     );
 
+    // Nothing is written until a save button is pressed, so leaving any other
+    // way throws the work away — always ask first.
+    const isDirty = recipe.isDirty;
+    const handleClose = useCallback(() => {
+        if (!isDirty) {
+            router.back();
+            return;
+        }
+        Alert.alert(t("templates.discardTitle"), t("templates.discardMessage"), [
+            { text: t("templates.keepEditing"), style: "cancel" },
+            { text: t("templates.discard"), style: "destructive", onPress: () => router.back() },
+        ]);
+    }, [isDirty, t]);
+
+    // The header back button is replaced below, but Android's system back
+    // still needs the same guard.
+    useFocusEffect(
+        useCallback(() => {
+            const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+                handleClose();
+                return true;
+            });
+            return () => sub.remove();
+        }, [handleClose]),
+    );
+
     const handleSharePress = useCallback(() => {
         if (!shareAvailable) {
             Alert.alert(t("share.notConfiguredTitle"), t("share.notConfiguredMessage"));
             return;
         }
+        // Sharing reads the stored recipe, which is not what is on screen yet.
+        if (isDirty) {
+            Alert.alert(t("templates.shareUnsavedTitle"), t("templates.shareUnsavedMessage"));
+            return;
+        }
         setShareVisible(true);
-    }, [shareAvailable, t]);
-
-    const handleSearchFocus = useCallback(() => {
-        sheetRef.current?.snapTo(1);
-    }, []);
-
-    const handleSheetSnapChange = useCallback((index: number) => {
-        if (index === 0) Keyboard.dismiss();
-    }, []);
-
-    // Wrap addItemForFood calls that need to collapse sheet
-    const handleSelectLocal = useCallback((food: Parameters<typeof recipe.handleSelectLocal>[0]) => {
-        sheetRef.current?.snapTo(0);
-        recipe.handleSelectLocal(food);
-    }, [recipe]);
-
-    const handleSelectOFF = useCallback((product: Parameters<typeof recipe.handleSelectOFF>[0]) => {
-        sheetRef.current?.snapTo(0);
-        recipe.handleSelectOFF(product);
-    }, [recipe]);
+    }, [shareAvailable, isDirty, t]);
 
     return (
         <View style={styles.screen}>
-            <Stack.Screen
-                options={{
-                    headerShown: true,
-                    headerStyle: { backgroundColor: colors.surface },
-                    headerTintColor: colors.text,
-                    headerShadowVisible: false,
-                    title: recipe.isEditing
-                        ? t("templates.recipeEditorTitle")
-                        : t("templates.newRecipeTitle"),
-                    // Only an already-saved recipe can be shared.
-                    headerRight: recipe.isEditing
-                        ? () => (
-                              <Pressable
-                                  onPress={handleSharePress}
-                                  hitSlop={8}
-                                  style={{ opacity: shareAvailable ? 1 : 0.4 }}
-                              >
-                                  <Ionicons name="share-outline" size={22} color={colors.text} />
-                              </Pressable>
-                          )
-                        : undefined,
-                }}
+            {/* The screen draws its own header — the recipe title is the
+                heading — so the navigation bar is off, and with it the back
+                gesture that would skip the discard prompt. */}
+            <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+
+            <RecipeEditorHeader
+                name={recipe.name}
+                onChangeName={recipe.setName}
+                placeholder={
+                    isVariant
+                        ? t("templates.variantNamePlaceholder")
+                        : t("templates.recipeNamePlaceholder")
+                }
+                baseName={recipe.baseName}
+                // Only an already-saved recipe can be shared.
+                onShare={recipe.isEditing ? handleSharePress : undefined}
+                shareDimmed={!shareAvailable || isDirty}
+                onClose={handleClose}
             />
-            <ScrollView
-                contentContainerStyle={styles.content}
-                keyboardShouldPersistTaps="handled"
-            >
-                {recipe.baseName != null && (
-                    <Text style={styles.variantOf}>
-                        {t("templates.variantOf", { name: recipe.baseName })}
-                    </Text>
-                )}
-                <Input
-                    label={recipe.baseName != null ? t("templates.variantName") : t("templates.recipeName")}
-                    placeholder={
-                        recipe.baseName != null
-                            ? t("templates.variantNamePlaceholder")
-                            : t("templates.recipeNamePlaceholder")
-                    }
-                    value={recipe.name}
-                    onChangeText={recipe.setName}
-                    containerStyle={styles.nameInput}
-                />
 
-                <Text style={styles.summary}>
-                    {t("common.itemCount", { count: recipe.items.length })} · {Math.round(recipe.totalCals)} {t("common.cal")}
-                </Text>
-
-                {recipe.items.slice().reverse().map((itemWithFood) => {
-                    const { recipeItem, food, servingUnits } = itemWithFood;
-                    const matchedServing = servingUnits.find((s) => s.name === recipeItem.quantity_unit);
-                    let displayQty: number;
-                    let displayUnit: string;
-                    if (matchedServing) {
-                        displayQty = Math.round((recipeItem.quantity_grams / matchedServing.grams) * 10) / 10;
-                        displayUnit = matchedServing.name;
-                    } else {
-                        const itemUnit = (recipeItem.quantity_unit ?? "g") as FoodUnit;
-                        displayQty = Math.round(fromGrams(recipeItem.quantity_grams, itemUnit) * 10) / 10;
-                        displayUnit = unitLabel(itemUnit);
-                    }
-                    const cals = food
-                        ? Math.round((food.calories_per_100g * recipeItem.quantity_grams) / 100)
-                        : 0;
-                    return (
-                        <View key={recipeItem.id} style={styles.itemRow}>
-                            <Pressable
-                                style={styles.itemInfo}
-                                onPress={() => recipe.setEditingItem(itemWithFood)}
-                            >
-                                <Text style={styles.itemName} numberOfLines={1}>
-                                    {food?.name ?? t("common.unknown")}
-                                </Text>
-                                <Text style={styles.itemDetail}>
-                                    {displayQty} {displayUnit} · {cals} {t("common.cal")}
-                                </Text>
-                            </Pressable>
-                            <Pressable onPress={() => recipe.handleDeleteItem(recipeItem.id)} hitSlop={8}>
-                                <Ionicons name="close-circle-outline" size={20} color={colors.textTertiary} />
-                            </Pressable>
-                        </View>
-                    );
-                })}
-
-                <Button title={t("common.done")} onPress={recipe.handleDone} style={styles.doneBtn} />
-            </ScrollView>
-
-            {/* ── Add-ingredient bottom sheet ────────────── */}
-            <BottomSheet
-                ref={sheetRef}
-                snapPoints={snapPoints}
-                onSnapChange={handleSheetSnapChange}
-            >
-                <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetLabel}>{t("templates.addIngredient")}</Text>
-                    <View style={styles.searchRow}>
-                        <Ionicons name="search" size={18} color={colors.textTertiary} />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder={t("templates.searchFoods")}
-                            placeholderTextColor={colors.textTertiary}
-                            value={recipe.foodQuery}
-                            onChangeText={recipe.setFoodQuery}
-                            onFocus={handleSearchFocus}
-                        />
-                        {recipe.foodQuery.length > 0 && (
-                            <Pressable onPress={() => recipe.setFoodQuery("")} hitSlop={8}>
-                                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-                            </Pressable>
-                        )}
-                    </View>
-                    <View style={styles.actionRow}>
-                        <Button
-                            title={t("log.scanBarcode")}
-                            variant="outline"
-                            icon={<Ionicons name="barcode-outline" size={18} color={colors.text} />}
-                            onPress={() => recipe.setShowScanner(true)}
-                            style={styles.actionBtn}
-                        />
-                        <Button
-                            title={t("log.createNew")}
-                            variant="outline"
-                            icon={<Ionicons name="add-circle-outline" size={18} color={colors.text} />}
-                            onPress={() => recipe.setShowManualForm(true)}
-                            style={styles.actionBtn}
-                        />
-                    </View>
-                </View>
-
-                <ScrollView
-                    style={styles.sheetScroll}
-                    contentContainerStyle={styles.sheetScrollContent}
+            <View style={styles.listArea}>
+                <Animated.ScrollView
+                    contentContainerStyle={[
+                        styles.content,
+                        { paddingTop: servingsHeight + headingHeight },
+                    ]}
                     keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled
+                    // Scrolling away from the title is a clear sign the user is
+                    // done with it; nothing else takes focus off a TextInput.
+                    onScrollBeginDrag={Keyboard.dismiss}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
                 >
-                    {recipe.foodQuery.trim().length >= 2 && !recipe.hasSearchedOFF && !recipe.offError && (
-                        <Button
-                            title={recipe.isSearchingOFF ? t("templates.searching") : t("templates.searchOpenFoodFacts")}
-                            onPress={recipe.handleSearchOFF}
-                            variant="outline"
-                            loading={recipe.isSearchingOFF}
-                            style={styles.offBtn}
+                    <RecipeIngredientList
+                        items={recipe.items}
+                        onPressItem={recipe.editIngredient}
+                        onAdd={recipe.openSearchSheet}
+                    />
+                </Animated.ScrollView>
+
+                {/* Clipped by listArea, so the servings row is gone the moment
+                    it has travelled its own height. */}
+                <Animated.View style={[styles.overlay, overlayStyle]}>
+                    <Pressable onPress={Keyboard.dismiss} accessible={false}>
+                        <RecipeServingsRow
+                            servings={recipe.servings}
+                            onChangeServings={recipe.setServings}
+                            onLayout={(e) => setServingsHeight(e.nativeEvent.layout.height)}
                         />
-                    )}
+                        <IngredientsSectionHeader
+                            count={recipe.items.length}
+                            onAdd={recipe.openSearchSheet}
+                            onLayout={(e) => setHeadingHeight(e.nativeEvent.layout.height)}
+                        />
+                    </Pressable>
+                </Animated.View>
+            </View>
 
-                    {recipe.offError && (
-                        <View style={styles.errorBox}>
-                            <Text style={styles.errorText}>{recipe.offError}</Text>
-                            <Button
-                                title={t("common.retry")}
-                                variant="ghost"
-                                onPress={recipe.handleSearchOFF}
-                                textStyle={{ fontSize: fontSize.sm }}
-                            />
-                        </View>
-                    )}
+            <RecipeMacroFooter
+                perServing={recipe.perServing}
+                totals={recipe.totals}
+                servings={recipe.servings}
+                canSave={recipe.canSave}
+                onSave={recipe.handleSave}
+                onSaveAndLog={recipe.handleSaveAndLog}
+            />
 
-                    {recipe.localResults.map((food) => (
-                        <Pressable
-                            key={food.id}
-                            style={styles.resultRow}
-                            onPress={() => handleSelectLocal(food)}
-                        >
-                            <Text style={styles.resultName} numberOfLines={1}>{food.name}</Text>
-                            <Text style={styles.resultDetail}>
-                                {t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) })}
-                            </Text>
-                        </Pressable>
-                    ))}
-
-                    {recipe.offResults.map((p) => (
-                        <Pressable
-                            key={p.code}
-                            style={styles.resultRow}
-                            onPress={() => handleSelectOFF(p)}
-                        >
-                            <Text style={styles.resultName} numberOfLines={1}>
-                                {p.product_name || t("common.unknown")}{" "}
-                                <Ionicons name="globe-outline" size={12} color={colors.textTertiary} />
-                            </Text>
-                            <Text style={styles.resultDetail}>
-                                {t("templates.calPer100g", { cal: Math.round(p.nutriments?.["energy-kcal_100g"] ?? 0) })}
-                            </Text>
-                        </Pressable>
-                    ))}
-                </ScrollView>
-            </BottomSheet>
+            <AddIngredientSheet
+                visible={recipe.showSearchSheet}
+                onClose={recipe.closeSearchSheet}
+                query={recipe.foodQuery}
+                onChangeQuery={recipe.setFoodQuery}
+                localResults={recipe.localResults}
+                offResults={recipe.offResults}
+                isSearchingOFF={recipe.isSearchingOFF}
+                hasSearchedOFF={recipe.hasSearchedOFF}
+                offError={recipe.offError}
+                onSearchOFF={recipe.handleSearchOFF}
+                onSelectLocal={recipe.handleSelectLocal}
+                onSelectOFF={recipe.handleSelectOFF}
+                onScan={recipe.openScanner}
+                onCreateNew={recipe.openManualForm}
+            />
 
             <RecipeItemModal
-                item={recipe.editingItem?.recipeItem ?? null}
-                food={recipe.editingItem?.food ?? null}
-                onClose={() => recipe.setEditingItem(null)}
-                onSaved={recipe.handleModalSaved}
+                draft={recipe.editingDraft}
+                isNew={recipe.isNewItem}
+                onClose={recipe.closeEditing}
+                onConfirm={recipe.commitEditing}
+                onRemove={recipe.removeEditing}
             />
 
             <ManualFoodForm
@@ -309,87 +224,8 @@ export default function RecipeEditorScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: SHEET_COLLAPSED + spacing.lg },
-        variantOf: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.sm,
-        },
-        nameInput: { marginBottom: spacing.md },
-        summary: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        itemRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            padding: spacing.md,
-            marginBottom: spacing.xs,
-        },
-        itemInfo: { flex: 1, marginRight: spacing.sm },
-        itemName: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
-        itemDetail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
-        sheetHeader: { paddingHorizontal: spacing.lg },
-        sheetLabel: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.text,
-            marginBottom: spacing.sm,
-        },
-        sheetScroll: { flex: 1 },
-        sheetScrollContent: { paddingBottom: spacing.lg },
-        searchRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            gap: spacing.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-            marginBottom: spacing.sm,
-        },
-        searchInput: {
-            flex: 1,
-            fontSize: fontSize.md,
-            color: colors.text,
-            padding: 0,
-        },
-        resultRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.lg,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-        },
-        resultName: { flex: 1, fontSize: fontSize.sm, color: colors.text, marginRight: spacing.sm },
-        resultDetail: { fontSize: fontSize.xs, color: colors.textSecondary },
-        actionRow: { flexDirection: "row", gap: spacing.sm },
-        actionBtn: { flex: 1 },
-        offBtn: { marginTop: spacing.sm, marginHorizontal: spacing.lg },
-        errorBox: {
-            flexDirection: "row" as const,
-            alignItems: "center" as const,
-            justifyContent: "space-between" as const,
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.sm,
-            padding: spacing.sm,
-            marginTop: spacing.sm,
-            marginHorizontal: spacing.lg,
-            borderWidth: 1,
-            borderColor: colors.danger,
-        },
-        errorText: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            color: colors.danger,
-        },
-        doneBtn: { marginTop: spacing.lg },
+        listArea: { flex: 1, overflow: "hidden" },
+        overlay: { position: "absolute", top: 0, left: 0, right: 0 },
+        content: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
     });
 }

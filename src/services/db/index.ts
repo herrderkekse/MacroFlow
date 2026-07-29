@@ -222,6 +222,7 @@ export function initDB() {
     "ALTER TABLE recipes ADD COLUMN parent_recipe_id INTEGER REFERENCES recipes(id)",
     "ALTER TABLE goals ADD COLUMN exercise_timer_sound TEXT NOT NULL DEFAULT 'off'",
     "ALTER TABLE workout_exercises ADD COLUMN superset_group TEXT",
+    "ALTER TABLE recipes ADD COLUMN servings INTEGER NOT NULL DEFAULT 1",
     // Sync: stable cross-device row identity (see SYNC.md)
     ...SYNC_TABLES.map((t) => `ALTER TABLE ${t.name} ADD COLUMN uuid TEXT`),
   ];
