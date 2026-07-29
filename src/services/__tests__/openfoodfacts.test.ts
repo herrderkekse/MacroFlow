@@ -540,6 +540,43 @@ describe("productToFood", () => {
         expect(unit({ code: "1" })).toBe("g");
     });
 
+    // #407: OFF's `quantity` writes liters bare and often drops the space, and
+    // both spellings used to fall through every branch onto the "g" default.
+    it("reads a volume however OFF spells it", () => {
+        const unit = (product: OFFProduct) => foodFrom({ ...product, nutriments }).default_unit;
+
+        expect(unit({ code: "1", quantity: "1 l" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "2 L" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "0.33 l" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "1,5 L" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "1l" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "1.5L" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "330ml" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "33cl" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "1 Liter" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "2 liters" })).toBe("ml");
+        // The same space-less spelling on the units the regex already knew.
+        expect(unit({ code: "1", serving_size: "8fl oz" })).toBe("fl_oz");
+        expect(unit({ code: "1", serving_size: "1cup" })).toBe("cup");
+        expect(unit({ code: "1", serving_size: "2tbsp" })).toBe("tbsp");
+        expect(unit({ code: "1", serving_size: "1tsp" })).toBe("tsp");
+        expect(unit({ code: "1", serving_size: "8oz" })).toBe("oz");
+        expect(unit({ code: "1", serving_size: "1lb" })).toBe("lb");
+    });
+
+    // A bare "l" is one letter away from words a serving_size really contains,
+    // so it only counts when nothing lettered precedes it.
+    it("does not read a unit out of the middle of a word", () => {
+        const unit = (product: OFFProduct) => foodFrom({ ...product, nutriments }).default_unit;
+
+        expect(unit({ code: "1", serving_size: "1 large egg (50 g)" })).toBe("g");
+        expect(unit({ code: "1", serving_size: "30 g caramel" })).toBe("g");
+        expect(unit({ code: "1", serving_size: "1 bowl" })).toBe("g");
+        // "fl oz" and "lb" both end in a letter that must not read as liters.
+        expect(unit({ code: "1", serving_size: "8 fl oz" })).toBe("fl_oz");
+        expect(unit({ code: "1", serving_size: "1 lb" })).toBe("lb");
+    });
+
     // OFF's normalized units are the answer the regex was guessing at, and they
     // exist for products that carry no serving_size text at all (#402).
     it("takes the unit from OFF's normalized fields over the free text", () => {
