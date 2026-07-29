@@ -1,4 +1,4 @@
-import type { OFFProduct } from "@/src/services/openfoodfacts";
+import { isObsolete, productNutrition, type OFFProduct } from "@/src/services/openfoodfacts";
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -355,18 +355,29 @@ export default function AddIngredientSheet({
                         {offResults.length > 0 && (
                             <>
                                 <Text style={styles.groupLabel}>{t("log.sectionOpenFoodFacts")}</Text>
-                                {offResults.map((product) => (
-                                    <ResultRow
-                                        key={product.code}
-                                        name={product.product_name || t("common.unknown")}
-                                        hint={t("templates.calPer100g", {
-                                            cal: Math.round(product.nutriments?.["energy-kcal_100g"] ?? 0),
-                                        })}
-                                        onPress={() => onSelectOFF(product)}
-                                        styles={styles}
-                                        colors={colors}
-                                    />
-                                ))}
+                                {offResults.map((product) => {
+                                    // The search index carries only the as-sold
+                                    // per-100 g figures, so this preview can fall
+                                    // short of the hydrated import.
+                                    const nutrition = productNutrition(product);
+                                    return (
+                                        <ResultRow
+                                            key={product.code}
+                                            name={product.product_name || t("common.unknown")}
+                                            hint={
+                                                nutrition
+                                                    ? t("templates.calPer100g", {
+                                                          cal: Math.round(nutrition.calories_per_100g),
+                                                      })
+                                                    : t("common.offNoNutrition")
+                                            }
+                                            warning={isObsolete(product) ? t("common.offObsolete") : undefined}
+                                            onPress={() => onSelectOFF(product)}
+                                            styles={styles}
+                                            colors={colors}
+                                        />
+                                    );
+                                })}
                             </>
                         )}
 
@@ -387,17 +398,25 @@ export default function AddIngredientSheet({
 interface ResultRowProps {
     name: string;
     hint: string;
+    /** Caveat about the item itself, e.g. an OFF product that was delisted. */
+    warning?: string;
     onPress: () => void;
     styles: ReturnType<typeof createStyles>;
     colors: ThemeColors;
 }
 
-function ResultRow({ name, hint, onPress, styles, colors }: ResultRowProps) {
+function ResultRow({ name, hint, warning, onPress, styles, colors }: ResultRowProps) {
     return (
         <Pressable onPress={onPress} style={styles.resultRow}>
             <View style={styles.resultMain}>
                 <Text style={styles.resultName} numberOfLines={1}>{name}</Text>
                 <Text style={styles.resultHint}>{hint}</Text>
+                {warning && (
+                    <View style={styles.resultWarning}>
+                        <Ionicons name="warning-outline" size={12} color={colors.warning} />
+                        <Text style={styles.resultWarningText}>{warning}</Text>
+                    </View>
+                )}
             </View>
             <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
         </Pressable>
@@ -481,6 +500,8 @@ function createStyles(colors: ThemeColors) {
         resultMain: { flex: 1 },
         resultName: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
         resultHint: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
+        resultWarning: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+        resultWarningText: { fontSize: fontSize.xs, color: colors.warning },
         emptyState: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.lg },
         emptyTitle: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text, textAlign: "center" },
         emptyBody: {

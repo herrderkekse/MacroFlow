@@ -1,4 +1,4 @@
-import { getProductByBarcode, hydrateServing, productToFood, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
+import { getProductByBarcode, hydrateProduct, productToFood, searchProducts, type FoodFromProduct, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,10 +18,10 @@ const SHEET_SWAP_MS = 300;
  * `id: 0` so the rest of the editor can treat it like any other food; the row
  * is only written when the recipe is saved (see `materializeFood`).
  */
-function unsavedFoodFromProduct(product: OFFProduct, fallbackName: string): Food {
+function unsavedFood(food: FoodFromProduct): Food {
     return {
         id: 0,
-        ...productToFood(product, { fallbackName }),
+        ...food,
         last_logged_amount: null,
         last_logged_unit: null,
         last_logged_meal: null,
@@ -47,6 +47,14 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
     const [offError, setOffError] = useState<string | null>(null);
     const [showScanner, setShowScanner] = useState(false);
     const [showManualForm, setShowManualForm] = useState(false);
+
+    // What the manual form starts from when an OFF product cannot be imported
+    // because it has no nutrition facts: rather than a 0 kcal ingredient, the
+    // user gets the form with the name and barcode already in place.
+    const [manualPrefill, setManualPrefill] = useState<{
+        name: string;
+        barcode: string;
+    } | null>(null);
 
     // Kept in a ref so the sheet-dismiss timers always reach the current
     // handler rather than the one captured when the sheet opened.
@@ -116,6 +124,7 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
     }
 
     function openManualForm() {
+        setManualPrefill(null);
         afterSheetDismissed(() => setShowManualForm(true));
     }
 
@@ -131,19 +140,27 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
             afterSheetDismissed(() => pickRef.current(existing));
             return;
         }
-        // A search result carries no serving fields, so they have to be read
-        // from the product API. Started before the hand-off so the fetch runs
-        // under the dismiss animation rather than after it; `hydrateServing`
-        // resolves either way.
-        const hydrating = hydrateServing(product);
+        // A search result carries neither the serving fields nor the full
+        // nutriments, so they have to be read from the product API. Started
+        // before the hand-off so the fetch runs under the dismiss animation
+        // rather than after it; `hydrateProduct` resolves either way.
+        const hydrating = hydrateProduct(product);
         afterSheetDismissed(async () => {
             const hydrated = await hydrating;
-            pickRef.current(unsavedFoodFromProduct(hydrated, t("common.unknown")));
+            const imported = productToFood(hydrated, { fallbackName: t("common.unknown") });
+            if (!imported.ok) {
+                logger.info("[API] OFF product has no nutrition facts", { code: hydrated.code });
+                setManualPrefill({ name: imported.name, barcode: imported.barcode });
+                setShowManualForm(true);
+                return;
+            }
+            pickRef.current(unsavedFood(imported.food));
         });
     }
 
     function handleManualFoodCreated(food: Food) {
         setShowManualForm(false);
+        setManualPrefill(null);
         afterSheetDismissed(() => pickRef.current(food));
     }
 
@@ -154,10 +171,17 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
 
     function handleBarcodeNotFound() {
         setShowScanner(false);
+        // A product OFF knows but has no nutrition facts for goes to the manual
+        // form with what we do know; a barcode OFF has never seen is a dead end.
+        if (manualPrefill) {
+            setTimeout(() => setShowManualForm(true), SHEET_SWAP_MS);
+            return;
+        }
         Alert.alert(t("templates.notFound"), t("templates.productNotFound"));
     }
 
     async function lookupBarcode(barcode: string): Promise<Food | null> {
+        setManualPrefill(null);
         const local = getFoodByBarcode(barcode);
         if (local) {
             logger.info("[SCAN] Found locally", { id: local.id });
@@ -165,8 +189,15 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
         }
         const product = await getProductByBarcode(barcode);
         if (!product) return null;
-        return getFoodByOpenfoodfactsId(product.code)
-            ?? unsavedFoodFromProduct(product, t("common.unknown"));
+        const existing = getFoodByOpenfoodfactsId(product.code);
+        if (existing) return existing;
+        const imported = productToFood(product, { fallbackName: t("common.unknown") });
+        if (!imported.ok) {
+            logger.info("[SCAN] OFF product has no nutrition facts", { barcode });
+            setManualPrefill({ name: imported.name, barcode: imported.barcode });
+            return null;
+        }
+        return unsavedFood(imported.food);
     }
 
     return {
@@ -189,6 +220,9 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
         showManualForm,
         setShowManualForm,
         openManualForm,
+        manualName: manualPrefill?.name,
+        manualBarcode: manualPrefill?.barcode,
+        manualNotice: manualPrefill ? t("common.offMissingNutritionNotice") : null,
         handleManualFoodCreated,
         handleBarcodeFound,
         handleBarcodeNotFound,

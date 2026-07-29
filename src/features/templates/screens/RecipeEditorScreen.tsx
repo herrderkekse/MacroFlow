@@ -199,7 +199,9 @@ export default function RecipeEditorScreen() {
                 visible={recipe.showManualForm}
                 onClose={() => recipe.setShowManualForm(false)}
                 onFoodCreated={recipe.handleManualFoodCreated}
-                initialName={recipe.foodQuery}
+                initialName={recipe.manualName ?? recipe.foodQuery}
+                initialBarcode={recipe.manualBarcode}
+                notice={recipe.manualNotice}
             />
 
             <BarcodeScannerView

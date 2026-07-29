@@ -10,7 +10,7 @@ import {
 } from "@/src/features/templates/services/templateDb";
 import {
     getProductByBarcode,
-    hydrateServing,
+    hydrateProduct,
     productToFood,
     searchProducts,
     type OFFProduct,
@@ -40,8 +40,17 @@ export function useAddFoodSearch() {
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [showManualForm, setShowManualForm] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
-    const [pendingBarcode, setPendingBarcode] = useState<string | undefined>(undefined);
     const isSelectingOFF = useRef(false);
+
+    // What the manual form should start from. Set when a scan finds no product
+    // (barcode only) or when OFF knows the product but has no nutrition facts
+    // for it — the latter would otherwise import as a 0 kcal food, so we hand
+    // the user the name and barcode and let them fill in the numbers.
+    const [manualPrefill, setManualPrefill] = useState<{
+        name?: string;
+        barcode?: string;
+        missingNutrition?: boolean;
+    } | null>(null);
 
     // ── Recipe search (variants grouped under their base, collapsed) ──
     const [recipeResults, setRecipeResults] = useState<RecipeGroup[]>([]);
@@ -132,10 +141,19 @@ export function useAddFoodSearch() {
         if (isSelectingOFF.current) return;
         isSelectingOFF.current = true;
         try {
-            const hydrated = await hydrateServing(product);
-            const food = addFood(
-                productToFood(hydrated, { fallbackName: t("common.unknown") }),
-            );
+            const hydrated = await hydrateProduct(product);
+            const imported = productToFood(hydrated, { fallbackName: t("common.unknown") });
+            if (!imported.ok) {
+                logger.info("[API] OFF product has no nutrition facts", { code: hydrated.code });
+                setManualPrefill({
+                    name: imported.name,
+                    barcode: imported.barcode,
+                    missingNutrition: true,
+                });
+                setShowManualForm(true);
+                return;
+            }
+            const food = addFood(imported.food);
             logger.info("[DB] Created food from OFF search", { id: food.id, name: food.name });
             setSelectedFood(food);
         } finally {
@@ -143,7 +161,13 @@ export function useAddFoodSearch() {
         }
     }
 
+    /**
+     * A scan resolves to a food, or to null so the scanner can offer manual
+     * entry. A product OFF knows but has no nutrition facts for takes the
+     * second route, with `manualPrefill` carrying the name it does know.
+     */
     async function lookupBarcode(barcode: string): Promise<Food | null> {
+        setManualPrefill(null);
         const local = getFoodByBarcode(barcode);
         if (local) {
             logger.info("[SCAN] Found locally", { id: local.id });
@@ -153,14 +177,24 @@ export function useAddFoodSearch() {
         if (!product) return null;
         const existing = getFoodByOpenfoodfactsId(product.code);
         if (existing) return existing;
-        const food = addFood(productToFood(product, { fallbackName: t("common.unknown") }));
+        const imported = productToFood(product, { fallbackName: t("common.unknown") });
+        if (!imported.ok) {
+            logger.info("[SCAN] OFF product has no nutrition facts", { barcode });
+            setManualPrefill({
+                name: imported.name,
+                barcode: imported.barcode,
+                missingNutrition: true,
+            });
+            return null;
+        }
+        const food = addFood(imported.food);
         logger.info("[DB] Created food from barcode", { id: food.id, name: food.name });
         return food;
     }
 
     function handleFoodCreated(food: Food) {
         setShowManualForm(false);
-        setPendingBarcode(undefined);
+        setManualPrefill(null);
         setTimeout(() => setSelectedFood(food), 300);
     }
 
@@ -171,13 +205,20 @@ export function useAddFoodSearch() {
 
     function handleBarcodeNotFound(barcode: string) {
         setShowScanner(false);
-        setPendingBarcode(barcode);
+        // Keeps the name from a nutrition-less OFF product, if the lookup found one.
+        setManualPrefill((prev) => ({ ...prev, barcode }));
         setTimeout(() => setShowManualForm(true), 300);
     }
 
     function handleCloseManualForm() {
         setShowManualForm(false);
-        setPendingBarcode(undefined);
+        setManualPrefill(null);
+    }
+
+    /** "Create New": a blank form, whatever an earlier scan left behind. */
+    function openManualForm() {
+        setManualPrefill(null);
+        setShowManualForm(true);
     }
 
     function handleEntrySaved() {
@@ -191,6 +232,13 @@ export function useAddFoodSearch() {
     );
     const filteredOFF = offResults.filter((p) => !localOffIds.has(p.code));
     const showLocalSection = query.trim().length >= 2;
+
+    // The manual form opens either pre-filled from a product or blank from the
+    // "Create New" button, in which case the search query is the best guess.
+    const manualName = manualPrefill?.name ?? query.trim();
+    const manualNotice = manualPrefill?.missingNutrition
+        ? t("common.offMissingNutritionNotice")
+        : null;
 
     return {
         query,
@@ -208,8 +256,10 @@ export function useAddFoodSearch() {
         selectedRecipe,
         setSelectedRecipe,
         showManualForm,
-        setShowManualForm,
-        pendingBarcode,
+        openManualForm,
+        manualName,
+        manualBarcode: manualPrefill?.barcode,
+        manualNotice,
         showScanner,
         setShowScanner,
         showLocalSection,

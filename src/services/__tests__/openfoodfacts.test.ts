@@ -19,7 +19,14 @@ jest.mock("@/src/utils/logger", () => ({
     default: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { hydrateServing, productToFood, searchProducts } from "@/src/services/openfoodfacts";
+import {
+    hydrateProduct,
+    isObsolete,
+    productNutrition,
+    productToFood,
+    searchProducts,
+    type OFFProduct,
+} from "@/src/services/openfoodfacts";
 
 type FetchMock = jest.Mock<(url: string, init?: unknown) => Promise<unknown>>;
 
@@ -102,9 +109,31 @@ describe("searchProducts", () => {
                 product_name: "Vollmilch",
                 quantity: "1 l",
                 nutriments: { "energy-kcal_100g": 64, proteins_100g: 3.4 },
+                obsolete: false,
             },
-            { code: "2", product_name: "Skyr", quantity: undefined, nutriments: undefined },
+            {
+                code: "2",
+                product_name: "Skyr",
+                quantity: undefined,
+                nutriments: undefined,
+                obsolete: false,
+            },
         ]);
+    });
+
+    // The index only sets `obsolete` on delisted products, and they are not
+    // filtered out — the UI flags them instead of hiding them.
+    it("carries the obsolete flag through from the index", async () => {
+        fetchMock.mockResolvedValue(
+            searchHits([
+                { code: "1", product_name: "Discontinued", obsolete: true },
+                { code: "2", product_name: "Current" },
+            ]),
+        );
+
+        const products = await withTimersFlushed(searchProducts("milch"));
+
+        expect(products.map(isObsolete)).toEqual([true, false]);
     });
 
     it("drops hits without a code or a name", async () => {
@@ -186,26 +215,148 @@ describe("searchProducts", () => {
     });
 });
 
+// #400: an unchecked `?? 0` turned every partial OFF payload into a plausible
+// 0 kcal food. Energy is the gate — everything here is about which figures a
+// product really carries and when there are none.
+describe("productNutrition", () => {
+    it("reads the as-sold per-100 g figures", () => {
+        expect(
+            productNutrition({
+                nutriments: {
+                    "energy-kcal_100g": 42,
+                    proteins_100g: 0,
+                    carbohydrates_100g: 10.6,
+                    fat_100g: 0,
+                },
+            }),
+        ).toEqual({
+            calories_per_100g: 42,
+            protein_per_100g: 0,
+            carbs_per_100g: 10.6,
+            fat_per_100g: 0,
+            prepared: false,
+        });
+    });
+
+    it("returns null when the product carries no energy figure at all", () => {
+        expect(productNutrition({})).toBeNull();
+        expect(productNutrition({ nutriments: {} })).toBeNull();
+        expect(productNutrition({ nutriments: { proteins_100g: 3.4 } })).toBeNull();
+    });
+
+    it("honours no_nutrition_data even when nutriments are present", () => {
+        expect(
+            productNutrition({
+                no_nutrition_data: "on",
+                nutriments: { "energy-kcal_100g": 42 },
+            }),
+        ).toBeNull();
+    });
+
+    // A real zero — water, diet soda — is data, not a missing value.
+    it("keeps an explicit zero", () => {
+        expect(productNutrition({ nutriments: { "energy-kcal_100g": 0 } })).toMatchObject({
+            calories_per_100g: 0,
+        });
+    });
+
+    // Plenty of EU products publish only the kilojoule figure, which used to
+    // read as 0 kcal even with every macro filled in.
+    it("derives kcal from the kJ figure when kcal is absent", () => {
+        expect(
+            productNutrition({
+                nutriments: { "energy-kj_100g": 647, proteins_100g: 13.1, fat_100g: 11.2 },
+            }),
+        ).toMatchObject({ calories_per_100g: 154.64, protein_per_100g: 13.1 });
+    });
+
+    it("scales per-serving figures to per 100 g when only those exist", () => {
+        expect(
+            productNutrition({
+                serving_quantity: 330,
+                nutriments: { "energy-kcal_serving": 139, carbohydrates_serving: 35 },
+            }),
+        ).toEqual({
+            calories_per_100g: 42.12,
+            protein_per_100g: 0,
+            carbs_per_100g: 10.61,
+            fat_per_100g: 0,
+            prepared: false,
+        });
+    });
+
+    // Without the serving mass there is no way to normalize, so it is a gap
+    // rather than a number to guess at.
+    it("refuses per-serving figures when the serving mass is unknown", () => {
+        expect(
+            productNutrition({ nutriments: { "energy-kcal_serving": 139 } }),
+        ).toBeNull();
+        expect(
+            productNutrition({
+                serving_quantity: 0,
+                nutriments: { "energy-kcal_serving": 139 },
+            }),
+        ).toBeNull();
+    });
+
+    // `serving_size`/`default_unit` describe the pack, so as-sold figures have
+    // to win — pairing a dry scoop with made-up-drink numbers underprices it.
+    it("prefers as-sold figures over prepared ones", () => {
+        expect(
+            productNutrition({
+                nutriments: {
+                    "energy-kcal_100g": 377,
+                    "energy-kcal_prepared_100g": 72,
+                },
+            }),
+        ).toMatchObject({ calories_per_100g: 377, prepared: false });
+    });
+
+    it("falls back to prepared figures when there are no as-sold ones", () => {
+        expect(
+            productNutrition({
+                nutriments: {
+                    "energy-kcal_prepared_100g": 72,
+                    proteins_prepared_100g: 3.6,
+                    carbohydrates_prepared_100g: 9.8,
+                    fat_prepared_100g: 1.8,
+                },
+            }),
+        ).toEqual({
+            calories_per_100g: 72,
+            protein_per_100g: 3.6,
+            carbs_per_100g: 9.8,
+            fat_per_100g: 1.8,
+            prepared: true,
+        });
+    });
+});
+
 describe("productToFood", () => {
     const opts = { fallbackName: "Unknown" };
+    const nutriments = {
+        "energy-kcal_100g": 42,
+        proteins_100g: 0,
+        carbohydrates_100g: 10.6,
+        fat_100g: 0,
+    };
+
+    /** Narrow to the success case; every field assertion below needs the food. */
+    function foodFrom(product: OFFProduct) {
+        const imported = productToFood(product, opts);
+        if (!imported.ok) throw new Error(`expected an importable product, got ${imported.reason}`);
+        return imported.food;
+    }
 
     it("maps every food field an OFF product carries", () => {
         expect(
-            productToFood(
-                {
-                    code: "5449000000996",
-                    product_name: "Coca-Cola",
-                    serving_size: "330 ml",
-                    serving_quantity: 330,
-                    nutriments: {
-                        "energy-kcal_100g": 42,
-                        proteins_100g: 0,
-                        carbohydrates_100g: 10.6,
-                        fat_100g: 0,
-                    },
-                },
-                opts,
-            ),
+            foodFrom({
+                code: "5449000000996",
+                product_name: "Coca-Cola",
+                serving_size: "330 ml",
+                serving_quantity: 330,
+                nutriments,
+            }),
         ).toEqual({
             name: "Coca-Cola",
             calories_per_100g: 42,
@@ -223,31 +374,42 @@ describe("productToFood", () => {
     // The bug behind #399: a scanned product and a searched one are the same
     // OFF record, so they have to produce the same food.
     it("does not depend on how the product was found", () => {
-        const product = { code: "1", product_name: "Vollmilch", quantity: "1 l" };
+        const product = { code: "1", product_name: "Vollmilch", quantity: "1 l", nutriments };
 
         expect(productToFood(product, opts)).toEqual(productToFood({ ...product }, opts));
     });
 
     it("fills barcode from the product code, which is the EAN", () => {
-        expect(productToFood({ code: "1", product_name: "Milch" }, opts)).toMatchObject({
+        expect(foodFrom({ code: "1", product_name: "Milch", nutriments })).toMatchObject({
             barcode: "1",
             openfoodfacts_id: "1",
         });
     });
 
-    it("falls back to the given name and zeroed nutriments", () => {
-        expect(productToFood({ code: "1" }, opts)).toMatchObject({
-            name: "Unknown",
-            calories_per_100g: 0,
-            protein_per_100g: 0,
-            carbs_per_100g: 0,
-            fat_per_100g: 0,
+    it("falls back to the given name", () => {
+        expect(foodFrom({ code: "1", nutriments })).toMatchObject({ name: "Unknown" });
+    });
+
+    // The heart of #400: no numbers means no food, and the caller gets what it
+    // needs to open manual entry instead of writing a 0 kcal row.
+    it("refuses a product with no nutrition facts, keeping name and barcode", () => {
+        expect(productToFood({ code: "737628064502", product_name: "Tisane" }, opts)).toEqual({
+            ok: false,
+            reason: "no-nutrition-data",
+            name: "Tisane",
+            barcode: "737628064502",
         });
     });
 
+    it("reports whether the figures describe the prepared product", () => {
+        expect(productToFood({ code: "1", nutriments }, opts)).toMatchObject({ prepared: false });
+        expect(
+            productToFood({ code: "1", nutriments: { "energy-kcal_prepared_100g": 72 } }, opts),
+        ).toMatchObject({ prepared: true });
+    });
+
     it("prefers serving_quantity, then a number parsed out of serving_size, then 100 g", () => {
-        const size = (product: Parameters<typeof productToFood>[0]) =>
-            productToFood(product, opts).serving_size;
+        const size = (product: OFFProduct) => foodFrom({ ...product, nutriments }).serving_size;
 
         expect(size({ code: "1", serving_size: "250 ml", serving_quantity: 330 })).toBe(330);
         expect(size({ code: "1", serving_size: "250 ml" })).toBe(250);
@@ -256,8 +418,7 @@ describe("productToFood", () => {
     });
 
     it("guesses the unit from serving_size, else quantity, else grams", () => {
-        const unit = (product: Parameters<typeof productToFood>[0]) =>
-            productToFood(product, opts).default_unit;
+        const unit = (product: OFFProduct) => foodFrom({ ...product, nutriments }).default_unit;
 
         expect(unit({ code: "1", serving_size: "330 ml", quantity: "1 kg" })).toBe("ml");
         expect(unit({ code: "1", quantity: "500 ml" })).toBe("ml");
@@ -270,41 +431,55 @@ describe("productToFood", () => {
     });
 });
 
-describe("hydrateServing", () => {
-    const product = { code: "1", product_name: "Vollmilch", quantity: "1 l" };
+describe("hydrateProduct", () => {
+    const hit: OFFProduct = { code: "1", product_name: "Vollmilch", quantity: "1 l" };
 
-    it("merges the serving fields the search index does not carry", async () => {
+    it("merges in everything the search index does not carry", async () => {
         fetchMock.mockResolvedValue(
             jsonResponse({
                 status: 1,
                 code: "1",
-                product: { code: "1", serving_size: "250 ml", serving_quantity: 250 },
+                product: {
+                    code: "1",
+                    product_name: "Whole milk",
+                    serving_size: "250 ml",
+                    serving_quantity: 250,
+                    no_nutrition_data: "on",
+                    nutriments: { "energy-kcal_serving": 160 },
+                },
             }),
         );
 
-        await expect(hydrateServing(product)).resolves.toEqual({
-            ...product,
+        await expect(hydrateProduct(hit)).resolves.toEqual({
+            code: "1",
+            // The index is the only source of a localized name, so it wins.
+            product_name: "Vollmilch",
+            quantity: "1 l",
             serving_size: "250 ml",
             serving_quantity: 250,
+            no_nutrition_data: "on",
+            nutriments: { "energy-kcal_serving": 160 },
+            complete: true,
         });
         expect(lastUrl()).toContain("world.openfoodfacts.org/api/v2/product/1");
+        expect(lastUrl()).toContain("no_nutrition_data");
     });
 
-    it("skips the request when the product already has serving data", async () => {
-        const withServing = { ...product, serving_quantity: 250 };
+    it("skips the request for a product that already came from the product API", async () => {
+        const complete = { ...hit, complete: true };
 
-        await expect(hydrateServing(withServing)).resolves.toBe(withServing);
+        await expect(hydrateProduct(complete)).resolves.toBe(complete);
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("returns the product unchanged when the lookup fails", async () => {
+    it("returns the search hit unchanged when the lookup fails", async () => {
         fetchMock.mockRejectedValue(new Error("Network request failed"));
-        await expect(hydrateServing(product)).resolves.toEqual(product);
+        await expect(hydrateProduct(hit)).resolves.toEqual(hit);
 
         fetchMock.mockResolvedValue(jsonResponse({}, 503));
-        await expect(hydrateServing(product)).resolves.toEqual(product);
+        await expect(hydrateProduct(hit)).resolves.toEqual(hit);
 
         fetchMock.mockResolvedValue(jsonResponse({ status: 0, code: "1" }));
-        await expect(hydrateServing(product)).resolves.toEqual(product);
+        await expect(hydrateProduct(hit)).resolves.toEqual(hit);
     });
 });

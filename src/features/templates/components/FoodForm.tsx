@@ -4,8 +4,9 @@ import UnitPicker from "@/src/shared/components/UnitPicker";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import logger from "@/src/utils/logger";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -18,13 +19,17 @@ interface FoodFormProps {
     foodId?: number;
     /** Pre-fill the name field (e.g. from search query) */
     initialName?: string;
+    /** Pre-fill the barcode field (e.g. from a scanned product) */
+    initialBarcode?: string;
+    /** Explains why the user landed here, e.g. an OFF product without nutrition facts. */
+    notice?: string | null;
     /** Label for the save/create button */
     submitLabel?: string;
     /** Called after successful save with the created/updated food */
     onSaved: (food: Food) => void;
 }
 
-export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: FoodFormProps) {
+export default function FoodForm({ foodId, initialName, initialBarcode, notice, submitLabel, onSaved }: FoodFormProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -36,7 +41,7 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
     const [carbs, setCarbs] = useState("");
     const [fat, setFat] = useState("");
     const [defaultUnit, setDefaultUnit] = useState<FoodUnit>("g");
-    const [barcode, setBarcode] = useState("");
+    const [barcode, setBarcode] = useState(initialBarcode ?? "");
     const [servingUnitRows, setServingUnitRows] = useState<ServingUnitRow[]>([]);
 
     useEffect(() => {
@@ -169,6 +174,13 @@ export default function FoodForm({ foodId, initialName, submitLabel, onSaved }: 
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
         >
+            {notice && (
+                <View style={styles.notice}>
+                    <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
+                    <Text style={styles.noticeText}>{notice}</Text>
+                </View>
+            )}
+
             <Input
                 label={t("log.foodName")}
                 placeholder={t("log.foodNamePlaceholder")}
@@ -267,6 +279,23 @@ function createStyles(colors: ThemeColors) {
             marginBottom: spacing.md,
         },
         halfField: { flex: 1 },
+        notice: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: spacing.sm,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+            borderRadius: borderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.warning,
+            backgroundColor: colors.surface,
+        },
+        noticeText: {
+            flex: 1,
+            fontSize: fontSize.sm,
+            lineHeight: 18,
+            color: colors.textSecondary,
+        },
         macroWarning: {
             fontSize: fontSize.sm,
             color: colors.warning,
