@@ -22,6 +22,7 @@ jest.mock("@/src/utils/logger", () => ({
 import {
     hydrateProduct,
     isObsolete,
+    productName,
     productNutrition,
     productToFood,
     searchProducts,
@@ -84,16 +85,20 @@ describe("searchProducts", () => {
         expect(url.searchParams.get("langs")).toBe("de,en");
         expect(url.searchParams.get("page")).toBe("1");
         expect(url.searchParams.get("fields")).toContain("product_name_de");
+        expect(url.searchParams.get("fields")).toContain("brands");
         expect(url.searchParams.get("fields")).toContain("nutriments");
     });
 
-    it("maps hits to products, preferring the localized name", async () => {
+    // The localized names stay as the keys they came as: `productName` picks
+    // one, so that the search list and the import cannot disagree (#401).
+    it("maps hits to products, keeping every localized name", async () => {
         fetchMock.mockResolvedValue(
             searchHits([
                 {
                     code: "1",
                     product_name: "Whole milk",
                     product_name_de: "Vollmilch",
+                    brands: ["Weihenstephan", " Müller"],
                     quantity: "1 l",
                     nutriments: { "energy-kcal_100g": 64, proteins_100g: 3.4 },
                 },
@@ -106,7 +111,9 @@ describe("searchProducts", () => {
         expect(products).toEqual([
             {
                 code: "1",
-                product_name: "Vollmilch",
+                product_name: "Whole milk",
+                product_name_de: "Vollmilch",
+                brands: ["Weihenstephan", " Müller"],
                 quantity: "1 l",
                 nutriments: { "energy-kcal_100g": 64, proteins_100g: 3.4 },
                 obsolete: false,
@@ -114,11 +121,25 @@ describe("searchProducts", () => {
             {
                 code: "2",
                 product_name: "Skyr",
+                brands: undefined,
                 quantity: undefined,
                 nutriments: undefined,
                 obsolete: false,
             },
         ]);
+        expect(products.map((p) => productName(p, "Unknown"))).toEqual([
+            "Weihenstephan Vollmilch",
+            "Skyr",
+        ]);
+    });
+
+    // A product OFF only knows a German name for still has a name.
+    it("keeps a hit whose only name is a localized one", async () => {
+        fetchMock.mockResolvedValue(searchHits([{ code: "1", product_name_de: "Vollmilch" }]));
+
+        const products = await withTimersFlushed(searchProducts("milch"));
+
+        expect(products.map((p) => productName(p, "Unknown"))).toEqual(["Vollmilch"]);
     });
 
     // The index only sets `obsolete` on delisted products, and they are not
@@ -332,6 +353,70 @@ describe("productNutrition", () => {
     });
 });
 
+// #401: `product_name` is whatever language the product itself is in, and no
+// request parameter makes v2 localize it. The app language is stubbed to "de"
+// above, so the chain under test is product_name_de → product_name_en →
+// product_name.
+describe("productName", () => {
+    const name = (product: OFFProduct) => productName(product, "Unknown");
+
+    it("prefers the app language, then English, then the product's own name", () => {
+        const product = {
+            code: "1",
+            product_name: "PESTO alla GENOVESE",
+            product_name_en: "Green pesto",
+            product_name_de: "Grünes Pesto alla Genovese",
+        };
+
+        expect(name(product)).toBe("Grünes Pesto alla Genovese");
+        expect(name({ ...product, product_name_de: undefined })).toBe("Green pesto");
+        expect(name({ ...product, product_name_de: "", product_name_en: "" })).toBe(
+            "PESTO alla GENOVESE",
+        );
+    });
+
+    it("falls back to the given name when OFF has none", () => {
+        expect(name({ code: "1" })).toBe("Unknown");
+        expect(name({ code: "1", product_name: "   " })).toBe("Unknown");
+    });
+
+    it("prefixes the brand so near-identical products can be told apart", () => {
+        expect(name({ code: "1", product_name_de: "Grünes Pesto", brands: "Barilla" })).toBe(
+            "Barilla Grünes Pesto",
+        );
+    });
+
+    // `brands` is a list with the owner first, and the tail is often an address
+    // OFF split on its own commas. The product API sends it as one string, the
+    // search index as an array — both have to read the same.
+    it("uses only the first brand, however the endpoint shaped the list", () => {
+        expect(name({ code: "1", product_name: "Pesto", brands: "Barilla,43122 Parma - Italy" })).toBe(
+            "Barilla Pesto",
+        );
+        expect(name({ code: "1", product_name: "Pesto", brands: ["Barilla", " Italien"] })).toBe(
+            "Barilla Pesto",
+        );
+    });
+
+    it("ignores an empty brand list", () => {
+        expect(name({ code: "1", product_name: "Pesto", brands: [] })).toBe("Pesto");
+        expect(name({ code: "1", product_name: "Pesto", brands: "" })).toBe("Pesto");
+    });
+
+    it("leaves a name that already carries the brand alone", () => {
+        expect(name({ code: "1", product_name: "Nutella", brands: "Nutella,Ferrero" })).toBe(
+            "Nutella",
+        );
+        expect(name({ code: "1", product_name: "coca-cola", brands: "Coca-Cola" })).toBe(
+            "coca-cola",
+        );
+    });
+
+    it("stands in the brand for a product with no name at all", () => {
+        expect(name({ code: "1", brands: "Barilla" })).toBe("Barilla");
+    });
+});
+
 describe("productToFood", () => {
     const opts = { fallbackName: "Unknown" };
     const nutriments = {
@@ -390,6 +475,19 @@ describe("productToFood", () => {
         expect(foodFrom({ code: "1", nutriments })).toMatchObject({ name: "Unknown" });
     });
 
+    // The name a user picked in the search list is the name they get (#401).
+    it("imports the localized, brand-prefixed name", () => {
+        expect(
+            foodFrom({
+                code: "8076809513753",
+                product_name: "PESTO alla GENOVESE",
+                product_name_de: "Grünes Pesto alla Genovese",
+                brands: "Barilla",
+                nutriments,
+            }),
+        ).toMatchObject({ name: "Barilla Grünes Pesto alla Genovese" });
+    });
+
     // The heart of #400: no numbers means no food, and the caller gets what it
     // needs to open manual entry instead of writing a 0 kcal row.
     it("refuses a product with no nutrition facts, keeping name and barcode", () => {
@@ -432,7 +530,12 @@ describe("productToFood", () => {
 });
 
 describe("hydrateProduct", () => {
-    const hit: OFFProduct = { code: "1", product_name: "Vollmilch", quantity: "1 l" };
+    const hit: OFFProduct = {
+        code: "1",
+        product_name: "Whole milk",
+        product_name_de: "Vollmilch",
+        quantity: "1 l",
+    };
 
     it("merges in everything the search index does not carry", async () => {
         fetchMock.mockResolvedValue(
@@ -442,6 +545,8 @@ describe("hydrateProduct", () => {
                 product: {
                     code: "1",
                     product_name: "Whole milk",
+                    product_name_de: "Vollmilch",
+                    brands: "Weihenstephan",
                     serving_size: "250 ml",
                     serving_quantity: 250,
                     no_nutrition_data: "on",
@@ -452,8 +557,9 @@ describe("hydrateProduct", () => {
 
         await expect(hydrateProduct(hit)).resolves.toEqual({
             code: "1",
-            // The index is the only source of a localized name, so it wins.
-            product_name: "Vollmilch",
+            product_name: "Whole milk",
+            product_name_de: "Vollmilch",
+            brands: "Weihenstephan",
             quantity: "1 l",
             serving_size: "250 ml",
             serving_quantity: 250,
@@ -463,6 +569,33 @@ describe("hydrateProduct", () => {
         });
         expect(lastUrl()).toContain("world.openfoodfacts.org/api/v2/product/1");
         expect(lastUrl()).toContain("no_nutrition_data");
+        // The localized names have to be asked for explicitly (#401).
+        expect(lastUrl()).toContain("product_name_de");
+    });
+
+    // OFF answers with `""` for text fields it has no value for, which used to
+    // be enough to wipe a localized name or the pack size off the search hit.
+    it("does not let the API's blanks overwrite the search hit", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({
+                status: 1,
+                code: "1",
+                product: {
+                    code: "1",
+                    product_name: "",
+                    product_name_de: "",
+                    brands: "",
+                    quantity: "",
+                    serving_size: "250 ml",
+                },
+            }),
+        );
+
+        await expect(hydrateProduct(hit)).resolves.toEqual({
+            ...hit,
+            serving_size: "250 ml",
+            complete: true,
+        });
     });
 
     it("skips the request for a product that already came from the product API", async () => {

@@ -32,7 +32,20 @@ const RETRY_DELAY_MS = 300;
 
 export interface OFFProduct extends NutritionSource {
     code: string;
+    /**
+     * OFF's name in the *product's* own language, whatever that is — a German
+     * user searching "pesto" gets `PESTO alla GENOVESE`. `productName` resolves
+     * the localized keys below first; nothing should read this one directly.
+     */
     product_name?: string;
+    /** `product_name_de`, `product_name_en`, … — one key per requested language. */
+    [localizedName: `product_name_${string}`]: string | undefined;
+    /**
+     * Owning brand first. The product API sends one comma-separated string
+     * (`"Barilla,Barilla Pesto"`), the search index the same list as an array —
+     * `primaryBrand` reads either.
+     */
+    brands?: string | string[];
     serving_size?: string;
     quantity?: string;
     /** `true` from the search index, `"on"` / `""` from the product API. */
@@ -58,6 +71,8 @@ interface OFFProductResponse {
 interface OFFSearchHit {
     code?: string;
     product_name?: string;
+    /** Already split into a list here, unlike the product API's one string. */
+    brands?: string[];
     nutriments?: OFFNutriments;
     quantity?: string;
     /** Only present, and only ever `true`, for delisted products. */
@@ -71,14 +86,32 @@ interface OFFSearchResponse {
     page_count?: number;
 }
 
-const FIELDS =
-    "code,product_name,nutriments,serving_size,serving_quantity,quantity,no_nutrition_data,obsolete";
+const FIELDS = [
+    "code",
+    "product_name",
+    "brands",
+    "nutriments",
+    "serving_size",
+    "serving_quantity",
+    "quantity",
+    "no_nutrition_data",
+    "obsolete",
+];
 
 // The Search-a-licious index carries neither the serving fields
 // (`serving_size`, `serving_quantity`) nor `no_nutrition_data`, and its
 // `nutriments` hold only the as-sold per-100 g figures. `hydrateProduct` fetches
 // the rest per selection. `obsolete` *is* indexed, and only appears when true.
-const SEARCH_FIELDS = ["code", "product_name", "nutriments", "quantity", "obsolete"];
+const SEARCH_FIELDS = ["code", "product_name", "brands", "nutriments", "quantity", "obsolete"];
+
+/**
+ * The `fields` parameter both endpoints take. The localized names have to be
+ * asked for by name: neither `?lc=de`, `?cc=de` nor `de.openfoodfacts.org`
+ * makes v2 localize `product_name` for you (#401).
+ */
+function fieldsParam(fields: string[]): string {
+    return [...fields, ...nameLangs().map((lang) => `product_name_${lang}`)].join(",");
+}
 
 /**
  * The `foods` columns an OFF product determines. Every column the DB would
@@ -112,6 +145,56 @@ function parseServingSize(product: OFFProduct): number {
     return m ? parseFloat(m[1]) || 100 : 100;
 }
 
+/**
+ * Languages to read product names in, app language first. English is kept as a
+ * fallback because many products are only named in English, and dropping it
+ * loses both results and names.
+ */
+function nameLangs(): string[] {
+    const lang = (i18n.language ?? "en").split("-")[0] || "en";
+    return lang === "en" ? ["en"] : [lang, "en"];
+}
+
+/** The best name OFF has for the product, or undefined if it has none. */
+function localizedName(product: OFFProduct): string | undefined {
+    for (const lang of nameLangs()) {
+        const name = product[`product_name_${lang}`]?.trim();
+        if (name) return name;
+    }
+    return product.product_name?.trim() || undefined;
+}
+
+/**
+ * The owning brand, which OFF lists first. Everything after it is unreliable:
+ * the product API hands `brands` over as one comma-separated string, and OFF's
+ * data has whole postal addresses in that field, so the tail is often the rest
+ * of an address split on its own commas. The search index sends the same field
+ * pre-split into an array — with the same junk in it.
+ */
+function primaryBrand(product: OFFProduct): string | undefined {
+    const brands = product.brands;
+    const first = Array.isArray(brands) ? brands[0] : brands?.split(",")[0];
+    return typeof first === "string" ? first.trim() || undefined : undefined;
+}
+
+/**
+ * How a product is named everywhere in the app — in the search list and in the
+ * food it is imported as, so the row a user picks is the row they get.
+ *
+ * The brand is prefixed because a bare "Pesto alla Genovese" says little next
+ * to five near-identical hits, and it goes into `foods.name` rather than only
+ * the search list so that searching the library for "Barilla" finds it. Names
+ * that already carry the brand ("Nutella", brand `Nutella,Ferrero`) are left
+ * alone.
+ */
+export function productName(product: OFFProduct, fallback: string): string {
+    const name = localizedName(product);
+    const brand = primaryBrand(product);
+    if (!name) return brand ?? fallback;
+    if (!brand || name.toLowerCase().includes(brand.toLowerCase())) return name;
+    return `${brand} ${name}`;
+}
+
 /** OFF answers `status: 1` for delisted products too, so callers must ask. */
 export function isObsolete(product: OFFProduct): boolean {
     return product.obsolete === true || product.obsolete === "on";
@@ -138,12 +221,16 @@ export type ProductImport =
  * Serving fields and the validation flags are only as good as the product
  * handed in — a Search-a-licious hit carries neither, so run it through
  * `hydrateProduct` before importing.
+ *
+ * The name is resolved (`productName`) at import time and then frozen in the
+ * DB, so switching the app language later leaves existing foods named as they
+ * were imported.
  */
 export function productToFood(
     product: OFFProduct,
     opts: { fallbackName: string },
 ): ProductImport {
-    const name = product.product_name || opts.fallbackName;
+    const name = productName(product, opts.fallbackName);
     const nutrition = productNutrition(product);
     if (!nutrition) {
         return { ok: false, reason: "no-nutrition-data", name, barcode: product.code };
@@ -171,7 +258,7 @@ export async function getProductByBarcode(
     logger.info("[API] Fetching product by barcode", { barcode });
 
     const res = await fetch(
-        `${BASE_URL}/api/v2/product/${encodeURIComponent(barcode)}?fields=${FIELDS}`,
+        `${BASE_URL}/api/v2/product/${encodeURIComponent(barcode)}?fields=${fieldsParam(FIELDS)}`,
         { headers: { "User-Agent": USER_AGENT } },
     );
 
@@ -181,7 +268,7 @@ export async function getProductByBarcode(
     }
 
     const data: OFFProductResponse = await res.json();
-    if (data.status !== 1 || !data.product?.product_name) return null;
+    if (data.status !== 1 || !data.product || !localizedName(data.product)) return null;
     return { ...data.product, complete: true };
 }
 
@@ -212,16 +299,6 @@ function reserveSearchSlot(): { release: () => void } {
     };
 }
 
-/**
- * Languages to match product names in, app language first. English is kept as
- * a fallback because many products are only named in English, and dropping it
- * loses results.
- */
-function searchLangs(): string[] {
-    const lang = (i18n.language ?? "en").split("-")[0] || "en";
-    return lang === "en" ? ["en"] : [lang, "en"];
-}
-
 /** Retry a search once on a server-side failure; 4xx is our bug, not a blip. */
 async function fetchSearchWithRetry(url: string): Promise<Response> {
     for (let attempt = 0; ; attempt++) {
@@ -243,13 +320,28 @@ async function fetchSearchWithRetry(url: string): Promise<Response> {
     }
 }
 
+/**
+ * The localized names the index returned, kept as the `product_name_<lang>`
+ * keys they came as: picking one is `productName`'s job, and doing it here
+ * would let the search list and the import disagree.
+ */
+function localizedNames(hit: OFFSearchHit, langs: string[]): Partial<OFFProduct> {
+    const names: Partial<OFFProduct> = {};
+    for (const lang of langs) {
+        const name = hit[`product_name_${lang}`];
+        if (typeof name === "string" && name.length > 0) {
+            names[`product_name_${lang}`] = name;
+        }
+    }
+    return names;
+}
+
 function productFromHit(hit: OFFSearchHit, langs: string[]): OFFProduct {
-    const localizedName = langs
-        .map((lang) => hit[`product_name_${lang}`])
-        .find((name): name is string => typeof name === "string" && name.length > 0);
     return {
         code: String(hit.code),
-        product_name: localizedName ?? hit.product_name,
+        product_name: hit.product_name,
+        ...localizedNames(hit, langs),
+        brands: hit.brands,
         nutriments: hit.nutriments,
         quantity: hit.quantity,
         obsolete: hit.obsolete === true,
@@ -266,16 +358,13 @@ export async function searchProducts(
     try {
         logger.info("[API] Searching products", { query, page });
 
-        const langs = searchLangs();
+        const langs = nameLangs();
         const params = new URLSearchParams({
             q: query,
             langs: langs.join(","),
             page: String(page),
             page_size: String(SEARCH_PAGE_SIZE),
-            fields: [
-                ...SEARCH_FIELDS,
-                ...langs.map((lang) => `product_name_${lang}`),
-            ].join(","),
+            fields: fieldsParam(SEARCH_FIELDS),
         });
 
         const res = await fetchSearchWithRetry(`${SEARCH_URL}?${params}`);
@@ -293,13 +382,27 @@ export async function searchProducts(
         const products = (data.hits ?? [])
             .filter((hit) => hit.code)
             .map((hit) => productFromHit(hit, langs))
-            .filter((product) => product.product_name);
+            .filter((product) => localizedName(product));
 
         succeeded = true;
         return products;
     } finally {
         if (!succeeded) slot.release();
     }
+}
+
+/**
+ * The product API's answer laid over the search hit. OFF returns `""` for text
+ * fields it has no value for, so a blank from the API must not erase what the
+ * index did carry — that is how a localized name or a pack size gets lost.
+ */
+function mergeProduct(hit: OFFProduct, fetched: OFFProduct): OFFProduct {
+    const filled = Object.fromEntries(
+        Object.entries(fetched).filter(
+            ([, value]) => value !== undefined && value !== null && value !== "",
+        ),
+    );
+    return { ...hit, ...filled };
 }
 
 /**
@@ -314,7 +417,7 @@ export async function hydrateProduct(product: OFFProduct): Promise<OFFProduct> {
     logger.info("[API] Hydrating product", { code: product.code });
     try {
         const res = await fetch(
-            `${BASE_URL}/api/v2/product/${encodeURIComponent(product.code)}?fields=${FIELDS}`,
+            `${BASE_URL}/api/v2/product/${encodeURIComponent(product.code)}?fields=${fieldsParam(FIELDS)}`,
             { headers: { "User-Agent": USER_AGENT } },
         );
         if (!res.ok) {
@@ -323,16 +426,7 @@ export async function hydrateProduct(product: OFFProduct): Promise<OFFProduct> {
         }
         const data: OFFProductResponse = await res.json();
         if (data.status !== 1 || !data.product) return product;
-        return {
-            ...data.product,
-            // The search index is the only source of a localized product name;
-            // its nutriments and pack size still beat nothing where the product
-            // API returned neither.
-            product_name: product.product_name || data.product.product_name,
-            nutriments: data.product.nutriments ?? product.nutriments,
-            quantity: data.product.quantity || product.quantity,
-            complete: true,
-        };
+        return { ...mergeProduct(product, data.product), complete: true };
     } catch (err) {
         logger.warn("[API] Product hydration errored", { error: String(err) });
         return product;

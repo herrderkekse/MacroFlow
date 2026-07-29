@@ -1,4 +1,4 @@
-import { isObsolete, productNutrition } from "@/src/services/openfoodfacts";
+import { isObsolete, productName, productNutrition } from "@/src/services/openfoodfacts";
 import Button from "@/src/shared/atoms/Button";
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
@@ -207,7 +207,7 @@ export default function AddFoodScreen() {
                             return (
                                 <FoodListItem
                                     key={p.code}
-                                    name={p.product_name ?? t("common.unknown")}
+                                    name={productName(p, t("common.unknown"))}
                                     calories={nutrition?.calories_per_100g ?? 0}
                                     protein={nutrition?.protein_per_100g ?? 0}
                                     carbs={nutrition?.carbs_per_100g ?? 0}

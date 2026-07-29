@@ -1,4 +1,4 @@
-import { isObsolete, productNutrition, type OFFProduct } from "@/src/services/openfoodfacts";
+import { isObsolete, productName, productNutrition, type OFFProduct } from "@/src/services/openfoodfacts";
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -363,7 +363,7 @@ export default function AddIngredientSheet({
                                     return (
                                         <ResultRow
                                             key={product.code}
-                                            name={product.product_name || t("common.unknown")}
+                                            name={productName(product, t("common.unknown"))}
                                             hint={
                                                 nutrition
                                                     ? t("templates.calPer100g", {
