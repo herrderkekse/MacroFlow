@@ -5,8 +5,9 @@ import ModalHeader from "@/src/shared/atoms/ModalHeader";
 import UnitPicker from "@/src/shared/components/UnitPicker";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
-import { spacing } from "@/src/utils/theme";
+import { borderRadius, fontSize, spacing } from "@/src/utils/theme";
 import { unitsForSystem, type FoodUnit } from "@/src/utils/units";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +16,8 @@ import {
     Platform,
     ScrollView,
     StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 interface ManualFoodFormProps {
@@ -24,6 +27,8 @@ interface ManualFoodFormProps {
     initialName?: string;
     /** Pre-fill the barcode field (e.g. after a barcode scan found no matching product) */
     initialBarcode?: string;
+    /** Explains why the user landed here, e.g. an OFF product without nutrition facts. */
+    notice?: string | null;
 }
 
 export default function ManualFoodForm({
@@ -32,6 +37,7 @@ export default function ManualFoodForm({
     onFoodCreated,
     initialName,
     initialBarcode,
+    notice,
 }: ManualFoodFormProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
@@ -45,11 +51,15 @@ export default function ManualFoodForm({
     const [defaultUnit, setDefaultUnit] = useState<FoodUnit>("g");
     const [barcode, setBarcode] = useState(initialBarcode ?? "");
 
-    // Re-sync the barcode field with the latest scan whenever the modal opens.
+    // Re-sync the pre-filled fields with the latest scan or selection whenever
+    // the modal opens; they are only initial values for the state above.
     const [prevVisible, setPrevVisible] = useState(visible);
     if (visible !== prevVisible) {
         setPrevVisible(visible);
-        if (visible) setBarcode(initialBarcode ?? "");
+        if (visible) {
+            setName(initialName ?? "");
+            setBarcode(initialBarcode ?? "");
+        }
     }
 
     function handleSave() {
@@ -92,6 +102,12 @@ export default function ManualFoodForm({
                     contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
                 >
+                    {notice && (
+                        <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
+                            <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
+                            <Text style={[styles.noticeText, { color: colors.textSecondary }]}>{notice}</Text>
+                        </View>
+                    )}
                     <Input
                         label={t("log.foodName")}
                         placeholder={t("log.foodNamePlaceholder")}
@@ -170,4 +186,14 @@ const styles = StyleSheet.create({
     content: { padding: spacing.lg },
     field: { marginBottom: spacing.md },
     saveBtn: { marginTop: spacing.md },
+    notice: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+    },
+    noticeText: { flex: 1, fontSize: fontSize.sm, lineHeight: 18 },
 });

@@ -1,3 +1,4 @@
+import { isObsolete, productNutrition } from "@/src/services/openfoodfacts";
 import Button from "@/src/shared/atoms/Button";
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
@@ -67,7 +68,7 @@ export default function AddFoodScreen() {
                     title={t("log.createNew")}
                     variant="outline"
                     icon={<Ionicons name="create-outline" size={18} color={colors.text} />}
-                    onPress={() => search.setShowManualForm(true)}
+                    onPress={search.openManualForm}
                     style={styles.actionButton}
                 />
             </View>
@@ -198,18 +199,26 @@ export default function AddFoodScreen() {
                             <Text style={styles.emptyText}>{t("common.noOnlineResults")}</Text>
                         )}
 
-                        {search.offResults.map((p) => (
-                            <FoodListItem
-                                key={p.code}
-                                name={p.product_name ?? t("common.unknown")}
-                                calories={p.nutriments?.["energy-kcal_100g"] ?? 0}
-                                protein={p.nutriments?.proteins_100g ?? 0}
-                                carbs={p.nutriments?.carbohydrates_100g ?? 0}
-                                fat={p.nutriments?.fat_100g ?? 0}
-                                badge="OFF"
-                                onPress={() => search.handleSelectOFF(p)}
-                            />
-                        ))}
+                        {search.offResults.map((p) => {
+                            // The search index carries only the as-sold per-100 g
+                            // figures, so this preview can fall short of what the
+                            // import ends up with once the product is hydrated.
+                            const nutrition = productNutrition(p);
+                            return (
+                                <FoodListItem
+                                    key={p.code}
+                                    name={p.product_name ?? t("common.unknown")}
+                                    calories={nutrition?.calories_per_100g ?? 0}
+                                    protein={nutrition?.protein_per_100g ?? 0}
+                                    carbs={nutrition?.carbs_per_100g ?? 0}
+                                    fat={nutrition?.fat_per_100g ?? 0}
+                                    unknownNutrition={!nutrition}
+                                    warning={isObsolete(p) ? t("common.offObsolete") : undefined}
+                                    badge="OFF"
+                                    onPress={() => search.handleSelectOFF(p)}
+                                />
+                            );
+                        })}
                     </>
                 )}
 
@@ -226,8 +235,9 @@ export default function AddFoodScreen() {
                 visible={search.showManualForm}
                 onClose={search.handleCloseManualForm}
                 onFoodCreated={search.handleFoodCreated}
-                initialName={search.query.trim()}
-                initialBarcode={search.pendingBarcode}
+                initialName={search.manualName}
+                initialBarcode={search.manualBarcode}
+                notice={search.manualNotice}
             />
 
             <BarcodeScannerView

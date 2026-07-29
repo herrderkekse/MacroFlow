@@ -16,6 +16,10 @@ interface ManualFoodFormProps {
     onClose: () => void;
     onFoodCreated: (food: Food) => void;
     initialName?: string;
+    /** Pre-fill the barcode field, e.g. from a scanned OFF product we could not import. */
+    initialBarcode?: string;
+    /** Explains why the user landed here, e.g. an OFF product without nutrition facts. */
+    notice?: string | null;
 }
 
 export default function ManualFoodForm({
@@ -23,9 +27,20 @@ export default function ManualFoodForm({
     onClose,
     onFoodCreated,
     initialName,
+    initialBarcode,
+    notice,
 }: ManualFoodFormProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
+
+    // `FoodForm` only reads the initial values on mount, so each opening gets a
+    // fresh one — otherwise the fields keep whatever the previous visit left.
+    const [formKey, setFormKey] = React.useState(0);
+    const [prevVisible, setPrevVisible] = React.useState(visible);
+    if (visible !== prevVisible) {
+        setPrevVisible(visible);
+        if (visible) setFormKey((key) => key + 1);
+    }
 
     return (
         <Modal
@@ -40,7 +55,10 @@ export default function ManualFoodForm({
             >
                 <ModalHeader title={t("log.createNewFood")} onClose={onClose} />
                 <FoodForm
+                    key={formKey}
                     initialName={initialName}
+                    initialBarcode={initialBarcode}
+                    notice={notice}
                     submitLabel={t("log.createFood")}
                     onSaved={(food) => onFoodCreated(food)}
                 />

@@ -1,7 +1,15 @@
 import i18n from "@/src/i18n";
 import type { foods } from "@/src/services/db/schema";
+import {
+    productNutrition,
+    type NutritionSource,
+    type OFFNutriments,
+} from "@/src/services/offNutriments";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
+
+export { productNutrition } from "@/src/services/offNutriments";
+export type { OFFNutriments, ProductNutrition } from "@/src/services/offNutriments";
 
 const BASE_URL = "https://world.openfoodfacts.org";
 // Full-text search runs on Search-a-licious. The legacy `cgi/search.pl` (and
@@ -22,20 +30,18 @@ const SEARCH_PAGE_SIZE = 20;
 const SEARCH_RETRIES = 1;
 const RETRY_DELAY_MS = 300;
 
-interface OFFNutriments {
-    "energy-kcal_100g"?: number;
-    proteins_100g?: number;
-    carbohydrates_100g?: number;
-    fat_100g?: number;
-}
-
-export interface OFFProduct {
+export interface OFFProduct extends NutritionSource {
     code: string;
     product_name?: string;
-    nutriments?: OFFNutriments;
     serving_size?: string;
-    serving_quantity?: number;
     quantity?: string;
+    /** `true` from the search index, `"on"` / `""` from the product API. */
+    obsolete?: boolean | string;
+    /**
+     * True once every field in `FIELDS` has been fetched. A search hit carries
+     * only `SEARCH_FIELDS`, so it needs `hydrateProduct` before it can be judged.
+     */
+    complete?: boolean;
 }
 
 interface OFFProductResponse {
@@ -54,6 +60,8 @@ interface OFFSearchHit {
     product_name?: string;
     nutriments?: OFFNutriments;
     quantity?: string;
+    /** Only present, and only ever `true`, for delisted products. */
+    obsolete?: boolean;
     [localizedField: string]: unknown;
 }
 
@@ -64,12 +72,13 @@ interface OFFSearchResponse {
 }
 
 const FIELDS =
-    "code,product_name,nutriments,serving_size,serving_quantity,quantity";
+    "code,product_name,nutriments,serving_size,serving_quantity,quantity,no_nutrition_data,obsolete";
 
-// The Search-a-licious index carries no serving fields (`serving_size`,
-// `serving_quantity`); they are hydrated per selection by `hydrateServing`.
-const SEARCH_FIELDS = ["code", "product_name", "nutriments", "quantity"];
-const SERVING_FIELDS = "serving_size,serving_quantity,quantity";
+// The Search-a-licious index carries neither the serving fields
+// (`serving_size`, `serving_quantity`) nor `no_nutrition_data`, and its
+// `nutriments` hold only the as-sold per-100 g figures. `hydrateProduct` fetches
+// the rest per selection. `obsolete` *is* indexed, and only appears when true.
+const SEARCH_FIELDS = ["code", "product_name", "nutriments", "quantity", "obsolete"];
 
 /**
  * The `foods` columns an OFF product determines. Every column the DB would
@@ -103,6 +112,20 @@ function parseServingSize(product: OFFProduct): number {
     return m ? parseFloat(m[1]) || 100 : 100;
 }
 
+/** OFF answers `status: 1` for delisted products too, so callers must ask. */
+export function isObsolete(product: OFFProduct): boolean {
+    return product.obsolete === true || product.obsolete === "on";
+}
+
+/**
+ * A product either maps to a food or explains why it cannot. The failure
+ * carries what we *do* know so the caller can send the user to manual entry
+ * with the name and barcode already filled in, rather than into a dead end.
+ */
+export type ProductImport =
+    | { ok: true; food: FoodFromProduct; prepared: boolean }
+    | { ok: false; reason: "no-nutrition-data"; name: string; barcode: string };
+
 /**
  * The one OFF product → food mapping. Every entry path (text search, barcode
  * scan, recipe ingredient search) goes through here so a product yields the
@@ -112,25 +135,33 @@ function parseServingSize(product: OFFProduct): number {
  * by their EAN, so for an OFF-sourced food the two are the same value, and
  * leaving `barcode` empty would hide the food from `getFoodByBarcode`.
  *
- * Serving fields are only as good as the product handed in — a Search-a-licious
- * hit carries none, so run it through `hydrateServing` first.
+ * Serving fields and the validation flags are only as good as the product
+ * handed in — a Search-a-licious hit carries neither, so run it through
+ * `hydrateProduct` before importing.
  */
 export function productToFood(
     product: OFFProduct,
     opts: { fallbackName: string },
-): FoodFromProduct {
-    const nutriments = product.nutriments ?? {};
+): ProductImport {
+    const name = product.product_name || opts.fallbackName;
+    const nutrition = productNutrition(product);
+    if (!nutrition) {
+        return { ok: false, reason: "no-nutrition-data", name, barcode: product.code };
+    }
+
+    const { prepared, ...macros } = nutrition;
     return {
-        name: product.product_name || opts.fallbackName,
-        calories_per_100g: nutriments["energy-kcal_100g"] ?? 0,
-        protein_per_100g: nutriments.proteins_100g ?? 0,
-        carbs_per_100g: nutriments.carbohydrates_100g ?? 0,
-        fat_per_100g: nutriments.fat_100g ?? 0,
-        barcode: product.code,
-        openfoodfacts_id: product.code,
-        source: "openfoodfacts",
-        default_unit: guessUnit(product),
-        serving_size: parseServingSize(product),
+        ok: true,
+        prepared,
+        food: {
+            name,
+            ...macros,
+            barcode: product.code,
+            openfoodfacts_id: product.code,
+            source: "openfoodfacts",
+            default_unit: guessUnit(product),
+            serving_size: parseServingSize(product),
+        },
     };
 }
 
@@ -151,7 +182,7 @@ export async function getProductByBarcode(
 
     const data: OFFProductResponse = await res.json();
     if (data.status !== 1 || !data.product?.product_name) return null;
-    return data.product;
+    return { ...data.product, complete: true };
 }
 
 /**
@@ -221,6 +252,7 @@ function productFromHit(hit: OFFSearchHit, langs: string[]): OFFProduct {
         product_name: localizedName ?? hit.product_name,
         nutriments: hit.nutriments,
         quantity: hit.quantity,
+        obsolete: hit.obsolete === true,
     };
 }
 
@@ -271,33 +303,38 @@ export async function searchProducts(
 }
 
 /**
- * Fill in the serving fields a search result cannot carry, from the product
- * API. Best-effort and never throws: without it `guessUnit`/`parseServingSize`
- * just fall back to their defaults, which is not worth failing a selection over.
+ * Fill in everything a search result cannot carry — the serving fields, the
+ * prepared/per-serving nutriments and `no_nutrition_data` — from the product
+ * API. Best-effort and never throws: on failure the thinner search hit stands,
+ * which is not worth failing a selection over.
  */
-export async function hydrateServing(product: OFFProduct): Promise<OFFProduct> {
-    if (product.serving_size || product.serving_quantity) return product;
+export async function hydrateProduct(product: OFFProduct): Promise<OFFProduct> {
+    if (product.complete) return product;
 
-    logger.info("[API] Hydrating serving fields", { code: product.code });
+    logger.info("[API] Hydrating product", { code: product.code });
     try {
         const res = await fetch(
-            `${BASE_URL}/api/v2/product/${encodeURIComponent(product.code)}?fields=${SERVING_FIELDS}`,
+            `${BASE_URL}/api/v2/product/${encodeURIComponent(product.code)}?fields=${FIELDS}`,
             { headers: { "User-Agent": USER_AGENT } },
         );
         if (!res.ok) {
-            logger.warn("[API] Serving hydration failed", { status: res.status });
+            logger.warn("[API] Product hydration failed", { status: res.status });
             return product;
         }
         const data: OFFProductResponse = await res.json();
         if (data.status !== 1 || !data.product) return product;
         return {
-            ...product,
-            serving_size: data.product.serving_size,
-            serving_quantity: data.product.serving_quantity,
-            quantity: product.quantity ?? data.product.quantity,
+            ...data.product,
+            // The search index is the only source of a localized product name;
+            // its nutriments and pack size still beat nothing where the product
+            // API returned neither.
+            product_name: product.product_name || data.product.product_name,
+            nutriments: data.product.nutriments ?? product.nutriments,
+            quantity: data.product.quantity || product.quantity,
+            complete: true,
         };
     } catch (err) {
-        logger.warn("[API] Serving hydration errored", { error: String(err) });
+        logger.warn("[API] Product hydration errored", { error: String(err) });
         return product;
     }
 }

@@ -12,6 +12,10 @@ interface FoodListItemProps {
     carbs: number;
     fat: number;
     badge?: string;
+    /** Show dashes instead of numbers: the source has no nutrition facts at all. */
+    unknownNutrition?: boolean;
+    /** Caveat about the item itself, e.g. an OFF product that was delisted. */
+    warning?: string;
     onPress: () => void;
 }
 
@@ -22,6 +26,8 @@ export default function FoodListItem({
     carbs,
     fat,
     badge,
+    unknownNutrition,
+    warning,
     onPress,
 }: FoodListItemProps) {
     const colors = useThemeColors();
@@ -40,13 +46,25 @@ export default function FoodListItem({
                     {name}
                 </Text>
                 <Text style={styles.calories}>
-                    {Math.round(calories)} {t("common.cal")}
+                    {unknownNutrition ? "—" : `${Math.round(calories)} ${t("common.cal")}`}
                 </Text>
             </View>
+            {warning && (
+                <View style={styles.warning}>
+                    <Ionicons name="warning-outline" size={12} color={colors.warning} />
+                    <Text style={styles.warningText}>{warning}</Text>
+                </View>
+            )}
             <View style={styles.macros}>
-                <MacroPill label={t("common.proteinShort")} value={protein} color={colors.protein} />
-                <MacroPill label={t("common.carbsShort")} value={carbs} color={colors.carbs} />
-                <MacroPill label={t("common.fatShort")} value={fat} color={colors.fat} />
+                {unknownNutrition ? (
+                    <Text style={styles.unknownNutrition}>{t("common.offNoNutrition")}</Text>
+                ) : (
+                    <>
+                        <MacroPill label={t("common.proteinShort")} value={protein} color={colors.protein} />
+                        <MacroPill label={t("common.carbsShort")} value={carbs} color={colors.carbs} />
+                        <MacroPill label={t("common.fatShort")} value={fat} color={colors.fat} />
+                    </>
+                )}
                 {badge && (
                     <View style={styles.badge}>
                         <Ionicons
@@ -113,6 +131,18 @@ function createStyles(colors: ThemeColors) {
             gap: spacing.md,
         },
         macroPill: { fontSize: fontSize.xs, fontWeight: "500" },
+        unknownNutrition: {
+            fontSize: fontSize.xs,
+            fontStyle: "italic",
+            color: colors.textTertiary,
+        },
+        warning: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 3,
+            marginBottom: spacing.xs,
+        },
+        warningText: { fontSize: fontSize.xs, color: colors.warning },
         badge: {
             flexDirection: "row",
             alignItems: "center",

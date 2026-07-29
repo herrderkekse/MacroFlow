@@ -36,6 +36,10 @@ const de = {
         carbsShort: "KH",
         fatShort: "F",
         noOnlineResults: "Keine Online-Ergebnisse",
+        offNoNutrition: "Keine Nährwertangaben",
+        offObsolete: "Nicht mehr erhältlich",
+        offMissingNutritionNotice:
+            "OpenFoodFacts hat für dieses Produkt keine Nährwertangaben. Ergänze sie unten, um es in deiner Bibliothek zu speichern.",
         itemCount_one: "{{count}} Element",
         itemCount_other: "{{count}} Elemente",
     },

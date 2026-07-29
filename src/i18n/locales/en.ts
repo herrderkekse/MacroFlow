@@ -37,6 +37,10 @@ const en = {
         carbsShort: "C",
         fatShort: "F",
         noOnlineResults: "No online results",
+        offNoNutrition: "No nutrition facts",
+        offObsolete: "Discontinued",
+        offMissingNutritionNotice:
+            "OpenFoodFacts has no nutrition facts for this product. Add them below to save it to your library.",
         itemCount_one: "{{count}} item",
         itemCount_other: "{{count}} items",
     },
