@@ -11,13 +11,14 @@ import {
 import {
     getProductByBarcode,
     guessUnit,
+    hydrateServing,
     parseServingSize,
     searchProducts,
     type OFFProduct,
 } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Keyboard } from "react-native";
 
@@ -41,6 +42,7 @@ export function useAddFoodSearch() {
     const [showManualForm, setShowManualForm] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
     const [pendingBarcode, setPendingBarcode] = useState<string | undefined>(undefined);
+    const isSelectingOFF = useRef(false);
 
     // ── Recipe search (variants grouped under their base, collapsed) ──
     const [recipeResults, setRecipeResults] = useState<RecipeGroup[]>([]);
@@ -119,26 +121,35 @@ export function useAddFoodSearch() {
         setSelectedFood(food);
     }
 
-    function handleSelectOFF(product: OFFProduct) {
+    async function handleSelectOFF(product: OFFProduct) {
         Keyboard.dismiss();
         const existing = getFoodByOpenfoodfactsId(product.code);
         if (existing) {
             setSelectedFood(existing);
             return;
         }
-        const food = addFood({
-            name: product.product_name ?? t("common.unknown"),
-            calories_per_100g: product.nutriments?.["energy-kcal_100g"] ?? 0,
-            protein_per_100g: product.nutriments?.proteins_100g ?? 0,
-            carbs_per_100g: product.nutriments?.carbohydrates_100g ?? 0,
-            fat_per_100g: product.nutriments?.fat_100g ?? 0,
-            openfoodfacts_id: product.code,
-            source: "openfoodfacts",
-            default_unit: guessUnit(product),
-            serving_size: parseServingSize(product),
-        });
-        logger.info("[DB] Created food from OFF search", { id: food.id, name: food.name });
-        setSelectedFood(food);
+        // Hydrating the serving fields is a round-trip, so a second tap could
+        // land before the food row exists and create it twice.
+        if (isSelectingOFF.current) return;
+        isSelectingOFF.current = true;
+        try {
+            const hydrated = await hydrateServing(product);
+            const food = addFood({
+                name: hydrated.product_name ?? t("common.unknown"),
+                calories_per_100g: hydrated.nutriments?.["energy-kcal_100g"] ?? 0,
+                protein_per_100g: hydrated.nutriments?.proteins_100g ?? 0,
+                carbs_per_100g: hydrated.nutriments?.carbohydrates_100g ?? 0,
+                fat_per_100g: hydrated.nutriments?.fat_100g ?? 0,
+                openfoodfacts_id: hydrated.code,
+                source: "openfoodfacts",
+                default_unit: guessUnit(hydrated),
+                serving_size: parseServingSize(hydrated),
+            });
+            logger.info("[DB] Created food from OFF search", { id: food.id, name: food.name });
+            setSelectedFood(food);
+        } finally {
+            isSelectingOFF.current = false;
+        }
     }
 
     async function lookupBarcode(barcode: string): Promise<Food | null> {
