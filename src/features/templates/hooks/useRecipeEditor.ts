@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Keyboard } from "react-native";
 import {
     addFood,
+    addServingUnit,
     addRecipe,
     addRecipeItem,
     deleteRecipeItem,
@@ -18,10 +19,9 @@ import {
     updateRecipe,
     updateRecipeItem,
     updateRecipeServings,
-    type Food,
     type ServingUnit,
 } from "../services/templateDb";
-import { useIngredientSearch } from "./useIngredientSearch";
+import { useIngredientSearch, type UnsavedFood } from "./useIngredientSearch";
 
 /**
  * One ingredient as it is being edited. Nothing here exists in the database
@@ -32,7 +32,7 @@ import { useIngredientSearch } from "./useIngredientSearch";
 export interface DraftIngredient {
     key: string;
     itemId?: number;
-    food: Food;
+    food: UnsavedFood;
     quantityGrams: number;
     quantityUnit: string;
     servingUnits: ServingUnit[];
@@ -84,7 +84,7 @@ export function useRecipeEditor() {
     const [editing, setEditing] = useState<{ draft: DraftIngredient; isNew: boolean } | null>(null);
 
     /** A food was picked in the search sheet: open the amount sheet for it. */
-    function openDraftForFood(food: Food) {
+    function openDraftForFood(food: UnsavedFood) {
         const foodUnit = (food.default_unit ?? "g") as FoodUnit;
         setEditing({
             isNew: true,
@@ -93,8 +93,9 @@ export function useRecipeEditor() {
                 food,
                 quantityGrams: toGrams(food.serving_size ?? 100, foodUnit),
                 quantityUnit: foodUnit,
-                // A food that is not in the library yet cannot have any.
-                servingUnits: food.id ? getServingUnits(food.id) : [],
+                // A food that is not in the library yet has no rows to read, but
+                // an OpenFoodFacts import may have derived some for it already.
+                servingUnits: food.id ? getServingUnits(food.id) : food.pendingServingUnits ?? [],
             },
         });
     }
@@ -162,15 +163,23 @@ export function useRecipeEditor() {
 
     // ── Saving ────────────────────────────────────────────
 
-    /** Resolves a draft's food to a row id, creating the food if it is new. */
-    function materializeFood(food: Food): number {
+    /**
+     * Resolves a draft's food to a row id, creating the food if it is new —
+     * together with the serving units the draft has been carrying for it, which
+     * could not be written without that id. A food that already exists keeps
+     * the units it already has.
+     */
+    function materializeFood(food: UnsavedFood, servingUnits: ServingUnit[]): number {
         if (food.id) return food.id;
         const existing =
             (food.openfoodfacts_id ? getFoodByOpenfoodfactsId(food.openfoodfacts_id) : undefined)
             ?? (food.barcode ? getFoodByBarcode(food.barcode) : undefined);
         if (existing) return existing.id;
-        const { id: _id, uuid: _uuid, ...values } = food;
+        const { id: _id, uuid: _uuid, pendingServingUnits: _pending, ...values } = food;
         const created = addFood(values);
+        for (const unit of servingUnits) {
+            addServingUnit({ food_id: created.id, name: unit.name, grams: unit.grams });
+        }
         logger.info("[DB] Created food for recipe", { id: created.id, name: created.name });
         return created.id;
     }
@@ -190,7 +199,7 @@ export function useRecipeEditor() {
 
         const staleItemIds = new Set(getRecipeItems(id).map((row) => row.recipe_items.id));
         for (const draft of items) {
-            const foodId = materializeFood(draft.food);
+            const foodId = materializeFood(draft.food, draft.servingUnits);
             const values = {
                 food_id: foodId,
                 quantity_grams: draft.quantityGrams,

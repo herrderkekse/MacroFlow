@@ -17,6 +17,22 @@ export function addFood(food: NewFood): Food {
     return db.insert(foods).values(food).returning().get();
 }
 
+/**
+ * A food and the serving units it arrived with, in one step. Kept together
+ * because the units cannot be written before the food has an id, and an import
+ * that produced units wants all of them or none.
+ */
+export function addFoodWithServingUnits(
+    food: NewFood,
+    units: { name: string; grams: number }[],
+): Food {
+    const created = addFood(food);
+    for (const unit of units) {
+        addServingUnit({ food_id: created.id, name: unit.name, grams: unit.grams });
+    }
+    return created;
+}
+
 export function searchFoodsByName(query: string): Food[] {
     return db
         .select()

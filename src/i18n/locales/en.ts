@@ -41,6 +41,11 @@ const en = {
         offObsolete: "Discontinued",
         offMissingNutritionNotice:
             "OpenFoodFacts has no nutrition facts for this product. Add them below to save it to your library.",
+        // Names of the serving units derived from an OpenFoodFacts import. They
+        // are stored in the food's rows, so changing them renames nothing that
+        // was imported before.
+        offServingUnitServing: "serving",
+        offServingUnitPackage: "package",
         itemCount_one: "{{count}} item",
         itemCount_other: "{{count}} items",
     },
