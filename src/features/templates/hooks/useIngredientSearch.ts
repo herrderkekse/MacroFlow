@@ -1,4 +1,4 @@
-import { getProductByBarcode, guessUnit, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
+import { getProductByBarcode, guessUnit, hydrateServing, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -136,9 +136,20 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
 
     function handleSelectOFF(product: OFFProduct) {
         Keyboard.dismiss();
-        const food = getFoodByOpenfoodfactsId(product.code)
-            ?? unsavedFoodFromProduct(product, t("common.unknown"));
-        afterSheetDismissed(() => pickRef.current(food));
+        const existing = getFoodByOpenfoodfactsId(product.code);
+        if (existing) {
+            afterSheetDismissed(() => pickRef.current(existing));
+            return;
+        }
+        // A search result carries no serving fields, so they have to be read
+        // from the product API. Started before the hand-off so the fetch runs
+        // under the dismiss animation rather than after it; `hydrateServing`
+        // resolves either way.
+        const hydrating = hydrateServing(product);
+        afterSheetDismissed(async () => {
+            const hydrated = await hydrating;
+            pickRef.current(unsavedFoodFromProduct(hydrated, t("common.unknown")));
+        });
     }
 
     function handleManualFoodCreated(food: Food) {
