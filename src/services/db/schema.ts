@@ -72,6 +72,9 @@ export const goalHistory = sqliteTable("goal_history", {
 export const recipes = sqliteTable("recipes", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
+    // How many servings the whole recipe yields. Macros are shown per serving
+    // in the editor; logging one serving means portion = 1 / servings.
+    servings: integer("servings").notNull().default(1),
     deleted: integer("deleted").notNull().default(0),
     // Set on variant recipes; points at the base recipe of the variant group.
     parent_recipe_id: integer("parent_recipe_id").references((): AnySQLiteColumn => recipes.id),

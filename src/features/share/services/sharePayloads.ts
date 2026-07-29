@@ -61,6 +61,8 @@ export interface SharedRecipeItem {
 export interface RecipeSharePayload {
     name: string;
     items: SharedRecipeItem[];
+    /** Servings the whole recipe yields. Absent in payloads from older versions. */
+    servings?: number;
     sharedBy?: string;
 }
 
@@ -118,6 +120,7 @@ export function buildRecipePayload(recipeId: number, sharedBy?: string): RecipeS
     const rows = getRecipeItems(recipeId);
     return {
         name: recipe.name,
+        servings: recipe.servings,
         items: rows
             .filter((row) => row.foods)
             .map((row) => ({
@@ -276,6 +279,7 @@ function foodKey(shared: SharedFood): string {
 function recipeKey(payload: RecipeSharePayload): string {
     return JSON.stringify([
         payload.name,
+        payload.servings ?? 1,
         payload.items.map((item) => [foodKey(item.food), item.quantity_grams, item.quantity_unit]),
     ]);
 }
@@ -347,7 +351,11 @@ export function importRecipePayload(
     const cached = cache.recipes.get(key);
     if (cached !== undefined) return cached;
 
-    const recipe = addRecipe(String(payload.name));
+    const servings = Number(payload.servings);
+    const recipe = addRecipe(
+        String(payload.name),
+        Number.isFinite(servings) ? Math.max(1, Math.round(servings)) : 1,
+    );
     for (const item of payload.items) {
         if (!item?.food) continue;
         const food = findOrCreateFood(item.food, cache);

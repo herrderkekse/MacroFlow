@@ -3,6 +3,7 @@ import {
     addFood,
     getFoodByBarcode,
     getFoodByOpenfoodfactsId,
+    getRecipeById,
     searchFoodsByName,
     type Food,
     type Recipe,
@@ -15,13 +16,16 @@ import {
     type OFFProduct,
 } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Keyboard } from "react-native";
 
 export function useAddFoodSearch() {
     const { t } = useTranslation();
+    // Set when arriving from "Save & log" in the recipe editor: the recipe is
+    // preselected so the user only picks the amount and the meal.
+    const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
 
     // ── Search state ───────────────────────────────────────
     const [query, setQuery] = useState("");
@@ -41,6 +45,14 @@ export function useAddFoodSearch() {
     // ── Recipe search (variants grouped under their base, collapsed) ──
     const [recipeResults, setRecipeResults] = useState<RecipeGroup[]>([]);
     const [expandedRecipeIds, setExpandedRecipeIds] = useState<Set<number>>(new Set());
+
+    useEffect(() => {
+        if (!recipeId) return;
+        queueMicrotask(() => {
+            const recipe = getRecipeById(Number(recipeId));
+            if (recipe) setSelectedRecipe(recipe);
+        });
+    }, [recipeId]);
 
     useEffect(() => {
         if (query.trim().length < 2) { queueMicrotask(() => setRecipeResults([])); return; }

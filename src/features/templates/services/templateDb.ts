@@ -147,12 +147,24 @@ export function deleteServingUnitsForFood(foodId: number) {
 
 // ── Recipe CRUD ────────────────────────────────────────────
 
-export function addRecipe(name: string): Recipe {
-    return db.insert(recipes).values({ name }).returning().get();
+export function addRecipe(name: string, servings = 1): Recipe {
+    return db.insert(recipes).values({ name, servings: normalizeServings(servings) }).returning().get();
 }
 
-export function updateRecipe(id: number, name: string) {
-    db.update(recipes).set({ name }).where(eq(recipes.id, id)).run();
+export function updateRecipe(id: number, name: string, servings?: number) {
+    const values: Partial<NewRecipe> = { name };
+    if (servings != null) values.servings = normalizeServings(servings);
+    db.update(recipes).set(values).where(eq(recipes.id, id)).run();
+}
+
+export function updateRecipeServings(id: number, servings: number) {
+    db.update(recipes).set({ servings: normalizeServings(servings) }).where(eq(recipes.id, id)).run();
+}
+
+/** A recipe always yields at least one whole serving; guards bad input/imports. */
+export function normalizeServings(servings: number | null | undefined): number {
+    if (servings == null || !Number.isFinite(servings)) return 1;
+    return Math.max(1, Math.round(servings));
 }
 
 // Deleting a base recipe promotes its variants to standalone recipes.

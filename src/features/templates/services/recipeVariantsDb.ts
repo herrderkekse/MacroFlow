@@ -59,7 +59,11 @@ export function getRecipeGroups(query?: string): RecipeGroup[] {
 }
 
 function copyRecipe(source: Recipe, name: string, parentId: number | null): Recipe {
-    const created = db.insert(recipes).values({ name, parent_recipe_id: parentId }).returning().get();
+    const created = db
+        .insert(recipes)
+        .values({ name, parent_recipe_id: parentId, servings: source.servings })
+        .returning()
+        .get();
     const items = db.select().from(recipeItems).where(eq(recipeItems.recipe_id, source.id)).all();
     for (const item of items) {
         db.insert(recipeItems).values({

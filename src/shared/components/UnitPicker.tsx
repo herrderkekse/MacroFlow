@@ -80,25 +80,8 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.unitRow}
             >
-                {unitOptions.map((u) => (
-                    <Pressable
-                        key={u}
-                        onPress={() => onSelectUnit(u)}
-                        style={[
-                            styles.unitChip,
-                            selectedUnit === u && !selectedServingUnit && styles.unitChipActive,
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.unitChipText,
-                                selectedUnit === u && !selectedServingUnit && styles.unitChipTextActive,
-                            ]}
-                        >
-                            {unitLabel(u)}
-                        </Text>
-                    </Pressable>
-                ))}
+                {/* A food's own serving units lead: they are the ones most
+                    likely to be picked for that food. */}
                 {servingUnits.map((su) => (
                     <Pressable
                         key={`su-${su.id}`}
@@ -115,6 +98,25 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
                             ]}
                         >
                             {su.name} ({su.grams}g)
+                        </Text>
+                    </Pressable>
+                ))}
+                {unitOptions.map((u) => (
+                    <Pressable
+                        key={u}
+                        onPress={() => onSelectUnit(u)}
+                        style={[
+                            styles.unitChip,
+                            selectedUnit === u && !selectedServingUnit && styles.unitChipActive,
+                        ]}
+                    >
+                        <Text
+                            style={[
+                                styles.unitChipText,
+                                selectedUnit === u && !selectedServingUnit && styles.unitChipTextActive,
+                            ]}
+                        >
+                            {unitLabel(u)}
                         </Text>
                     </Pressable>
                 ))}
