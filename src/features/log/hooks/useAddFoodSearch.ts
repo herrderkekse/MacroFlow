@@ -10,9 +10,8 @@ import {
 } from "@/src/features/templates/services/templateDb";
 import {
     getProductByBarcode,
-    guessUnit,
     hydrateServing,
-    parseServingSize,
+    productToFood,
     searchProducts,
     type OFFProduct,
 } from "@/src/services/openfoodfacts";
@@ -134,17 +133,9 @@ export function useAddFoodSearch() {
         isSelectingOFF.current = true;
         try {
             const hydrated = await hydrateServing(product);
-            const food = addFood({
-                name: hydrated.product_name ?? t("common.unknown"),
-                calories_per_100g: hydrated.nutriments?.["energy-kcal_100g"] ?? 0,
-                protein_per_100g: hydrated.nutriments?.proteins_100g ?? 0,
-                carbs_per_100g: hydrated.nutriments?.carbohydrates_100g ?? 0,
-                fat_per_100g: hydrated.nutriments?.fat_100g ?? 0,
-                openfoodfacts_id: hydrated.code,
-                source: "openfoodfacts",
-                default_unit: guessUnit(hydrated),
-                serving_size: parseServingSize(hydrated),
-            });
+            const food = addFood(
+                productToFood(hydrated, { fallbackName: t("common.unknown") }),
+            );
             logger.info("[DB] Created food from OFF search", { id: food.id, name: food.name });
             setSelectedFood(food);
         } finally {
@@ -162,16 +153,7 @@ export function useAddFoodSearch() {
         if (!product) return null;
         const existing = getFoodByOpenfoodfactsId(product.code);
         if (existing) return existing;
-        const food = addFood({
-            name: product.product_name ?? t("common.unknown"),
-            calories_per_100g: product.nutriments?.["energy-kcal_100g"] ?? 0,
-            protein_per_100g: product.nutriments?.proteins_100g ?? 0,
-            carbs_per_100g: product.nutriments?.carbohydrates_100g ?? 0,
-            fat_per_100g: product.nutriments?.fat_100g ?? 0,
-            barcode,
-            openfoodfacts_id: product.code,
-            source: "openfoodfacts",
-        });
+        const food = addFood(productToFood(product, { fallbackName: t("common.unknown") }));
         logger.info("[DB] Created food from barcode", { id: food.id, name: food.name });
         return food;
     }

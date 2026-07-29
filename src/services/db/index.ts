@@ -280,6 +280,16 @@ export function initDB() {
     `);
   }
 
+  // Backfill barcodes for OFF foods that arrived via text search: until #399
+  // only the scan path filled `barcode`, so those rows were invisible to
+  // `getFoodByBarcode`. OFF keys products by their EAN, so `openfoodfacts_id`
+  // is the barcode.
+  expoDb.execSync(`
+    UPDATE foods
+    SET barcode = openfoodfacts_id
+    WHERE barcode IS NULL AND openfoodfacts_id IS NOT NULL AND openfoodfacts_id <> '';
+  `);
+
   initSyncInfrastructure();
 }
 

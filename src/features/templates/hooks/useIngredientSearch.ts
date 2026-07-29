@@ -1,4 +1,4 @@
-import { getProductByBarcode, guessUnit, hydrateServing, parseServingSize, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
+import { getProductByBarcode, hydrateServing, productToFood, searchProducts, type OFFProduct } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,20 +18,10 @@ const SHEET_SWAP_MS = 300;
  * `id: 0` so the rest of the editor can treat it like any other food; the row
  * is only written when the recipe is saved (see `materializeFood`).
  */
-function unsavedFoodFromProduct(product: OFFProduct, fallbackName: string, barcode?: string): Food {
-    const nutriments = product.nutriments ?? {};
+function unsavedFoodFromProduct(product: OFFProduct, fallbackName: string): Food {
     return {
         id: 0,
-        name: product.product_name || fallbackName,
-        calories_per_100g: nutriments["energy-kcal_100g"] ?? 0,
-        protein_per_100g: nutriments.proteins_100g ?? 0,
-        carbs_per_100g: nutriments.carbohydrates_100g ?? 0,
-        fat_per_100g: nutriments.fat_100g ?? 0,
-        barcode: barcode ?? null,
-        openfoodfacts_id: product.code,
-        source: "openfoodfacts",
-        default_unit: guessUnit(product),
-        serving_size: parseServingSize(product),
+        ...productToFood(product, { fallbackName }),
         last_logged_amount: null,
         last_logged_unit: null,
         last_logged_meal: null,
@@ -176,7 +166,7 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
         const product = await getProductByBarcode(barcode);
         if (!product) return null;
         return getFoodByOpenfoodfactsId(product.code)
-            ?? unsavedFoodFromProduct(product, t("common.unknown"), barcode);
+            ?? unsavedFoodFromProduct(product, t("common.unknown"));
     }
 
     return {
