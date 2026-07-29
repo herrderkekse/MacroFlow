@@ -19,7 +19,7 @@ jest.mock("@/src/utils/logger", () => ({
     default: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { hydrateServing, searchProducts } from "@/src/services/openfoodfacts";
+import { hydrateServing, productToFood, searchProducts } from "@/src/services/openfoodfacts";
 
 type FetchMock = jest.Mock<(url: string, init?: unknown) => Promise<unknown>>;
 
@@ -183,6 +183,90 @@ describe("searchProducts", () => {
         // …and frees up again once the sliding window has passed.
         jest.setSystemTime(Date.now() + 61_000);
         await expect(withTimersFlushed(searchProducts("milch"))).resolves.toHaveLength(1);
+    });
+});
+
+describe("productToFood", () => {
+    const opts = { fallbackName: "Unknown" };
+
+    it("maps every food field an OFF product carries", () => {
+        expect(
+            productToFood(
+                {
+                    code: "5449000000996",
+                    product_name: "Coca-Cola",
+                    serving_size: "330 ml",
+                    serving_quantity: 330,
+                    nutriments: {
+                        "energy-kcal_100g": 42,
+                        proteins_100g: 0,
+                        carbohydrates_100g: 10.6,
+                        fat_100g: 0,
+                    },
+                },
+                opts,
+            ),
+        ).toEqual({
+            name: "Coca-Cola",
+            calories_per_100g: 42,
+            protein_per_100g: 0,
+            carbs_per_100g: 10.6,
+            fat_per_100g: 0,
+            barcode: "5449000000996",
+            openfoodfacts_id: "5449000000996",
+            source: "openfoodfacts",
+            default_unit: "ml",
+            serving_size: 330,
+        });
+    });
+
+    // The bug behind #399: a scanned product and a searched one are the same
+    // OFF record, so they have to produce the same food.
+    it("does not depend on how the product was found", () => {
+        const product = { code: "1", product_name: "Vollmilch", quantity: "1 l" };
+
+        expect(productToFood(product, opts)).toEqual(productToFood({ ...product }, opts));
+    });
+
+    it("fills barcode from the product code, which is the EAN", () => {
+        expect(productToFood({ code: "1", product_name: "Milch" }, opts)).toMatchObject({
+            barcode: "1",
+            openfoodfacts_id: "1",
+        });
+    });
+
+    it("falls back to the given name and zeroed nutriments", () => {
+        expect(productToFood({ code: "1" }, opts)).toMatchObject({
+            name: "Unknown",
+            calories_per_100g: 0,
+            protein_per_100g: 0,
+            carbs_per_100g: 0,
+            fat_per_100g: 0,
+        });
+    });
+
+    it("prefers serving_quantity, then a number parsed out of serving_size, then 100 g", () => {
+        const size = (product: Parameters<typeof productToFood>[0]) =>
+            productToFood(product, opts).serving_size;
+
+        expect(size({ code: "1", serving_size: "250 ml", serving_quantity: 330 })).toBe(330);
+        expect(size({ code: "1", serving_size: "250 ml" })).toBe(250);
+        expect(size({ code: "1", serving_size: "one scoop" })).toBe(100);
+        expect(size({ code: "1" })).toBe(100);
+    });
+
+    it("guesses the unit from serving_size, else quantity, else grams", () => {
+        const unit = (product: Parameters<typeof productToFood>[0]) =>
+            productToFood(product, opts).default_unit;
+
+        expect(unit({ code: "1", serving_size: "330 ml", quantity: "1 kg" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "500 ml" })).toBe("ml");
+        expect(unit({ code: "1", quantity: "1 liter" })).toBe("ml");
+        expect(unit({ code: "1", serving_size: "1 cup" })).toBe("cup");
+        expect(unit({ code: "1", serving_size: "2 tbsp" })).toBe("tbsp");
+        expect(unit({ code: "1", serving_size: "8 fl oz" })).toBe("fl_oz");
+        expect(unit({ code: "1", serving_size: "30 g" })).toBe("g");
+        expect(unit({ code: "1" })).toBe("g");
     });
 });
 

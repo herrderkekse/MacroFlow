@@ -1,4 +1,5 @@
 import i18n from "@/src/i18n";
+import type { foods } from "@/src/services/db/schema";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
 
@@ -70,8 +71,18 @@ const FIELDS =
 const SEARCH_FIELDS = ["code", "product_name", "nutriments", "quantity"];
 const SERVING_FIELDS = "serving_size,serving_quantity,quantity";
 
+/**
+ * The `foods` columns an OFF product determines. Every column the DB would
+ * default is filled in, so the result is also enough to stand in for a food
+ * row that has not been written yet (see `useIngredientSearch`).
+ */
+export type FoodFromProduct = Omit<
+    Required<typeof foods.$inferInsert>,
+    "id" | "last_logged_amount" | "last_logged_unit" | "last_logged_meal" | "deleted" | "uuid"
+>;
+
 /** Guess the default unit from OFF serving_size or quantity string. */
-export function guessUnit(product: OFFProduct): FoodUnit {
+function guessUnit(product: OFFProduct): FoodUnit {
     const text = (product.serving_size ?? product.quantity ?? "").toLowerCase();
     if (/\bml\b/.test(text) || /\bcl\b/.test(text) || /\bliter|\blitre/.test(text))
         return "ml";
@@ -85,11 +96,42 @@ export function guessUnit(product: OFFProduct): FoodUnit {
 }
 
 /** Parse a numeric serving size from OFF, e.g. "250 ml" → 250. */
-export function parseServingSize(product: OFFProduct): number {
+function parseServingSize(product: OFFProduct): number {
     if (product.serving_quantity && product.serving_quantity > 0)
         return product.serving_quantity;
     const m = (product.serving_size ?? "").match(/([\d.]+)/);
     return m ? parseFloat(m[1]) || 100 : 100;
+}
+
+/**
+ * The one OFF product → food mapping. Every entry path (text search, barcode
+ * scan, recipe ingredient search) goes through here so a product yields the
+ * same food however the user found it.
+ *
+ * `barcode` and `openfoodfacts_id` both get `product.code`: OFF keys products
+ * by their EAN, so for an OFF-sourced food the two are the same value, and
+ * leaving `barcode` empty would hide the food from `getFoodByBarcode`.
+ *
+ * Serving fields are only as good as the product handed in — a Search-a-licious
+ * hit carries none, so run it through `hydrateServing` first.
+ */
+export function productToFood(
+    product: OFFProduct,
+    opts: { fallbackName: string },
+): FoodFromProduct {
+    const nutriments = product.nutriments ?? {};
+    return {
+        name: product.product_name || opts.fallbackName,
+        calories_per_100g: nutriments["energy-kcal_100g"] ?? 0,
+        protein_per_100g: nutriments.proteins_100g ?? 0,
+        carbs_per_100g: nutriments.carbohydrates_100g ?? 0,
+        fat_per_100g: nutriments.fat_100g ?? 0,
+        barcode: product.code,
+        openfoodfacts_id: product.code,
+        source: "openfoodfacts",
+        default_unit: guessUnit(product),
+        serving_size: parseServingSize(product),
+    };
 }
 
 export async function getProductByBarcode(
