@@ -1,4 +1,4 @@
-import { getProductByBarcode, hydrateProduct, productToFood, searchProducts, type FoodFromProduct, type OFFProduct } from "@/src/services/openfoodfacts";
+import { getProductByBarcode, hydrateProduct, productToFood, searchProducts, type DerivedServingUnit, type OFFProduct, type ProductImport } from "@/src/services/openfoodfacts";
 import logger from "@/src/utils/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,26 +8,41 @@ import {
     getFoodByOpenfoodfactsId,
     searchFoodsByName,
     type Food,
+    type ServingUnit,
 } from "../services/templateDb";
 
 /** Dismiss animation of a bottom sheet, before the next one may open. */
 const SHEET_SWAP_MS = 300;
 
 /**
+ * A food the editor is working with, which may not be in the library yet. An
+ * unsaved one carries the serving units its OpenFoodFacts import derived: they
+ * belong to a food row that does not exist, so they travel with the draft and
+ * are written at `materializeFood` time, along with the food itself.
+ */
+export type UnsavedFood = Food & { pendingServingUnits?: ServingUnit[] };
+
+/**
  * A food picked from OpenFoodFacts that is not in the library yet. It carries
  * `id: 0` so the rest of the editor can treat it like any other food; the row
- * is only written when the recipe is saved (see `materializeFood`).
+ * is only written when the recipe is saved (see `materializeFood`). Its serving
+ * units carry `id: 0` for the same reason.
  */
-function unsavedFood(food: FoodFromProduct): Food {
+function unsavedFood(imported: Extract<ProductImport, { ok: true }>): UnsavedFood {
     return {
         id: 0,
-        ...food,
+        ...imported.food,
         last_logged_amount: null,
         last_logged_unit: null,
         last_logged_meal: null,
         deleted: 0,
         uuid: null,
+        pendingServingUnits: imported.servingUnits.map(unsavedServingUnit),
     };
+}
+
+function unsavedServingUnit(unit: DerivedServingUnit): ServingUnit {
+    return { id: 0, food_id: 0, uuid: null, ...unit };
 }
 
 /**
@@ -35,7 +50,7 @@ function unsavedFood(food: FoodFromProduct): Food {
  * three ways out of it (on-device search, barcode scan, manual entry). Every
  * path ends in `onPickFood`, called once the sheets have been dismissed.
  */
-export function useIngredientSearch(onPickFood: (food: Food) => void) {
+export function useIngredientSearch(onPickFood: (food: UnsavedFood) => void) {
     const { t } = useTranslation();
 
     const [showSearchSheet, setShowSearchSheet] = useState(false);
@@ -154,17 +169,17 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
                 setShowManualForm(true);
                 return;
             }
-            pickRef.current(unsavedFood(imported.food));
+            pickRef.current(unsavedFood(imported));
         });
     }
 
-    function handleManualFoodCreated(food: Food) {
+    function handleManualFoodCreated(food: UnsavedFood) {
         setShowManualForm(false);
         setManualPrefill(null);
         afterSheetDismissed(() => pickRef.current(food));
     }
 
-    function handleBarcodeFound(food: Food) {
+    function handleBarcodeFound(food: UnsavedFood) {
         setShowScanner(false);
         afterSheetDismissed(() => pickRef.current(food));
     }
@@ -180,7 +195,7 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
         Alert.alert(t("templates.notFound"), t("templates.productNotFound"));
     }
 
-    async function lookupBarcode(barcode: string): Promise<Food | null> {
+    async function lookupBarcode(barcode: string): Promise<UnsavedFood | null> {
         setManualPrefill(null);
         const local = getFoodByBarcode(barcode);
         if (local) {
@@ -197,7 +212,7 @@ export function useIngredientSearch(onPickFood: (food: Food) => void) {
             setManualPrefill({ name: imported.name, barcode: imported.barcode });
             return null;
         }
-        return unsavedFood(imported.food);
+        return unsavedFood(imported);
     }
 
     return {

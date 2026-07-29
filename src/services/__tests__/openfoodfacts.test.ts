@@ -515,6 +515,18 @@ describe("productToFood", () => {
         expect(size({ code: "1" })).toBe(100);
     });
 
+    // The 100 g used to be indistinguishable from a product whose serving
+    // really is 100 g — Nutella (3017620422003) states no serving at all.
+    it("says when the serving size is its own invention", () => {
+        const guessed = (product: OFFProduct) =>
+            productToFood({ ...product, nutriments }, opts) as { servingSizeGuessed: boolean };
+
+        expect(guessed({ code: "1" }).servingSizeGuessed).toBe(true);
+        expect(guessed({ code: "1", serving_size: "one scoop" }).servingSizeGuessed).toBe(true);
+        expect(guessed({ code: "1", serving_quantity: 100 }).servingSizeGuessed).toBe(false);
+        expect(guessed({ code: "1", serving_size: "15 g" }).servingSizeGuessed).toBe(false);
+    });
+
     it("guesses the unit from serving_size, else quantity, else grams", () => {
         const unit = (product: OFFProduct) => foodFrom({ ...product, nutriments }).default_unit;
 
@@ -526,6 +538,91 @@ describe("productToFood", () => {
         expect(unit({ code: "1", serving_size: "8 fl oz" })).toBe("fl_oz");
         expect(unit({ code: "1", serving_size: "30 g" })).toBe("g");
         expect(unit({ code: "1" })).toBe("g");
+    });
+
+    // OFF's normalized units are the answer the regex was guessing at, and they
+    // exist for products that carry no serving_size text at all (#402).
+    it("takes the unit from OFF's normalized fields over the free text", () => {
+        const unit = (product: OFFProduct) => foodFrom({ ...product, nutriments }).default_unit;
+
+        expect(unit({ code: "1", serving_quantity_unit: "ml", serving_size: "1 cup" })).toBe("ml");
+        expect(unit({ code: "1", serving_quantity_unit: "g", quantity: "500 ml" })).toBe("g");
+        // Nutella: a normalized unit, no serving_size, no serving_quantity.
+        expect(unit({ code: "3017620422003", serving_quantity_unit: "g" })).toBe("g");
+        // The package unit stands in when the serving has none.
+        expect(unit({ code: "1", product_quantity_unit: "ml" })).toBe("ml");
+        // Anything outside the two OFF normalizes to leaves the regex in charge.
+        expect(unit({ code: "1", serving_quantity_unit: "kg", serving_size: "2 tbsp" })).toBe("tbsp");
+    });
+});
+
+// #402: OFF's two quantities are exactly a serving unit each, so a scanned
+// product is loggable as "1 serving" / "1 package" without hand-building one.
+describe("productToFood serving units", () => {
+    const opts = { fallbackName: "Unknown" };
+    const nutriments = { "energy-kcal_100g": 42 };
+
+    function unitsFrom(product: OFFProduct) {
+        const imported = productToFood({ ...product, nutriments }, opts);
+        if (!imported.ok) throw new Error(`expected an importable product, got ${imported.reason}`);
+        return imported.servingUnits;
+    }
+
+    it("derives one unit per quantity OFF publishes", () => {
+        expect(
+            unitsFrom({
+                code: "8076809513753",
+                serving_quantity: 100,
+                serving_quantity_unit: "g",
+                product_quantity: 190,
+                product_quantity_unit: "g",
+            }),
+        ).toEqual([
+            { name: "common.offServingUnitServing", grams: 100 },
+            { name: "common.offServingUnitPackage", grams: 190 },
+        ]);
+    });
+
+    // A 330 ml can is one serving: two chips for the same amount is clutter.
+    it("drops a package that is exactly one serving", () => {
+        expect(
+            unitsFrom({
+                code: "5449000000996",
+                serving_quantity: 330,
+                serving_quantity_unit: "ml",
+                product_quantity: 330,
+                product_quantity_unit: "ml",
+            }),
+        ).toEqual([{ name: "common.offServingUnitServing", grams: 330 }]);
+    });
+
+    it("derives only what the product carries", () => {
+        // Alesto nuts: a serving, no pack size.
+        expect(unitsFrom({ code: "20724696", serving_quantity: 30, serving_quantity_unit: "g" }))
+            .toEqual([{ name: "common.offServingUnitServing", grams: 30 }]);
+        expect(unitsFrom({ code: "1", product_quantity: 500, product_quantity_unit: "g" }))
+            .toEqual([{ name: "common.offServingUnitPackage", grams: 500 }]);
+        expect(unitsFrom({ code: "1" })).toEqual([]);
+    });
+
+    it("skips a quantity that is absent, zero or unparseable", () => {
+        expect(unitsFrom({ code: "1", serving_quantity: 0, product_quantity: "" })).toEqual([]);
+        expect(unitsFrom({ code: "1", product_quantity: "unknown" })).toEqual([]);
+    });
+
+    // OFF sends these as strings on plenty of products.
+    it("reads a quantity that arrived as a string", () => {
+        expect(unitsFrom({ code: "1", product_quantity: "190", product_quantity_unit: "g" }))
+            .toEqual([{ name: "common.offServingUnitPackage", grams: 190 }]);
+    });
+
+    // serving_units.grams is grams; ml rides on the app's ≈1 g/ml assumption,
+    // and there is no honest conversion for anything else.
+    it("skips a quantity in a unit it cannot store as grams", () => {
+        expect(unitsFrom({ code: "1", serving_quantity: 8, serving_quantity_unit: "fl oz" }))
+            .toEqual([]);
+        expect(unitsFrom({ code: "1", product_quantity: 1, product_quantity_unit: "l" }))
+            .toEqual([]);
     });
 });
 
@@ -569,6 +666,9 @@ describe("hydrateProduct", () => {
         });
         expect(lastUrl()).toContain("world.openfoodfacts.org/api/v2/product/1");
         expect(lastUrl()).toContain("no_nutrition_data");
+        // The structured serving/package quantities behind the derived units (#402).
+        expect(lastUrl()).toContain("serving_quantity_unit");
+        expect(lastUrl()).toContain("product_quantity_unit");
         // The localized names have to be asked for explicitly (#401).
         expect(lastUrl()).toContain("product_name_de");
     });

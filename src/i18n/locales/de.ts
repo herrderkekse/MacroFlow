@@ -40,6 +40,8 @@ const de = {
         offObsolete: "Nicht mehr erhältlich",
         offMissingNutritionNotice:
             "OpenFoodFacts hat für dieses Produkt keine Nährwertangaben. Ergänze sie unten, um es in deiner Bibliothek zu speichern.",
+        offServingUnitServing: "Portion",
+        offServingUnitPackage: "Packung",
         itemCount_one: "{{count}} Element",
         itemCount_other: "{{count}} Elemente",
     },

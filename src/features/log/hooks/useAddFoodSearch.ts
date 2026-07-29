@@ -1,6 +1,6 @@
 import { getRecipeGroups, type RecipeGroup } from "@/src/features/templates/services/recipeVariantsDb";
 import {
-    addFood,
+    addFoodWithServingUnits,
     getFoodByBarcode,
     getFoodByOpenfoodfactsId,
     getRecipeById,
@@ -153,7 +153,7 @@ export function useAddFoodSearch() {
                 setShowManualForm(true);
                 return;
             }
-            const food = addFood(imported.food);
+            const food = addFoodWithServingUnits(imported.food, imported.servingUnits);
             logger.info("[DB] Created food from OFF search", { id: food.id, name: food.name });
             setSelectedFood(food);
         } finally {
@@ -187,7 +187,7 @@ export function useAddFoodSearch() {
             });
             return null;
         }
-        const food = addFood(imported.food);
+        const food = addFoodWithServingUnits(imported.food, imported.servingUnits);
         logger.info("[DB] Created food from barcode", { id: food.id, name: food.name });
         return food;
     }

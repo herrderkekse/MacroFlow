@@ -47,6 +47,15 @@ export interface OFFProduct extends NutritionSource {
      */
     brands?: string | string[];
     serving_size?: string;
+    /**
+     * OFF's own normalization of `serving_quantity`: the number is already
+     * converted and this is the plain unit it was converted to, only ever
+     * `"g"` or `"ml"`. Preferred over reading `serving_size` free text.
+     */
+    serving_quantity_unit?: string;
+    /** Net contents of the whole package, normalized the same way. */
+    product_quantity?: number | string;
+    product_quantity_unit?: string;
     quantity?: string;
     /** `true` from the search index, `"on"` / `""` from the product API. */
     obsolete?: boolean | string;
@@ -93,13 +102,16 @@ const FIELDS = [
     "nutriments",
     "serving_size",
     "serving_quantity",
+    "serving_quantity_unit",
+    "product_quantity",
+    "product_quantity_unit",
     "quantity",
     "no_nutrition_data",
     "obsolete",
 ];
 
-// The Search-a-licious index carries neither the serving fields
-// (`serving_size`, `serving_quantity`) nor `no_nutrition_data`, and its
+// The Search-a-licious index carries neither the serving/package fields
+// (`serving_size`, `serving_quantity`, `product_quantity`, …) nor `no_nutrition_data`, and its
 // `nutriments` hold only the as-sold per-100 g figures. `hydrateProduct` fetches
 // the rest per selection. `obsolete` *is* indexed, and only appears when true.
 const SEARCH_FIELDS = ["code", "product_name", "brands", "nutriments", "quantity", "obsolete"];
@@ -123,8 +135,46 @@ export type FoodFromProduct = Omit<
     "id" | "last_logged_amount" | "last_logged_unit" | "last_logged_meal" | "deleted" | "uuid"
 >;
 
-/** Guess the default unit from OFF serving_size or quantity string. */
+/** The serving size assumed for a product that states none. */
+const DEFAULT_SERVING_SIZE = 100;
+
+/** OFF sends its quantity fields as numbers on some products and strings on others. */
+function numeric(value: number | string | undefined): number | undefined {
+    const n = typeof value === "string" ? parseFloat(value) : value;
+    return typeof n === "number" && Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * The two units OFF normalizes its quantities to, and the only ones we can
+ * store: `serving_units.grams` is grams, so `ml` rides on the app-wide ≈1 g/ml
+ * assumption in `src/utils/units.ts`. Anything else is left to the caller.
+ */
+function storableUnit(unit: string | undefined): FoodUnit | undefined {
+    const u = unit?.trim().toLowerCase();
+    return u === "g" || u === "ml" ? u : undefined;
+}
+
+/**
+ * The unit a food's amounts are entered in. OFF's `*_quantity_unit` fields are
+ * already normalized to `"g"` or `"ml"`, so they beat reading the free text:
+ * plenty of products (Nutella, 3017620422003) carry the unit and no
+ * `serving_size` string at all, and the numbers we pair the unit with —
+ * `serving_quantity`, `product_quantity` — are normalized to match it.
+ */
 function guessUnit(product: OFFProduct): FoodUnit {
+    return (
+        storableUnit(product.serving_quantity_unit)
+        ?? storableUnit(product.product_quantity_unit)
+        ?? unitFromText(product)
+    );
+}
+
+/**
+ * Fallback for products carrying no normalized unit at all. Note that `cl` maps
+ * to `ml` without touching the number: safe only because the number beside it
+ * comes from OFF pre-converted ("33 cl" → `serving_quantity: 330`).
+ */
+function unitFromText(product: OFFProduct): FoodUnit {
     const text = (product.serving_size ?? product.quantity ?? "").toLowerCase();
     if (/\bml\b/.test(text) || /\bcl\b/.test(text) || /\bliter|\blitre/.test(text))
         return "ml";
@@ -137,12 +187,61 @@ function guessUnit(product: OFFProduct): FoodUnit {
     return "g";
 }
 
-/** Parse a numeric serving size from OFF, e.g. "250 ml" → 250. */
-function parseServingSize(product: OFFProduct): number {
-    if (product.serving_quantity && product.serving_quantity > 0)
-        return product.serving_quantity;
-    const m = (product.serving_size ?? "").match(/([\d.]+)/);
-    return m ? parseFloat(m[1]) || 100 : 100;
+/**
+ * The serving size in `default_unit`, e.g. "250 ml" → 250, or undefined when
+ * OFF states none. Undefined rather than `DEFAULT_SERVING_SIZE` so that a
+ * guess stays distinguishable from a product whose serving really is 100 g.
+ */
+function parseServingSize(product: OFFProduct): number | undefined {
+    const quantity = numeric(product.serving_quantity);
+    if (quantity !== undefined && quantity > 0) return quantity;
+    const parsed = numeric((product.serving_size ?? "").match(/([\d.]+)/)?.[1]);
+    return parsed !== undefined && parsed > 0 ? parsed : undefined;
+}
+
+/** One `serving_units` row a product implies, before the food row exists. */
+export interface DerivedServingUnit {
+    name: string;
+    grams: number;
+}
+
+/** A normalized OFF quantity as grams, or undefined if there is none to store. */
+function quantityGrams(
+    value: number | string | undefined,
+    unit: string | undefined,
+): number | undefined {
+    const amount = numeric(value);
+    if (amount === undefined || amount <= 0) return undefined;
+    // A missing unit is normal on older products, and harmless: OFF only ever
+    // normalizes to g or ml, which are the same number of grams either way.
+    // A unit we cannot convert is what disqualifies the quantity.
+    if (unit && !storableUnit(unit)) return undefined;
+    return amount;
+}
+
+/**
+ * The serving units OFF's two quantities imply: one serving, and the whole
+ * package. Scan a jar of pesto and both "1 serving" and "1 package (190 g)" are
+ * there, rather than the user hand-building a fact OFF already published.
+ *
+ * A package that weighs exactly one serving (a 330 ml can of Coke) yields no
+ * second row — the same amount under two names is only clutter in the picker.
+ *
+ * The names are resolved at import time and then frozen in the DB, like
+ * `productName`: entries reference a serving unit by name, so re-translating
+ * one later would orphan them.
+ */
+function servingUnitsFromProduct(product: OFFProduct): DerivedServingUnit[] {
+    const units: DerivedServingUnit[] = [];
+    const serving = quantityGrams(product.serving_quantity, product.serving_quantity_unit);
+    if (serving !== undefined) {
+        units.push({ name: i18n.t("common.offServingUnitServing"), grams: serving });
+    }
+    const pack = quantityGrams(product.product_quantity, product.product_quantity_unit);
+    if (pack !== undefined && pack !== serving) {
+        units.push({ name: i18n.t("common.offServingUnitPackage"), grams: pack });
+    }
+    return units;
 }
 
 /**
@@ -206,7 +305,18 @@ export function isObsolete(product: OFFProduct): boolean {
  * with the name and barcode already filled in, rather than into a dead end.
  */
 export type ProductImport =
-    | { ok: true; food: FoodFromProduct; prepared: boolean }
+    | {
+        ok: true;
+        food: FoodFromProduct;
+        prepared: boolean;
+        /** To write once the food row exists — they need its id. */
+        servingUnits: DerivedServingUnit[];
+        /**
+         * True when OFF states no serving size and `food.serving_size` is our
+         * `DEFAULT_SERVING_SIZE` rather than the product's own figure.
+         */
+        servingSizeGuessed: boolean;
+    }
     | { ok: false; reason: "no-nutrition-data"; name: string; barcode: string };
 
 /**
@@ -217,6 +327,11 @@ export type ProductImport =
  * `barcode` and `openfoodfacts_id` both get `product.code`: OFF keys products
  * by their EAN, so for an OFF-sourced food the two are the same value, and
  * leaving `barcode` empty would hide the food from `getFoodByBarcode`.
+ *
+ * The derived serving units come back beside the food rather than in it: they
+ * are rows of their own and need the food's id, so the caller writes them once
+ * it has one (`addFoodWithServingUnits`, or `materializeFood` for a recipe
+ * ingredient that is not saved yet).
  *
  * Serving fields and the validation flags are only as good as the product
  * handed in — a Search-a-licious hit carries neither, so run it through
@@ -237,9 +352,19 @@ export function productToFood(
     }
 
     const { prepared, ...macros } = nutrition;
+    const servingSize = parseServingSize(product);
+    if (servingSize === undefined) {
+        logger.info("[API] OFF product states no serving size, assuming the default", {
+            code: product.code,
+            assumed: DEFAULT_SERVING_SIZE,
+        });
+    }
+
     return {
         ok: true,
         prepared,
+        servingUnits: servingUnitsFromProduct(product),
+        servingSizeGuessed: servingSize === undefined,
         food: {
             name,
             ...macros,
@@ -247,7 +372,7 @@ export function productToFood(
             openfoodfacts_id: product.code,
             source: "openfoodfacts",
             default_unit: guessUnit(product),
-            serving_size: parseServingSize(product),
+            serving_size: servingSize ?? DEFAULT_SERVING_SIZE,
         },
     };
 }
