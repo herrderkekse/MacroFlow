@@ -642,8 +642,8 @@ describe("productToFood serving units", () => {
                 product_quantity_unit: "g",
             }),
         ).toEqual([
-            { name: "common.offServingUnitServing", grams: 100, display_unit: "g" },
-            { name: "common.offServingUnitPackage", grams: 190, display_unit: "g" },
+            { name: "common.offServingUnitServing", grams: 100, display_unit: "g", kind: "serving" },
+            { name: "common.offServingUnitPackage", grams: 190, display_unit: "g", kind: "package" },
         ]);
     });
 
@@ -657,15 +657,15 @@ describe("productToFood serving units", () => {
                 product_quantity: 330,
                 product_quantity_unit: "ml",
             }),
-        ).toEqual([{ name: "common.offServingUnitServing", grams: 330, display_unit: "ml" }]);
+        ).toEqual([{ name: "common.offServingUnitServing", grams: 330, display_unit: "ml", kind: "serving" }]);
     });
 
     it("derives only what the product carries", () => {
         // Alesto nuts: a serving, no pack size.
         expect(unitsFrom({ code: "20724696", serving_quantity: 30, serving_quantity_unit: "g" }))
-            .toEqual([{ name: "common.offServingUnitServing", grams: 30, display_unit: "g" }]);
+            .toEqual([{ name: "common.offServingUnitServing", grams: 30, display_unit: "g", kind: "serving" }]);
         expect(unitsFrom({ code: "1", product_quantity: 500, product_quantity_unit: "g" }))
-            .toEqual([{ name: "common.offServingUnitPackage", grams: 500, display_unit: "g" }]);
+            .toEqual([{ name: "common.offServingUnitPackage", grams: 500, display_unit: "g", kind: "package" }]);
         expect(unitsFrom({ code: "1" })).toEqual([]);
     });
 
@@ -677,7 +677,7 @@ describe("productToFood serving units", () => {
     // OFF sends these as strings on plenty of products.
     it("reads a quantity that arrived as a string", () => {
         expect(unitsFrom({ code: "1", product_quantity: "190", product_quantity_unit: "g" }))
-            .toEqual([{ name: "common.offServingUnitPackage", grams: 190, display_unit: "g" }]);
+            .toEqual([{ name: "common.offServingUnitPackage", grams: 190, display_unit: "g", kind: "package" }]);
     });
 
     // #415: the amount stays grams (ml is 1:1), but the row remembers which
@@ -693,8 +693,8 @@ describe("productToFood serving units", () => {
                 product_quantity_unit: "ml",
             }),
         ).toEqual([
-            { name: "common.offServingUnitServing", grams: 250, display_unit: "ml" },
-            { name: "common.offServingUnitPackage", grams: 355, display_unit: "ml" },
+            { name: "common.offServingUnitServing", grams: 250, display_unit: "ml", kind: "serving" },
+            { name: "common.offServingUnitPackage", grams: 355, display_unit: "ml", kind: "package" },
         ]);
         // A syrup stating a serving in ml and a bottle in g keeps both.
         expect(
@@ -706,15 +706,46 @@ describe("productToFood serving units", () => {
                 product_quantity_unit: "g",
             }),
         ).toEqual([
-            { name: "common.offServingUnitServing", grams: 30, display_unit: "ml" },
-            { name: "common.offServingUnitPackage", grams: 700, display_unit: "g" },
+            { name: "common.offServingUnitServing", grams: 30, display_unit: "ml", kind: "serving" },
+            { name: "common.offServingUnitPackage", grams: 700, display_unit: "g", kind: "package" },
         ]);
     });
 
     // Older products carry a quantity and no unit; grams is what that reads as.
     it("leaves the unit null when OFF names none", () => {
         expect(unitsFrom({ code: "1", serving_quantity: 30 }))
-            .toEqual([{ name: "common.offServingUnitServing", grams: 30, display_unit: null }]);
+            .toEqual([{ name: "common.offServingUnitServing", grams: 30, display_unit: null, kind: "serving" }]);
+    });
+
+    // #414: an amount form pre-selects the serving row, so it has to be findable
+    // — by this marker rather than by name, since names are translated at import
+    // time and frozen in the DB ("Portion" for a German import).
+    it("marks which of OFF's two quantities each row came from", () => {
+        expect(
+            unitsFrom({
+                code: "20724696",
+                serving_quantity: 30,
+                serving_quantity_unit: "g",
+                product_quantity: 500,
+                product_quantity_unit: "g",
+            }).map((u) => u.kind),
+        ).toEqual(["serving", "package"]);
+        // Only a pack size: a "package" row and no "serving" one, so there is
+        // nothing for the amount form to pre-select.
+        expect(
+            unitsFrom({ code: "1", product_quantity: 500, product_quantity_unit: "g" })
+                .map((u) => u.kind),
+        ).toEqual(["package"]);
+        // The can whose package is exactly one serving keeps the serving row.
+        expect(
+            unitsFrom({
+                code: "5449000000996",
+                serving_quantity: 330,
+                serving_quantity_unit: "ml",
+                product_quantity: 330,
+                product_quantity_unit: "ml",
+            }).map((u) => u.kind),
+        ).toEqual(["serving"]);
     });
 
     // serving_units.grams is grams; ml rides on the app's ≈1 g/ml assumption,

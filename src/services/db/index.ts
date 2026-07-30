@@ -226,6 +226,10 @@ export function initDB() {
     // Nullable, and null means grams: existing rows are all grams-labelled, so
     // there is nothing to backfill.
     "ALTER TABLE serving_units ADD COLUMN display_unit TEXT",
+    // Nullable, and null is correct for every existing row: they were written
+    // before the marker existed and there is no way to tell now which of them
+    // came from OFF's serving quantity, so there is nothing to backfill.
+    "ALTER TABLE serving_units ADD COLUMN kind TEXT",
     // Sync: stable cross-device row identity (see SYNC.md)
     ...SYNC_TABLES.map((t) => `ALTER TABLE ${t.name} ADD COLUMN uuid TEXT`),
   ];

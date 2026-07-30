@@ -1,5 +1,6 @@
 import { getServingUnits, updateFood, type Food, type ServingUnit } from "@/src/features/templates/services/templateDb";
 import { cancelMealReminderIfLogged } from "@/src/services/notifications";
+import { servingUnitToPreselect } from "@/src/services/servingUnits";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { type MealType } from "@/src/shared/types";
 import logger from "@/src/utils/logger";
@@ -69,6 +70,9 @@ export function useEntryForm({ food, defaultMealType, entry, onClose, onSaved }:
                 }
             } else {
                 const sUnits = food.id ? getServingUnits(food.id) : [];
+                // Undefined for a food that has been logged before, so the
+                // remembered unit below keeps precedence.
+                const preselect = servingUnitToPreselect(food, sUnits);
                 if (food.last_logged_amount != null && food.last_logged_unit != null) {
                     const lastUnit = food.last_logged_unit;
                     const matchServing = sUnits.find((s) => s.name === lastUnit);
@@ -80,6 +84,13 @@ export function useEntryForm({ food, defaultMealType, entry, onClose, onSaved }:
                         setUnit(lastUnit as FoodUnit);
                     }
                     setQuantity(String(food.last_logged_amount));
+                } else if (preselect) {
+                    // Never logged, but OpenFoodFacts told us what one serving
+                    // of it is: open on that chip at 1, which is the amount the
+                    // derived row exists to offer.
+                    setCustomServingUnit(preselect);
+                    setUnit("g");
+                    setQuantity("1");
                 } else {
                     const defaultUnit = (food.default_unit ?? "g") as FoodUnit;
                     setUnit(defaultUnit);
