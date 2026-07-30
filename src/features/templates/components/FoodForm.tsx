@@ -58,7 +58,12 @@ export default function FoodForm({ foodId, initialName, initialBarcode, notice, 
                 setBarcode(food.barcode ?? "");
                 const units = getServingUnits(foodId);
                 setServingUnitRows(
-                    units.map((u) => ({ id: u.id, name: u.name, grams: String(u.grams) })),
+                    units.map((u) => ({
+                        id: u.id,
+                        name: u.name,
+                        grams: String(u.grams),
+                        displayUnit: u.display_unit,
+                    })),
                 );
             }
         });

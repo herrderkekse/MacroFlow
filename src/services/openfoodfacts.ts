@@ -234,6 +234,13 @@ function parseServingSize(product: OFFProduct): number | undefined {
 export interface DerivedServingUnit {
     name: string;
     grams: number;
+    /**
+     * The unit the amount was stated in, for labelling only — a 250 ml can reads
+     * wrong as "serving (250 g)". `grams` is unaffected: OFF's two units are the
+     * same number of grams either way. Null when OFF named no unit at all, which
+     * reads as grams.
+     */
+    display_unit: string | null;
 }
 
 /** A normalized OFF quantity as grams, or undefined if there is none to store. */
@@ -251,6 +258,21 @@ function quantityGrams(
 }
 
 /**
+ * One derived row, or undefined when the quantity is not one we can store.
+ * `display_unit` is OFF's *normalized* unit rather than its raw text, so it is
+ * only ever `"g"`, `"ml"`, or null for a quantity that named no unit.
+ */
+function derivedServingUnit(
+    name: string,
+    value: number | string | undefined,
+    unit: string | undefined,
+): DerivedServingUnit | undefined {
+    const grams = quantityGrams(value, unit);
+    if (grams === undefined) return undefined;
+    return { name, grams, display_unit: storableUnit(unit) ?? null };
+}
+
+/**
  * The serving units OFF's two quantities imply: one serving, and the whole
  * package. Scan a jar of pesto and both "1 serving" and "1 package (190 g)" are
  * there, rather than the user hand-building a fact OFF already published.
@@ -264,14 +286,18 @@ function quantityGrams(
  */
 function servingUnitsFromProduct(product: OFFProduct): DerivedServingUnit[] {
     const units: DerivedServingUnit[] = [];
-    const serving = quantityGrams(product.serving_quantity, product.serving_quantity_unit);
-    if (serving !== undefined) {
-        units.push({ name: i18n.t("common.offServingUnitServing"), grams: serving });
-    }
-    const pack = quantityGrams(product.product_quantity, product.product_quantity_unit);
-    if (pack !== undefined && pack !== serving) {
-        units.push({ name: i18n.t("common.offServingUnitPackage"), grams: pack });
-    }
+    const serving = derivedServingUnit(
+        i18n.t("common.offServingUnitServing"),
+        product.serving_quantity,
+        product.serving_quantity_unit,
+    );
+    if (serving) units.push(serving);
+    const pack = derivedServingUnit(
+        i18n.t("common.offServingUnitPackage"),
+        product.product_quantity,
+        product.product_quantity_unit,
+    );
+    if (pack && pack.grams !== serving?.grams) units.push(pack);
     return units;
 }
 

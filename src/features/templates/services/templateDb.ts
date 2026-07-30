@@ -24,11 +24,16 @@ export function addFood(food: NewFood): Food {
  */
 export function addFoodWithServingUnits(
     food: NewFood,
-    units: { name: string; grams: number }[],
+    units: { name: string; grams: number; display_unit?: string | null }[],
 ): Food {
     const created = addFood(food);
     for (const unit of units) {
-        addServingUnit({ food_id: created.id, name: unit.name, grams: unit.grams });
+        addServingUnit({
+            food_id: created.id,
+            name: unit.name,
+            grams: unit.grams,
+            display_unit: unit.display_unit ?? null,
+        });
     }
     return created;
 }
@@ -85,7 +90,9 @@ export function duplicateFood(id: number, overrides: Partial<NewFood>): Food {
     // Copy serving units to the new food
     const units = getServingUnits(id);
     for (const u of units) {
-        db.insert(servingUnits).values({ food_id: created.id, name: u.name, grams: u.grams }).run();
+        db.insert(servingUnits)
+            .values({ food_id: created.id, name: u.name, grams: u.grams, display_unit: u.display_unit })
+            .run();
     }
     return created;
 }

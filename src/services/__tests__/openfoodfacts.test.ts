@@ -642,8 +642,8 @@ describe("productToFood serving units", () => {
                 product_quantity_unit: "g",
             }),
         ).toEqual([
-            { name: "common.offServingUnitServing", grams: 100 },
-            { name: "common.offServingUnitPackage", grams: 190 },
+            { name: "common.offServingUnitServing", grams: 100, display_unit: "g" },
+            { name: "common.offServingUnitPackage", grams: 190, display_unit: "g" },
         ]);
     });
 
@@ -657,15 +657,15 @@ describe("productToFood serving units", () => {
                 product_quantity: 330,
                 product_quantity_unit: "ml",
             }),
-        ).toEqual([{ name: "common.offServingUnitServing", grams: 330 }]);
+        ).toEqual([{ name: "common.offServingUnitServing", grams: 330, display_unit: "ml" }]);
     });
 
     it("derives only what the product carries", () => {
         // Alesto nuts: a serving, no pack size.
         expect(unitsFrom({ code: "20724696", serving_quantity: 30, serving_quantity_unit: "g" }))
-            .toEqual([{ name: "common.offServingUnitServing", grams: 30 }]);
+            .toEqual([{ name: "common.offServingUnitServing", grams: 30, display_unit: "g" }]);
         expect(unitsFrom({ code: "1", product_quantity: 500, product_quantity_unit: "g" }))
-            .toEqual([{ name: "common.offServingUnitPackage", grams: 500 }]);
+            .toEqual([{ name: "common.offServingUnitPackage", grams: 500, display_unit: "g" }]);
         expect(unitsFrom({ code: "1" })).toEqual([]);
     });
 
@@ -677,7 +677,44 @@ describe("productToFood serving units", () => {
     // OFF sends these as strings on plenty of products.
     it("reads a quantity that arrived as a string", () => {
         expect(unitsFrom({ code: "1", product_quantity: "190", product_quantity_unit: "g" }))
-            .toEqual([{ name: "common.offServingUnitPackage", grams: 190 }]);
+            .toEqual([{ name: "common.offServingUnitPackage", grams: 190, display_unit: "g" }]);
+    });
+
+    // #415: the amount stays grams (ml is 1:1), but the row remembers which
+    // unit it was stated in so a 250 ml can is not labelled "serving (250 g)".
+    it("keeps each quantity's own unit for labelling", () => {
+        // Red Bull: both quantities in ml.
+        expect(
+            unitsFrom({
+                code: "9002490100070",
+                serving_quantity: 250,
+                serving_quantity_unit: "ml",
+                product_quantity: 355,
+                product_quantity_unit: "ml",
+            }),
+        ).toEqual([
+            { name: "common.offServingUnitServing", grams: 250, display_unit: "ml" },
+            { name: "common.offServingUnitPackage", grams: 355, display_unit: "ml" },
+        ]);
+        // A syrup stating a serving in ml and a bottle in g keeps both.
+        expect(
+            unitsFrom({
+                code: "2",
+                serving_quantity: 30,
+                serving_quantity_unit: "ml",
+                product_quantity: 700,
+                product_quantity_unit: "g",
+            }),
+        ).toEqual([
+            { name: "common.offServingUnitServing", grams: 30, display_unit: "ml" },
+            { name: "common.offServingUnitPackage", grams: 700, display_unit: "g" },
+        ]);
+    });
+
+    // Older products carry a quantity and no unit; grams is what that reads as.
+    it("leaves the unit null when OFF names none", () => {
+        expect(unitsFrom({ code: "1", serving_quantity: 30 }))
+            .toEqual([{ name: "common.offServingUnitServing", grams: 30, display_unit: null }]);
     });
 
     // serving_units.grams is grams; ml rides on the app's ≈1 g/ml assumption,

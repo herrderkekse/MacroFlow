@@ -1,6 +1,6 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { unitLabel, type FoodUnit } from "@/src/utils/units";
+import { formatQuantity, servingDisplayUnit, unitLabel, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,8 @@ export interface ServingUnit {
     id: number;
     name: string;
     grams: number;
+    /** Unit the amount is labelled in; null/absent means grams. */
+    display_unit?: string | null;
 }
 
 interface UnitPickerProps<TUnit extends ServingUnit = ServingUnit> {
@@ -97,7 +99,7 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
                                 selectedServingUnit?.id === su.id && styles.unitChipTextActive,
                             ]}
                         >
-                            {su.name} ({su.grams}g)
+                            {su.name} ({formatQuantity(su.grams, servingDisplayUnit(su.display_unit))})
                         </Text>
                     </Pressable>
                 ))}
