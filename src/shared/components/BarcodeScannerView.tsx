@@ -1,3 +1,4 @@
+import { isRateLimitError } from "@/src/services/rateLimit";
 import Button from "@/src/shared/atoms/Button";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import logger from "@/src/utils/logger";
@@ -64,10 +65,12 @@ export default function BarcodeScannerView<TFood>({
             }
             resetAndClose();
             onFoodFound(food);
-        } catch {
+        } catch (err) {
             setState({
                 status: "error",
-                message: t("log.barcodeNetworkError"),
+                // A lookup turned away by OFF's rate limit knows how long the
+                // wait is; everything else is a connection the user can only retry.
+                message: isRateLimitError(err) ? err.message : t("log.barcodeNetworkError"),
             });
         }
     }

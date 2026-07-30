@@ -19,7 +19,16 @@ jest.mock("@/src/utils/logger", () => ({
     default: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+// Stands in for app.json, which is where the User-Agent's version comes from.
+jest.mock("expo-constants", () => ({
+    __esModule: true,
+    default: { expoConfig: { version: "1.2.3" } },
+}));
+
+import { isRateLimitError } from "@/src/services/rateLimit";
+
 import {
+    getProductByBarcode,
     hydrateProduct,
     isObsolete,
     productName,
@@ -37,6 +46,23 @@ function jsonResponse(body: unknown, status = 200) {
 
 function searchHits(hits: unknown[]) {
     return jsonResponse({ hits, page: 1, page_size: 20, page_count: 1 });
+}
+
+/** The v3 product envelope: the outcome is `result.id`, not a numeric status. */
+function productResponse(product: unknown) {
+    return jsonResponse({
+        status: "success",
+        result: { id: "product_found" },
+        code: (product as { code?: string }).code,
+        product,
+    });
+}
+
+function notFoundResponse() {
+    return jsonResponse(
+        { status: "failure", result: { id: "product_not_found" }, errors: [] },
+        404,
+    );
 }
 
 let fetchMock: FetchMock;
@@ -231,7 +257,8 @@ describe("searchProducts", () => {
         );
 
         // …and frees up again once the sliding window has passed.
-        jest.setSystemTime(Date.now() + 61_000);
+        clock += 61_000;
+        jest.setSystemTime(clock);
         await expect(withTimersFlushed(searchProducts("milch"))).resolves.toHaveLength(1);
     });
 });
@@ -673,19 +700,15 @@ describe("hydrateProduct", () => {
 
     it("merges in everything the search index does not carry", async () => {
         fetchMock.mockResolvedValue(
-            jsonResponse({
-                status: 1,
+            productResponse({
                 code: "1",
-                product: {
-                    code: "1",
-                    product_name: "Whole milk",
-                    product_name_de: "Vollmilch",
-                    brands: "Weihenstephan",
-                    serving_size: "250 ml",
-                    serving_quantity: 250,
-                    no_nutrition_data: "on",
-                    nutriments: { "energy-kcal_serving": 160 },
-                },
+                product_name: "Whole milk",
+                product_name_de: "Vollmilch",
+                brands: "Weihenstephan",
+                serving_size: "250 ml",
+                serving_quantity: 250,
+                no_nutrition_data: "on",
+                nutriments: { "energy-kcal_serving": 160 },
             }),
         );
 
@@ -701,7 +724,7 @@ describe("hydrateProduct", () => {
             nutriments: { "energy-kcal_serving": 160 },
             complete: true,
         });
-        expect(lastUrl()).toContain("world.openfoodfacts.org/api/v2/product/1");
+        expect(lastUrl()).toContain("world.openfoodfacts.org/api/v3/product/1");
         expect(lastUrl()).toContain("no_nutrition_data");
         // The structured serving/package quantities behind the derived units (#402).
         expect(lastUrl()).toContain("serving_quantity_unit");
@@ -714,17 +737,13 @@ describe("hydrateProduct", () => {
     // be enough to wipe a localized name or the pack size off the search hit.
     it("does not let the API's blanks overwrite the search hit", async () => {
         fetchMock.mockResolvedValue(
-            jsonResponse({
-                status: 1,
+            productResponse({
                 code: "1",
-                product: {
-                    code: "1",
-                    product_name: "",
-                    product_name_de: "",
-                    brands: "",
-                    quantity: "",
-                    serving_size: "250 ml",
-                },
+                product_name: "",
+                product_name_de: "",
+                brands: "",
+                quantity: "",
+                serving_size: "250 ml",
             }),
         );
 
@@ -749,7 +768,88 @@ describe("hydrateProduct", () => {
         fetchMock.mockResolvedValue(jsonResponse({}, 503));
         await expect(hydrateProduct(hit)).resolves.toEqual(hit);
 
-        fetchMock.mockResolvedValue(jsonResponse({ status: 0, code: "1" }));
+        fetchMock.mockResolvedValue(
+            jsonResponse({ status: "failure", result: { id: "product_not_found" } }),
+        );
         await expect(hydrateProduct(hit)).resolves.toEqual(hit);
+    });
+
+    // Hydration is a product read like any other and spends from the same
+    // budget — but it is best-effort, so running out is not an error the user
+    // has to see mid-selection.
+    it("returns the search hit unchanged once the product budget is spent", async () => {
+        fetchMock.mockResolvedValue(productResponse({ code: "1", serving_size: "250 ml" }));
+        for (let i = 0; i < 15; i++) await getProductByBarcode(String(i));
+
+        await expect(hydrateProduct(hit)).resolves.toEqual(hit);
+        expect(fetchMock).toHaveBeenCalledTimes(15);
+    });
+});
+
+describe("getProductByBarcode", () => {
+    it("reads the product from the v3 endpoint, identifying the app to OFF", async () => {
+        fetchMock.mockResolvedValue(
+            productResponse({
+                code: "8076809513753",
+                product_name: "Pesto alla Genovese",
+                nutriments: { "energy-kcal_100g": 458 },
+            }),
+        );
+
+        await expect(getProductByBarcode("8076809513753")).resolves.toEqual({
+            code: "8076809513753",
+            product_name: "Pesto alla Genovese",
+            nutriments: { "energy-kcal_100g": 458 },
+            complete: true,
+        });
+
+        expect(lastUrl()).toContain("world.openfoodfacts.org/api/v3/product/8076809513753");
+        expect(lastUrl()).toContain("product_name_de");
+        // OFF's documented format: AppName/Version (ContactEmail), version from app.json.
+        const headers = (fetchMock.mock.calls[0][1] as { headers: Record<string, string> }).headers;
+        expect(headers["User-Agent"]).toBe("MacroFlow/1.2.3 (info.macroflow@gmail.com)");
+    });
+
+    // v3 answers an unknown barcode with a 404 where v2 sent a 200 and `status: 0`.
+    it("returns null for a barcode OFF does not know", async () => {
+        fetchMock.mockResolvedValue(notFoundResponse());
+        await expect(getProductByBarcode("0000000000000")).resolves.toBeNull();
+    });
+
+    it("returns null when the lookup fails or the product has no name", async () => {
+        fetchMock.mockResolvedValue(jsonResponse({}, 503));
+        await expect(getProductByBarcode("1")).resolves.toBeNull();
+
+        fetchMock.mockResolvedValue(productResponse({ code: "1", product_name: "" }));
+        await expect(getProductByBarcode("1")).resolves.toBeNull();
+    });
+
+    // OFF allows 15 product reads a minute per IP; the scanner can burst past
+    // that without a human pacing it.
+    it("rate-limits product reads at 15 a minute, whatever they answered", async () => {
+        // A mix of found and not-found: a 404 is still a request OFF served.
+        fetchMock
+            .mockResolvedValueOnce(notFoundResponse())
+            .mockResolvedValue(productResponse({ code: "1", product_name: "Milch" }));
+        for (let i = 0; i < 15; i++) await getProductByBarcode(String(i));
+
+        await expect(getProductByBarcode("16")).rejects.toThrow("common.rateLimitedWait");
+        expect(fetchMock).toHaveBeenCalledTimes(15);
+
+        // …and frees up again once the sliding window has passed.
+        clock += 61_000;
+        jest.setSystemTime(clock);
+        await expect(getProductByBarcode("16")).resolves.toMatchObject({ code: "1" });
+    });
+
+    // The scanner tells the user how long to wait, which means telling a rate
+    // limit apart from a dead connection.
+    it("throws a rate-limit error the UI can recognize", async () => {
+        fetchMock.mockResolvedValue(productResponse({ code: "1", product_name: "Milch" }));
+        for (let i = 0; i < 15; i++) await getProductByBarcode(String(i));
+
+        const err = await getProductByBarcode("16").catch((e: unknown) => e);
+        expect(isRateLimitError(err)).toBe(true);
+        expect(isRateLimitError(new Error("Network request failed"))).toBe(false);
     });
 });

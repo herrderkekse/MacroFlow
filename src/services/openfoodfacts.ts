@@ -5,8 +5,10 @@ import {
     type NutritionSource,
     type OFFNutriments,
 } from "@/src/services/offNutriments";
+import { createRateLimiter } from "@/src/services/rateLimit";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
+import Constants from "expo-constants";
 
 export { productNutrition } from "@/src/services/offNutriments";
 export type { OFFNutriments, ProductNutrition } from "@/src/services/offNutriments";
@@ -16,14 +18,21 @@ const BASE_URL = "https://world.openfoodfacts.org";
 // `/api/v2/search`) endpoint is rejected at OFF's edge with a 503 roughly half
 // the time, so search there failed for no reason a user could act on.
 const SEARCH_URL = "https://search.openfoodfacts.org/search";
-const USER_AGENT = "MacroFlow/1.0 (React Native; open-source nutrient tracker)";
 
-// Client-side rate limiter for search: OpenFoodFacts allows 10 req/min/IP.
-// Track request timestamps in a sliding 60 s window so users can burst a few
-// requests quickly (or space them out) as long as the window stays under the cap.
-const SEARCH_WINDOW_MS = 60_000;
-const SEARCH_MAX_PER_WINDOW = 10;
-const searchTimestamps: number[] = [];
+/** Where OFF can reach us about our traffic, as their User-Agent format asks. */
+const CONTACT_EMAIL = "info.macroflow@gmail.com";
+/**
+ * OFF asks every client to identify itself as `AppName/Version (ContactEmail)`
+ * and treats an anonymous one as grounds for blocking. The version comes from
+ * `app.json` rather than being written out here, where it went stale within a
+ * release of being added.
+ */
+const USER_AGENT = `MacroFlow/${Constants.expoConfig?.version ?? "0.0.0"} (${CONTACT_EMAIL})`;
+
+// One budget per class of endpoint OFF publishes a limit for: 10 req/min/IP for
+// search, 15 for product reads.
+const searchLimiter = createRateLimiter(10);
+const productLimiter = createRateLimiter(15);
 
 const SEARCH_PAGE_SIZE = 20;
 /** One retry is enough for the transient 5xx/network blips we see in practice. */
@@ -66,11 +75,21 @@ export interface OFFProduct extends NutritionSource {
     complete?: boolean;
 }
 
+/**
+ * The v3 product envelope. v3 reports the outcome twice — `status` as
+ * `"success"`/`"failure"` and `result.id` as `"product_found"` /
+ * `"product_not_found"` — where v2 sent a numeric `status`, and it answers a
+ * barcode it does not know with a 404 rather than a 200. `result.id` is the
+ * narrower of the two checks, so it is the one worth making.
+ */
 interface OFFProductResponse {
-    status: number;
-    code: string;
+    status?: string;
+    result?: { id?: string };
+    code?: string;
     product?: OFFProduct;
 }
+
+const PRODUCT_FOUND = "product_found";
 
 /**
  * A Search-a-licious result. Localized names come back as `product_name_de`,
@@ -389,51 +408,52 @@ export function productToFood(
     };
 }
 
+function productUrl(code: string): string {
+    return `${BASE_URL}/api/v3/product/${encodeURIComponent(code)}?fields=${fieldsParam(FIELDS)}`;
+}
+
+/**
+ * One product read, against the budget OFF allows for them. The slot is spent
+ * whatever the answer turns out to be — unlike a search, a lookup that comes
+ * back empty is still a request OFF served and counted.
+ *
+ * @throws {RateLimitError} when the window is full.
+ */
+function fetchProduct(code: string): Promise<Response> {
+    productLimiter.reserve();
+    return fetch(productUrl(code), { headers: { "User-Agent": USER_AGENT } });
+}
+
+/**
+ * The product behind a scanned barcode, or null if OFF has none worth
+ * importing.
+ *
+ * @throws {RateLimitError} when too many barcodes were scanned in a minute —
+ * the one failure the caller can do something about, so it is not folded into
+ * the null.
+ */
 export async function getProductByBarcode(
     barcode: string,
 ): Promise<OFFProduct | null> {
     logger.info("[API] Fetching product by barcode", { barcode });
 
-    const res = await fetch(
-        `${BASE_URL}/api/v2/product/${encodeURIComponent(barcode)}?fields=${fieldsParam(FIELDS)}`,
-        { headers: { "User-Agent": USER_AGENT } },
-    );
+    const res = await fetchProduct(barcode);
 
+    // A barcode OFF has never seen is a 404 on v3, and not an error worth logging as one.
+    if (res.status === 404) {
+        logger.info("[API] OFF does not know this barcode", { barcode });
+        return null;
+    }
     if (!res.ok) {
         logger.error("[API] Barcode lookup failed", { status: res.status });
         return null;
     }
 
     const data: OFFProductResponse = await res.json();
-    if (data.status !== 1 || !data.product || !localizedName(data.product)) return null;
+    if (data.result?.id !== PRODUCT_FOUND || !data.product || !localizedName(data.product)) {
+        return null;
+    }
     return { ...data.product, complete: true };
-}
-
-/**
- * Claim one of the requests the sliding window allows, or throw with the wait
- * time. A search that ends in an error must `release()` its slot again:
- * charging for a response that carried no products means a flaky upstream also
- * rate-limits the user.
- */
-function reserveSearchSlot(): { release: () => void } {
-    const now = Date.now();
-    // Drop timestamps that have aged out of the sliding window.
-    while (searchTimestamps.length && now - searchTimestamps[0] >= SEARCH_WINDOW_MS) {
-        searchTimestamps.shift();
-    }
-    if (searchTimestamps.length >= SEARCH_MAX_PER_WINDOW) {
-        const waitSec = Math.ceil(
-            (SEARCH_WINDOW_MS - (now - searchTimestamps[0])) / 1000,
-        );
-        throw new Error(i18n.t("common.rateLimitedWait", { seconds: waitSec }));
-    }
-    searchTimestamps.push(now);
-    return {
-        release: () => {
-            const i = searchTimestamps.indexOf(now);
-            if (i !== -1) searchTimestamps.splice(i, 1);
-        },
-    };
 }
 
 /** Retry a search once on a server-side failure; 4xx is our bug, not a blip. */
@@ -489,7 +509,10 @@ export async function searchProducts(
     query: string,
     page = 1,
 ): Promise<OFFProduct[]> {
-    const slot = reserveSearchSlot();
+    // A search that ends in an error releases its slot again: charging for a
+    // response that carried no products means a flaky upstream also rate-limits
+    // the user.
+    const slot = searchLimiter.reserve();
     let succeeded = false;
 
     try {
@@ -546,23 +569,22 @@ function mergeProduct(hit: OFFProduct, fetched: OFFProduct): OFFProduct {
  * Fill in everything a search result cannot carry — the serving fields, the
  * prepared/per-serving nutriments and `no_nutrition_data` — from the product
  * API. Best-effort and never throws: on failure the thinner search hit stands,
- * which is not worth failing a selection over.
+ * which is not worth failing a selection over. Being rate-limited is one such
+ * failure — a hydration is a product read like any other, and a user who has
+ * spent the budget elsewhere gets the hit rather than an error.
  */
 export async function hydrateProduct(product: OFFProduct): Promise<OFFProduct> {
     if (product.complete) return product;
 
     logger.info("[API] Hydrating product", { code: product.code });
     try {
-        const res = await fetch(
-            `${BASE_URL}/api/v2/product/${encodeURIComponent(product.code)}?fields=${fieldsParam(FIELDS)}`,
-            { headers: { "User-Agent": USER_AGENT } },
-        );
+        const res = await fetchProduct(product.code);
         if (!res.ok) {
             logger.warn("[API] Product hydration failed", { status: res.status });
             return product;
         }
         const data: OFFProductResponse = await res.json();
-        if (data.status !== 1 || !data.product) return product;
+        if (data.result?.id !== PRODUCT_FOUND || !data.product) return product;
         return { ...mergeProduct(product, data.product), complete: true };
     } catch (err) {
         logger.warn("[API] Product hydration errored", { error: String(err) });
