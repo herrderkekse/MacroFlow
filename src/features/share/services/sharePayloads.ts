@@ -25,12 +25,19 @@ import {
     type Food,
     type ServingUnit,
 } from "@/src/features/templates/services/templateDb";
+import { isValidUnit } from "@/src/utils/units";
 
 // ── Payload shapes (version 1) ─────────────────────────────
 
 export interface SharedServingUnit {
     name: string;
     grams: number;
+    /**
+     * The unit `grams` is labelled in ("g" / "ml" — ml is 1:1 with grams, so
+     * the number is the same either way). Absent means grams, which is also how
+     * payloads from before this field read.
+     */
+    display_unit?: string | null;
 }
 
 export interface SharedFood {
@@ -95,6 +102,17 @@ export interface LogSharePayload {
 
 // ── Builders ───────────────────────────────────────────────
 
+/**
+ * A serving unit as it travels. `display_unit` is left out when the row is
+ * grams-labelled — the recipient reads an absent one as grams anyway, and
+ * omitting it keeps payloads for grams-only foods byte-identical to older ones.
+ */
+function toSharedServingUnit(unit: ServingUnit): SharedServingUnit {
+    return unit.display_unit
+        ? { name: unit.name, grams: unit.grams, display_unit: unit.display_unit }
+        : { name: unit.name, grams: unit.grams };
+}
+
 function toSharedFood(food: Food, units: ServingUnit[]): SharedFood {
     return {
         name: food.name,
@@ -106,7 +124,7 @@ function toSharedFood(food: Food, units: ServingUnit[]): SharedFood {
         openfoodfacts_id: food.openfoodfacts_id,
         default_unit: food.default_unit,
         serving_size: food.serving_size,
-        serving_units: units.map((u) => ({ name: u.name, grams: u.grams })),
+        serving_units: units.map(toSharedServingUnit),
     };
 }
 
@@ -271,7 +289,9 @@ function foodKey(shared: SharedFood): string {
             shared.fat_per_100g,
             shared.default_unit,
             shared.serving_size,
-            (shared.serving_units ?? []).map((u) => [u.name, u.grams]),
+            // `?? null` so a payload that predates `display_unit` keys the same
+            // as a grams-labelled row here.
+            (shared.serving_units ?? []).map((u) => [u.name, u.grams, u.display_unit ?? null]),
         ])
     );
 }
@@ -282,6 +302,18 @@ function recipeKey(payload: RecipeSharePayload): string {
         payload.servings ?? 1,
         payload.items.map((item) => [foodKey(item.food), item.quantity_grams, item.quantity_unit]),
     ]);
+}
+
+/**
+ * A shared serving unit's `display_unit`, kept only when it names a unit we
+ * know: it is rendered as a label, so an unrecognised one would show up raw.
+ * Anything else — including a payload from before the field existed — is null,
+ * i.e. grams.
+ */
+function sharedDisplayUnit(unit: SharedServingUnit): string | null {
+    return typeof unit.display_unit === "string" && isValidUnit(unit.display_unit)
+        ? unit.display_unit
+        : null;
 }
 
 /**
@@ -330,7 +362,7 @@ function lookupOrCreateFood(shared: SharedFood): Food {
         const grams = num(unit.grams);
         const name = String(unit.name ?? "").trim();
         if (!name || grams <= 0) continue;
-        addServingUnit({ food_id: created.id, name, grams });
+        addServingUnit({ food_id: created.id, name, grams, display_unit: sharedDisplayUnit(unit) });
     }
     return created;
 }

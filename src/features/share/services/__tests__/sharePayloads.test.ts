@@ -53,13 +53,16 @@ jest.mock("@/src/features/log/services/logDb", () => ({
 }));
 
 import {
+    buildFoodPayload,
     buildLogSelectionPayload,
+    findOrCreateFood,
     itemsSignature,
     recipeSignature,
     scaleRecipeItems,
     type LogSharePayload,
     type SharedLogItem,
 } from "@/src/features/share/services/sharePayloads";
+import * as templateDb from "@/src/features/templates/services/templateDb";
 
 function entry(id: number, foodRow: Food, grams: number): EntryWithFood {
     return {
@@ -134,5 +137,52 @@ describe("buildLogSelectionPayload edit detection", () => {
         const payload = buildLogSelectionPayload(allRows, new Set([1]), undefined) as LogSharePayload;
         expect(payload.items).toHaveLength(1);
         expect(payload.items[0].type).toBe("food");
+    });
+});
+
+// #415: a serving unit knows which unit its amount was stated in, and a share
+// has to carry that or the recipient's 250 ml can turns back into "250 g".
+describe("serving unit display_unit round-trip", () => {
+    const drinkUnits = [
+        { id: 5, food_id: 1, name: "serving", grams: 250, display_unit: "ml", uuid: null },
+        { id: 6, food_id: 1, name: "package", grams: 355, display_unit: null, uuid: null },
+    ];
+
+    function importedUnits() {
+        return jest.mocked(templateDb.addServingUnit).mock.calls.map((call) => call[0]);
+    }
+
+    it("sends a ml row's unit and writes it back on import", () => {
+        jest.clearAllMocks();
+        jest.mocked(templateDb.getServingUnits).mockReturnValueOnce(drinkUnits);
+        const payload = buildFoodPayload(mockChicken, "Marco");
+        // A grams row sends no unit at all: absent already reads as grams.
+        expect(payload.food.serving_units).toEqual([
+            { name: "serving", grams: 250, display_unit: "ml" },
+            { name: "package", grams: 355 },
+        ]);
+
+        jest.mocked(templateDb.addFood).mockReturnValueOnce({ ...mockChicken, id: 9 });
+        findOrCreateFood(payload.food);
+        expect(importedUnits()).toEqual([
+            { food_id: 9, name: "serving", grams: 250, display_unit: "ml" },
+            { food_id: 9, name: "package", grams: 355, display_unit: null },
+        ]);
+    });
+
+    it("falls back to grams for a missing or unrecognised unit", () => {
+        jest.clearAllMocks();
+        jest.mocked(templateDb.addFood).mockReturnValueOnce({ ...mockChicken, id: 9 });
+        findOrCreateFood({
+            ...mockChicken,
+            serving_units: [
+                { name: "scoop", grams: 30, display_unit: "handfuls" },
+                { name: "slice", grams: 25 },
+            ],
+        });
+        expect(importedUnits()).toEqual([
+            { food_id: 9, name: "scoop", grams: 30, display_unit: null },
+            { food_id: 9, name: "slice", grams: 25, display_unit: null },
+        ]);
     });
 });

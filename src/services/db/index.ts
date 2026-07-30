@@ -223,6 +223,9 @@ export function initDB() {
     "ALTER TABLE goals ADD COLUMN exercise_timer_sound TEXT NOT NULL DEFAULT 'off'",
     "ALTER TABLE workout_exercises ADD COLUMN superset_group TEXT",
     "ALTER TABLE recipes ADD COLUMN servings INTEGER NOT NULL DEFAULT 1",
+    // Nullable, and null means grams: existing rows are all grams-labelled, so
+    // there is nothing to backfill.
+    "ALTER TABLE serving_units ADD COLUMN display_unit TEXT",
     // Sync: stable cross-device row identity (see SYNC.md)
     ...SYNC_TABLES.map((t) => `ALTER TABLE ${t.name} ADD COLUMN uuid TEXT`),
   ];

@@ -82,6 +82,17 @@ export function isValidUnit(s: string): s is FoodUnit {
 }
 
 /**
+ * The unit a serving unit's stored amount should be *labelled* in, from its
+ * `display_unit` column. The amount itself is always grams — a 250 ml can is
+ * stored as 250 because ml is 1:1 with grams here — so this only picks the name
+ * to print. Null/unknown means grams: that is every row written before the
+ * column existed, and every hand-entered one.
+ */
+export function servingDisplayUnit(displayUnit: string | null | undefined): FoodUnit {
+    return displayUnit && isValidUnit(displayUnit) ? displayUnit : "g";
+}
+
+/**
  * Format an entry's stored quantity_grams + quantity_unit for display.
  * Handles both standard units and custom serving unit names.
  */

@@ -178,7 +178,12 @@ export function useRecipeEditor() {
         const { id: _id, uuid: _uuid, pendingServingUnits: _pending, ...values } = food;
         const created = addFood(values);
         for (const unit of servingUnits) {
-            addServingUnit({ food_id: created.id, name: unit.name, grams: unit.grams });
+            addServingUnit({
+                food_id: created.id,
+                name: unit.name,
+                grams: unit.grams,
+                display_unit: unit.display_unit,
+            });
         }
         logger.info("[DB] Created food for recipe", { id: created.id, name: created.name });
         return created.id;

@@ -95,6 +95,11 @@ export const servingUnits = sqliteTable("serving_units", {
     food_id: integer("food_id").notNull().references(() => foods.id),
     name: text("name").notNull(),
     grams: real("grams").notNull(),
+    // The unit the amount was stated in, for labelling only — "250 ml" reads
+    // wrong as "250 g". `grams` stays grams either way: ml is 1:1 with grams
+    // app-wide (src/utils/units.ts), so nothing is converted. Null means grams,
+    // which is every row that predates this column and every hand-entered one.
+    display_unit: text("display_unit"),
     uuid: text("uuid"),
 });
 

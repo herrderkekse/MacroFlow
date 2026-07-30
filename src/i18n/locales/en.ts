@@ -328,6 +328,7 @@ const en = {
         servingUnitName: "Name",
         servingUnitNamePlaceholder: "e.g., sausage, pack",
         servingUnitGrams: "Grams",
+        servingUnitMilliliters: "Milliliters",
         addServingUnit: "Add Serving Unit",
         barcode: "Barcode",
         barcodePlaceholder: "e.g. 4006381333931",

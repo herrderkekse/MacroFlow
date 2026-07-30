@@ -326,6 +326,7 @@ const de = {
         servingUnitName: "Name",
         servingUnitNamePlaceholder: "z. B. Würstchen, Packung",
         servingUnitGrams: "Gramm",
+        servingUnitMilliliters: "Milliliter",
         addServingUnit: "Portionseinheit hinzufügen",
         barcode: "Barcode",
         barcodePlaceholder: "z. B. 4006381333931",
