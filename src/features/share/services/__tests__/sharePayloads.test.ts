@@ -143,9 +143,11 @@ describe("buildLogSelectionPayload edit detection", () => {
 // #415: a serving unit knows which unit its amount was stated in, and a share
 // has to carry that or the recipient's 250 ml can turns back into "250 g".
 describe("serving unit display_unit round-trip", () => {
+    // `kind: null` here so this stays a test about display_unit alone; the kind
+    // marker gets its own round-trip below.
     const drinkUnits = [
-        { id: 5, food_id: 1, name: "serving", grams: 250, display_unit: "ml", uuid: null },
-        { id: 6, food_id: 1, name: "package", grams: 355, display_unit: null, uuid: null },
+        { id: 5, food_id: 1, name: "serving", grams: 250, display_unit: "ml", kind: null, uuid: null },
+        { id: 6, food_id: 1, name: "package", grams: 355, display_unit: null, kind: null, uuid: null },
     ];
 
     function importedUnits() {
@@ -165,8 +167,8 @@ describe("serving unit display_unit round-trip", () => {
         jest.mocked(templateDb.addFood).mockReturnValueOnce({ ...mockChicken, id: 9 });
         findOrCreateFood(payload.food);
         expect(importedUnits()).toEqual([
-            { food_id: 9, name: "serving", grams: 250, display_unit: "ml" },
-            { food_id: 9, name: "package", grams: 355, display_unit: null },
+            { food_id: 9, name: "serving", grams: 250, display_unit: "ml", kind: null },
+            { food_id: 9, name: "package", grams: 355, display_unit: null, kind: null },
         ]);
     });
 
@@ -181,8 +183,70 @@ describe("serving unit display_unit round-trip", () => {
             ],
         });
         expect(importedUnits()).toEqual([
-            { food_id: 9, name: "scoop", grams: 30, display_unit: null },
-            { food_id: 9, name: "slice", grams: 25, display_unit: null },
+            { food_id: 9, name: "scoop", grams: 30, display_unit: null, kind: null },
+            { food_id: 9, name: "slice", grams: 25, display_unit: null, kind: null },
         ]);
+    });
+});
+
+// #414: the kind marker is what makes the OFF serving row identifiable, so a
+// shared food has to carry it — otherwise the recipient's copy loses the
+// pre-selection that the sender's had.
+describe("serving unit kind round-trip", () => {
+    const offUnits = [
+        { id: 5, food_id: 1, name: "Portion", grams: 30, display_unit: "g", kind: "serving", uuid: null },
+        { id: 6, food_id: 1, name: "Packung", grams: 500, display_unit: "g", kind: "package", uuid: null },
+        { id: 7, food_id: 1, name: "handful", grams: 20, display_unit: null, kind: null, uuid: null },
+    ];
+
+    function importedUnits() {
+        return jest.mocked(templateDb.addServingUnit).mock.calls.map((call) => call[0]);
+    }
+
+    it("sends each row's kind and writes it back on import", () => {
+        jest.clearAllMocks();
+        jest.mocked(templateDb.getServingUnits).mockReturnValueOnce(offUnits);
+        const payload = buildFoodPayload(mockChicken, "Marco");
+        // The hand-added row sends no kind: absent already reads as "not OFF's".
+        expect(payload.food.serving_units).toEqual([
+            { name: "Portion", grams: 30, display_unit: "g", kind: "serving" },
+            { name: "Packung", grams: 500, display_unit: "g", kind: "package" },
+            { name: "handful", grams: 20 },
+        ]);
+
+        jest.mocked(templateDb.addFood).mockReturnValueOnce({ ...mockChicken, id: 9 });
+        findOrCreateFood(payload.food);
+        expect(importedUnits()).toEqual([
+            { food_id: 9, name: "Portion", grams: 30, display_unit: "g", kind: "serving" },
+            { food_id: 9, name: "Packung", grams: 500, display_unit: "g", kind: "package" },
+            { food_id: 9, name: "handful", grams: 20, display_unit: null, kind: null },
+        ]);
+    });
+
+    it("drops a kind it does not recognise, and a missing one", () => {
+        jest.clearAllMocks();
+        jest.mocked(templateDb.addFood).mockReturnValueOnce({ ...mockChicken, id: 9 });
+        findOrCreateFood({
+            ...mockChicken,
+            serving_units: [
+                { name: "scoop", grams: 30, kind: "whole-shelf" },
+                { name: "slice", grams: 25 },
+            ],
+        });
+        expect(importedUnits()).toEqual([
+            { food_id: 9, name: "scoop", grams: 30, display_unit: null, kind: null },
+            { food_id: 9, name: "slice", grams: 25, display_unit: null, kind: null },
+        ]);
+    });
+
+    // A payload for a plain grams-only food must stay exactly as it was before
+    // either column existed, or every recipient sees "not yet imported".
+    it("leaves a payload without either marker byte-identical", () => {
+        jest.clearAllMocks();
+        jest.mocked(templateDb.getServingUnits).mockReturnValueOnce([
+            { id: 5, food_id: 1, name: "slice", grams: 25, display_unit: null, kind: null, uuid: null },
+        ]);
+        expect(JSON.stringify(buildFoodPayload(mockChicken).food.serving_units))
+            .toBe('[{"name":"slice","grams":25}]');
     });
 });

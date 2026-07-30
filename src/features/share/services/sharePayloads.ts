@@ -25,6 +25,7 @@ import {
     type Food,
     type ServingUnit,
 } from "@/src/features/templates/services/templateDb";
+import { isServingUnitKind, type ServingUnitKind } from "@/src/services/servingUnits";
 import { isValidUnit } from "@/src/utils/units";
 
 // ── Payload shapes (version 1) ─────────────────────────────
@@ -38,6 +39,12 @@ export interface SharedServingUnit {
      * payloads from before this field read.
      */
     display_unit?: string | null;
+    /**
+     * Which OpenFoodFacts quantity the row came from ("serving" / "package").
+     * Absent on a hand-added row, and on every payload built before this field
+     * existed — both of which read as "not an OFF-derived row".
+     */
+    kind?: string | null;
 }
 
 export interface SharedFood {
@@ -103,14 +110,18 @@ export interface LogSharePayload {
 // ── Builders ───────────────────────────────────────────────
 
 /**
- * A serving unit as it travels. `display_unit` is left out when the row is
- * grams-labelled — the recipient reads an absent one as grams anyway, and
- * omitting it keeps payloads for grams-only foods byte-identical to older ones.
+ * A serving unit as it travels. `display_unit` and `kind` are each left out when
+ * null — the recipient reads an absent `display_unit` as grams and an absent
+ * `kind` as a hand-added row anyway, and omitting them keeps payloads for plain
+ * grams-only foods byte-identical to older ones.
  */
 function toSharedServingUnit(unit: ServingUnit): SharedServingUnit {
-    return unit.display_unit
-        ? { name: unit.name, grams: unit.grams, display_unit: unit.display_unit }
-        : { name: unit.name, grams: unit.grams };
+    return {
+        name: unit.name,
+        grams: unit.grams,
+        ...(unit.display_unit ? { display_unit: unit.display_unit } : {}),
+        ...(unit.kind ? { kind: unit.kind } : {}),
+    };
 }
 
 function toSharedFood(food: Food, units: ServingUnit[]): SharedFood {
@@ -289,9 +300,14 @@ function foodKey(shared: SharedFood): string {
             shared.fat_per_100g,
             shared.default_unit,
             shared.serving_size,
-            // `?? null` so a payload that predates `display_unit` keys the same
-            // as a grams-labelled row here.
-            (shared.serving_units ?? []).map((u) => [u.name, u.grams, u.display_unit ?? null]),
+            // `?? null` so a payload that predates `display_unit` / `kind` keys
+            // the same as a grams-labelled, hand-added row here.
+            (shared.serving_units ?? []).map((u) => [
+                u.name,
+                u.grams,
+                u.display_unit ?? null,
+                u.kind ?? null,
+            ]),
         ])
     );
 }
@@ -314,6 +330,16 @@ function sharedDisplayUnit(unit: SharedServingUnit): string | null {
     return typeof unit.display_unit === "string" && isValidUnit(unit.display_unit)
         ? unit.display_unit
         : null;
+}
+
+/**
+ * A shared serving unit's `kind`, kept only when it names one we know. It
+ * decides whether an amount form opens pre-selected on the row, so an
+ * unrecognised value is dropped to null (a plain, never-pre-selected row) rather
+ * than trusted — as is a payload from before the field existed.
+ */
+function sharedKind(unit: SharedServingUnit): ServingUnitKind | null {
+    return isServingUnitKind(unit.kind) ? unit.kind : null;
 }
 
 /**
@@ -362,7 +388,13 @@ function lookupOrCreateFood(shared: SharedFood): Food {
         const grams = num(unit.grams);
         const name = String(unit.name ?? "").trim();
         if (!name || grams <= 0) continue;
-        addServingUnit({ food_id: created.id, name, grams, display_unit: sharedDisplayUnit(unit) });
+        addServingUnit({
+            food_id: created.id,
+            name,
+            grams,
+            display_unit: sharedDisplayUnit(unit),
+            kind: sharedKind(unit),
+        });
     }
     return created;
 }

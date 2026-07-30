@@ -100,6 +100,12 @@ export const servingUnits = sqliteTable("serving_units", {
     // app-wide (src/utils/units.ts), so nothing is converted. Null means grams,
     // which is every row that predates this column and every hand-entered one.
     display_unit: text("display_unit"),
+    // Which OpenFoodFacts quantity the row was derived from ("serving" /
+    // "package", see src/services/servingUnits.ts), so the two can be told apart
+    // without reading the name — names are translated at import time and frozen
+    // here, so a German import says "Portion". Null on every hand-added row and
+    // on every row that predates this column.
+    kind: text("kind"),
     uuid: text("uuid"),
 });
 

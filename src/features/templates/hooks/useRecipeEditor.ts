@@ -1,3 +1,4 @@
+import { servingUnitToPreselect } from "@/src/services/servingUnits";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
 import { fromGrams, isValidUnit, toGrams } from "@/src/utils/units";
@@ -86,16 +87,22 @@ export function useRecipeEditor() {
     /** A food was picked in the search sheet: open the amount sheet for it. */
     function openDraftForFood(food: UnsavedFood) {
         const foodUnit = (food.default_unit ?? "g") as FoodUnit;
+        // A food that is not in the library yet has no rows to read, but an
+        // OpenFoodFacts import may have derived some for it already.
+        const servingUnits = food.id ? getServingUnits(food.id) : food.pendingServingUnits ?? [];
+        // A first-time OFF food opens on "1 serving" rather than on its default
+        // unit, since that is the amount the derived row exists to offer. The
+        // sheet matches the unit back by name (see RecipeItemModal), so one
+        // serving is 1 × its grams.
+        const preselect = servingUnitToPreselect(food, servingUnits);
         setEditing({
             isNew: true,
             draft: {
                 key: nextDraftKey(),
                 food,
-                quantityGrams: toGrams(food.serving_size ?? 100, foodUnit),
-                quantityUnit: foodUnit,
-                // A food that is not in the library yet has no rows to read, but
-                // an OpenFoodFacts import may have derived some for it already.
-                servingUnits: food.id ? getServingUnits(food.id) : food.pendingServingUnits ?? [],
+                quantityGrams: preselect ? preselect.grams : toGrams(food.serving_size ?? 100, foodUnit),
+                quantityUnit: preselect ? preselect.name : foodUnit,
+                servingUnits,
             },
         });
     }
@@ -183,6 +190,7 @@ export function useRecipeEditor() {
                 name: unit.name,
                 grams: unit.grams,
                 display_unit: unit.display_unit,
+                kind: unit.kind,
             });
         }
         logger.info("[DB] Created food for recipe", { id: created.id, name: created.name });

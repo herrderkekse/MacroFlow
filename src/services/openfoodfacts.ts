@@ -6,6 +6,11 @@ import {
     type OFFNutriments,
 } from "@/src/services/offNutriments";
 import { createRateLimiter } from "@/src/services/rateLimit";
+import {
+    SERVING_UNIT_KIND_PACKAGE,
+    SERVING_UNIT_KIND_SERVING,
+    type ServingUnitKind,
+} from "@/src/services/servingUnits";
 import logger from "@/src/utils/logger";
 import type { FoodUnit } from "@/src/utils/units";
 import Constants from "expo-constants";
@@ -241,6 +246,13 @@ export interface DerivedServingUnit {
      * reads as grams.
      */
     display_unit: string | null;
+    /**
+     * Which of OFF's two quantities this row is. Stored so a consumer can tell
+     * "one serving" from "the whole package" without reading the name, which is
+     * translated here and then frozen in the DB. Only the serving row is ever
+     * pre-selected in an amount form (#414).
+     */
+    kind: ServingUnitKind;
 }
 
 /** A normalized OFF quantity as grams, or undefined if there is none to store. */
@@ -263,13 +275,14 @@ function quantityGrams(
  * only ever `"g"`, `"ml"`, or null for a quantity that named no unit.
  */
 function derivedServingUnit(
+    kind: ServingUnitKind,
     name: string,
     value: number | string | undefined,
     unit: string | undefined,
 ): DerivedServingUnit | undefined {
     const grams = quantityGrams(value, unit);
     if (grams === undefined) return undefined;
-    return { name, grams, display_unit: storableUnit(unit) ?? null };
+    return { name, grams, display_unit: storableUnit(unit) ?? null, kind };
 }
 
 /**
@@ -287,12 +300,14 @@ function derivedServingUnit(
 function servingUnitsFromProduct(product: OFFProduct): DerivedServingUnit[] {
     const units: DerivedServingUnit[] = [];
     const serving = derivedServingUnit(
+        SERVING_UNIT_KIND_SERVING,
         i18n.t("common.offServingUnitServing"),
         product.serving_quantity,
         product.serving_quantity_unit,
     );
     if (serving) units.push(serving);
     const pack = derivedServingUnit(
+        SERVING_UNIT_KIND_PACKAGE,
         i18n.t("common.offServingUnitPackage"),
         product.product_quantity,
         product.product_quantity_unit,
