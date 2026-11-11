@@ -1,16 +1,17 @@
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
 import { cancelAllReminders, requestNotificationPermissions, scheduleAllReminders } from "@/src/services/notifications";
+import IconButton from "@/src/shared/atoms/IconButton";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import Toggle from "@/src/shared/atoms/Toggle";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
+import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import type { MealType } from "@/src/shared/types";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { getNotificationSettings, setNotificationSettings } from "../services/settingsDb";
-
-interface NotificationSettingsProps {
-    colors: ThemeColors;
-}
 
 const NOTIF_TIME_ROWS = [
     { key: "breakfast_time" as const, labelKey: "settings.notificationBreakfast", enabledKey: "breakfast_enabled" as const },
@@ -20,9 +21,8 @@ const NOTIF_TIME_ROWS = [
     { key: "weight_time" as const, labelKey: "settings.notificationWeight", enabledKey: "weight_enabled" as const },
 ];
 
-export default function NotificationSettings({ colors }: NotificationSettingsProps) {
+export default function NotificationSettings() {
     const { t } = useTranslation();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     const [notifEnabled, setNotifEnabled] = useState(false);
     const [notifTimes, setNotifTimes] = useState({
@@ -121,22 +121,15 @@ export default function NotificationSettings({ colors }: NotificationSettingsPro
 
     return (
         <>
-            <Text style={styles.sectionLabel}>{t("settings.notifications")}</Text>
-            <Text style={styles.notifDescription}>{t("settings.notificationsDescription")}</Text>
-            <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>{t("settings.notificationsEnabled")}</Text>
-                <Switch
-                    value={notifEnabled}
-                    onValueChange={handleToggleNotifications}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={notifEnabled ? colors.primaryLight : colors.surface}
+            <SectionLabel>{t("settings.notifications")}</SectionLabel>
+            <ListGroup>
+                <ListRow
+                    title={t("settings.notificationsEnabled")}
+                    subtitle={t("settings.notificationsDescription")}
+                    right={<Toggle value={notifEnabled} onValueChange={handleToggleNotifications} />}
                 />
-            </View>
-
-            {notifEnabled && (
-                <>
-                    <Text style={styles.sectionLabel}>{t("settings.notificationTimes")}</Text>
-                    {NOTIF_TIME_ROWS.map((row) => (
+                {notifEnabled &&
+                    NOTIF_TIME_ROWS.map((row) => (
                         <TimeRow
                             key={row.key}
                             label={t(row.labelKey)}
@@ -144,138 +137,82 @@ export default function NotificationSettings({ colors }: NotificationSettingsPro
                             onChange={(v) => handleTimeChange(row.key, v)}
                             enabled={notifRowEnabled[row.enabledKey]}
                             onToggleEnabled={() => handleRowToggle(row.enabledKey)}
-                            colors={colors}
-                            styles={styles}
                         />
                     ))}
-                </>
-            )}
+            </ListGroup>
         </>
     );
 }
 
-function TimeRow({
-    label,
-    value,
-    onChange,
-    enabled,
-    onToggleEnabled,
-    colors,
-    styles,
-}: {
+interface TimeRowProps {
     label: string;
     value: string;
     onChange: (v: string) => void;
     enabled: boolean;
     onToggleEnabled: () => void;
-    colors: ThemeColors;
-    styles: ReturnType<typeof createStyles>;
-}) {
+}
+
+/** One reminder: its time in 15-minute steps, and a bell to mute just this one. */
+function TimeRow({ label, value, onChange, enabled, onToggleEnabled }: TimeRowProps) {
+    const { t } = useTranslation();
+    const colors = useThemeColors();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [h, m] = value.split(":").map(Number);
 
     function adjust(delta: number) {
-        let totalMin = (h * 60 + m + delta + 1440) % 1440;
+        const totalMin = (h * 60 + m + delta + 1440) % 1440;
         const newH = String(Math.floor(totalMin / 60)).padStart(2, "0");
         const newM = String(totalMin % 60).padStart(2, "0");
         onChange(`${newH}:${newM}`);
     }
 
     return (
-        <View style={[styles.timeRow, !enabled && styles.timeRowDisabled]}>
-            <Text style={[styles.timeLabel, !enabled && styles.timeLabelDisabled]}>{label}</Text>
-            <View style={styles.timeControls}>
-                {enabled && (
-                    <>
-                        <Pressable onPress={() => adjust(-15)} hitSlop={6}>
-                            <Ionicons name="remove-circle-outline" size={22} color={colors.primary} />
-                        </Pressable>
-                        <Text style={styles.timeValue}>{value}</Text>
-                        <Pressable onPress={() => adjust(15)} hitSlop={6}>
-                            <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
-                        </Pressable>
-                    </>
-                )}
-                <Pressable onPress={onToggleEnabled} hitSlop={6} style={styles.bellBtn}>
-                    <Ionicons
-                        name={enabled ? "notifications" : "notifications-off-outline"}
-                        size={22}
-                        color={enabled ? colors.primary : colors.textSecondary}
-                    />
-                </Pressable>
-            </View>
+        <View style={styles.timeRow}>
+            <Text style={[styles.timeLabel, !enabled && styles.timeLabelDisabled]} numberOfLines={1}>{label}</Text>
+            {enabled && (
+                <View style={styles.stepper}>
+                    <IconButton icon="remove" size="sm" label={t("settings.earlier")} onPress={() => adjust(-15)} />
+                    <Text style={styles.timeValue}>{value}</Text>
+                    <IconButton icon="add" size="sm" label={t("settings.later")} onPress={() => adjust(15)} />
+                </View>
+            )}
+            <IconButton
+                icon={enabled ? "notifications" : "notifications-off-outline"}
+                label={enabled ? t("settings.reminderOn") : t("settings.reminderOff")}
+                color={enabled ? colors.text : colors.textTertiary}
+                onPress={onToggleEnabled}
+            />
         </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        sectionLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            letterSpacing: 0.5,
-            marginBottom: spacing.sm,
-            marginTop: spacing.md,
-        },
-        notifDescription: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        switchRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm + 2,
-            marginBottom: spacing.md,
-        },
-        switchLabel: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-            fontWeight: "500",
-        },
         timeRow: {
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm + 2,
-            marginBottom: spacing.sm,
+            gap: spacing.sm,
+            minHeight: 56,
+            paddingLeft: screenPadding,
+            paddingRight: spacing.sm,
         },
-        timeRowDisabled: {
-            opacity: 0.5,
-        },
-        timeLabel: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-            fontWeight: "500",
-        },
-        timeLabelDisabled: {
-            color: colors.textSecondary,
-        },
-        timeControls: {
+        timeLabel: { flex: 1, fontSize: fontSize.md, fontWeight: "500", color: colors.text },
+        timeLabelDisabled: { color: colors.textTertiary },
+        stepper: {
             flexDirection: "row",
             alignItems: "center",
-            gap: spacing.sm,
+            borderRadius: borderRadius.full,
+            borderWidth: 1,
+            borderColor: colors.borderStrong,
+            paddingHorizontal: 2,
         },
         timeValue: {
-            fontSize: fontSize.md,
-            fontWeight: "700",
+            fontSize: fontSize.sm,
+            fontWeight: "600",
             color: colors.text,
-            minWidth: 50,
+            minWidth: 48,
             textAlign: "center",
-        },
-        bellBtn: {
-            marginLeft: spacing.xs,
+            fontVariant: ["tabular-nums"],
         },
     });
 }

@@ -1,21 +1,23 @@
 import Button from "@/src/shared/atoms/Button";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import IconButton from "@/src/shared/atoms/IconButton";
 import Input from "@/src/shared/atoms/Input";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import Sheet from "@/src/shared/components/Sheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAiMemories } from "../hooks/useAiMemories";
 
 export default function AiMemoriesScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
+    const [isAdding, setIsAdding] = useState(false);
 
     const {
         memories, newText, setNewText,
@@ -23,119 +25,122 @@ export default function AiMemoriesScreen() {
         handleAdd, startEdit, cancelEdit, handleSaveEdit, handleDelete,
     } = useAiMemories();
 
+    const isEditing = editId !== null;
+
+    function closeSheet() {
+        if (isEditing) cancelEdit();
+        setIsAdding(false);
+    }
+
+    function handleSubmit() {
+        if (isEditing) {
+            handleSaveEdit();
+        } else {
+            handleAdd();
+            setIsAdding(false);
+        }
+    }
+
     function confirmDelete(id: number) {
         Alert.alert(
             t("memory.deleteTitle"),
             t("memory.deleteConfirm"),
             [
                 { text: t("common.cancel"), style: "cancel" },
-                { text: t("common.delete"), style: "destructive", onPress: () => handleDelete(id) },
+                {
+                    text: t("common.delete"),
+                    style: "destructive",
+                    onPress: () => {
+                        cancelEdit();
+                        handleDelete(id);
+                    },
+                },
             ],
         );
     }
 
+    const draft = isEditing ? editText : newText;
+
     return (
-        <ScrollView
-            style={styles.screen}
-            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
-            keyboardShouldPersistTaps="handled"
-        >
-            <View style={styles.headerRow}>
-                <Pressable onPress={() => router.navigate("/(tabs)/more" as any)} style={styles.backBtn} hitSlop={8}>
-                    <Ionicons name="chevron-back" size={24} color={colors.primary} />
-                </Pressable>
-                <Text style={styles.heading}>{t("memory.title")}</Text>
-            </View>
-
-            <Text style={styles.description}>{t("memory.description")}</Text>
-
-            {memories.length === 0 && (
-                <Text style={styles.emptyText}>{t("memory.empty")}</Text>
-            )}
-
-            {memories.map((memory) => (
-                <View key={memory.id} style={styles.memoryCard}>
-                    {editId === memory.id ? (
-                        <View style={styles.editRow}>
-                            <Input
-                                value={editText}
-                                onChangeText={setEditText}
-                                containerStyle={styles.editInput}
-                                autoFocus
-                                multiline
-                            />
-                            <View style={styles.editActions}>
-                                <Button title={t("common.save")} onPress={handleSaveEdit} style={styles.saveBtn} />
-                                <Button title={t("common.cancel")} onPress={cancelEdit} variant="outline" style={styles.cancelBtn} />
-                            </View>
-                        </View>
-                    ) : (
-                        <View style={styles.memoryRow}>
-                            <Ionicons name="bookmark-outline" size={16} color={colors.primary} style={styles.memoryIcon} />
-                            <Text style={styles.memoryText}>{memory.content}</Text>
-                            <View style={styles.memoryActions}>
-                                <Pressable onPress={() => startEdit(memory)} hitSlop={8} style={styles.iconBtn}>
-                                    <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
-                                </Pressable>
-                                <Pressable onPress={() => confirmDelete(memory.id)} hitSlop={8} style={styles.iconBtn}>
-                                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                                </Pressable>
-                            </View>
-                        </View>
-                    )}
-                </View>
-            ))}
-
-            <Text style={styles.sectionLabel}>{t("memory.addNew")}</Text>
-            <Input
-                value={newText}
-                onChangeText={setNewText}
-                placeholder={t("memory.addPlaceholder")}
-                multiline
-                containerStyle={styles.addInput}
+        <View style={styles.screen}>
+            <ScreenHeader
+                title={t("memory.title")}
+                right={<IconButton icon="add" label={t("memory.add")} onPress={() => setIsAdding(true)} />}
             />
-            <Button title={t("memory.add")} onPress={handleAdd} style={styles.addBtn} />
-        </ScrollView>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <Text style={styles.description}>{t("memory.description")}</Text>
+
+                {memories.length === 0 ? (
+                    <EmptyState
+                        icon="bookmark-outline"
+                        title={t("memory.empty")}
+                        action={<Button title={t("memory.add")} size="sm" variant="outline" onPress={() => setIsAdding(true)} />}
+                    />
+                ) : (
+                    <ListGroup>
+                        {memories.map((memory) => (
+                            <Pressable
+                                key={memory.id}
+                                onPress={() => startEdit(memory)}
+                                style={({ pressed }) => [styles.memoryRow, pressed && styles.pressed]}
+                                accessibilityRole="button"
+                            >
+                                <Text style={styles.memoryText}>{memory.content}</Text>
+                                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                            </Pressable>
+                        ))}
+                    </ListGroup>
+                )}
+            </ScrollView>
+
+            <Sheet
+                visible={isAdding || isEditing}
+                onClose={closeSheet}
+                title={isEditing ? t("memory.editTitle") : t("memory.add")}
+                footer={
+                    <>
+                        <Button title={t("common.save")} onPress={handleSubmit} disabled={!draft.trim()} />
+                        {isEditing && (
+                            <Button title={t("common.delete")} variant="danger" onPress={() => confirmDelete(editId)} />
+                        )}
+                    </>
+                }
+            >
+                <Input
+                    value={draft}
+                    onChangeText={isEditing ? setEditText : setNewText}
+                    placeholder={t("memory.addPlaceholder")}
+                    multiline
+                    autoFocus
+                    style={styles.input}
+                    containerStyle={styles.inputContainer}
+                />
+            </Sheet>
+        </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 40 },
-        headerRow: { flexDirection: "row", alignItems: "center", marginBottom: spacing.lg, gap: spacing.sm },
-        backBtn: { padding: spacing.xs },
-        heading: { fontSize: fontSize.xl, fontWeight: "700", color: colors.text },
-        description: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.lg },
-        emptyText: { fontSize: fontSize.sm, color: colors.textTertiary, textAlign: "center", marginVertical: spacing.xl },
-        memoryCard: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-        },
-        memoryRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-        memoryIcon: { marginTop: 2 },
-        memoryText: { flex: 1, fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
-        memoryActions: { flexDirection: "row", gap: spacing.xs },
-        iconBtn: { padding: spacing.xs },
-        editRow: { gap: spacing.sm },
-        editInput: { flex: 1 },
-        editActions: { flexDirection: "row", gap: spacing.sm },
-        saveBtn: { flex: 1 },
-        cancelBtn: { flex: 1 },
-        sectionLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
+        content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        description: {
+            fontSize: fontSize.sm,
+            lineHeight: 20,
             color: colors.textSecondary,
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-            marginTop: spacing.lg,
-            marginBottom: spacing.sm,
+            marginBottom: spacing.md,
         },
-        addInput: { marginBottom: spacing.sm },
-        addBtn: {},
+        memoryRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            minHeight: 56,
+            paddingHorizontal: screenPadding,
+            paddingVertical: spacing.sm + 4,
+        },
+        pressed: { backgroundColor: colors.surfaceMuted },
+        memoryText: { flex: 1, fontSize: fontSize.md, lineHeight: 22, color: colors.text },
+        input: { minHeight: 96 },
+        inputContainer: { marginBottom: spacing.md },
     });
 }

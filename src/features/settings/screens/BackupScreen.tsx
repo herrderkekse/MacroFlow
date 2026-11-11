@@ -1,14 +1,15 @@
-import Button from "@/src/shared/atoms/Button";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import type { AppearanceMode, ExerciseTimerSound, UnitSystem } from "@/src/shared/types";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import AutoBackupItem from "../components/AutoBackupItem";
 import { useAutoBackups } from "../hooks/useAutoBackups";
 import { exportData, importData } from "../services/importExport";
@@ -18,8 +19,6 @@ export default function BackupScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
 
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
     const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
@@ -108,96 +107,66 @@ export default function BackupScreen() {
         );
     }
 
+    const spinner = <ActivityIndicator size="small" color={colors.textSecondary} />;
+
     return (
-        <ScrollView
-            style={styles.screen}
-            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
-        >
-            <View style={styles.headerRow}>
-                <Pressable onPress={() => router.navigate("/(tabs)/more" as any)} style={styles.backBtn} hitSlop={8}>
-                    <Ionicons name="chevron-back" size={24} color={colors.primary} />
-                </Pressable>
-                <Text style={styles.heading}>{t("more.backup")}</Text>
-            </View>
-
-            <Text style={styles.sectionLabel}>{t("settings.data")}</Text>
-            <Text style={styles.subLabel}>{t("settings.dataDescription")}</Text>
-
-            <View style={styles.row}>
-                <Button
-                    title={t("settings.exportData")}
-                    variant="outline"
-                    onPress={handleExport}
-                    loading={exporting}
-                    style={{ flex: 1 }}
-                />
-                <Button
-                    title={t("settings.importData")}
-                    variant="outline"
-                    onPress={handleImportConfirm}
-                    loading={importing}
-                    style={{ flex: 1 }}
-                />
-            </View>
-
-            <Text style={styles.sectionLabel}>{t("settings.autoBackups")}</Text>
-            <Text style={styles.subLabel}>{t("settings.autoBackupsDescription")}</Text>
-
-            {backups.length === 0 ? (
-                <Text style={styles.emptyLabel}>{t("settings.autoBackupsEmpty")}</Text>
-            ) : (
-                backups.map((item) => (
-                    <AutoBackupItem
-                        key={item.uri}
-                        item={item}
-                        isSharingThis={sharingUri === item.uri}
-                        isRestoringThis={restoringUri === item.uri}
-                        onShare={() => share(item.uri)}
-                        onRestore={() => handleRestoreConfirm(item.uri)}
+        <View style={styles.screen}>
+            <ScreenHeader title={t("more.backup")} />
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <SectionLabel style={styles.firstLabel}>{t("settings.data")}</SectionLabel>
+                <ListGroup>
+                    <ListRow
+                        icon="share-outline"
+                        title={t("settings.exportData")}
+                        subtitle={t("settings.exportDescription")}
+                        onPress={handleExport}
+                        disabled={exporting}
+                        right={exporting ? spinner : undefined}
                     />
-                ))
-            )}
-        </ScrollView>
+                    <ListRow
+                        icon="download-outline"
+                        title={t("settings.importData")}
+                        subtitle={t("settings.importDescription")}
+                        onPress={handleImportConfirm}
+                        disabled={importing}
+                        right={importing ? spinner : undefined}
+                    />
+                </ListGroup>
+
+                <SectionLabel>{t("settings.autoBackups")}</SectionLabel>
+                {backups.length === 0 ? (
+                    <EmptyState icon="archive-outline" title={t("settings.autoBackupsEmpty")} />
+                ) : (
+                    <ListGroup>
+                        {backups.map((item) => (
+                            <AutoBackupItem
+                                key={item.uri}
+                                item={item}
+                                isSharingThis={sharingUri === item.uri}
+                                isRestoringThis={restoringUri === item.uri}
+                                onShare={() => share(item.uri)}
+                                onRestore={() => handleRestoreConfirm(item.uri)}
+                            />
+                        ))}
+                    </ListGroup>
+                )}
+                <Text style={styles.note}>{t("settings.autoBackupsDescription")}</Text>
+            </ScrollView>
+        </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 40 },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.lg,
-        },
-        backBtn: { padding: 4 },
-        heading: {
-            fontSize: fontSize.xl,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        sectionLabel: {
+        content: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
+        firstLabel: { marginTop: spacing.sm },
+        note: {
             fontSize: fontSize.xs,
-            fontWeight: "600",
+            lineHeight: 17,
             color: colors.textSecondary,
-            letterSpacing: 0.5,
-            marginBottom: spacing.sm,
-            marginTop: spacing.md,
-        },
-        subLabel: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        row: {
-            flexDirection: "row",
-            gap: spacing.sm,
-        },
-        emptyLabel: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            fontStyle: "italic",
+            marginTop: spacing.sm,
+            marginHorizontal: spacing.xs,
         },
     });
 }

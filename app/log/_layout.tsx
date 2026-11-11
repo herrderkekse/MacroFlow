@@ -1,21 +1,16 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Stack } from "expo-router";
-import { useTranslation } from "react-i18next";
 
-
+// Every screen renders the shared ScreenHeader itself, so the navigator never
+// draws one.
 export default function LogLayout() {
     const colors = useThemeColors();
-    const { t } = useTranslation();
     return (
         <Stack
             screenOptions={{
-                headerStyle: { backgroundColor: colors.surface },
-                headerTintColor: colors.text,
-                headerShadowVisible: false,
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
             }}
-        >
-            <Stack.Screen name="add" options={{ title: t("log.addFoodTitle") }} />
-            <Stack.Screen name="quick-add" options={{ title: t("log.quickAddTitle") }} />
-        </Stack>
+        />
     );
 }

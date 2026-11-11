@@ -1,22 +1,14 @@
 import Button from "@/src/shared/atoms/Button";
+import Card from "@/src/shared/atoms/Card";
 import Input from "@/src/shared/atoms/Input";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getUsage, login, register, type UsageInfo } from "../services/syncClient";
 import {
     clearSyncSettings,
@@ -45,8 +37,6 @@ export default function AccountScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
 
     // Signed-in state, loaded once on mount.
     const [signedInAs, setSignedInAs] = useState<{ username: string; url: string } | null>(null);
@@ -87,10 +77,6 @@ export default function AccountScreen() {
             cancelled = true;
         };
     }, [refreshUsage]);
-
-    function goBack() {
-        router.navigate("/(tabs)/more" as any);
-    }
 
     function validate(): string | null {
         if (!url.trim() || !username.trim() || !password) {
@@ -162,92 +148,82 @@ export default function AccountScreen() {
         ]);
     }
 
+    const usageRatio = usage && usage.quota > 0 ? Math.min(1, usage.bytes / usage.quota) : null;
+
     return (
         <KeyboardAvoidingView
             style={styles.screen}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+            <ScreenHeader title={t("account.title")} />
             <ScrollView
-                contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+                contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
             >
-                <View style={styles.headerRow}>
-                    <Pressable onPress={goBack} style={styles.backBtn} hitSlop={8}>
-                        <Ionicons name="chevron-back" size={24} color={colors.primary} />
-                    </Pressable>
-                    <Text style={styles.heading}>{t("account.title")}</Text>
-                </View>
-
                 {signedInAs ? (
-                    <View style={styles.signedInCard}>
-                        <Ionicons name="checkmark-circle" size={44} color={colors.primary} />
-                        <Text style={styles.signedInTitle}>
-                            {t("account.signedInAs", { username: signedInAs.username })}
-                        </Text>
-                        <Text style={styles.signedInServer}>{signedInAs.url}</Text>
-
-                        {usage && (
-                            <View style={styles.usageBlock}>
-                                <Text style={styles.usageText}>
-                                    {usage.quota > 0
-                                        ? t("account.storageUsedOf", {
-                                              used: formatBytes(usage.bytes),
-                                              total: formatBytes(usage.quota),
-                                          })
-                                        : t("account.storageUsed", { used: formatBytes(usage.bytes) })}
-                                </Text>
-                                {usage.quota > 0 &&
-                                    (() => {
-                                        const ratio = Math.min(1, usage.bytes / usage.quota);
-                                        return (
-                                            <View style={styles.usageBarTrack}>
-                                                <View
-                                                    style={[
-                                                        styles.usageBarFill,
-                                                        { flex: ratio },
-                                                        ratio >= 0.9 && { backgroundColor: colors.danger },
-                                                    ]}
-                                                />
-                                                {ratio < 1 && <View style={{ flex: 1 - ratio }} />}
-                                            </View>
-                                        );
-                                    })()}
+                    <>
+                        <Card>
+                            <View style={styles.identityRow}>
+                                <View style={styles.avatar}>
+                                    <Ionicons name="person" size={20} color={colors.text} />
+                                </View>
+                                <View style={styles.identityText}>
+                                    <Text style={styles.signedInTitle} numberOfLines={1}>
+                                        {t("account.signedInAs", { username: signedInAs.username })}
+                                    </Text>
+                                    <Text style={styles.signedInServer} numberOfLines={1}>{signedInAs.url}</Text>
+                                </View>
                             </View>
-                        )}
 
-                        <Text style={styles.signedInHint}>{t("account.signedInHint")}</Text>
+                            {usage && (
+                                <View style={styles.usageBlock}>
+                                    <Text style={styles.usageText}>
+                                        {usage.quota > 0
+                                            ? t("account.storageUsedOf", {
+                                                  used: formatBytes(usage.bytes),
+                                                  total: formatBytes(usage.quota),
+                                              })
+                                            : t("account.storageUsed", { used: formatBytes(usage.bytes) })}
+                                    </Text>
+                                    {usageRatio != null && (
+                                        <View style={styles.usageBarTrack}>
+                                            <View
+                                                style={[
+                                                    styles.usageBarFill,
+                                                    { flex: usageRatio },
+                                                    usageRatio >= 0.9 && { backgroundColor: colors.danger },
+                                                ]}
+                                            />
+                                            {usageRatio < 1 && <View style={{ flex: 1 - usageRatio }} />}
+                                        </View>
+                                    )}
+                                </View>
+                            )}
+                        </Card>
+
+                        <Text style={styles.note}>{t("account.signedInHint")}</Text>
                         <Button
                             title={t("account.signOut")}
-                            variant="outline"
+                            variant="danger"
                             onPress={handleSignOut}
                             loading={signingOut}
                             style={styles.signOutBtn}
-                            textStyle={{ color: colors.danger }}
                         />
-                    </View>
+                    </>
                 ) : (
                     <>
                         <Text style={styles.intro}>{t("account.intro")}</Text>
 
-                        {/* Sign In / Sign Up segmented toggle */}
-                        <View style={styles.segment}>
-                            {(["signIn", "signUp"] as Mode[]).map((m) => (
-                                <Pressable
-                                    key={m}
-                                    style={[styles.segmentItem, mode === m && styles.segmentItemActive]}
-                                    onPress={() => setMode(m)}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.segmentText,
-                                            mode === m && styles.segmentTextActive,
-                                        ]}
-                                    >
-                                        {m === "signIn" ? t("account.modeSignIn") : t("account.modeSignUp")}
-                                    </Text>
-                                </Pressable>
-                            ))}
-                        </View>
+                        <SegmentedControl<Mode>
+                            options={[
+                                { key: "signIn", label: t("account.modeSignIn") },
+                                { key: "signUp", label: t("account.modeSignUp") },
+                            ]}
+                            value={mode}
+                            onChange={setMode}
+                            style={styles.modeSwitch}
+                        />
 
                         <Input
                             label={t("account.serverUrl")}
@@ -296,7 +272,7 @@ export default function AccountScreen() {
                             style={styles.submitBtn}
                         />
 
-                        <Text style={styles.switchHint}>
+                        <Text style={[styles.note, styles.centered]}>
                             {mode === "signIn" ? t("account.switchToSignUp") : t("account.switchToSignIn")}
                         </Text>
                     </>
@@ -309,115 +285,47 @@ export default function AccountScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 40 },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.lg,
-        },
-        backBtn: { padding: 4 },
-        heading: {
-            fontSize: fontSize.xl,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        intro: {
-            fontSize: fontSize.sm,
+        content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        intro: { fontSize: fontSize.sm, lineHeight: 20, color: colors.textSecondary },
+        modeSwitch: { marginTop: spacing.md, marginBottom: spacing.md },
+        field: { marginBottom: spacing.md },
+        submitBtn: { marginTop: spacing.sm },
+        note: {
+            fontSize: fontSize.xs,
+            lineHeight: 17,
             color: colors.textSecondary,
-            marginBottom: spacing.lg,
-            lineHeight: fontSize.sm * 1.4,
-        },
-        segment: {
-            flexDirection: "row",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: 3,
-            marginBottom: spacing.lg,
-        },
-        segmentItem: {
-            flex: 1,
-            paddingVertical: spacing.sm + 2,
-            borderRadius: borderRadius.sm,
-            alignItems: "center",
-        },
-        segmentItemActive: {
-            backgroundColor: colors.primary,
-        },
-        segmentText: {
-            fontSize: fontSize.md,
-            fontWeight: "600",
-            color: colors.textSecondary,
-        },
-        segmentTextActive: {
-            color: "#FFFFFF",
-        },
-        field: {
-            marginBottom: spacing.md,
-        },
-        submitBtn: {
-            marginTop: spacing.sm,
-        },
-        switchHint: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            textAlign: "center",
             marginTop: spacing.md,
+            marginHorizontal: spacing.xs,
         },
-        signedInCard: {
+        centered: { textAlign: "center" },
+        identityRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4 },
+        avatar: {
+            width: 44,
+            height: 44,
+            borderRadius: borderRadius.full,
+            backgroundColor: colors.primaryLight,
             alignItems: "center",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: spacing.lg,
+            justifyContent: "center",
+        },
+        identityText: { flex: 1 },
+        signedInTitle: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
+        signedInServer: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        usageBlock: {
+            marginTop: spacing.md,
+            paddingTop: spacing.md,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
             gap: spacing.sm,
         },
-        signedInTitle: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-            textAlign: "center",
-        },
-        signedInServer: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            textAlign: "center",
-        },
-        usageBlock: {
-            alignSelf: "stretch",
-            marginTop: spacing.sm,
-            gap: spacing.xs,
-        },
-        usageText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            textAlign: "center",
-        },
+        usageText: { fontSize: fontSize.xs, color: colors.textSecondary },
         usageBarTrack: {
             flexDirection: "row",
             height: 6,
-            borderRadius: 3,
+            borderRadius: borderRadius.full,
             backgroundColor: colors.border,
             overflow: "hidden",
         },
-        usageBarFill: {
-            backgroundColor: colors.primary,
-            borderRadius: 3,
-        },
-        signedInHint: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            textAlign: "center",
-            marginTop: spacing.sm,
-            lineHeight: fontSize.sm * 1.4,
-        },
-        signOutBtn: {
-            marginTop: spacing.md,
-            alignSelf: "stretch",
-            borderColor: colors.danger,
-        },
+        usageBarFill: { backgroundColor: colors.primary },
+        signOutBtn: { marginTop: spacing.md },
     });
 }

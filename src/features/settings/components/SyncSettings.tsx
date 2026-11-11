@@ -1,22 +1,21 @@
-import Button from "@/src/shared/atoms/Button";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
+import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
 import { syncNow } from "../services/syncEngine";
 import { getSyncStatus, loadSyncSettings, type SyncStatus } from "../services/syncSettings";
 
-interface Props {
-    colors: ThemeColors;
-}
+const ACCOUNT_ROUTE = "/settings/account" as unknown as Href;
 
-const ACCOUNT_ROUTE = "/(tabs)/account" as unknown as Href;
-
-export default function SyncSettings({ colors }: Props) {
+export default function SyncSettings() {
     const { t } = useTranslation();
+    const colors = useThemeColors();
     const router = useRouter();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -60,112 +59,64 @@ export default function SyncSettings({ colors }: Props) {
         }
     }
 
+    const statusLine = status
+        ? status.lastSyncAt
+            ? t("settings.syncLastSync", { date: new Date(status.lastSyncAt).toLocaleString() })
+            : t("settings.syncNeverSynced")
+        : undefined;
+
     return (
         <View>
-            <Text style={styles.sectionLabel}>{t("settings.sync")}</Text>
-            <Text style={styles.description}>{t("settings.syncDescription")}</Text>
-
+            <SectionLabel>{t("settings.sync")}</SectionLabel>
             {configured ? (
                 <>
-                    <View style={styles.accountRow}>
-                        <Ionicons name="person-circle-outline" size={36} color={colors.primary} />
-                        <View style={styles.accountText}>
-                            <Text style={styles.accountName} numberOfLines={1}>
-                                {username}
-                            </Text>
-                            <Text style={styles.accountSub}>{t("settings.syncSignedInSubtitle")}</Text>
-                        </View>
-                        <Button
-                            title={t("settings.syncManageAccount")}
-                            variant="outline"
+                    <ListGroup>
+                        <ListRow
+                            icon="person-circle-outline"
+                            title={username ?? ""}
+                            subtitle={t("settings.syncSignedInSubtitle")}
+                            value={t("settings.syncManageAccount")}
                             onPress={() => router.push(ACCOUNT_ROUTE)}
                         />
-                    </View>
-
-                    <Button title={t("settings.syncNow")} onPress={handleSyncNow} loading={syncing} />
-
-                    {status && (
-                        <View style={styles.statusBlock}>
-                            <Text style={styles.statusText}>
-                                {status.lastSyncAt
-                                    ? t("settings.syncLastSync", {
-                                          date: new Date(status.lastSyncAt).toLocaleString(),
-                                      })
-                                    : t("settings.syncNeverSynced")}
-                            </Text>
-                            {status.pendingCount > 0 && (
-                                <Text style={styles.statusText}>
-                                    {t("settings.syncPendingChanges", { count: status.pendingCount })}
-                                </Text>
-                            )}
-                            {status.lastError && (
-                                <Text style={styles.errorText}>{status.lastError}</Text>
-                            )}
-                        </View>
+                        <ListRow
+                            icon="sync-outline"
+                            title={t("settings.syncNow")}
+                            subtitle={statusLine}
+                            onPress={handleSyncNow}
+                            disabled={syncing}
+                            right={syncing ? <ActivityIndicator size="small" color={colors.textSecondary} /> : undefined}
+                            showChevron={false}
+                        />
+                    </ListGroup>
+                    {status && status.pendingCount > 0 && (
+                        <Text style={styles.note}>{t("settings.syncPendingChanges", { count: status.pendingCount })}</Text>
                     )}
+                    {status?.lastError && <Text style={[styles.note, styles.error]}>{status.lastError}</Text>}
                 </>
             ) : (
-                <>
-                    <Text style={styles.notSignedIn}>{t("settings.syncNotSignedIn")}</Text>
-                    <Button
+                <ListGroup>
+                    <ListRow
+                        icon="cloud-outline"
                         title={t("settings.syncSetUpAccount")}
+                        subtitle={t("settings.syncNotSignedIn")}
                         onPress={() => router.push(ACCOUNT_ROUTE)}
                     />
-                </>
+                </ListGroup>
             )}
+            <Text style={styles.note}>{t("settings.syncDescription")}</Text>
         </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        sectionLabel: {
+        note: {
             fontSize: fontSize.xs,
-            fontWeight: "600",
+            lineHeight: 17,
             color: colors.textSecondary,
-            letterSpacing: 0.5,
-            marginBottom: spacing.sm,
-            marginTop: spacing.md,
+            marginTop: spacing.sm,
+            marginHorizontal: spacing.xs,
         },
-        description: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        accountRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        accountText: {
-            flex: 1,
-        },
-        accountName: {
-            fontSize: fontSize.md,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        accountSub: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-        },
-        notSignedIn: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        statusBlock: {
-            marginTop: spacing.md,
-            gap: spacing.xs,
-        },
-        statusText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        errorText: {
-            fontSize: fontSize.sm,
-            color: colors.danger,
-        },
+        error: { color: colors.danger },
     });
 }

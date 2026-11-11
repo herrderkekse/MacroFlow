@@ -1,9 +1,9 @@
+import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import type { AutoBackupInfo } from "../services/autoBackup";
 
 interface Props {
@@ -27,20 +27,17 @@ export default function AutoBackupItem({ item, isSharingThis, isRestoringThis, o
 
     return (
         <View style={styles.row}>
-            <Ionicons name="archive-outline" size={20} color={colors.textSecondary} style={styles.icon} />
             <Text style={styles.label} numberOfLines={1}>{label}</Text>
-            <View style={styles.actions}>
-                <Pressable onPress={onShare} disabled={isSharingThis} style={styles.iconBtn} hitSlop={8}>
-                    {isSharingThis
-                        ? <ActivityIndicator size={16} color={colors.primary} />
-                        : <Ionicons name="share-outline" size={20} color={colors.primary} />}
-                </Pressable>
-                <Pressable onPress={onRestore} disabled={isRestoringThis} style={styles.iconBtn} hitSlop={8}>
-                    {isRestoringThis
-                        ? <ActivityIndicator size={16} color={colors.primary} />
-                        : <Ionicons name="refresh-outline" size={20} color={colors.primary} />}
-                </Pressable>
-            </View>
+            {isSharingThis ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} style={styles.spinner} />
+            ) : (
+                <IconButton icon="share-outline" label={t("common.share")} onPress={onShare} />
+            )}
+            {isRestoringThis ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} style={styles.spinner} />
+            ) : (
+                <IconButton icon="refresh-outline" label={t("settings.autoBackupRestore")} onPress={onRestore} />
+            )}
         </View>
     );
 }
@@ -50,20 +47,12 @@ function createStyles(colors: ThemeColors) {
         row: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: spacing.sm,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
+            gap: spacing.xs,
+            minHeight: 56,
+            paddingLeft: screenPadding,
+            paddingRight: spacing.sm,
         },
-        icon: { marginRight: spacing.sm },
-        label: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            color: colors.text,
-        },
-        actions: {
-            flexDirection: "row",
-            gap: spacing.sm,
-        },
-        iconBtn: { padding: 4 },
+        label: { flex: 1, fontSize: fontSize.md, fontWeight: "500", color: colors.text },
+        spinner: { width: 40, height: 40 },
     });
 }
