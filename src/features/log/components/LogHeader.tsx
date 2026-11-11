@@ -1,14 +1,13 @@
-import CalendarPicker from "@/src/shared/components/CalendarPicker";
 import { getWorkoutMuscleGroupsByDateRange } from "@/src/features/exercise/services/workoutDb";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import IconButton from "@/src/shared/atoms/IconButton";
+import CalendarPicker from "@/src/shared/components/CalendarPicker";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { formatDateKey } from "@/src/utils/date";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 
-interface DateSelectorBarProps {
+interface LogHeaderProps {
     date: Date;
     onDateChange: (date: Date) => void;
 }
@@ -21,12 +20,12 @@ function isSameDay(a: Date, b: Date) {
     );
 }
 
-export default function DateSelectorBar({
-    date,
-    onDateChange,
-}: DateSelectorBarProps) {
+/**
+ * The log's header: the selected day as the screen title (tap for the
+ * calendar) and arrows to step a day back or forward.
+ */
+export default function LogHeader({ date, onDateChange }: LogHeaderProps) {
     const colors = useThemeColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
     const { t, i18n } = useTranslation();
     const [calendarVisible, setCalendarVisible] = useState(false);
     const [dayCategoryColors, setDayCategoryColors] = useState<Record<string, string[]>>({});
@@ -79,58 +78,30 @@ export default function DateSelectorBar({
     const isYesterday = isSameDay(date, yesterday);
     const isTomorrow = isSameDay(date, tomorrow);
 
-    const label = isToday
+    const relativeLabel = isToday
         ? t("log.today")
         : isYesterday
             ? t("log.yesterday")
             : isTomorrow
                 ? t("log.tomorrow")
-                : date.toLocaleDateString(i18n.language, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                });
+                : null;
+    const fullDate = date.toLocaleDateString(i18n.language, { weekday: "long", month: "long", day: "numeric" });
+    const shortDate = date.toLocaleDateString(i18n.language, { weekday: "short", month: "short", day: "numeric" });
 
     return (
         <>
-            <View style={styles.container}>
-                <Pressable
-                    onPress={() => shiftDay(-1)}
-                    hitSlop={12}
-                    style={styles.arrow}
-                >
-                    <Ionicons
-                        name="chevron-back"
-                        size={22}
-                        color={colors.text}
-                    />
-                </Pressable>
-
-                <Pressable
-                    onPress={() => setCalendarVisible(true)}
-                    style={styles.dateButton}
-                >
-                    <Text style={styles.dateText}>{label}</Text>
-                    <Ionicons
-                        name="calendar-outline"
-                        size={16}
-                        color={colors.textSecondary}
-                        style={styles.calendarIcon}
-                    />
-                </Pressable>
-
-                <Pressable
-                    onPress={() => shiftDay(1)}
-                    hitSlop={12}
-                    style={styles.arrow}
-                >
-                    <Ionicons
-                        name="chevron-forward"
-                        size={22}
-                        color={colors.text}
-                    />
-                </Pressable>
-            </View>
+            <ScreenHeader
+                variant="large"
+                title={relativeLabel ?? shortDate}
+                subtitle={relativeLabel ? fullDate : String(date.getFullYear())}
+                onTitlePress={() => setCalendarVisible(true)}
+                right={
+                    <>
+                        <IconButton icon="chevron-back" label={t("log.previousDay")} onPress={() => shiftDay(-1)} />
+                        <IconButton icon="chevron-forward" label={t("log.nextDay")} onPress={() => shiftDay(1)} />
+                    </>
+                }
+            />
 
             <CalendarPicker
                 visible={calendarVisible}
@@ -145,35 +116,4 @@ export default function DateSelectorBar({
             />
         </>
     );
-}
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        container: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        arrow: {
-            padding: spacing.xs,
-        },
-        dateButton: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.xs,
-        },
-        dateText: {
-            fontSize: fontSize.md,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        calendarIcon: {
-            marginLeft: 2,
-        },
-    });
 }

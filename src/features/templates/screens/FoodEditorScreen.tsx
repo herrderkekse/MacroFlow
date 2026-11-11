@@ -1,6 +1,6 @@
 import FoodForm from "@/src/features/templates/components/FoodForm";
 import { isShareConfigured, shareFood } from "@/src/features/share/services/shareService";
-import ShareModal from "@/src/shared/components/ShareModal";
+import ShareSheet from "@/src/shared/components/ShareSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -74,7 +74,7 @@ export default function FoodEditorScreen() {
                 onSaved={() => router.back()}
             />
             {foodId && (
-                <ShareModal
+                <ShareSheet
                     visible={shareVisible}
                     onClose={() => setShareVisible(false)}
                     fetchUrl={() => shareFood(Number(foodId))}

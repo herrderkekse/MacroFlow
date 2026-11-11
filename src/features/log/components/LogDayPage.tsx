@@ -2,12 +2,12 @@
 import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSummarySection";
 import type { Goals } from "@/src/features/settings/services/settingsDb";
 import { MEAL_TYPES, type MealType } from "@/src/shared/types";
-import { spacing } from "@/src/utils/theme";
+import { screenPadding, spacing } from "@/src/utils/theme";
 import React from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import DailyProgressBar from "../components/DailyProgressBar";
 import { computeTotals, type EntryWithFood } from "../helpers/logHelpers";
 import type { WeightLog } from "../services/logDb";
+import DaySummaryCard from "./DaySummaryCard";
 import LogPhotosSection from "./LogPhotosSection";
 import type { RecipeGroup } from "./MealSection";
 import MealSection from "./MealSection";
@@ -18,7 +18,6 @@ interface LogDayPageProps {
     grouped: Record<MealType, EntryWithFood[]>;
     goals: Goals;
     onAdd: (mt: MealType) => void;
-    onDelete: (id: number) => void;
     onEdit: (row: EntryWithFood) => void;
     onEditRecipeGroup: (group: RecipeGroup, multiplier: number) => void;
     onDeleteRecipeLog: (recipeLogId: number) => void;
@@ -45,7 +44,6 @@ export default function LogDayPage({
     grouped,
     goals,
     onAdd,
-    onDelete,
     onEdit,
     onEditRecipeGroup,
     onDeleteRecipeLog,
@@ -72,7 +70,7 @@ export default function LogDayPage({
     return (
         <View style={[styles.dayPage, { width }]}>
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                <DailyProgressBar totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
+                <DaySummaryCard totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
                 {MEAL_TYPES.map((meal) => (
                     <MealSection
                         key={meal.key}
@@ -80,7 +78,6 @@ export default function LogDayPage({
                         icon={meal.icon}
                         items={grouped[meal.key]}
                         onAdd={() => onAdd(meal.key)}
-                        onDeleteEntry={onDelete}
                         onEdit={onEdit}
                         onEditRecipeGroup={onEditRecipeGroup}
                         onDeleteRecipeLog={onDeleteRecipeLog}
@@ -103,5 +100,5 @@ export default function LogDayPage({
 
 const styles = StyleSheet.create({
     dayPage: {},
-    content: { padding: spacing.md, paddingBottom: 160 },
+    content: { paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: 180 },
 });

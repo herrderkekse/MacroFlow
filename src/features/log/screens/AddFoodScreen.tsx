@@ -19,7 +19,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import EntryModal from "../components/EntryModal";
+import EntrySheet from "../components/EntrySheet";
 import FoodListItem from "../components/FoodListItem";
 import ManualFoodForm from "../components/ManualFoodForm";
 import RecipeLogModal from "../components/RecipeLogModal";
@@ -248,7 +248,7 @@ export default function AddFoodScreen() {
                 onNotFound={search.handleBarcodeNotFound}
             />
 
-            <EntryModal
+            <EntrySheet
                 food={search.selectedFood}
                 defaultMealType={mealType as MealType | undefined}
                 onClose={() => search.setSelectedFood(null)}

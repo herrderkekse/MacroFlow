@@ -39,8 +39,6 @@ export function useTemplateList() {
     const [items, setItems] = useState<TemplateItem[]>([]);
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<FilterType>("all");
-    const [filterExpanded, setFilterExpanded] = useState(false);
-    const [fabExpanded, setFabExpanded] = useState(false);
     const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
     const [forkTarget, setForkTarget] = useState<ForkTarget | null>(null);
 
@@ -201,10 +199,6 @@ export function useTemplateList() {
         query,
         setQuery,
         filter,
-        filterExpanded,
-        setFilterExpanded,
-        fabExpanded,
-        setFabExpanded,
         expandedIds,
         toggleExpanded,
         forkTarget,

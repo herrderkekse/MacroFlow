@@ -1,13 +1,13 @@
 // eslint-disable-next-line boundaries/dependencies
 import PhotoGallery from "@/src/features/photos/components/PhotoGallery";
 import { listPhotosByDateWithRelations } from "@/src/features/photos/services/photoDb";
+import SectionCard from "@/src/shared/components/SectionCard";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 interface LogPhotosSectionProps {
     dateKey?: string;
@@ -52,63 +52,35 @@ export default function LogPhotosSection({ dateKey, refreshKey }: LogPhotosSecti
     }
 
     return (
-        <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-                <Ionicons name="images-outline" size={18} color={colors.textSecondary} />
-                <Text style={styles.sectionHeaderLabel}>{t("log.photosTitle")}</Text>
-                <Text style={styles.sectionCountLabel}>{t("log.photosLoggedCount", { count: photos.length })}</Text>
-                <Pressable onPress={navigateToAddPhotos} hitSlop={8}>
-                    <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
-                </Pressable>
-            </View>
-
+        <SectionCard
+            icon="images-outline"
+            title={t("log.photosTitle")}
+            summary={t("log.photosLoggedCount", { count: photos.length })}
+            onAdd={navigateToAddPhotos}
+        >
             {loading ? (
                 <View style={styles.photosLoadingRow}>
-                    <ActivityIndicator color={colors.primary} size="small" />
+                    <ActivityIndicator color={colors.textSecondary} size="small" />
                     <Text style={styles.photosLoadingText}>{t("log.photosLoading")}</Text>
                 </View>
             ) : (
-                <PhotoGallery photos={photos} emptyLabel={t("log.noPhotosLogged")} />
+                <View style={styles.gallery}>
+                    <PhotoGallery photos={photos} emptyLabel={t("log.noPhotosLogged")} />
+                </View>
             )}
-        </View>
+        </SectionCard>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        sectionContainer: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.md,
-        },
-        sectionHeader: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-        },
-        sectionHeaderLabel: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            textTransform: "uppercase",
-            letterSpacing: 0.5,
-        },
-        sectionCountLabel: {
-            fontSize: fontSize.xs,
-            color: colors.textTertiary,
-        },
+        gallery: { paddingVertical: spacing.sm + 4 },
         photosLoadingRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.sm,
-            marginTop: spacing.sm,
-            paddingVertical: spacing.sm,
+            paddingVertical: spacing.md,
         },
-        photosLoadingText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
+        photosLoadingText: { fontSize: fontSize.sm, color: colors.textSecondary },
     });
 }

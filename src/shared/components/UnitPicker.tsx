@@ -1,17 +1,12 @@
+import Button from "@/src/shared/atoms/Button";
+import Chip from "@/src/shared/atoms/Chip";
+import Input from "@/src/shared/atoms/Input";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, spacing, type ThemeColors } from "@/src/utils/theme";
 import { formatQuantity, servingDisplayUnit, unitLabel, type FoodUnit } from "@/src/utils/units";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 export interface ServingUnit {
     id: number;
@@ -75,97 +70,73 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
 
     const canAdd = onAddServingUnit != null && !hideAddButton;
 
+    const isFormValid = !!newUnitName.trim() && parseFloat(newUnitGrams) > 0;
+
+    function closeForm() {
+        setShowAddUnit(false);
+        setNewUnitName("");
+        setNewUnitGrams("");
+    }
+
     return (
         <View>
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.unitRow}
+                keyboardShouldPersistTaps="handled"
             >
                 {/* A food's own serving units lead: they are the ones most
                     likely to be picked for that food. */}
                 {servingUnits.map((su) => (
-                    <Pressable
+                    <Chip
                         key={`su-${su.id}`}
+                        label={`${su.name} (${formatQuantity(su.grams, servingDisplayUnit(su.display_unit))})`}
+                        selected={selectedServingUnit?.id === su.id}
                         onPress={() => onSelectServingUnit(su)}
-                        style={[
-                            styles.unitChip,
-                            selectedServingUnit?.id === su.id && styles.unitChipActive,
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.unitChipText,
-                                selectedServingUnit?.id === su.id && styles.unitChipTextActive,
-                            ]}
-                        >
-                            {su.name} ({formatQuantity(su.grams, servingDisplayUnit(su.display_unit))})
-                        </Text>
-                    </Pressable>
+                    />
                 ))}
                 {unitOptions.map((u) => (
-                    <Pressable
+                    <Chip
                         key={u}
+                        label={unitLabel(u)}
+                        selected={selectedUnit === u && !selectedServingUnit}
                         onPress={() => onSelectUnit(u)}
-                        style={[
-                            styles.unitChip,
-                            selectedUnit === u && !selectedServingUnit && styles.unitChipActive,
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.unitChipText,
-                                selectedUnit === u && !selectedServingUnit && styles.unitChipTextActive,
-                            ]}
-                        >
-                            {unitLabel(u)}
-                        </Text>
-                    </Pressable>
+                    />
                 ))}
                 {canAdd && (
-                    <Pressable
-                        onPress={() => setShowAddUnit((v) => !v)}
-                        style={[styles.unitChip, styles.unitChipAdd]}
-                    >
-                        <Ionicons name="add" size={16} color={colors.primary} />
-                    </Pressable>
+                    <Chip
+                        label={t("templates.newUnit")}
+                        icon="add"
+                        selected={showAddUnit}
+                        onPress={() => (showAddUnit ? closeForm() : setShowAddUnit(true))}
+                    />
                 )}
             </ScrollView>
 
             {showAddUnit && (
                 <View style={styles.addUnitForm}>
-                    <Text style={styles.addUnitTitle}>{t("templates.addServingUnit")}</Text>
                     <View style={styles.addUnitRow}>
-                        <TextInput
-                            style={[styles.addUnitInput, { flex: 2 }]}
+                        <Input
+                            label={t("templates.servingUnitName")}
                             placeholder={t("templates.servingUnitNamePlaceholder")}
-                            placeholderTextColor={colors.textSecondary}
                             value={newUnitName}
                             onChangeText={setNewUnitName}
+                            containerStyle={styles.nameField}
+                            autoFocus
                         />
-                        <TextInput
-                            style={[styles.addUnitInput, { flex: 1 }]}
-                            placeholder={t("templates.servingUnitGrams")}
-                            placeholderTextColor={colors.textSecondary}
+                        <Input
+                            label={t("templates.servingUnitGrams")}
                             value={newUnitGrams}
                             onChangeText={setNewUnitGrams}
                             keyboardType="decimal-pad"
+                            suffix="g"
+                            containerStyle={styles.gramsField}
                         />
                     </View>
                     <View style={styles.addUnitActions}>
-                        <Pressable
-                            onPress={() => { setShowAddUnit(false); setNewUnitName(""); setNewUnitGrams(""); }}
-                            style={styles.addUnitCancelBtn}
-                        >
-                            <Text style={styles.addUnitCancelText}>{t("common.cancel")}</Text>
-                        </Pressable>
-                        <Pressable
-                            onPress={handleAddUnit}
-                            style={[styles.addUnitSaveBtn, (!newUnitName.trim() || !parseFloat(newUnitGrams)) && styles.addUnitSaveBtnDisabled]}
-                            disabled={!newUnitName.trim() || !parseFloat(newUnitGrams)}
-                        >
-                            <Text style={styles.addUnitSaveText}>{t("common.save")}</Text>
-                        </Pressable>
+                        <Button title={t("common.cancel")} variant="ghost" size="sm" onPress={closeForm} />
+                        <Button title={t("common.save")} size="sm" onPress={handleAddUnit} disabled={!isFormValid} />
                     </View>
                 </View>
             )}
@@ -175,94 +146,18 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        unitRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            paddingBottom: spacing.sm,
-        },
-        unitChip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-        },
-        unitChipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        unitChipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        unitChipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
-        },
-        unitChipAdd: {
-            borderColor: colors.primary,
-            borderStyle: "dashed",
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: spacing.sm,
-        },
+        unitRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.md },
         addUnitForm: {
-            backgroundColor: colors.surface,
+            marginTop: spacing.sm + 4,
+            padding: spacing.sm + 4,
             borderRadius: borderRadius.md,
+            backgroundColor: colors.surfaceMuted,
             borderWidth: 1,
             borderColor: colors.border,
-            padding: spacing.md,
-            marginTop: spacing.sm,
         },
-        addUnitTitle: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.text,
-            marginBottom: spacing.sm,
-        },
-        addUnitRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-        },
-        addUnitInput: {
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.sm,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: spacing.xs,
-            fontSize: fontSize.sm,
-            color: colors.text,
-            backgroundColor: colors.background,
-        },
-        addUnitActions: {
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            gap: spacing.sm,
-            marginTop: spacing.sm,
-        },
-        addUnitCancelBtn: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.xs,
-            borderRadius: borderRadius.sm,
-        },
-        addUnitCancelText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        addUnitSaveBtn: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.xs,
-            borderRadius: borderRadius.sm,
-            backgroundColor: colors.primary,
-        },
-        addUnitSaveBtnDisabled: {
-            backgroundColor: colors.border,
-        },
-        addUnitSaveText: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.background,
-        },
+        addUnitRow: { flexDirection: "row", gap: spacing.sm },
+        nameField: { flex: 2 },
+        gramsField: { flex: 1 },
+        addUnitActions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm, marginTop: spacing.sm + 4 },
     });
 }

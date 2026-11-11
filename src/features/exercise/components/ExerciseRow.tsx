@@ -1,9 +1,10 @@
+import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MUSCLE_GROUPS } from "../constants";
 import type { ExerciseTemplate } from "../services/exerciseDb";
 
 interface ExerciseRowProps {
@@ -12,38 +13,42 @@ interface ExerciseRowProps {
     onAddWithSets: () => void;
 }
 
+/** One exercise in the picker: tap to add it, or copy the sets of its last session. */
 export default function ExerciseRow({ template, onAddEmpty, onAddWithSets }: ExerciseRowProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createRowStyles(colors), [colors]);
+    const muscleLabelKey = MUSCLE_GROUPS.find((mg) => mg.key === template.muscle_group)?.labelKey;
+    const meta = [
+        muscleLabelKey ? t(muscleLabelKey) : template.muscle_group,
+        template.equipment ? t(`exercise.equipment.${template.equipment}`, { defaultValue: template.equipment }) : null,
+    ].filter(Boolean).join(" · ");
 
     return (
-        <View style={styles.row}>
+        <Pressable
+            onPress={onAddEmpty}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("exercise.addExercise.addEmpty")}: ${template.name}`}
+        >
             <View style={styles.info}>
-                <Text style={styles.name}>{template.name}</Text>
-                {(template.muscle_group || template.equipment) && (
-                    <Text style={styles.meta}>
-                        {[template.muscle_group, template.equipment].filter(Boolean).join(" · ")}
-                    </Text>
-                )}
+                <Text style={styles.name} numberOfLines={1}>{template.name}</Text>
+                {meta ? <Text style={styles.meta} numberOfLines={1}>{meta}</Text> : null}
             </View>
-            <Pressable
-                onPress={onAddEmpty}
-                hitSlop={8}
-                style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
-                accessibilityLabel={t("exercise.addExercise.addEmpty")}
-            >
-                <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
-            </Pressable>
-            <Pressable
+            <IconButton
+                icon="copy-outline"
+                size="sm"
+                label={t("exercise.addExercise.addWithSets")}
                 onPress={onAddWithSets}
-                hitSlop={8}
-                style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
-                accessibilityLabel={t("exercise.addExercise.addWithSets")}
-            >
-                <Ionicons name="copy-outline" size={20} color={colors.primary} />
-            </Pressable>
-        </View>
+            />
+            <IconButton
+                icon="add"
+                size="sm"
+                variant="tonal"
+                label={t("exercise.addExercise.addEmpty")}
+                onPress={onAddEmpty}
+            />
+        </Pressable>
     );
 }
 
@@ -52,18 +57,16 @@ function createRowStyles(colors: ThemeColors) {
         row: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: spacing.sm + 2,
-            paddingHorizontal: spacing.lg,
+            gap: spacing.sm,
+            minHeight: 56,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: screenPadding,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
         },
+        pressed: { backgroundColor: colors.surfaceMuted },
         info: { flex: 1 },
         name: { fontSize: fontSize.md, color: colors.text, fontWeight: "500" },
-        meta: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-        iconBtn: {
-            padding: spacing.xs,
-            marginLeft: spacing.sm,
-        },
-        iconBtnPressed: { opacity: 0.5 },
+        meta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
     });
 }

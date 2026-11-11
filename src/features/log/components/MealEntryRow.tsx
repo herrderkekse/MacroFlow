@@ -1,6 +1,6 @@
 import { getServingUnits } from "@/src/features/templates/services/templateDb";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { formatEntryQuantity } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
@@ -9,23 +9,21 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { EntryWithFood } from "./mealSectionContext";
 import { useMealSelection } from "./mealSectionContext";
 
-export default function MealEntryRow({
-    row,
-    onEdit,
-    onDeleteEntry,
-    onConfirmEntry,
-    isChild = false,
-    allMealSelected,
-    allGroupSelected,
-}: {
+interface MealEntryRowProps {
     row: EntryWithFood;
     onEdit?: (row: EntryWithFood) => void;
-    onDeleteEntry: (id: number) => void;
     onConfirmEntry?: (id: number) => void;
+    /** An ingredient of a logged recipe, shown indented under its group. */
     isChild?: boolean;
-    allMealSelected?: boolean;
-    allGroupSelected?: boolean;
-}) {
+    isFirst?: boolean;
+}
+
+/**
+ * One logged food. Tap to edit (or delete) it in the entry sheet, long-press
+ * to start selecting. A planned entry shows an empty circle that marks it as
+ * eaten — the same slot holds the checkbox while selecting.
+ */
+export default function MealEntryRow({ row, onEdit, onConfirmEntry, isChild = false, isFirst = false }: MealEntryRowProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -38,14 +36,15 @@ export default function MealEntryRow({
     const selectionMode = selection?.selectionMode ?? false;
     const isSelected = selection?.selectedEntryIds.has(row.entries.id) ?? false;
     const isScheduled = row.entries.is_scheduled === 1;
+    const canConfirm = isScheduled && !isChild && !!onConfirmEntry && !selectionMode;
 
     return (
         <Pressable
-            style={[
-                styles.entryRow,
-                isChild && styles.childEntryRow,
-                selectionMode && isSelected && !allMealSelected && !allGroupSelected && styles.selectedEntry,
-                isScheduled && styles.scheduledEntry,
+            style={({ pressed }) => [
+                styles.row,
+                !isFirst && styles.divider,
+                isChild && styles.childRow,
+                pressed && styles.pressed,
             ]}
             onPress={() => {
                 if (selectionMode) selection?.toggleEntries([row.entries.id]);
@@ -55,98 +54,63 @@ export default function MealEntryRow({
                 if (selectionMode) selection?.toggleEntries([row.entries.id]);
                 else selection?.activateSelection(row.entries.id);
             }}
-            android_ripple={{ color: "#00000004" }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectionMode ? isSelected : undefined }}
         >
-            {isChild && <View style={styles.childConnector} />}
-            <View style={styles.entryInfo}>
-                <View style={styles.entryNameRow}>
-                    <Text style={[styles.entryName, isScheduled && styles.scheduledText]} numberOfLines={1}>
-                        {food?.name ?? t("log.unknownFood")}
-                    </Text>
-                    {isScheduled && (
-                        <Ionicons name="calendar-outline" size={14} color={colors.disabled} style={{ marginLeft: 4 }} />
-                    )}
-                </View>
-                <Text style={[styles.entryDetail, isScheduled && styles.scheduledText]}>
-                    {formatEntryQuantity(qty, entryUnit, servingGrams)} · {cals} {t("common.cal")}
+            {selectionMode && (
+                <Ionicons
+                    name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+                    size={22}
+                    color={isSelected ? colors.primary : colors.textTertiary}
+                />
+            )}
+            {canConfirm && (
+                <Pressable
+                    onPress={() => onConfirmEntry(row.entries.id)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("log.confirmEaten")}
+                >
+                    <Ionicons name="ellipse-outline" size={22} color={colors.textSecondary} />
+                </Pressable>
+            )}
+            <View style={styles.info}>
+                <Text style={[styles.name, isScheduled && styles.planned]} numberOfLines={1}>
+                    {food?.name ?? t("log.unknownFood")}
+                </Text>
+                <Text style={[styles.detail, isScheduled && styles.planned]} numberOfLines={1}>
+                    {formatEntryQuantity(qty, entryUnit, servingGrams)}
+                    {isScheduled ? ` · ${t("log.planned")}` : ""}
                 </Text>
             </View>
-            {!selectionMode && (
-                <View style={styles.entryActions}>
-                    {isScheduled && !isChild && onConfirmEntry && (
-                        <Pressable onPress={() => onConfirmEntry(row.entries.id)} hitSlop={8} style={{ marginRight: spacing.sm }}>
-                            <Ionicons
-                                name="checkmark-circle-outline"
-                                size={20}
-                                color={colors.success}
-                            />
-                        </Pressable>
-                    )}
-                    <Pressable onPress={() => onDeleteEntry(row.entries.id)} hitSlop={8}>
-                        <Ionicons
-                            name="close-circle-outline"
-                            size={20}
-                            color={colors.textTertiary}
-                        />
-                    </Pressable>
-                </View>
-            )}
+            <Text style={[styles.calories, isScheduled && styles.planned]}>{cals}</Text>
         </Pressable>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        entryRow: {
+        row: {
             flexDirection: "row",
             alignItems: "center",
+            gap: spacing.sm + 2,
+            minHeight: 52,
             paddingVertical: spacing.sm,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border,
         },
-        childEntryRow: {
-            paddingLeft: spacing.sm,
-        },
-        selectedEntry: {
-            borderWidth: 1.5,
-            borderTopWidth: 1.5,
-            borderColor: colors.primary,
-            borderTopColor: colors.primary,
-            borderRadius: borderRadius.sm,
-            marginVertical: 2,
-            zIndex: 1,
-        },
-        scheduledEntry: {
-            opacity: 0.6,
-        },
-        scheduledText: {
-            color: colors.disabled,
-        },
-        childConnector: {
-            width: 8,
-            height: StyleSheet.hairlineWidth,
-            backgroundColor: colors.primary + "40",
-            marginRight: spacing.xs,
-            alignSelf: "center",
-        },
-        entryInfo: { flex: 1, marginRight: spacing.sm },
-        entryNameRow: {
-            flexDirection: "row",
-            alignItems: "center",
-        },
-        entryName: {
+        divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+        childRow: { minHeight: 44, paddingLeft: spacing.md },
+        pressed: { opacity: 0.6 },
+        info: { flex: 1 },
+        name: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
+        detail: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        planned: { color: colors.textTertiary },
+        calories: {
             fontSize: fontSize.sm,
-            fontWeight: "500",
+            fontWeight: "600",
             color: colors.text,
-        },
-        entryDetail: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            marginTop: 2,
-        },
-        entryActions: {
-            flexDirection: "row",
-            alignItems: "center",
+            fontVariant: ["tabular-nums"],
+            minWidth: 36,
+            textAlign: "right",
         },
     });
 }

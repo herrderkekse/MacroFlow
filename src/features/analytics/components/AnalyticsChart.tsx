@@ -1,7 +1,7 @@
 import type { WeightLog } from "@/src/features/log/services/logDb";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import logger from "@/src/utils/logger";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -208,7 +208,7 @@ export default function AnalyticsChart({
     if (loading) {
         return (
             <View style={styles.emptyContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size="large" color={colors.textSecondary} />
             </View>
         );
     }
@@ -216,7 +216,7 @@ export default function AnalyticsChart({
     if (!chartConfig) {
         return (
             <View style={styles.emptyContainer}>
-                <Ionicons name="analytics-outline" size={48} color={colors.textTertiary} />
+                <Ionicons name="analytics-outline" size={32} color={colors.textTertiary} />
                 <Text style={styles.emptyText}>{t("analytics.noData")}</Text>
             </View>
         );
@@ -347,9 +347,8 @@ export default function AnalyticsChart({
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         chartWrapper: {
-            marginTop: spacing.lg,
             backgroundColor: colors.surface,
-            borderRadius: 16,
+            borderRadius: borderRadius.lg,
             padding: spacing.md,
             borderWidth: 1,
             borderColor: colors.border,
@@ -365,9 +364,10 @@ function createStyles(colors: ThemeColors) {
             paddingVertical: spacing.xl * 2,
         },
         emptyText: {
-            color: colors.textTertiary,
-            fontSize: fontSize.md,
-            marginTop: spacing.md,
+            color: colors.textSecondary,
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            marginTop: spacing.sm,
         },
     });
 }

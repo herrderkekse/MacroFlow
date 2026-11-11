@@ -1,7 +1,7 @@
-import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import Chip from "@/src/shared/atoms/Chip";
+import { spacing } from "@/src/utils/theme";
+import React from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 interface ChipSelectProps<T extends string> {
     items: { key: T; label: string }[];
@@ -11,75 +11,43 @@ interface ChipSelectProps<T extends string> {
     horizontal?: boolean;
 }
 
+/** A single-choice row of chips; scrolls sideways unless `horizontal` is off. */
 export default function ChipSelect<T extends string>({
     items, selected, onSelect, noneLabel, horizontal = true,
 }: ChipSelectProps<T>) {
-    const colors = useThemeColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
-
     const chips = (
         <>
             {noneLabel != null && (
-                <Pressable
-                    onPress={() => onSelect(null)}
-                    style={[styles.chip, selected === null && styles.chipActive]}
-                >
-                    <Text style={[styles.chipText, selected === null && styles.chipTextActive]}>
-                        {noneLabel}
-                    </Text>
-                </Pressable>
+                <Chip label={noneLabel} selected={selected === null} onPress={() => onSelect(null)} />
             )}
             {items.map((item) => (
-                <Pressable
+                <Chip
                     key={item.key}
+                    label={item.label}
+                    selected={selected === item.key}
                     onPress={() => onSelect(item.key)}
-                    style={[styles.chip, selected === item.key && styles.chipActive]}
-                >
-                    <Text style={[styles.chipText, selected === item.key && styles.chipTextActive]}>
-                        {item.label}
-                    </Text>
-                </Pressable>
+                />
             ))}
         </>
     );
 
     if (horizontal) {
         return (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.row}
+                keyboardShouldPersistTaps="handled"
+            >
                 {chips}
             </ScrollView>
         );
     }
 
-    return <>{chips}</>;
+    return <View style={[styles.row, styles.wrap]}>{chips}</View>;
 }
 
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        chipRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            paddingBottom: spacing.xs,
-        },
-        chip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-        },
-        chipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        chipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        chipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
-        },
-    });
-}
+const styles = StyleSheet.create({
+    row: { flexDirection: "row", gap: spacing.sm },
+    wrap: { flexWrap: "wrap" },
+});

@@ -1,16 +1,12 @@
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import Button from "@/src/shared/atoms/Button";
+import IconButton from "@/src/shared/atoms/IconButton";
+import Sheet from "@/src/shared/components/Sheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { formatDateKey } from "@/src/utils/date";
-import { Ionicons } from "@expo/vector-icons";
+import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 interface CalendarPickerProps {
     visible: boolean;
@@ -122,208 +118,90 @@ export default function CalendarPicker({
     }
 
     return (
-        <Modal
+        <Sheet
             visible={visible}
-            transparent
-            animationType="fade"
-            onRequestClose={onClose}
+            onClose={onClose}
+            title={monthTitle}
+            headerRight={
+                <>
+                    <IconButton icon="chevron-back" size="sm" label={t("calendar.previousMonth")} onPress={prevMonth} />
+                    <IconButton icon="chevron-forward" size="sm" label={t("calendar.nextMonth")} onPress={nextMonth} />
+                </>
+            }
+            footer={<Button title={t("log.today")} variant="outline" onPress={goToToday} />}
+            scrollable={false}
         >
-            <Pressable style={styles.backdrop} onPress={onClose}>
-                <Pressable style={styles.card} onPress={() => { }}>
-                    {/* Month/year header */}
-                    <View style={styles.header}>
-                        <Pressable onPress={prevMonth} hitSlop={12}>
-                            <Ionicons
-                                name="chevron-back"
-                                size={22}
-                                color={colors.text}
-                            />
-                        </Pressable>
-                        <Text style={styles.monthTitle}>
-                            {monthTitle}
-                        </Text>
-                        <Pressable onPress={nextMonth} hitSlop={12}>
-                            <Ionicons
-                                name="chevron-forward"
-                                size={22}
-                                color={colors.text}
-                            />
-                        </Pressable>
+            <View style={styles.row}>
+                {weekdayLabels.map((d) => (
+                    <View key={d} style={styles.cell}>
+                        <Text style={styles.dayLabel}>{d}</Text>
                     </View>
+                ))}
+            </View>
 
-                    {/* Day-of-week labels */}
-                    <View style={styles.row}>
-                        {weekdayLabels.map((d) => (
-                            <View key={d} style={styles.cell}>
-                                <Text style={styles.dayLabel}>{d}</Text>
-                            </View>
-                        ))}
-                    </View>
-
-                    {/* Day grid */}
-                    {Array.from(
-                        { length: cells.length / 7 },
-                        (_, weekIdx) => (
-                            <View key={weekIdx} style={styles.row}>
-                                {cells
-                                    .slice(weekIdx * 7, weekIdx * 7 + 7)
-                                    .map((day, cellIdx) => {
-                                        if (day === null) {
-                                            return (
-                                                <View
-                                                    key={cellIdx}
-                                                    style={styles.cell}
-                                                />
-                                            );
-                                        }
-                                        const cellDate = new Date(
-                                            viewYear,
-                                            viewMonth,
-                                            day,
-                                        );
-                                        const isSelected = isSameDay(
-                                            cellDate,
-                                            selectedDate,
-                                        );
-                                        const isToday = isSameDay(
-                                            cellDate,
-                                            today,
-                                        );
-                                        const markerColors =
-                                            dayCategoryColors?.[formatDateKey(cellDate)] ?? [];
-                                        return (
-                                            <Pressable
-                                                key={cellIdx}
-                                                style={[
-                                                    styles.cell,
-                                                    isSelected &&
-                                                    styles.selectedCell,
-                                                ]}
-                                                onPress={() => selectDay(day)}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.dayText,
-                                                        isToday &&
-                                                        styles.todayText,
-                                                        isSelected &&
-                                                        styles.selectedText,
-                                                    ]}
-                                                >
-                                                    {day}
-                                                </Text>
-                                                {markerColors.length > 0 ? (
-                                                    <View style={styles.markerRow}>
-                                                        {markerColors.slice(0, MAX_MARKER_DOTS).map((markerColor, index) => (
-                                                            <View
-                                                                key={index}
-                                                                style={[styles.markerDot, { backgroundColor: markerColor }]}
-                                                            />
-                                                        ))}
-                                                    </View>
-                                                ) : null}
-                                            </Pressable>
-                                        );
-                                    })}
-                            </View>
-                        ),
-                    )}
-
-                    {/* Today button */}
-                    <Pressable style={styles.todayButton} onPress={goToToday}>
-                        <Text style={styles.todayButtonText}>{t("log.today")}</Text>
-                    </Pressable>
-                </Pressable>
-            </Pressable>
-        </Modal>
+            {Array.from({ length: cells.length / 7 }, (_, weekIdx) => (
+                <View key={weekIdx} style={styles.row}>
+                    {cells.slice(weekIdx * 7, weekIdx * 7 + 7).map((day, cellIdx) => {
+                        if (day === null) return <View key={cellIdx} style={styles.cell} />;
+                        const cellDate = new Date(viewYear, viewMonth, day);
+                        const isSelected = isSameDay(cellDate, selectedDate);
+                        const isToday = isSameDay(cellDate, today);
+                        const markerColors = dayCategoryColors?.[formatDateKey(cellDate)] ?? [];
+                        return (
+                            <Pressable
+                                key={cellIdx}
+                                style={styles.cell}
+                                onPress={() => selectDay(day)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: isSelected }}
+                            >
+                                <View
+                                    style={[
+                                        styles.dayBubble,
+                                        isToday && styles.todayBubble,
+                                        isSelected && styles.selectedBubble,
+                                    ]}
+                                >
+                                    <Text style={[styles.dayText, isSelected && styles.selectedText]}>{day}</Text>
+                                </View>
+                                <View style={styles.markerRow}>
+                                    {markerColors.slice(0, MAX_MARKER_DOTS).map((markerColor, index) => (
+                                        <View key={index} style={[styles.markerDot, { backgroundColor: markerColor }]} />
+                                    ))}
+                                </View>
+                            </Pressable>
+                        );
+                    })}
+                </View>
+            ))}
+            <View style={styles.bottomSpace} />
+        </Sheet>
     );
 }
 
-const CELL_SIZE = 40;
 const MAX_MARKER_DOTS = 7;
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        backdrop: {
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.35)",
-            justifyContent: "center",
-            alignItems: "center",
-        },
-        card: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            width: CELL_SIZE * 7 + spacing.md * 2,
-            elevation: 8,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-        },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: spacing.sm,
-        },
-        monthTitle: {
-            fontSize: fontSize.lg,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        row: {
-            flexDirection: "row",
-        },
-        cell: {
-            width: CELL_SIZE,
-            height: CELL_SIZE,
+        row: { flexDirection: "row" },
+        cell: { flex: 1, alignItems: "center", paddingVertical: 3 },
+        dayLabel: { fontSize: fontSize.xxs, fontWeight: "600", color: colors.textTertiary, paddingBottom: spacing.xs },
+        dayBubble: {
+            width: 38,
+            height: 38,
+            borderRadius: borderRadius.full,
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: CELL_SIZE / 2,
+            borderWidth: 1,
+            borderColor: "transparent",
         },
-        dayLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "500",
-            color: colors.textTertiary,
-        },
-        dayText: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-        },
-        todayText: {
-            color: colors.primary,
-            fontWeight: "700",
-        },
-        selectedCell: {
-            backgroundColor: colors.primary,
-        },
-        selectedText: {
-            color: "#fff",
-            fontWeight: "700",
-        },
-        markerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 2,
-            marginTop: 1,
-        },
-        markerDot: {
-            width: 4,
-            height: 4,
-            borderRadius: 2,
-        },
-        todayButton: {
-            alignSelf: "center",
-            marginTop: spacing.sm,
-            paddingVertical: spacing.xs,
-            paddingHorizontal: spacing.md,
-        },
-        todayButtonText: {
-            fontSize: fontSize.sm,
-            color: colors.primary,
-            fontWeight: "600",
-        },
+        todayBubble: { borderColor: colors.borderStrong },
+        selectedBubble: { backgroundColor: colors.primary, borderColor: colors.primary },
+        dayText: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text, fontVariant: ["tabular-nums"] },
+        selectedText: { color: colors.onPrimary, fontWeight: "700" },
+        // Workout days carry one dot per trained muscle group.
+        markerRow: { flexDirection: "row", gap: 2, height: 4, marginTop: 2 },
+        markerDot: { width: 4, height: 4, borderRadius: borderRadius.full },
+        bottomSpace: { height: spacing.sm },
     });
 }

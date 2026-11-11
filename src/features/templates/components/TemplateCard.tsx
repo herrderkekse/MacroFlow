@@ -1,9 +1,12 @@
 import type { ExerciseTemplate } from "@/src/features/exercise/services/exerciseTemplateDb";
+import Card from "@/src/shared/atoms/Card";
+import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Food, Recipe } from "../services/templateDb";
 
@@ -11,38 +14,40 @@ interface TemplateCardProps {
     kind: "recipe" | "food" | "exercise";
     data: Recipe | Food | ExerciseTemplate;
     subtitle: string;
-    onDelete: () => void;
+    /** Opens the item's menu of secondary actions (variant, delete). */
+    onMenu: () => void;
     // Recipe-only: variant group support
-    onFork?: () => void;
     variants?: Recipe[];
     variantSubtitle?: (variant: Recipe) => string;
     expanded?: boolean;
     onToggleExpand?: () => void;
-    onForkVariant?: (variant: Recipe) => void;
-    onDeleteVariant?: (variant: Recipe) => void;
+    onMenuVariant?: (variant: Recipe) => void;
 }
 
+const KIND_ICON = {
+    recipe: "book-outline",
+    food: "nutrition-outline",
+    exercise: "barbell-outline",
+} as const;
+
+/**
+ * One library item. Tapping opens its editor; everything else (create a
+ * variant, delete) lives behind the "more" button so the list stays calm.
+ */
 export default function TemplateCard({
     kind,
     data,
     subtitle,
-    onDelete,
-    onFork,
+    onMenu,
     variants = [],
     variantSubtitle,
     expanded = false,
     onToggleExpand,
-    onForkVariant,
-    onDeleteVariant,
+    onMenuVariant,
 }: TemplateCardProps) {
     const colors = useThemeColors();
+    const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
-
-    const config = {
-        recipe: { icon: "book-outline" as const, color: colors.primary },
-        food: { icon: "nutrition-outline" as const, color: colors.success },
-        exercise: { icon: "barbell-outline" as const, color: colors.exercise },
-    }[kind];
 
     function openRecipe(id: number) {
         router.push({ pathname: "/templates/edit", params: { recipeId: String(id) } } as unknown as Href);
@@ -59,92 +64,89 @@ export default function TemplateCard({
     }
 
     return (
-        <View style={styles.card}>
-            <Pressable style={styles.row} onPress={handlePress}>
-                <Ionicons name={config.icon} size={22} color={config.color} style={styles.cardIcon} />
-                <View style={styles.cardInfo}>
-                    <Text style={styles.cardName} numberOfLines={1}>{data.name}</Text>
-                    <Text style={styles.cardSub}>{subtitle}</Text>
+        <Card padded={false} style={styles.card}>
+            <Pressable
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                onPress={handlePress}
+                accessibilityRole="button"
+            >
+                <View style={styles.iconTile}>
+                    <Ionicons name={KIND_ICON[kind]} size={18} color={colors.text} />
+                </View>
+                <View style={styles.info}>
+                    <Text style={styles.name} numberOfLines={1}>{data.name}</Text>
+                    <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
                 </View>
                 {variants.length > 0 && onToggleExpand && (
-                    <Pressable onPress={onToggleExpand} hitSlop={8} style={styles.actionIcon}>
-                        <Ionicons
-                            name={expanded ? "chevron-up" : "chevron-down"}
-                            size={20}
-                            color={colors.textSecondary}
-                        />
-                    </Pressable>
+                    <IconButton
+                        icon={expanded ? "chevron-up" : "chevron-down"}
+                        size="sm"
+                        label={t("templates.showVariants")}
+                        onPress={onToggleExpand}
+                    />
                 )}
-                {onFork && (
-                    <Pressable onPress={onFork} hitSlop={8} style={styles.actionIcon}>
-                        <Ionicons name="git-branch-outline" size={20} color={colors.textSecondary} />
-                    </Pressable>
-                )}
-                <Pressable onPress={onDelete} hitSlop={8}>
-                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                </Pressable>
+                <IconButton icon="ellipsis-horizontal" size="sm" label={t("common.moreActions")} onPress={onMenu} />
             </Pressable>
 
             {expanded && variants.map((variant) => (
-                <View key={variant.id} style={styles.variantRow}>
-                    <Pressable style={styles.variantInfo} onPress={() => openRecipe(variant.id)}>
-                        <Ionicons
-                            name="return-down-forward-outline"
-                            size={18}
-                            color={colors.textTertiary}
-                            style={styles.cardIcon}
+                <Pressable
+                    key={variant.id}
+                    style={({ pressed }) => [styles.row, styles.variantRow, pressed && styles.pressed]}
+                    onPress={() => openRecipe(variant.id)}
+                    accessibilityRole="button"
+                >
+                    <View style={styles.variantMarker}>
+                        <Ionicons name="return-down-forward-outline" size={16} color={colors.textTertiary} />
+                    </View>
+                    <View style={styles.info}>
+                        <Text style={styles.name} numberOfLines={1}>{variant.name}</Text>
+                        {variantSubtitle && (
+                            <Text style={styles.subtitle} numberOfLines={1}>{variantSubtitle(variant)}</Text>
+                        )}
+                    </View>
+                    {onMenuVariant && (
+                        <IconButton
+                            icon="ellipsis-horizontal"
+                            size="sm"
+                            label={t("common.moreActions")}
+                            onPress={() => onMenuVariant(variant)}
                         />
-                        <View style={styles.cardInfo}>
-                            <Text style={styles.cardName} numberOfLines={1}>{variant.name}</Text>
-                            {variantSubtitle && <Text style={styles.cardSub}>{variantSubtitle(variant)}</Text>}
-                        </View>
-                    </Pressable>
-                    {onForkVariant && (
-                        <Pressable onPress={() => onForkVariant(variant)} hitSlop={8} style={styles.actionIcon}>
-                            <Ionicons name="git-branch-outline" size={18} color={colors.textSecondary} />
-                        </Pressable>
                     )}
-                    {onDeleteVariant && (
-                        <Pressable onPress={() => onDeleteVariant(variant)} hitSlop={8}>
-                            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                        </Pressable>
-                    )}
-                </View>
+                </Pressable>
             ))}
-        </View>
+        </Card>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        card: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-        },
+        card: { marginBottom: spacing.sm },
         row: {
             flexDirection: "row",
             alignItems: "center",
+            gap: spacing.sm + 4,
+            minHeight: 64,
+            paddingLeft: spacing.md,
+            paddingRight: spacing.sm,
+            paddingVertical: spacing.sm,
         },
-        variantRow: {
-            flexDirection: "row",
+        pressed: { backgroundColor: colors.surfaceMuted },
+        iconTile: {
+            width: 36,
+            height: 36,
+            borderRadius: borderRadius.sm + 2,
+            backgroundColor: colors.primaryLight,
             alignItems: "center",
-            marginTop: spacing.sm,
-            paddingTop: spacing.sm,
-            paddingLeft: spacing.sm,
+            justifyContent: "center",
+        },
+        info: { flex: 1 },
+        name: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
+        subtitle: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        variantRow: {
+            minHeight: 56,
             borderTopWidth: StyleSheet.hairlineWidth,
             borderTopColor: colors.border,
         },
-        variantInfo: {
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-        },
-        cardIcon: { marginRight: spacing.sm },
-        actionIcon: { marginRight: spacing.md },
-        cardInfo: { flex: 1, marginRight: spacing.sm },
-        cardName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
-        cardSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        variantMarker: { width: 36, alignItems: "center" },
     });
 }

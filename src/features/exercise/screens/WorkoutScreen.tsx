@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
-import AddExerciseModal from "../components/AddExerciseModal";
+import AddExerciseSheet from "../components/AddExerciseSheet";
 import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
 import ExerciseCard from "../components/ExerciseCard";
 import HistoricalWorkoutList from "../components/HistoricalWorkoutList";
@@ -298,7 +298,7 @@ export default function WorkoutScreen() {
                 }
             />
 
-            <AddExerciseModal
+            <AddExerciseSheet
                 visible={showAddExercise}
                 onClose={handleCloseAddExercise}
                 onSelect={handleExerciseSelected}

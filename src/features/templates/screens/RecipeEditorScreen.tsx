@@ -1,6 +1,6 @@
 import { isShareConfigured, shareRecipe } from "@/src/features/share/services/shareService";
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
-import ShareModal from "@/src/shared/components/ShareModal";
+import ShareSheet from "@/src/shared/components/ShareSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { spacing, type ThemeColors } from "@/src/utils/theme";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -213,7 +213,7 @@ export default function RecipeEditorScreen() {
             />
 
             {recipeId && (
-                <ShareModal
+                <ShareSheet
                     visible={shareVisible}
                     onClose={() => setShareVisible(false)}
                     fetchUrl={() => shareRecipe(Number(recipeId))}
