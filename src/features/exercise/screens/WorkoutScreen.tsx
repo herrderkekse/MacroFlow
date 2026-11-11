@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import AddExerciseSheet from "../components/AddExerciseSheet";
-import EditWorkoutTimesModal from "../components/EditWorkoutTimesModal";
+import EditWorkoutTimesSheet from "../components/EditWorkoutTimesSheet";
 import ExerciseCard from "../components/ExerciseCard";
 import HistoricalWorkoutList from "../components/HistoricalWorkoutList";
 import SupersetCard from "../components/SupersetCard";
@@ -270,7 +270,7 @@ export default function WorkoutScreen() {
                 onDragEnd={handleDragEnd}
                 ListEmptyComponent={
                     <View style={styles.emptyWrap}>
-                        <Ionicons name="barbell-outline" size={48} color={colors.textTertiary} />
+                        <Ionicons name="barbell-outline" size={28} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
                         <Button
                             title={t("exercise.workout.addExercise")}
@@ -305,7 +305,7 @@ export default function WorkoutScreen() {
             />
 
             {workout.data?.workout && (
-                <EditWorkoutTimesModal
+                <EditWorkoutTimesSheet
                     visible={showTimesModal}
                     onClose={() => setShowTimesModal(false)}
                     startedAt={workout.data.workout.started_at}

@@ -1,16 +1,16 @@
 import Button from "@/src/shared/atoms/Button";
 import FieldLabel from "@/src/shared/atoms/FieldLabel";
 import Input from "@/src/shared/atoms/Input";
+import Notice from "@/src/shared/atoms/Notice";
 import FooterBar from "@/src/shared/components/FooterBar";
 import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { generateText } from "ai";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { createModelFromConfig } from "../helpers/createModelFromConfig";
 import {
     deleteProviderSettings,
@@ -143,10 +143,7 @@ export default function AiSettingsScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                <View style={styles.warningCard}>
-                    <Ionicons name="warning-outline" size={18} color={colors.danger} />
-                    <Text style={styles.warningText}>{t("ai.securityWarning")}</Text>
-                </View>
+                <Notice tone="danger">{t("ai.securityWarning")}</Notice>
 
                 <FieldLabel>{t("ai.provider")}</FieldLabel>
                 <SegmentedControl options={PROVIDER_OPTIONS} value={provider} onChange={setProvider} />
@@ -208,15 +205,6 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
         content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
-        warningCard: {
-            flexDirection: "row",
-            alignItems: "flex-start",
-            gap: spacing.sm,
-            backgroundColor: colors.dangerLight,
-            borderRadius: borderRadius.md,
-            padding: spacing.sm + 4,
-        },
-        warningText: { flex: 1, fontSize: fontSize.xs, lineHeight: 17, color: colors.danger },
         field: { marginTop: spacing.md },
         flexButton: { flex: 1 },
         deleteBtn: { marginTop: spacing.lg },

@@ -2,10 +2,10 @@ import { addServingUnit, type Food } from "@/src/features/templates/services/tem
 import Button from "@/src/shared/atoms/Button";
 import Chip from "@/src/shared/atoms/Chip";
 import FieldLabel from "@/src/shared/atoms/FieldLabel";
-import Input from "@/src/shared/atoms/Input";
 import NutritionSummary from "@/src/shared/components/NutritionSummary";
 import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import Sheet from "@/src/shared/components/Sheet";
+import Stepper from "@/src/shared/components/Stepper";
 import UnitPicker from "@/src/shared/components/UnitPicker";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { MEAL_TYPES, type MealType } from "@/src/shared/types";
@@ -84,14 +84,13 @@ export default function EntrySheet({
                 </>
             }
         >
-            <Input
-                label={t("log.quantity")}
+            <FieldLabel style={styles.firstField}>{t("log.quantity")}</FieldLabel>
+            <Stepper
                 value={form.quantity}
                 onChangeText={(text) => { form.markAmountTouched(); form.setQuantity(text); }}
-                keyboardType="decimal-pad"
-                selectTextOnFocus
+                // Grams and millilitres move in coarser steps than "1 cup" or "1 serving".
+                step={!form.customServingUnit && (form.unit === "g" || form.unit === "ml") ? 10 : 0.5}
                 suffix={form.customServingUnit ? form.customServingUnit.name : unitLabel(form.unit)}
-                style={styles.quantityText}
             />
 
             <FieldLabel>{t("log.unit")}</FieldLabel>
@@ -184,7 +183,7 @@ export default function EntrySheet({
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        quantityText: { fontSize: fontSize.xl, fontWeight: "600" },
+        firstField: { marginTop: 0 },
         summary: { marginTop: spacing.md },
         chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
         hint: { fontSize: fontSize.xs, lineHeight: 17, color: colors.textSecondary, marginTop: spacing.sm },

@@ -1,28 +1,23 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
-import { useTranslation } from "react-i18next";
-import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-
-import { addEntry, formatDateKey, getEntryById, updateEntry } from "@/src/features/log/services/logDb";
+import { addEntry, deleteEntry, formatDateKey, getEntryById, updateEntry } from "@/src/features/log/services/logDb";
 import { addFood, addServingUnit, updateFood } from "@/src/features/templates/services/templateDb";
 import { cancelMealReminderIfLogged } from "@/src/services/notifications";
 import Button from "@/src/shared/atoms/Button";
+import FieldLabel from "@/src/shared/atoms/FieldLabel";
+import IconButton from "@/src/shared/atoms/IconButton";
 import Input from "@/src/shared/atoms/Input";
+import Disclosure from "@/src/shared/components/Disclosure";
+import FooterBar from "@/src/shared/components/FooterBar";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { MEAL_TYPES, type MealType } from "@/src/shared/types";
 import logger from "@/src/utils/logger";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
+import { router, useLocalSearchParams } from "expo-router";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function QuickAddFoodScreen() {
     const { t } = useTranslation();
@@ -180,12 +175,27 @@ export default function QuickAddFoodScreen() {
 
     const isSaveDisabled = title.trim().length === 0 || parsePositiveNumber(calories) <= 0;
 
+    function handleDelete() {
+        if (Number.isFinite(numericEntryId)) deleteEntry(numericEntryId);
+        logger.info("[QuickAdd] Deleted quick food entry", { entryId });
+        router.replace("/(tabs)");
+    }
+
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.screen}
-        >
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.screen}>
+            <ScreenHeader
+                title={isEditMode ? t("log.quickAddEditTitle") : t("log.quickAddTitle")}
+                right={
+                    isEditMode ? (
+                        <IconButton icon="trash-outline" color={colors.danger} label={t("log.deleteEntry")} onPress={handleDelete} />
+                    ) : undefined
+                }
+            />
+            <ScrollView
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
                 <Text style={styles.description}>{t("log.quickAddDescription")}</Text>
 
                 <Input
@@ -193,7 +203,7 @@ export default function QuickAddFoodScreen() {
                     placeholder={t("log.quickAddNamePlaceholder")}
                     value={title}
                     onChangeText={setTitle}
-                    autoFocus
+                    autoFocus={!isEditMode}
                     containerStyle={styles.field}
                 />
 
@@ -204,46 +214,23 @@ export default function QuickAddFoodScreen() {
                     value={calories}
                     onChangeText={setCalories}
                     keyboardType="decimal-pad"
-                    containerStyle={styles.field}
                 />
 
-                <Text style={styles.sectionLabel}>{t("log.meal")}</Text>
-                <View style={styles.mealRow}>
-                    {MEAL_TYPES.map((m) => (
-                        <Pressable
-                            key={m.key}
-                            onPress={() => setSelectedMeal(m.key)}
-                            style={[
-                                styles.mealChip,
-                                selectedMeal === m.key && styles.mealChipActive,
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.mealChipText,
-                                    selectedMeal === m.key && styles.mealChipTextActive,
-                                ]}
-                            >
-                                {t(`meal.${m.key}`)}
-                            </Text>
-                        </Pressable>
-                    ))}
-                </View>
+                <FieldLabel>{t("log.meal")}</FieldLabel>
+                <SegmentedControl<MealType>
+                    options={MEAL_TYPES.map((m) => ({ key: m.key, label: t(`meal.${m.key}`) }))}
+                    value={selectedMeal}
+                    onChange={setSelectedMeal}
+                />
 
-                <Pressable onPress={() => setShowMacros((prev) => !prev)} style={styles.macroToggle}>
-                    <View style={styles.macroToggleLeft}>
-                        <Ionicons name="options-outline" size={16} color={colors.textSecondary} />
-                        <Text style={styles.macroToggleText}>{t("log.quickAddToggleMacros")}</Text>
-                    </View>
-                    <Ionicons
-                        name={showMacros ? "chevron-up-outline" : "chevron-down-outline"}
-                        size={16}
-                        color={colors.textSecondary}
-                    />
-                </Pressable>
-
-                {showMacros && (
-                    <View style={styles.macrosWrap}>
+                <Disclosure
+                    title={t("log.quickAddToggleMacros")}
+                    icon="options-outline"
+                    open={showMacros}
+                    onToggle={setShowMacros}
+                    style={styles.macros}
+                >
+                    <View style={styles.macroRow}>
                         <Input
                             label={t("settings.protein")}
                             placeholder="0"
@@ -251,7 +238,7 @@ export default function QuickAddFoodScreen() {
                             value={protein}
                             onChangeText={setProtein}
                             keyboardType="decimal-pad"
-                            containerStyle={styles.field}
+                            containerStyle={styles.macroField}
                         />
                         <Input
                             label={t("settings.carbs")}
@@ -260,7 +247,7 @@ export default function QuickAddFoodScreen() {
                             value={carbs}
                             onChangeText={setCarbs}
                             keyboardType="decimal-pad"
-                            containerStyle={styles.field}
+                            containerStyle={styles.macroField}
                         />
                         <Input
                             label={t("settings.fat")}
@@ -269,19 +256,19 @@ export default function QuickAddFoodScreen() {
                             value={fat}
                             onChangeText={setFat}
                             keyboardType="decimal-pad"
-                            containerStyle={styles.field}
+                            containerStyle={styles.macroField}
                         />
                     </View>
-                )}
-
+                </Disclosure>
+            </ScrollView>
+            <FooterBar>
                 <Button
-                    title={isEditMode ? t("log.quickAddUpdate") : t("log.quickAddSave")}
+                    title={isEditMode ? t("common.save") : t("log.addToLog")}
                     onPress={handleSave}
                     disabled={isSaveDisabled}
-                    style={styles.saveButton}
                 />
-            </ScrollView>
-        </KeyboardAvoidingView>
+            </FooterBar>
+        </View>
     );
 }
 
@@ -303,81 +290,12 @@ function isMealType(value?: string): value is MealType {
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        screen: {
-            flex: 1,
-            backgroundColor: colors.background,
-        },
-        content: {
-            padding: spacing.lg,
-            paddingBottom: spacing.xl,
-        },
-        description: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        field: {
-            marginBottom: spacing.md,
-        },
-        sectionLabel: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            marginBottom: spacing.sm,
-        },
-        mealRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        mealChip: {
-            flex: 1,
-            paddingVertical: spacing.sm,
-            alignItems: "center",
-            borderRadius: borderRadius.sm,
-            borderWidth: 1.5,
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-        },
-        mealChipActive: {
-            borderColor: colors.primary,
-            backgroundColor: colors.primaryLight,
-        },
-        mealChipText: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-        },
-        mealChipTextActive: {
-            color: colors.primary,
-        },
-        macroToggle: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            marginBottom: spacing.sm,
-        },
-        macroToggleLeft: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-        },
-        macroToggleText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            fontWeight: "500",
-        },
-        macrosWrap: {
-            marginTop: spacing.sm,
-        },
-        saveButton: {
-            marginTop: spacing.md,
-        },
+        screen: { flex: 1, backgroundColor: colors.background },
+        content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        description: { fontSize: fontSize.sm, lineHeight: 20, color: colors.textSecondary, marginBottom: spacing.md },
+        field: { marginBottom: spacing.md },
+        macros: { marginTop: spacing.lg },
+        macroRow: { flexDirection: "row", gap: spacing.sm },
+        macroField: { flex: 1 },
     });
 }

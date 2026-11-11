@@ -1,5 +1,5 @@
+import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -99,12 +99,8 @@ export function ExpandedExerciseCard({
             <View style={styles.titleRow}>
                 <Text style={styles.orderNum}>{index + 1}.</Text>
                 <Text style={styles.exerciseName} numberOfLines={1}>{name}</Text>
-                <Pressable onPress={handleHistory} hitSlop={8}>
-                    <Ionicons name="bar-chart-outline" size={18} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => setMenuOpen(true)} hitSlop={8}>
-                    <Ionicons name="ellipsis-vertical" size={18} color={colors.textSecondary} />
-                </Pressable>
+                <IconButton icon="bar-chart-outline" size="sm" color={colors.textSecondary} label={t("exercise.exerciseCard.history")} onPress={handleHistory} />
+                <IconButton icon="ellipsis-horizontal" size="sm" color={colors.textSecondary} label={t("common.moreActions")} onPress={() => setMenuOpen(true)} />
             </View>
 
             {/* Note display */}
@@ -200,6 +196,7 @@ export function ExpandedExerciseCard({
             <ExerciseCardMenu
                 visible={menuOpen}
                 onClose={() => setMenuOpen(false)}
+                title={name}
                 isFinished={isFinished}
                 hasNote={!!item.workoutExercise.notes}
                 hasTemplate={!!template}

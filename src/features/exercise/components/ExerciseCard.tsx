@@ -84,6 +84,7 @@ export default function ExerciseCard({
                 <ExerciseCardMenu
                     visible={menuOpen}
                     onClose={() => setMenuOpen(false)}
+                    title={name}
                     isFinished={isFinished}
                     hasNote={!!item.workoutExercise.notes}
                     hasTemplate={!!template}

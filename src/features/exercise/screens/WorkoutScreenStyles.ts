@@ -1,4 +1,4 @@
-import { spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { StyleSheet } from "react-native";
 
 export function createWorkoutScreenStyles(colors: ThemeColors) {
@@ -8,18 +8,20 @@ export function createWorkoutScreenStyles(colors: ThemeColors) {
             backgroundColor: colors.background,
         },
         list: {
-            padding: spacing.md,
+            paddingHorizontal: screenPadding,
+            paddingTop: spacing.sm,
             paddingBottom: 100,
         },
         emptyWrap: {
             alignItems: "center",
             justifyContent: "center",
-            paddingVertical: spacing.xl * 2,
-            gap: spacing.md,
+            paddingVertical: spacing.xl,
+            gap: spacing.sm + 4,
         },
         emptyText: {
-            fontSize: 14,
-            color: colors.textTertiary,
+            fontSize: fontSize.sm,
+            fontWeight: "600",
+            color: colors.textSecondary,
             textAlign: "center",
         },
         addBtn: {

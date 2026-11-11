@@ -1,5 +1,9 @@
+import Button from "@/src/shared/atoms/Button";
+import Card from "@/src/shared/atoms/Card";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import MacroInline from "@/src/shared/components/MacroInline";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { formatEntryQuantity } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -25,20 +29,25 @@ export default function RecipeIngredientList({ items, onPressItem, onAdd }: Reci
     return (
         <View>
             {items.length === 0 ? (
-                <View style={styles.empty}>
-                    <View style={styles.emptyIcon}>
-                        <Ionicons name="restaurant-outline" size={24} color={colors.primary} />
-                    </View>
-                    <Text style={styles.emptyTitle}>{t("templates.emptyRecipeTitle")}</Text>
-                    <Text style={styles.emptyBody}>{t("templates.emptyRecipeBody")}</Text>
-                    <Pressable onPress={onAdd} style={styles.emptyBtn}>
-                        <Ionicons name="search-outline" size={17} color="#FFFFFF" />
-                        <Text style={styles.emptyBtnText}>{t("templates.addFirstIngredient")}</Text>
-                    </Pressable>
-                </View>
+                <Card>
+                    <EmptyState
+                        icon="restaurant-outline"
+                        title={t("templates.emptyRecipeTitle")}
+                        message={t("templates.emptyRecipeBody")}
+                        style={styles.empty}
+                        action={
+                            <Button
+                                title={t("templates.addFirstIngredient")}
+                                icon={<Ionicons name="search-outline" size={17} color={colors.onPrimary} />}
+                                onPress={onAdd}
+                                style={styles.emptyBtn}
+                            />
+                        }
+                    />
+                </Card>
             ) : (
                 <>
-                    <View style={styles.card}>
+                    <Card padded={false}>
                         {items.map((item, index) => (
                             <IngredientRow
                                 key={item.key}
@@ -49,11 +58,14 @@ export default function RecipeIngredientList({ items, onPressItem, onAdd }: Reci
                                 colors={colors}
                             />
                         ))}
-                    </View>
-                    <Pressable onPress={onAdd} style={styles.addBtn}>
-                        <Ionicons name="search-outline" size={17} color={colors.primary} />
-                        <Text style={styles.addBtnText}>{t("templates.addIngredient")}</Text>
-                    </Pressable>
+                    </Card>
+                    <Button
+                        title={t("templates.addIngredient")}
+                        variant="outline"
+                        icon={<Ionicons name="add" size={18} color={colors.text} />}
+                        onPress={onAdd}
+                        style={styles.addBtn}
+                    />
                 </>
             )}
         </View>
@@ -75,48 +87,39 @@ function IngredientRow({ item, isLast, onPress, styles, colors }: IngredientRowP
     const factor = quantityGrams / 100;
 
     return (
-        <Pressable onPress={onPress} style={[styles.row, !isLast && styles.rowDivider]}>
+        <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [styles.row, !isLast && styles.rowDivider, pressed && styles.pressed]}
+            accessibilityRole="button"
+        >
             <View style={styles.rowMain}>
                 <Text style={styles.rowName} numberOfLines={1}>
                     {food.name || t("common.unknown")}
                 </Text>
-                <View style={styles.rowMacros}>
+                <View style={styles.rowDetail}>
                     <Text style={styles.rowAmount}>
                         {formatEntryQuantity(quantityGrams, quantityUnit, servingGrams)}
                     </Text>
-                    <View style={styles.dot} />
-                    <Text style={[styles.rowCal, { color: colors.calories }]}>
-                        {Math.round(food.calories_per_100g * factor)} {t("common.cal")}
-                    </Text>
-                    <Text style={[styles.rowMacro, { color: colors.protein }]}>
-                        {Math.round(food.protein_per_100g * factor)}{t("common.g")}
-                    </Text>
-                    <Text style={[styles.rowMacro, { color: colors.carbs }]}>
-                        {Math.round(food.carbs_per_100g * factor)}{t("common.g")}
-                    </Text>
-                    <Text style={[styles.rowMacro, { color: colors.fat }]}>
-                        {Math.round(food.fat_per_100g * factor)}{t("common.g")}
-                    </Text>
+                    <MacroInline
+                        protein={food.protein_per_100g * factor}
+                        carbs={food.carbs_per_100g * factor}
+                        fat={food.fat_per_100g * factor}
+                    />
                 </View>
             </View>
-            <Ionicons name="chevron-forward" size={17} color={colors.textTertiary} />
+            <Text style={styles.rowCal}>{Math.round(food.calories_per_100g * factor)}</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
         </Pressable>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        card: {
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.lg,
-            overflow: "hidden",
-        },
         row: {
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.sm,
+            minHeight: 60,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm + 2,
         },
@@ -124,67 +127,14 @@ function createStyles(colors: ThemeColors) {
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
         },
+        pressed: { backgroundColor: colors.surfaceMuted },
         rowMain: { flex: 1 },
-        rowName: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
-        rowMacros: {
-            flexDirection: "row",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: spacing.sm,
-            marginTop: spacing.xs,
-        },
-        rowAmount: { fontSize: fontSize.xs, fontWeight: "500", color: colors.textSecondary },
-        dot: { width: 3, height: 3, borderRadius: 999, backgroundColor: colors.border },
-        rowCal: { fontSize: fontSize.xs, fontWeight: "700" },
-        rowMacro: { fontSize: fontSize.xs, fontWeight: "700" },
-        addBtn: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: spacing.sm,
-            marginTop: spacing.sm,
-            padding: spacing.md,
-            borderRadius: borderRadius.md,
-            borderWidth: 1.5,
-            borderStyle: "dashed",
-            borderColor: colors.border,
-        },
-        addBtnText: { fontSize: fontSize.sm, fontWeight: "700", color: colors.primary },
-        empty: {
-            alignItems: "center",
-            padding: spacing.lg,
-            borderRadius: borderRadius.lg,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-        },
-        emptyIcon: {
-            width: 52,
-            height: 52,
-            borderRadius: 999,
-            backgroundColor: colors.primaryLight,
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: spacing.sm,
-        },
-        emptyTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-        emptyBody: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            textAlign: "center",
-            marginTop: spacing.xs,
-            maxWidth: 260,
-        },
-        emptyBtn: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginTop: spacing.md,
-            paddingVertical: spacing.sm + 4,
-            paddingHorizontal: spacing.lg,
-            borderRadius: borderRadius.md,
-            backgroundColor: colors.primary,
-        },
-        emptyBtnText: { fontSize: fontSize.sm, fontWeight: "700", color: "#FFFFFF" },
+        rowName: { fontSize: fontSize.md, fontWeight: "500", color: colors.text },
+        rowDetail: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: spacing.sm + 4, marginTop: 3 },
+        rowAmount: { fontSize: fontSize.xs, color: colors.textSecondary },
+        rowCal: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text, fontVariant: ["tabular-nums"] },
+        addBtn: { marginTop: spacing.sm + 4 },
+        empty: { paddingVertical: spacing.md },
+        emptyBtn: { marginTop: spacing.sm, alignSelf: "stretch" },
     });
 }

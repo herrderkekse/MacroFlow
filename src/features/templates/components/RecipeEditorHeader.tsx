@@ -1,5 +1,6 @@
+import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +8,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /** Line box of the title, used to centre the icons against its first line. */
-const TITLE_LINE_HEIGHT = 32;
+const TITLE_LINE_HEIGHT = 34;
 
 interface RecipeEditorHeaderProps {
     name: string;
@@ -22,8 +23,8 @@ interface RecipeEditorHeaderProps {
 }
 
 /**
- * The screen's only header: the recipe title doubles as the heading and as
- * the field that edits it, with the actions on the far side of the same row.
+ * The screen's only header: the standard bar (close, share), with the recipe
+ * title below it doubling as the heading and as the field that edits it.
  */
 export default function RecipeEditorHeader({
     name,
@@ -41,80 +42,75 @@ export default function RecipeEditorHeader({
     const inputRef = useRef<TextInput>(null);
 
     return (
-        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-            {baseName != null && (
-                <Text style={styles.variantOf}>{t("templates.variantOf", { name: baseName })}</Text>
-            )}
-            <View style={styles.row}>
-                {/* The pencil, and the whole title being tappable, are what
-                    mark it as editable — on its own it reads as a heading. */}
-                <Pressable style={styles.titleArea} onPress={() => inputRef.current?.focus()}>
-                    <Ionicons name="pencil" size={16} color={colors.textTertiary} style={styles.pencil} />
-                    <TextInput
-                        ref={inputRef}
-                        style={styles.nameInput}
-                        value={name}
-                        onChangeText={onChangeName}
-                        placeholder={placeholder}
-                        placeholderTextColor={colors.textTertiary}
-                        multiline
-                        returnKeyType="done"
-                        // Return finishes the title instead of adding a line to it.
-                        submitBehavior="blurAndSubmit"
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+            {/* Same bar as every other pushed screen: way out on the left,
+                actions on the right. */}
+            <View style={styles.bar}>
+                <IconButton icon="close" label={t("common.close")} onPress={onClose} />
+                <Text style={styles.barTitle} numberOfLines={1}>
+                    {baseName != null ? t("templates.variantOf", { name: baseName }) : t("templates.recipeEditorTitle")}
+                </Text>
+                {onShare && (
+                    <IconButton
+                        icon="share-outline"
+                        label={t("common.share")}
+                        onPress={onShare}
+                        color={shareDimmed ? colors.textTertiary : undefined}
                     />
-                </Pressable>
-
-                <View style={styles.actions}>
-                    {onShare && (
-                        <Pressable onPress={onShare} hitSlop={8} style={shareDimmed && styles.dimmed}>
-                            <Ionicons name="share-outline" size={22} color={colors.text} />
-                        </Pressable>
-                    )}
-                    <Pressable onPress={onClose} hitSlop={8}>
-                        <Ionicons name="close" size={26} color={colors.textSecondary} />
-                    </Pressable>
-                </View>
+                )}
             </View>
+
+            {/* The pencil, and the whole title being tappable, are what mark
+                it as editable — on its own it reads as a heading. */}
+            <Pressable style={styles.titleArea} onPress={() => inputRef.current?.focus()}>
+                <TextInput
+                    ref={inputRef}
+                    style={styles.nameInput}
+                    value={name}
+                    onChangeText={onChangeName}
+                    placeholder={placeholder}
+                    placeholderTextColor={colors.textTertiary}
+                    selectionColor={colors.textSecondary}
+                    multiline
+                    returnKeyType="done"
+                    // Return finishes the title instead of adding a line to it.
+                    submitBehavior="blurAndSubmit"
+                />
+                <Ionicons name="pencil" size={16} color={colors.textTertiary} style={styles.pencil} />
+            </Pressable>
         </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        header: {
-            backgroundColor: colors.surface,
-            paddingHorizontal: spacing.md,
-            paddingBottom: spacing.sm,
+        header: { backgroundColor: colors.background },
+        bar: {
+            flexDirection: "row",
+            alignItems: "center",
+            minHeight: 56,
+            paddingHorizontal: screenPadding - spacing.sm,
+            gap: spacing.xs,
         },
-        variantOf: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            marginBottom: spacing.xs,
-        },
-        row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+        barTitle: { flex: 1, fontSize: fontSize.sm, fontWeight: "600", color: colors.textSecondary },
         titleArea: {
-            flex: 1,
             flexDirection: "row",
             alignItems: "flex-start",
             gap: spacing.sm,
+            paddingHorizontal: screenPadding,
+            paddingBottom: spacing.sm + 4,
         },
         pencil: { marginTop: (TITLE_LINE_HEIGHT - 16) / 2 },
         nameInput: {
             flex: 1,
-            fontSize: 26,
+            fontSize: fontSize.xxl,
             lineHeight: TITLE_LINE_HEIGHT,
             fontWeight: "700",
+            letterSpacing: -0.6,
             color: colors.text,
             padding: 0,
             // Android pads glyphs by default, which throws the row alignment off.
             includeFontPadding: false,
         },
-        actions: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.md,
-            height: TITLE_LINE_HEIGHT,
-        },
-        dimmed: { opacity: 0.4 },
     });
 }

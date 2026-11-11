@@ -1,5 +1,8 @@
+import Button from "@/src/shared/atoms/Button";
+import Chip from "@/src/shared/atoms/Chip";
+import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -63,93 +66,78 @@ export default function WorkoutHeader({
     }
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top + spacing.xs }]}>
-            <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-                <Ionicons name="arrow-back" size={24} color={colors.text} />
-            </Pressable>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            <View style={styles.row}>
+                <IconButton icon="chevron-back" label={t("common.back")} onPress={onBack} />
 
-            {editing ? (
-                <TextInput
-                    style={styles.titleInput}
-                    value={draft}
-                    onChangeText={setDraft}
-                    onBlur={commitTitle}
-                    onSubmitEditing={commitTitle}
-                    autoFocus
-                    selectTextOnFocus
-                    returnKeyType="done"
-                />
-            ) : (
-                <Pressable onPress={() => { setDraft(title); setEditing(true); }} style={styles.titleWrap}>
-                    <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                    <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
-                </Pressable>
-            )}
+                {editing ? (
+                    <TextInput
+                        style={styles.titleInput}
+                        value={draft}
+                        onChangeText={setDraft}
+                        onBlur={commitTitle}
+                        onSubmitEditing={commitTitle}
+                        selectionColor={colors.textSecondary}
+                        autoFocus
+                        selectTextOnFocus
+                        returnKeyType="done"
+                    />
+                ) : (
+                    <Pressable
+                        onPress={() => { setDraft(title); setEditing(true); }}
+                        style={({ pressed }) => [styles.titleWrap, pressed && styles.pressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t("common.edit")}: ${title}`}
+                    >
+                        <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                        <Ionicons name="pencil" size={13} color={colors.textTertiary} />
+                    </Pressable>
+                )}
 
-            <Pressable style={styles.timerWrap} onPress={onTimerPress} hitSlop={8}>
-                <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.timer}>{formatElapsed(elapsedMs)}</Text>
-            </Pressable>
+                <Chip label={formatElapsed(elapsedMs)} icon="time-outline" onPress={onTimerPress} />
 
-            {!isFinished && (
-                <Pressable onPress={handleFinish} style={styles.finishBtn} hitSlop={8}>
-                    <Ionicons name="checkmark-circle" size={28} color={colors.primary} />
-                </Pressable>
-            )}
+                {!isFinished && (
+                    <Button title={t("exercise.workout.finish")} size="sm" onPress={handleFinish} />
+                )}
+            </View>
         </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        container: {
+        container: { backgroundColor: colors.background },
+        row: {
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: colors.surface,
-            paddingHorizontal: spacing.md,
-            paddingBottom: spacing.sm,
             gap: spacing.sm,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-        },
-        backBtn: {
-            padding: spacing.xs,
+            minHeight: 56,
+            paddingLeft: screenPadding - spacing.sm,
+            paddingRight: screenPadding,
         },
         titleWrap: {
             flex: 1,
             minWidth: 0,
             flexDirection: "row",
             alignItems: "center",
-            gap: spacing.xs,
+            gap: spacing.xs + 2,
         },
+        pressed: { opacity: 0.6 },
         title: {
-            fontSize: fontSize.md,
+            fontSize: fontSize.lg,
             fontWeight: "700",
+            letterSpacing: -0.2,
             color: colors.text,
             flexShrink: 1,
         },
         titleInput: {
             flex: 1,
-            fontSize: fontSize.md,
+            fontSize: fontSize.lg,
             fontWeight: "700",
             color: colors.text,
             borderBottomWidth: 1,
             borderBottomColor: colors.primary,
             paddingVertical: 2,
-        },
-        timerWrap: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-        },
-        timer: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            fontVariant: ["tabular-nums"],
-        },
-        finishBtn: {
-            padding: spacing.xs,
         },
     });
 }

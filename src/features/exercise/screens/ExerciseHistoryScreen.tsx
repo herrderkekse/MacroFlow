@@ -4,10 +4,12 @@ import {
     getExerciseTemplateById,
     type ExerciseTemplate,
 } from "@/src/features/exercise/services/exerciseDb";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
@@ -169,17 +171,20 @@ export default function ExerciseHistoryScreen() {
 
     if (isLoading) {
         return (
-            <View style={[styles.screen, styles.center]}>
-                <Stack.Screen options={{ title: "" }} />
-                <ActivityIndicator color={colors.primary} />
+            <View style={styles.screen}>
+                <ScreenHeader title="" />
+                <View style={styles.center}>
+                    <ActivityIndicator color={colors.textSecondary} />
+                </View>
             </View>
         );
     }
 
     return (
         <View style={styles.screen}>
-            <Stack.Screen
-                options={{ title: t("exercise.history.title", { name: template?.name ?? "" }) }}
+            <ScreenHeader
+                title={template?.name ?? ""}
+                subtitle={t("exercise.history.title", { name: "" }).trim()}
             />
 
             <FlatList
@@ -296,9 +301,7 @@ export default function ExerciseHistoryScreen() {
                         )}
 
                         {history.length > 0 && (
-                            <Text style={styles.sectionHeader}>
-                                {t("exercise.history.title", { name: "" }).trim()}
-                            </Text>
+                            <SectionLabel>{t("exercise.history.sessions")}</SectionLabel>
                         )}
                     </>
                 }
@@ -310,10 +313,7 @@ export default function ExerciseHistoryScreen() {
                 )}
                 ListEmptyComponent={
                     <View style={styles.center}>
-                        <Ionicons name="bar-chart-outline" size={48} color={colors.textTertiary} />
-                        <Text style={styles.emptyText}>
-                            {t("exercise.history.noHistory")}
-                        </Text>
+                        <EmptyState icon="bar-chart-outline" title={t("exercise.history.noHistory")} />
                     </View>
                 }
             />
@@ -325,7 +325,7 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
         center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
-        listContent: { padding: spacing.md },
+        listContent: { paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: spacing.xl },
         selectorRow: {
             flexDirection: "row",
             gap: spacing.sm,
@@ -375,7 +375,7 @@ function createStyles(colors: ThemeColors) {
             borderRadius: borderRadius.md,
             paddingHorizontal: spacing.sm,
             paddingVertical: spacing.xs,
-            shadowColor: "#000",
+            shadowColor: colors.text,
             shadowOpacity: 0.12,
             shadowRadius: 6,
             shadowOffset: { width: 0, height: 3 },

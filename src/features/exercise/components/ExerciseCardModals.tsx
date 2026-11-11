@@ -1,34 +1,16 @@
-import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-
-interface MenuItemProps {
-    label: string;
-    icon: string;
-    onPress: () => void;
-    colors: ReturnType<typeof useThemeColors>;
-    destructive?: boolean;
-}
-
-export function MenuItem({ label, icon, onPress, colors, destructive }: MenuItemProps) {
-    return (
-        <Pressable style={menuItemStyles.item} onPress={onPress}>
-            <Ionicons name={icon as never} size={20} color={destructive ? "#ef4444" : colors.text} />
-            <Text style={[menuItemStyles.label, { color: destructive ? "#ef4444" : colors.text }]}>{label}</Text>
-        </Pressable>
-    );
-}
-
-const menuItemStyles = StyleSheet.create({
-    item: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-    label: { fontSize: fontSize.sm },
-});
+import Button from "@/src/shared/atoms/Button";
+import Input from "@/src/shared/atoms/Input";
+import ActionSheet, { type ActionSheetItem } from "@/src/shared/components/ActionSheet";
+import Sheet from "@/src/shared/components/Sheet";
+import { spacing } from "@/src/utils/theme";
+import React from "react";
+import { StyleSheet } from "react-native";
 
 interface ExerciseCardMenuProps {
     visible: boolean;
     onClose: () => void;
+    /** Name of the exercise the menu belongs to. */
+    title?: string;
     isFinished: boolean;
     hasNote: boolean;
     hasTemplate: boolean;
@@ -46,35 +28,25 @@ interface ExerciseCardMenuProps {
     };
 }
 
+/** The secondary actions of one exercise in a workout. */
 export function ExerciseCardMenu({
-    visible, onClose, isFinished,
+    visible, onClose, title, isFinished,
     hasNote, hasTemplate,
     onEditNote, onCopyFromLast, onRemove, onSuperset,
     labels,
 }: ExerciseCardMenuProps) {
-    const colors = useThemeColors();
-    const styles = useMemo(() => createMenuStyles(colors), [colors]);
+    const actions: ActionSheetItem[] = [
+        { key: "note", icon: "create-outline", label: hasNote ? labels.editNote : labels.addNote, onPress: onEditNote },
+    ];
+    if (hasTemplate) {
+        actions.push({ key: "copy", icon: "copy-outline", label: labels.copyFromLast, onPress: onCopyFromLast });
+    }
+    if (!isFinished && onSuperset && labels.superset) {
+        actions.push({ key: "superset", icon: "git-merge-outline", label: labels.superset, onPress: onSuperset });
+    }
+    actions.push({ key: "remove", icon: "trash-outline", label: labels.remove, onPress: onRemove, destructive: true });
 
-    return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <View style={styles.menu}>
-                    <MenuItem
-                        label={hasNote ? labels.editNote : labels.addNote}
-                        icon="create-outline"
-                        onPress={onEditNote} colors={colors}
-                    />
-                    {hasTemplate && (
-                        <MenuItem label={labels.copyFromLast} icon="copy-outline" onPress={onCopyFromLast} colors={colors} />
-                    )}
-                    {!isFinished && onSuperset && labels.superset && (
-                        <MenuItem label={labels.superset} icon="git-merge-outline" onPress={onSuperset} colors={colors} />
-                    )}
-                    <MenuItem label={labels.remove} icon="trash-outline" onPress={onRemove} colors={colors} destructive />
-                </View>
-            </Pressable>
-        </Modal>
-    );
+    return <ActionSheet visible={visible} onClose={onClose} title={title} actions={actions} />;
 }
 
 interface ExerciseNoteModalProps {
@@ -86,95 +58,29 @@ interface ExerciseNoteModalProps {
     labels: { title: string; placeholder: string; save: string };
 }
 
+/** Edits the free-text note of one exercise in a workout. */
 export function ExerciseNoteModal({ visible, onClose, value, onChangeText, onSave, labels }: ExerciseNoteModalProps) {
-    const colors = useThemeColors();
-    const styles = useMemo(() => createNoteStyles(colors), [colors]);
-
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={styles.noteModal} onPress={() => { }}>
-                    <Text style={styles.noteTitle}>{labels.title}</Text>
-                    <TextInput
-                        style={styles.noteInput}
-                        value={value}
-                        onChangeText={onChangeText}
-                        placeholder={labels.placeholder}
-                        placeholderTextColor={colors.textTertiary}
-                        multiline
-                        autoFocus
-                    />
-                    <Pressable style={styles.noteSaveBtn} onPress={onSave}>
-                        <Text style={styles.noteSaveText}>{labels.save}</Text>
-                    </Pressable>
-                </Pressable>
-            </Pressable>
-        </Modal>
+        <Sheet
+            visible={visible}
+            onClose={onClose}
+            title={labels.title}
+            footer={<Button title={labels.save} onPress={onSave} />}
+        >
+            <Input
+                value={value}
+                onChangeText={onChangeText}
+                placeholder={labels.placeholder}
+                multiline
+                autoFocus
+                style={styles.input}
+                containerStyle={styles.container}
+            />
+        </Sheet>
     );
 }
 
-function createMenuStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        overlay: {
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: spacing.lg,
-        },
-        menu: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            width: "100%",
-            maxWidth: 300,
-        },
-    });
-}
-
-function createNoteStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        overlay: {
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: spacing.lg,
-        },
-        noteModal: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.lg,
-            width: "100%",
-            maxWidth: 340,
-        },
-        noteTitle: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: spacing.md,
-        },
-        noteInput: {
-            fontSize: fontSize.sm,
-            color: colors.text,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.md,
-            padding: spacing.sm,
-            minHeight: 80,
-            textAlignVertical: "top",
-            marginBottom: spacing.md,
-        },
-        noteSaveBtn: {
-            backgroundColor: colors.primary,
-            borderRadius: borderRadius.md,
-            paddingVertical: spacing.sm,
-            alignItems: "center",
-        },
-        noteSaveText: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: "#fff",
-        },
-    });
-}
+const styles = StyleSheet.create({
+    input: { minHeight: 96 },
+    container: { marginBottom: spacing.md },
+});

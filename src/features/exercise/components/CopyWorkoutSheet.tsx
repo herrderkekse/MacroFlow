@@ -1,9 +1,11 @@
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import ListRow from "@/src/shared/components/ListRow";
+import Sheet from "@/src/shared/components/Sheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import { borderRadius, type ThemeColors } from "@/src/utils/theme";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
     copyWorkoutAsScheduled,
     getExercisesForWorkout,
@@ -27,7 +29,6 @@ interface WorkoutRow {
 export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, onCopied }: CopyWorkoutSheetProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
     const [rows, setRows] = useState<WorkoutRow[]>([]);
 
     useEffect(() => {
@@ -64,121 +65,44 @@ export default function CopyWorkoutSheet({ visible, targetWorkoutId, onClose, on
     }
 
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={styles.sheet} onPress={() => { }}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>{t("exercise.copyWorkout.title")}</Text>
-                        <Pressable onPress={onClose} hitSlop={8}>
-                            <Ionicons name="close" size={24} color={colors.textSecondary} />
-                        </Pressable>
-                    </View>
-
-                    {rows.length === 0 ? (
-                        <Text style={styles.emptyText}>{t("exercise.copyWorkout.noWorkouts")}</Text>
-                    ) : (
-                        <>
-                            <Text style={styles.subtitle}>{t("exercise.copyWorkout.subtitle")}</Text>
-                            <FlatList
-                                data={rows}
-                                keyExtractor={(item) => String(item.workout.id)}
-                                renderItem={({ item }) => (
-                                    <Pressable style={styles.row} onPress={() => handleCopy(item.workout.id)}>
-                                        <Text style={styles.rowDate}>{formatDate(item.workout.date)}</Text>
-                                        <Text style={styles.rowTitle} numberOfLines={1}>
-                                            {item.workout.title || t("exercise.workout.defaultTitle")}
-                                        </Text>
-                                        <View style={styles.dots}>
-                                            {item.muscleGroups.map((group) => (
-                                                <View
-                                                    key={group}
-                                                    style={[styles.dot, { backgroundColor: getMuscleGroupColor(group, colors) }]}
-                                                />
-                                            ))}
-                                        </View>
-                                    </Pressable>
-                                )}
-                                style={styles.list}
-                            />
-                        </>
-                    )}
-                </Pressable>
-            </Pressable>
-        </Modal>
+        <Sheet
+            visible={visible}
+            onClose={onClose}
+            title={t("exercise.copyWorkout.title")}
+            subtitle={rows.length > 0 ? t("exercise.copyWorkout.subtitle") : undefined}
+            padded={false}
+        >
+            {rows.length === 0 ? (
+                <EmptyState icon="barbell-outline" title={t("exercise.copyWorkout.noWorkouts")} />
+            ) : (
+                rows.map((item) => (
+                    <ListRow
+                        key={item.workout.id}
+                        title={item.workout.title || t("exercise.workout.defaultTitle")}
+                        subtitle={formatDate(item.workout.date)}
+                        onPress={() => handleCopy(item.workout.id)}
+                        showChevron={false}
+                        right={
+                            <View style={styles.dots}>
+                                {item.muscleGroups.map((group) => (
+                                    <View
+                                        key={group}
+                                        style={[styles.dot, { backgroundColor: getMuscleGroupColor(group, colors) }]}
+                                    />
+                                ))}
+                            </View>
+                        }
+                    />
+                ))
+            )}
+        </Sheet>
     );
 }
 
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        overlay: {
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "flex-end",
-        },
-        sheet: {
-            backgroundColor: colors.surface,
-            borderTopLeftRadius: borderRadius.lg,
-            borderTopRightRadius: borderRadius.lg,
-            padding: spacing.lg,
-            maxHeight: "60%",
-        },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: spacing.sm,
-        },
-        title: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        subtitle: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        list: {
-            flexGrow: 0,
-        },
-        row: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            paddingVertical: spacing.sm,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-        },
-        rowDate: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            width: 80,
-        },
-        rowTitle: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        dots: {
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 4,
-            justifyContent: "flex-end",
-        },
-        dot: {
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-        },
-        emptyText: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            textAlign: "center",
-            paddingVertical: spacing.lg,
-        },
-    });
-}
+const styles = StyleSheet.create({
+    dots: { flexDirection: "row", gap: 4 },
+    dot: { width: 8, height: 8, borderRadius: borderRadius.full },
+});
 
 const MUSCLE_GROUP_COLOR_MAP: Partial<Record<string, keyof ThemeColors>> = {
     chest: "exerciseChest",

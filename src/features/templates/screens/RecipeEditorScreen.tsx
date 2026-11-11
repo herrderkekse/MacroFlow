@@ -2,7 +2,7 @@ import { isShareConfigured, shareRecipe } from "@/src/features/share/services/sh
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
 import ShareSheet from "@/src/shared/components/ShareSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { spacing, type ThemeColors } from "@/src/utils/theme";
+import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,10 +14,10 @@ import Animated, {
 } from "react-native-reanimated";
 import AddIngredientSheet from "../components/AddIngredientSheet";
 import IngredientsSectionHeader from "../components/IngredientsSectionHeader";
-import ManualFoodForm from "../components/ManualFoodForm";
+import CreateFoodSheet from "../components/CreateFoodSheet";
 import RecipeEditorHeader from "../components/RecipeEditorHeader";
 import RecipeIngredientList from "../components/RecipeIngredientList";
-import RecipeItemModal from "../components/RecipeItemModal";
+import RecipeItemSheet from "../components/RecipeItemSheet";
 import RecipeMacroFooter from "../components/RecipeMacroFooter";
 import RecipeServingsRow from "../components/RecipeServingsRow";
 import { useRecipeEditor } from "../hooks/useRecipeEditor";
@@ -187,7 +187,7 @@ export default function RecipeEditorScreen() {
                 onCreateNew={recipe.openManualForm}
             />
 
-            <RecipeItemModal
+            <RecipeItemSheet
                 draft={recipe.editingDraft}
                 isNew={recipe.isNewItem}
                 onClose={recipe.closeEditing}
@@ -195,7 +195,7 @@ export default function RecipeEditorScreen() {
                 onRemove={recipe.removeEditing}
             />
 
-            <ManualFoodForm
+            <CreateFoodSheet
                 visible={recipe.showManualForm}
                 onClose={() => recipe.setShowManualForm(false)}
                 onFoodCreated={recipe.handleManualFoodCreated}
@@ -228,6 +228,6 @@ function createStyles(colors: ThemeColors) {
         screen: { flex: 1, backgroundColor: colors.background },
         listArea: { flex: 1, overflow: "hidden" },
         overlay: { position: "absolute", top: 0, left: 0, right: 0 },
-        content: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
+        content: { paddingHorizontal: screenPadding, paddingBottom: spacing.lg },
     });
 }

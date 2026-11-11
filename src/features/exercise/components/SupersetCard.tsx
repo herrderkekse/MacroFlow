@@ -1,17 +1,19 @@
+import IconButton from "@/src/shared/atoms/IconButton";
+import ActionSheet from "@/src/shared/components/ActionSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { parseCustomFields } from "../helpers/customFields";
 import { activeRowIndex, nextAddTarget, orderSupersetRows, type SupersetRow, type WorkoutCard } from "../helpers/supersets";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { createExerciseCardStyles, getPrefillForSet } from "./ExerciseCardHelpers";
-import { ExerciseNoteModal, MenuItem } from "./ExerciseCardModals";
+import { ExerciseNoteModal } from "./ExerciseCardModals";
 import RestTimer from "./RestTimer";
 import SetInputRow, { type SetValues } from "./SetInputRow";
 
@@ -204,12 +206,8 @@ function ExpandedSupersetCard({
                         </Text>
                     ))}
                 </Text>
-                <Pressable onPress={handleHistory} hitSlop={8}>
-                    <Ionicons name="bar-chart-outline" size={18} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => setMenuOpen(true)} hitSlop={8}>
-                    <Ionicons name="ellipsis-vertical" size={18} color={colors.textSecondary} />
-                </Pressable>
+                <IconButton icon="bar-chart-outline" size="sm" color={colors.textSecondary} label={t("exercise.exerciseCard.history")} onPress={handleHistory} />
+                <IconButton icon="ellipsis-horizontal" size="sm" color={colors.textSecondary} label={t("common.moreActions")} onPress={() => setMenuOpen(true)} />
             </View>
 
             {/* Shared note */}
@@ -263,37 +261,32 @@ function ExpandedSupersetCard({
             )}
 
             {/* Unified menu: one shared note, then per-member copy and remove */}
-            <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-                <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
-                    <View style={styles.menu}>
-                        <MenuItem
-                            label={noteHost.workoutExercise.notes ? t("exercise.exerciseCard.editNote") : t("exercise.exerciseCard.addNote")}
-                            icon="create-outline"
-                            colors={colors}
-                            onPress={() => { setMenuOpen(false); setNoteDraft(noteHost.workoutExercise.notes ?? ""); setNoteOpen(true); }}
-                        />
-                        {members.map((member, i) => member.exerciseTemplate && (
-                            <MenuItem
-                                key={`copy-${member.workoutExercise.id}`}
-                                label={t("exercise.superset.copyMember", { name: member.exerciseTemplate.name })}
-                                icon="copy-outline"
-                                colors={colors}
-                                onPress={() => { setMenuOpen(false); onCopyFromLast(member.workoutExercise.id, member.exerciseTemplate!.id); }}
-                            />
-                        ))}
-                        {members.map((member) => (
-                            <MenuItem
-                                key={`remove-${member.workoutExercise.id}`}
-                                label={t("exercise.superset.removeMember", { name: member.exerciseTemplate?.name ?? "" })}
-                                icon="trash-outline"
-                                colors={colors}
-                                destructive
-                                onPress={() => handleRemove(member)}
-                            />
-                        ))}
-                    </View>
-                </Pressable>
-            </Modal>
+            <ActionSheet
+                visible={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                title={t("exercise.superset.menuTitle")}
+                actions={[
+                    {
+                        key: "note",
+                        icon: "create-outline",
+                        label: noteHost.workoutExercise.notes ? t("exercise.exerciseCard.editNote") : t("exercise.exerciseCard.addNote"),
+                        onPress: () => { setNoteDraft(noteHost.workoutExercise.notes ?? ""); setNoteOpen(true); },
+                    },
+                    ...members.filter((member) => member.exerciseTemplate).map((member) => ({
+                        key: `copy-${member.workoutExercise.id}`,
+                        icon: "copy-outline" as const,
+                        label: t("exercise.superset.copyMember", { name: member.exerciseTemplate!.name }),
+                        onPress: () => onCopyFromLast(member.workoutExercise.id, member.exerciseTemplate!.id),
+                    })),
+                    ...members.map((member) => ({
+                        key: `remove-${member.workoutExercise.id}`,
+                        icon: "trash-outline" as const,
+                        label: t("exercise.superset.removeMember", { name: member.exerciseTemplate?.name ?? "" }),
+                        destructive: true,
+                        onPress: () => handleRemove(member),
+                    })),
+                ]}
+            />
 
             <ExerciseNoteModal
                 visible={noteOpen}
@@ -383,20 +376,6 @@ function createStyles(colors: ThemeColors) {
         },
         rowInput: {
             flex: 1,
-        },
-        menuOverlay: {
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: spacing.lg,
-        },
-        menu: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            width: "100%",
-            maxWidth: 300,
         },
     });
 }
