@@ -2,7 +2,7 @@
 // reused by recipe slides and expanded food rows.
 
 import { MEAL_TYPES, type MealType } from "@/src/shared/types";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, controlHeight, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,7 +21,7 @@ export function DateRow({
     return (
         <Pressable style={styles.dateRow} onPress={onPress}>
             <View style={styles.dateLeft}>
-                <Ionicons name="calendar-outline" size={17} color={colors.primary} />
+                <Ionicons name="calendar-outline" size={17} color={colors.textSecondary} />
                 <Text style={styles.dateText}>{label}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
@@ -53,7 +53,7 @@ export function MealPicker({
                         <Ionicons
                             name={meal.icon as never}
                             size={17}
-                            color={on ? "#fff" : colors.textSecondary}
+                            color={on ? colors.onPrimary : colors.textSecondary}
                         />
                         <Text style={[styles.mealText, on && styles.mealTextOn]}>{t(`meal.${meal.key}`)}</Text>
                     </Pressable>
@@ -69,12 +69,12 @@ function createStyles(colors: ThemeColors) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            backgroundColor: colors.background,
+            backgroundColor: colors.surface,
             borderRadius: borderRadius.md,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: colors.borderStrong,
             paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm + 2,
+            minHeight: controlHeight.md,
         },
         dateLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
         dateText: { fontSize: fontSize.md, color: colors.text, fontWeight: "600" },
@@ -87,11 +87,11 @@ function createStyles(colors: ThemeColors) {
             paddingHorizontal: 2,
             borderRadius: borderRadius.md,
             borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.background,
+            borderColor: colors.borderStrong,
+            backgroundColor: colors.surface,
         },
         mealOn: { backgroundColor: colors.primary, borderColor: colors.primary },
         mealText: { fontSize: fontSize.xs, color: colors.text, fontWeight: "500" },
-        mealTextOn: { color: "#fff", fontWeight: "700" },
+        mealTextOn: { color: colors.onPrimary, fontWeight: "600" },
     });
 }

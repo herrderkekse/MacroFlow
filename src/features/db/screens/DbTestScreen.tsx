@@ -1,12 +1,17 @@
 import { addEntry, formatDateKey, getEntriesByDate } from "@/src/features/log/services/logDb";
 import { getGoals, setGoals } from "@/src/features/settings/services/settingsDb";
 import { addFood } from "@/src/features/templates/services/templateDb";
+import Button from "@/src/shared/atoms/Button";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { fontSize, screenPadding, spacing } from "@/src/utils/theme";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function DbTestScreen() {
     const { t } = useTranslation();
+    const colors = useThemeColors();
     const [logs, setLogs] = useState<string[]>([]);
 
     const log = (msg: string) =>
@@ -63,30 +68,23 @@ export default function DbTestScreen() {
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>{t("dbTest.title")}</Text>
-            <Pressable style={styles.button} onPress={runTest}>
-                <Text style={styles.buttonText}>{t("dbTest.run")}</Text>
-            </Pressable>
-            {logs.map((l, i) => (
-                <Text key={i} style={styles.log}>
-                    {l}
-                </Text>
-            ))}
-        </ScrollView>
+        <View style={[styles.screen, { backgroundColor: colors.background }]}>
+            <ScreenHeader title={t("dbTest.title")} />
+            <ScrollView contentContainerStyle={styles.content}>
+                <Button title={t("dbTest.run")} onPress={runTest} style={styles.button} />
+                {logs.map((l, i) => (
+                    <Text key={i} style={[styles.log, { color: colors.textSecondary }]}>
+                        {l}
+                    </Text>
+                ))}
+            </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 24, paddingTop: 60 },
-    title: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
-    button: {
-        backgroundColor: "#2563eb",
-        padding: 12,
-        borderRadius: 8,
-        alignItems: "center",
-        marginBottom: 16,
-    },
-    buttonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-    log: { fontSize: 12, marginBottom: 4, fontFamily: "monospace" },
+    screen: { flex: 1 },
+    content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+    button: { marginBottom: spacing.md },
+    log: { fontSize: fontSize.xs, marginBottom: spacing.xs, fontFamily: "monospace" },
 });

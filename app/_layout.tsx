@@ -8,13 +8,14 @@ import i18n from "@/src/i18n";
 import { initDB } from "@/src/services/db";
 import { deactivateKeepAwakeAsync, KEEP_AWAKE_DEFAULT_TAG, WORKOUT_KEEP_AWAKE_TAG } from "@/src/services/keepAwake";
 import { scheduleAllReminders } from "@/src/services/notifications";
-import { ThemeProvider, useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { ThemeProvider, useIsDark, useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import type { AppearanceMode, Language, MealType, UnitSystem } from "@/src/shared/types";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Stack, usePathname } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -50,6 +51,7 @@ initDB();
 
 function InnerLayout() {
   const colors = useThemeColors();
+  const isDark = useIsDark();
   const setLanguage = useAppStore((s) => s.setLanguage);
   const setAppearanceMode = useAppStore((s) => s.setAppearanceMode);
   const setUnitSystem = useAppStore((s) => s.setUnitSystem);
@@ -122,13 +124,17 @@ function InnerLayout() {
   }, [keepAwakeInWorkout, pathname]);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        navigationBarColor: colors.background,
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    />
+    <>
+      {/* Follows the in-app appearance setting, which can differ from the system's. */}
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          navigationBarColor: colors.background,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+    </>
   );
 }
 

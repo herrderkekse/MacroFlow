@@ -5,12 +5,13 @@
 import { useImportQueue } from "@/src/features/share/hooks/useImportQueue";
 import type { FetchedShare } from "@/src/features/share/services/shareClient";
 import CalendarPicker from "@/src/shared/components/CalendarPicker";
-import { spacing, type ThemeColors } from "@/src/utils/theme";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import ImportFoodBatch from "./ImportFoodBatch";
-import ImportHeaderCard from "./ImportHeaderCard";
+import ImportProgress from "./ImportProgress";
 import ImportRecipeSlide from "./ImportRecipeSlide";
 import ImportSummary from "./ImportSummary";
 
@@ -45,15 +46,13 @@ export default function ImportQueueView({ share, origin, colors, onClose }: Prop
 
     return (
         <>
-            <ImportHeaderCard
+            <ScreenHeader
                 title={t("share.import.title")}
-                sharedBy={sharedBy}
-                total={api.total}
-                index={api.index}
-                showProgress={!api.isDone}
-                onClose={onClose}
-                colors={colors}
+                subtitle={sharedBy ? t("share.import.from", { name: sharedBy }) : undefined}
+                backIcon="close"
+                onBack={onClose}
             />
+            {!api.isDone && api.total > 1 && <ImportProgress total={api.total} index={api.index} colors={colors} />}
 
             <View style={styles.slide}>
                 {api.total === 0 ? (
@@ -97,6 +96,6 @@ function originHost(origin?: string): string | undefined {
 }
 
 const styles = StyleSheet.create({
-    slide: { flex: 1, marginTop: spacing.md },
+    slide: { flex: 1, paddingHorizontal: screenPadding, paddingTop: spacing.xs },
     empty: { textAlign: "center", marginTop: spacing.xl },
 });

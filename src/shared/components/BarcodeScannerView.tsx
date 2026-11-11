@@ -1,5 +1,6 @@
 import { isRateLimitError } from "@/src/services/rateLimit";
 import Button from "@/src/shared/atoms/Button";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import logger from "@/src/utils/logger";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -10,12 +11,10 @@ import { useTranslation } from "react-i18next";
 import {
     ActivityIndicator,
     Modal,
-    Pressable,
     StyleSheet,
     Text,
     View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface BarcodeScannerViewProps<TFood> {
     visible: boolean;
@@ -40,8 +39,7 @@ export default function BarcodeScannerView<TFood>({
     onNotFound,
 }: BarcodeScannerViewProps<TFood>) {
     const colors = useThemeColors();
-    const insets = useSafeAreaInsets();
-    const styles = React.useMemo(() => createStyles(colors, insets.top), [colors, insets.top]);
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const [permission, requestPermission] = useCameraPermissions();
     const [state, setState] = useState<ScanState>({ status: "scanning" });
@@ -97,7 +95,7 @@ export default function BarcodeScannerView<TFood>({
         return (
             <Modal visible={visible} animationType="slide" onRequestClose={resetAndClose}>
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator size="large" color={colors.textSecondary} />
                 </View>
             </Modal>
         );
@@ -107,11 +105,7 @@ export default function BarcodeScannerView<TFood>({
         return (
             <Modal visible={visible} animationType="slide" onRequestClose={resetAndClose}>
                 <View style={styles.center}>
-                    <Ionicons
-                        name="camera-outline"
-                        size={48}
-                        color={colors.textTertiary}
-                    />
+                    <Ionicons name="camera-outline" size={32} color={colors.textTertiary} />
                     <Text style={styles.permText}>
                         {t("log.barcodePermission")}
                     </Text>
@@ -136,17 +130,7 @@ export default function BarcodeScannerView<TFood>({
     return (
         <Modal visible={visible} animationType="slide" onRequestClose={resetAndClose}>
             <View style={styles.container}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t("log.barcodeTitle")}</Text>
-                    <Pressable onPress={resetAndClose} hitSlop={8}>
-                        <Ionicons
-                            name="close"
-                            size={24}
-                            color={colors.textSecondary}
-                        />
-                    </Pressable>
-                </View>
+                <ScreenHeader title={t("log.barcodeTitle")} backIcon="close" onBack={resetAndClose} />
 
                 {/* Camera */}
                 {state.status === "scanning" && (
@@ -174,10 +158,7 @@ export default function BarcodeScannerView<TFood>({
                 {/* Loading */}
                 {state.status === "loading" && (
                     <View style={styles.center}>
-                        <ActivityIndicator
-                            size="large"
-                            color={colors.primary}
-                        />
+                        <ActivityIndicator size="large" color={colors.textSecondary} />
                         <Text style={styles.statusText}>
                             {t("log.barcodeLookingUp")}
                         </Text>
@@ -189,7 +170,7 @@ export default function BarcodeScannerView<TFood>({
                     <View style={styles.center}>
                         <Ionicons
                             name="help-circle-outline"
-                            size={48}
+                            size={32}
                             color={colors.textTertiary}
                         />
                         <Text style={styles.statusText}>
@@ -214,7 +195,7 @@ export default function BarcodeScannerView<TFood>({
                     <View style={styles.center}>
                         <Ionicons
                             name="cloud-offline-outline"
-                            size={48}
+                            size={32}
                             color={colors.danger}
                         />
                         <Text style={styles.statusText}>{state.message}</Text>
@@ -236,25 +217,9 @@ export default function BarcodeScannerView<TFood>({
     );
 }
 
-function createStyles(colors: ThemeColors, insetsTop: number) {
+function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         container: { flex: 1, backgroundColor: colors.background },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: spacing.lg,
-            paddingTop: insetsTop + spacing.md,
-            paddingBottom: spacing.md,
-            backgroundColor: colors.surface,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-        },
-        headerTitle: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-        },
         camera: { flex: 1 },
         overlay: {
             flex: 1,
@@ -262,15 +227,16 @@ function createStyles(colors: ThemeColors, insetsTop: number) {
             justifyContent: "center",
             backgroundColor: "rgba(0,0,0,0.3)",
         },
+        // Drawn over the camera feed, so these stay white in both themes.
         scanFrame: {
             width: 250,
             height: 150,
             borderWidth: 2,
-            borderColor: "#fff",
+            borderColor: "#FFFFFF",
             borderRadius: borderRadius.md,
         },
         hint: {
-            color: "#fff",
+            color: "#FFFFFF",
             fontSize: fontSize.sm,
             marginTop: spacing.md,
         },

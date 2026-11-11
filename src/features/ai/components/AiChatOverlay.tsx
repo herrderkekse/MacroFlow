@@ -1,6 +1,9 @@
+import Button from "@/src/shared/atoms/Button";
+import Chip from "@/src/shared/atoms/Chip";
+import IconButton from "@/src/shared/atoms/IconButton";
 import BottomSheet, { type BottomSheetRef } from "@/src/shared/components/BottomSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -95,65 +98,48 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
             >
                 {/* Chat header */}
                 <View style={styles.chatHeader}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.primary} />
                     <Text style={styles.chatHeaderText}>{t("chat.title")}</Text>
-                    <Pressable onPress={closeSheet} hitSlop={8}>
-                        <Ionicons name="chevron-down" size={22} color={colors.textSecondary} />
-                    </Pressable>
+                    <IconButton icon="add" size="sm" label={t("chat.newSession")} onPress={chat.handleNewSession} />
+                    <IconButton icon="chevron-down" size="sm" variant="tonal" label={t("common.close")} onPress={closeSheet} />
                 </View>
 
                 {/* Session selector */}
-                <View style={styles.sessionBar}>
-                    <FlatList
-                        ref={sessionListRef}
-                        horizontal
-                        data={chat.sessions}
-                        keyExtractor={(s) => String(s.id)}
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.sessionListContent}
-                        ListHeaderComponent={
-                            <Pressable
-                                onPress={chat.handleNewSession}
-                                style={[styles.sessionChip, styles.sessionNewChip, { borderColor: colors.primary }]}
-                            >
-                                <Ionicons name="add" size={16} color={colors.primary} />
-                            </Pressable>
-                        }
-                        renderItem={({ item }) => (
-                            <Pressable
-                                onPress={() => chat.switchSession(item.id)}
-                                onLongPress={() => chat.handleDeleteSession(item)}
-                                style={[
-                                    styles.sessionChip,
-                                    {
-                                        backgroundColor: item.id === chat.activeSessionId ? colors.primary : colors.surface,
-                                        borderColor: item.id === chat.activeSessionId ? colors.primary : colors.border,
-                                    },
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.sessionChipText,
-                                        { color: item.id === chat.activeSessionId ? "#fff" : colors.text },
-                                    ]}
-                                    numberOfLines={1}
+                {chat.sessions.length > 0 && (
+                    <View style={styles.sessionBar}>
+                        <FlatList
+                            ref={sessionListRef}
+                            horizontal
+                            data={chat.sessions}
+                            keyExtractor={(s) => String(s.id)}
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.sessionListContent}
+                            renderItem={({ item }) => (
+                                <Pressable
+                                    onPress={() => chat.switchSession(item.id)}
+                                    onLongPress={() => chat.handleDeleteSession(item)}
                                 >
-                                    {item.title}
-                                </Text>
-                            </Pressable>
+                                    <View pointerEvents="none">
+                                        <Chip
+                                            label={item.title}
+                                            selected={item.id === chat.activeSessionId}
+                                            style={styles.sessionChip}
+                                        />
+                                    </View>
+                                </Pressable>
+                            )}
+                        />
+                        {!chat.isAtLatestSession && (
+                            <Button
+                                title={t("chat.latest")}
+                                size="sm"
+                                variant="ghost"
+                                icon={<Ionicons name="arrow-back" size={14} color={colors.text} />}
+                                onPress={chat.handleNewSession}
+                                style={styles.scrollToLatestBtn}
+                            />
                         )}
-                    />
-                    {!chat.isAtLatestSession && (
-                        <Pressable
-                            onPress={chat.handleNewSession}
-                            style={[styles.scrollToLatestBtn, { backgroundColor: colors.primary }]}
-                            hitSlop={8}
-                        >
-                            <Ionicons name="arrow-back" size={14} color="#fff" />
-                            <Text style={styles.scrollToLatestText}>{t("chat.latest")}</Text>
-                        </Pressable>
-                    )}
-                </View>
+                    </View>
+                )}
 
                 {/* Messages */}
                 <ScrollView
@@ -209,21 +195,17 @@ export default function AiChatOverlay({ tabBarHeight, onVisibilityChange, onData
                                 {chat.streamingText}
                             </Text>
                             <View style={styles.streamingActions}>
-                                <Pressable onPress={chat.handleStop} hitSlop={8} style={styles.actionBtn}>
-                                    <Ionicons name="stop-circle-outline" size={18} color={colors.textSecondary} />
-                                </Pressable>
+                                <IconButton icon="stop-circle-outline" size="sm" color={colors.textSecondary} label={t("chat.stop")} onPress={chat.handleStop} />
                             </View>
                         </View>
                     ) : chat.loading && !chat.streamingToolData ? (
                         <View style={[styles.bubble, styles.bubbleAssistant, styles.loadingBubble]}>
-                            <ActivityIndicator size="small" color={colors.primary} />
+                            <ActivityIndicator size="small" color={colors.textSecondary} />
                             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
                                 {t("chat.thinking")}
                             </Text>
                             <View style={{ flex: 1 }} />
-                            <Pressable onPress={chat.handleStop} hitSlop={8} style={styles.actionBtn}>
-                                <Ionicons name="stop-circle-outline" size={18} color={colors.textSecondary} />
-                            </Pressable>
+                            <IconButton icon="stop-circle-outline" size="sm" color={colors.textSecondary} label={t("chat.stop")} onPress={chat.handleStop} />
                         </View>
                     ) : null}
 
@@ -261,67 +243,27 @@ function createStyles(colors: ThemeColors) {
         chatHeader: {
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: screenPadding,
             paddingBottom: spacing.sm,
             gap: spacing.sm,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
         },
         chatHeaderText: {
             flex: 1,
             fontSize: fontSize.lg,
-            fontWeight: "600",
+            fontWeight: "700",
+            letterSpacing: -0.2,
             color: colors.text,
         },
         sessionBar: {
-            borderBottomWidth: 1,
+            borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
-            paddingVertical: spacing.xs,
+            paddingBottom: spacing.sm,
         },
-        sessionListContent: {
-            paddingHorizontal: spacing.md,
-            gap: spacing.xs,
-        },
-        sessionChip: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.xs + 2,
-            borderRadius: borderRadius.lg,
-            borderWidth: 1,
-            maxWidth: 160,
-        },
-        sessionNewChip: {
-            backgroundColor: "transparent",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingHorizontal: spacing.sm,
-        },
-        sessionChipText: {
-            fontSize: fontSize.xs,
-            fontWeight: "500",
-        },
-        scrollToLatestBtn: {
-            flexDirection: "row",
-            alignItems: "center",
-            alignSelf: "flex-end",
-            gap: 4,
-            marginHorizontal: spacing.md,
-            marginTop: spacing.xs,
-            marginBottom: spacing.xs,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: spacing.xs,
-            borderRadius: borderRadius.sm,
-        },
-        scrollToLatestText: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: "#fff",
-        },
-        messageList: {
-            flex: 1,
-        },
-        messageListContent: {
-            padding: spacing.md,
-        },
+        sessionListContent: { paddingHorizontal: screenPadding, gap: spacing.sm },
+        sessionChip: { maxWidth: 180 },
+        scrollToLatestBtn: { alignSelf: "flex-end", marginRight: spacing.sm },
+        messageList: { flex: 1 },
+        messageListContent: { padding: screenPadding },
         emptyState: {
             alignItems: "center",
             justifyContent: "center",
@@ -330,7 +272,8 @@ function createStyles(colors: ThemeColors) {
         },
         emptyStateText: {
             fontSize: fontSize.sm,
-            color: colors.textTertiary,
+            lineHeight: 20,
+            color: colors.textSecondary,
             textAlign: "center",
             paddingHorizontal: spacing.xl,
         },
@@ -343,29 +286,13 @@ function createStyles(colors: ThemeColors) {
         },
         bubbleAssistant: {
             alignSelf: "flex-start",
-            backgroundColor: colors.surface,
+            backgroundColor: colors.surfaceMuted,
             borderWidth: 1,
             borderColor: colors.border,
         },
-        bubbleText: {
-            fontSize: fontSize.md,
-            lineHeight: 22,
-        },
-        loadingBubble: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-        },
-        loadingText: {
-            fontSize: fontSize.sm,
-        },
-        streamingActions: {
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            marginTop: spacing.xs,
-        },
-        actionBtn: {
-            padding: 4,
-        },
+        bubbleText: { fontSize: fontSize.md, lineHeight: 22 },
+        loadingBubble: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+        loadingText: { fontSize: fontSize.sm },
+        streamingActions: { flexDirection: "row", justifyContent: "flex-end", marginTop: spacing.xs },
     });
 }

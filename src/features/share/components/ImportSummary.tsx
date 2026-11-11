@@ -3,11 +3,12 @@
 // hook's commit); Start over resets the queue.
 
 import type { Decision } from "@/src/features/share/services/importPlan";
+import Button from "@/src/shared/atoms/Button";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 interface Props {
     decisions: Decision[];
@@ -68,17 +69,15 @@ export default function ImportSummary({ decisions, counts, onConfirm, onReset, s
             </ScrollView>
 
             <View style={styles.footer}>
-                <Pressable onPress={onReset} disabled={saving} style={styles.resetBtn}>
-                    <Ionicons name="refresh-outline" size={17} color={colors.textSecondary} />
-                    <Text style={styles.resetText}>{t("share.import.startOver")}</Text>
-                </Pressable>
-                <Pressable onPress={onConfirm} disabled={saving} style={styles.confirmBtn}>
-                    {saving ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.confirmText}>{t("share.import.confirm")}</Text>
-                    )}
-                </Pressable>
+                <Button
+                    title={t("share.import.startOver")}
+                    variant="outline"
+                    icon={<Ionicons name="refresh-outline" size={17} color={colors.text} />}
+                    onPress={onReset}
+                    disabled={saving}
+                    style={styles.resetBtn}
+                />
+                <Button title={t("share.import.confirm")} onPress={onConfirm} loading={saving} style={styles.confirmBtn} />
             </View>
         </View>
     );
@@ -124,29 +123,10 @@ function createStyles(colors: ThemeColors) {
             flexDirection: "row",
             gap: spacing.sm,
             padding: spacing.md,
-            borderTopWidth: 1,
+            borderTopWidth: StyleSheet.hairlineWidth,
             borderTopColor: colors.border,
         },
-        resetBtn: {
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            paddingVertical: spacing.md,
-            borderRadius: borderRadius.md,
-            borderWidth: 1.5,
-            borderColor: colors.border,
-        },
-        resetText: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
-        confirmBtn: {
-            flex: 2,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: spacing.md,
-            borderRadius: borderRadius.md,
-            backgroundColor: colors.primary,
-        },
-        confirmText: { fontSize: fontSize.md, fontWeight: "700", color: "#fff" },
+        resetBtn: { flex: 1 },
+        confirmBtn: { flex: 1 },
     });
 }

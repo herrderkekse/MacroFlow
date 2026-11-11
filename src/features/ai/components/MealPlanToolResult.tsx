@@ -77,7 +77,7 @@ export default function MealPlanToolResult({
             <View style={styles.actions}>
                 {generating ? (
                     <View style={styles.generatingRow}>
-                        <ActivityIndicator size="small" color={colors.primary} />
+                        <ActivityIndicator size="small" color={colors.textSecondary} />
                         <Text style={[styles.generatingText, { color: colors.textSecondary }]}>
                             {t("chat.thinking")}
                         </Text>
@@ -89,7 +89,7 @@ export default function MealPlanToolResult({
                             onPress={onImport!}
                             variant="primary"
                             style={styles.actionBtn}
-                            icon={<Ionicons name="add-circle-outline" size={18} color="#fff" style={{ marginRight: 6 }} />}
+                            icon={<Ionicons name="add" size={18} color={colors.onPrimary} />}
                         />
                         <Button
                             title={t("common.cancel")}

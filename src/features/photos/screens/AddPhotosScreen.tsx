@@ -1,13 +1,17 @@
 import Button from "@/src/shared/atoms/Button";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import IconButton from "@/src/shared/atoms/IconButton";
+import FooterBar from "@/src/shared/components/FooterBar";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 
 interface SelectedImage {
     id: string;
@@ -94,106 +98,82 @@ export default function AddPhotosScreen() {
     }
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.description}>{t("log.photosDescription")}</Text>
-
-            <View style={styles.actionsRow}>
-                <Button
-                    title={t("log.photosPickFromGallery")}
-                    onPress={handlePickFromGallery}
-                    variant="outline"
-                    icon={<Ionicons name="images-outline" size={18} color={colors.text} />}
-                    style={styles.actionButton}
-                />
-                <Button
-                    title={t("log.photosTakePhoto")}
-                    onPress={handleTakePhoto}
-                    icon={<Ionicons name="camera-outline" size={18} color="#FFFFFF" />}
-                    style={styles.actionButton}
-                />
-            </View>
-
-            <Text style={styles.counter}>{t("log.photosSelectedCount", { count: images.length })}</Text>
-
-            {images.length === 0 ? (
-                <View style={styles.emptyState}>
-                    <Ionicons name="image-outline" size={36} color={colors.textTertiary} />
-                    <Text style={styles.emptyText}>{t("log.photosNoSelection")}</Text>
-                </View>
-            ) : (
-                <FlatList
-                    data={images}
-                    keyExtractor={(item) => item.id}
-                    numColumns={3}
-                    columnWrapperStyle={styles.gridRow}
-                    contentContainerStyle={styles.grid}
-                    renderItem={({ item }) => (
-                        <View style={styles.tile}>
-                            <Image source={{ uri: item.uri }} style={styles.image} contentFit="cover" />
-                            <Pressable style={styles.removeBtn} onPress={() => handleRemoveImage(item.id)}>
-                                <Ionicons name="close" size={16} color="#FFFFFF" />
-                            </Pressable>
-                        </View>
-                    )}
-                />
-            )}
-
-            <Button
-                title={t("log.photosNextStep")}
-                onPress={handleNext}
-                disabled={images.length === 0}
-                style={styles.nextButton}
+        <View style={styles.screen}>
+            <ScreenHeader
+                title={t("log.photosTitle")}
+                subtitle={images.length > 0 ? t("log.photosSelectedCount", { count: images.length }) : undefined}
             />
+            <View style={styles.content}>
+                <Text style={styles.description}>{t("log.photosDescription")}</Text>
+
+                <View style={styles.actionsRow}>
+                    <Button
+                        title={t("log.photosPickFromGallery")}
+                        onPress={handlePickFromGallery}
+                        variant="outline"
+                        icon={<Ionicons name="images-outline" size={18} color={colors.text} />}
+                        style={styles.actionButton}
+                    />
+                    <Button
+                        title={t("log.photosTakePhoto")}
+                        onPress={handleTakePhoto}
+                        variant="outline"
+                        icon={<Ionicons name="camera-outline" size={18} color={colors.text} />}
+                        style={styles.actionButton}
+                    />
+                </View>
+
+                {images.length === 0 ? (
+                    <EmptyState icon="image-outline" title={t("log.photosNoSelection")} style={styles.emptyState} />
+                ) : (
+                    <FlatList
+                        data={images}
+                        keyExtractor={(item) => item.id}
+                        numColumns={3}
+                        columnWrapperStyle={styles.gridRow}
+                        contentContainerStyle={styles.grid}
+                        showsVerticalScrollIndicator={false}
+                        renderItem={({ item }) => (
+                            <View style={styles.tile}>
+                                <Image source={{ uri: item.uri }} style={styles.image} contentFit="cover" />
+                                <IconButton
+                                    icon="close"
+                                    size="sm"
+                                    variant="filled"
+                                    label={t("common.delete")}
+                                    onPress={() => handleRemoveImage(item.id)}
+                                    style={styles.removeBtn}
+                                />
+                            </View>
+                        )}
+                    />
+                )}
+            </View>
+            <FooterBar>
+                <Button title={t("log.photosNextStep")} onPress={handleNext} disabled={images.length === 0} />
+            </FooterBar>
         </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: colors.background,
-            padding: spacing.md,
-        },
-        description: {
-            color: colors.textSecondary,
-            fontSize: fontSize.sm,
-            marginBottom: spacing.md,
-        },
-        actionsRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        actionButton: {
-            flex: 1,
-        },
-        counter: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.sm,
-        },
+        screen: { flex: 1, backgroundColor: colors.background },
+        content: { flex: 1, paddingHorizontal: screenPadding, paddingTop: spacing.sm },
+        description: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20, marginBottom: spacing.md },
+        actionsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
+        actionButton: { flex: 1 },
         emptyState: {
             flex: 1,
+            justifyContent: "center",
+            marginBottom: spacing.md,
             borderWidth: 1,
             borderStyle: "dashed",
-            borderColor: colors.border,
-            borderRadius: borderRadius.md,
-            alignItems: "center",
-            justifyContent: "center",
-            gap: spacing.sm,
+            borderColor: colors.borderStrong,
+            borderRadius: borderRadius.lg,
         },
-        emptyText: {
-            color: colors.textSecondary,
-            fontSize: fontSize.md,
-        },
-        grid: {
-            paddingBottom: spacing.md,
-            gap: spacing.sm,
-        },
-        gridRow: {
-            gap: spacing.sm,
-        },
+        grid: { paddingBottom: spacing.md, gap: spacing.sm },
+        gridRow: { gap: spacing.sm },
         tile: {
             flex: 1,
             aspectRatio: 1,
@@ -201,23 +181,7 @@ function createStyles(colors: ThemeColors) {
             overflow: "hidden",
             backgroundColor: colors.surface,
         },
-        image: {
-            width: "100%",
-            height: "100%",
-        },
-        removeBtn: {
-            position: "absolute",
-            top: spacing.xs,
-            right: spacing.xs,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: "rgba(0,0,0,0.65)",
-            alignItems: "center",
-            justifyContent: "center",
-        },
-        nextButton: {
-            marginTop: spacing.sm,
-        },
+        image: { width: "100%", height: "100%" },
+        removeBtn: { position: "absolute", top: spacing.xs, right: spacing.xs, width: 26, height: 26 },
     });
 }
