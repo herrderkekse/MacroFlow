@@ -17,7 +17,7 @@ import { useBottomTabBarHeight } from "expo-router/js-tabs";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Dimensions, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, BackHandler, Dimensions, ScrollView, StyleSheet, View } from "react-native";
 import EntrySheet from "../components/EntrySheet";
 import LogDayPage from "../components/LogDayPage";
 import LogHeader from "../components/LogHeader";
@@ -58,6 +58,20 @@ export default function LogScreen() {
                 cancelled = true;
             };
         }, []),
+    );
+
+    // While entries are selected, the system back button leaves selection
+    // mode instead of leaving the app.
+    const { selectionMode, exitSelectionMode } = d;
+    useFocusEffect(
+        useCallback(() => {
+            if (!selectionMode) return;
+            const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+                exitSelectionMode();
+                return true;
+            });
+            return () => subscription.remove();
+        }, [selectionMode, exitSelectionMode]),
     );
 
     function handleShareSelection() {

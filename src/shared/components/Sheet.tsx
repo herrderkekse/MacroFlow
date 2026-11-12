@@ -3,7 +3,7 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -103,7 +103,10 @@ function SheetBody({
         };
     }, []);
     const isKeyboardOpen = keyboardHeight > 0;
-    const availableHeight = windowHeight - insets.top - keyboardHeight;
+    // Android reports the keyboard height without the system navigation inset
+    // it also covers; iOS reports the full frame.
+    const keyboardInset = isKeyboardOpen ? keyboardHeight + (Platform.OS === "android" ? insets.bottom : 0) : 0;
+    const availableHeight = windowHeight - insets.top - keyboardInset;
     const maxHeight = isKeyboardOpen
         ? availableHeight - spacing.sm
         : Math.round(availableHeight * MAX_HEIGHT_FRACTION);
@@ -153,7 +156,7 @@ function SheetBody({
     return (
         // A Modal is its own view hierarchy, so gestures inside it need their
         // own gesture root.
-        <GestureHandlerRootView style={[styles.root, { paddingBottom: keyboardHeight }]}>
+        <GestureHandlerRootView style={[styles.root, { paddingBottom: keyboardInset }]}>
             <Animated.View style={[styles.backdrop, backdropStyle]}>
                 <Pressable style={styles.fill} onPress={onClose} accessibilityLabel={t("common.close")} />
             </Animated.View>

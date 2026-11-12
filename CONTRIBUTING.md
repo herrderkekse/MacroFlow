@@ -37,8 +37,8 @@ scripts/
 
 src/
 ├─ shared/                              # code used by 2+ features
-│  ├─ atoms/                            # tiny styled primitives (Button, Input, ModalHeader)
-│  ├─ components/                       # larger reusable UI (BottomSheet, CalendarPicker, MacroLabel, UnitPicker)
+│  ├─ atoms/                            # tiny styled primitives (Button, IconButton, Chip, Input, Card, …)
+│  ├─ components/                       # larger reusable UI (ScreenHeader, Sheet, ActionSheet, ListRow, …) — see §UI System
 │  ├─ providers/                        # React context providers
 │  ├─ store/                            # Zustand stores shared across features
 │  └─ types.ts                          # shared type definitions (MealType, FoodSource, AppearanceMode, etc.)
@@ -82,28 +82,40 @@ Route files live in `app/` and must be **thin re-exports**. No business logic, n
 
 ```
 app/
-├─ _layout.tsx                          # root layout: fonts, providers, splash
+├─ _layout.tsx                          # root layout: providers, status bar, root stack
 ├─ index.tsx                            # redirect → /(tabs)
 ├─ db-test.tsx                          # debug-only screen (remove before 1.0)
-├─ (tabs)/
-│  ├─ _layout.tsx                       # bottom-tab navigator + header
+├─ meal-plan.tsx                        # → MealPlanScreen
+├─ (tabs)/                              # the four tab roots — nothing else lives here
+│  ├─ _layout.tsx                       # bottom-tab navigator
 │  ├─ index.tsx                         # → LogScreen
-│  ├─ templates.tsx                     # → TemplatesScreen
-│  ├─ analytics.tsx                     # → AnalyticsScreen
-│  ├─ meal-plan.tsx                     # → MealPlanScreen
-│  ├─ more.tsx                          # → MoreScreen
-│  ├─ settings.tsx                      # → SettingsScreen
+│  ├─ templates.tsx                     # → TemplatesScreen (Library)
+│  ├─ analytics.tsx                     # → AnalyticsScreen (Trends)
+│  └─ more.tsx                          # → MoreScreen
+├─ settings/
+│  ├─ index.tsx                         # → SettingsScreen
 │  ├─ goals.tsx                         # → GoalsScreen
+│  ├─ account.tsx                       # → AccountScreen
 │  ├─ backup.tsx                        # → BackupScreen
-│  └─ ai-settings.tsx                   # → AiSettingsScreen
+│  ├─ ai-settings.tsx                   # → AiSettingsScreen
+│  └─ ai-memories.tsx                   # → AiMemoriesScreen
 ├─ log/
-│  ├─ _layout.tsx                       # stack for log sub-screens
-│  └─ add.tsx                           # → AddFoodScreen
-└─ templates/
-   ├─ _layout.tsx                       # stack for template sub-screens
-   ├─ edit.tsx                          # → RecipeEditorScreen
-   └─ food-edit.tsx                     # → FoodEditorScreen
+│  ├─ add.tsx                           # → AddFoodScreen
+│  └─ quick-add.tsx                     # → QuickAddFoodScreen
+├─ templates/
+│  ├─ edit.tsx                          # → RecipeEditorScreen
+│  ├─ food-edit.tsx                     # → FoodEditorScreen
+│  └─ exercise-edit.tsx                 # → CreateExerciseScreen
+├─ workout/
+│  ├─ index.tsx                         # → WorkoutScreen
+│  └─ exercise-history.tsx              # → ExerciseHistoryScreen
+├─ photos/
+│  ├─ photos.tsx                        # → AddPhotosScreen
+│  └─ photo-details.tsx                 # → PhotoDetailsScreen
+└─ share/[token].tsx                    # → ImportScreen (share deep link)
 ```
+
+Every folder's `_layout.tsx` is a bare `Stack` with `headerShown: false`: the navigator never draws a header, each screen renders the shared `ScreenHeader` itself (see §UI System). Anything that is not one of the four tab roots is pushed onto a stack and covers the tab bar.
 
 **Route file pattern** (every file except `_layout.tsx` looks like this):
 
@@ -293,16 +305,89 @@ These stay at the top level because they serve multiple features equally.
 
 All design tokens come from `src/utils/theme.ts`:
 
-- `spacing` — `xs`, `sm`, `md`, `lg`, `xl`
-- `fontSize` — `sm`, `md`, `lg`, `xl`
-- `borderRadius` — `sm`, `md`, `lg`, `full`
+- `spacing` — `xs`, `sm`, `md`, `lg`, `xl`; `screenPadding` is the gutter every screen keeps to the screen edge
+- `fontSize` — `xxs` (uppercase section labels only), `xs`, `sm`, `md`, `lg`, `xl`, `xxl` (large titles)
+- `borderRadius` — `sm`, `md`, `lg`, `xl` (sheet corners), `full`
+- `controlHeight` — `sm` (chips, small buttons), `md` (inputs, buttons)
+- `floatingShadow` — the one elevation, for elements that float over content
 - `lightColors` / `darkColors` — semantic colour palette
 
 Never hard-code colours or spacing values. Always reference tokens.
 
+**Colour carries meaning, not decoration.** The palette is a warm neutral canvas with ink-coloured controls; `primary` is that ink (near-black in light mode, near-white in dark mode). Hue is reserved for the macro colours (`protein`, `carbs`, `fat`), status (`danger`, `warning`, `success`) and the muscle-group dots, so a coloured number means the same thing everywhere.
+
+- Anything drawn on `primary` uses `onPrimary` — never a literal white, which disappears in dark mode.
+- Scrims use `overlay`; tonal fills use `primaryLight`; wells inside a surface use `surfaceMuted`.
+- The only literals allowed are for content that must not follow the theme: the QR code's white quiet zone, text over the camera feed, the photo viewer.
+
 ### Icons
 
 Use `@expo/vector-icons` (Ionicons). Keep icon names as constants when referenced in multiple places.
+
+---
+
+## UI System
+
+Every screen is assembled from the same parts, so that a header, a search field or a "pick a meal" control looks and behaves identically wherever it appears. Before styling something by hand, check whether one of these already is that thing — and if a second screen needs something new, add it to `src/shared/` rather than copying it.
+
+### Where does it go?
+
+| The user is… | Use | Notes |
+| --- | --- | --- |
+| at one of the four tab roots | a tab screen with `<ScreenHeader variant="large">` | Log, Library, Trends, More |
+| going a level deeper, or working on something with its own lifecycle (an editor, a workout, settings) | a **pushed screen** with `<ScreenHeader>` | covers the tab bar; back returns |
+| doing something *in the context of* the current screen: edit one value, pick from a list, choose how much / which meal, share | a **`Sheet`** | never a centred pop-up, never a hand-rolled `Modal` |
+| choosing one of several actions (the "+" of a tab, a "more" menu, bulk actions) | an **`ActionSheet`** | every action has an icon *and* a label |
+| confirming something destructive or acknowledging a result | `Alert.alert` | a yes/no question only — three or more choices are an `ActionSheet` |
+| looking at immersive media (camera, photo viewer) | a full-screen `Modal` | the only place a raw `Modal` is acceptable |
+
+A self-contained task that can be opened cold (the share import) uses a pushed screen whose header closes (`backIcon="close"`) instead of going back.
+
+### Screen anatomy
+
+```tsx
+<View style={{ flex: 1, backgroundColor: colors.background }}>
+    <ScreenHeader title={…} right={<IconButton … />} />   {/* always first */}
+    <ScrollView contentContainerStyle={{ paddingHorizontal: screenPadding }}>…</ScrollView>
+    <FooterBar><Button title={t("common.save")} … /></FooterBar>   {/* the main action, if any */}
+</View>
+```
+
+- **Header** — `ScreenHeader` handles the safe-area inset; never read `insets.top` in a screen or configure a navigator header. Search fields and filter chips that belong to the whole screen go in the header's `children`.
+- **Main action** — a form's "Save" lives in a `FooterBar` (or a sheet's `footer`), not at the end of the scroll content. One `primary` button per view.
+- **Creating** — a tab root's create action is the `Fab`; when there are several things to create it opens an `ActionSheet`.
+- **Secondary and destructive actions** on a list item go behind one "more" `IconButton` (→ `ActionSheet`) or into the item's own sheet. Optional or advanced fields go behind a `Disclosure`.
+
+### Building blocks
+
+| Need | Component |
+| --- | --- |
+| Screen title, back/close, header actions | `components/ScreenHeader` |
+| Modal bottom sheet (keyboard-aware, drag to dismiss) | `components/Sheet` |
+| Menu of labeled actions | `components/ActionSheet` |
+| Pinned main action | `components/FooterBar` |
+| Titled group of rows on a page (meals, weight, workouts…) | `components/SectionCard` |
+| Settings / menu rows, and a card of them | `components/ListRow`, `components/ListGroup` |
+| One of 2–4 exclusive options that fit a row | `components/SegmentedControl` |
+| Filters, or a longer / scrolling set of options | `atoms/Chip` |
+| Text field · field opened elsewhere · number with −/+ · date · search | `atoms/Input` · `atoms/SelectField` · `components/Stepper` · `components/DateField` · `components/SearchBar` |
+| Label above a non-`Input` control · heading of a group | `atoms/FieldLabel` · `atoms/SectionLabel` |
+| Buttons | `atoms/Button` (`primary`, `secondary`, `outline`, `ghost`, `danger`), `atoms/IconButton`, `atoms/Fab` |
+| On/off | `atoms/Toggle` |
+| Surface | `atoms/Card` (hairline border, no shadow) |
+| Empty list / no results · inline hint or error | `atoms/EmptyState` · `atoms/Notice` |
+| Optional or advanced section | `components/Disclosure` |
+| Macros: compact "P · C · F" · calories + macros of an amount · split bar | `components/MacroInline` · `components/NutritionSummary` · `components/MacroSplitBar` |
+| A food in a result list | `components/FoodRow` |
+| Unit chips incl. a food's serving units | `components/UnitPicker` |
+
+`components/BottomSheet` is the *persistent*, snap-point sheet of the AI chat; it is not a substitute for `Sheet`.
+
+### Copy
+
+- Sentence case everywhere ("Add to log", not "Add To Log"); section labels are written in sentence case and upper-cased by `SectionLabel`.
+- A screen's title is the label that led to it.
+- Icon-only buttons always get a `label` (it is the accessibility label).
 
 ---
 

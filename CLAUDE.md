@@ -54,11 +54,21 @@ Full conventions (naming, file-size limits, styling, i18n, import order) are doc
 - Per-screen derived/fetched data → a custom hook in the feature's `hooks/`.
 - Global cross-feature state (selected date, unit system, appearance, language) → the single Zustand store at `src/shared/store/useAppStore.ts`. Keep it small; it holds UI state only, never DB calls in actions — services handle persistence.
 
+### UI system
+
+Screens are assembled from shared parts in `src/shared/` — read the "UI System" section of [CONTRIBUTING.md](CONTRIBUTING.md) before adding or changing UI. The load-bearing rules:
+
+- Every screen renders `ScreenHeader` as its first child (`variant="large"` on the four tab roots); navigators never draw headers and screens never read `insets.top`.
+- Only the four tab roots live in `app/(tabs)/`. Everything else is a pushed screen (`app/settings/*`, `app/log/*`, …) that covers the tab bar.
+- In-context tasks (edit a value, pick from a list, share) are a `Sheet`; a choice among actions is an `ActionSheet`; `Alert.alert` is for destructive yes/no confirmation only. Don't hand-roll a `Modal` except for immersive media (camera, photo viewer).
+- A form's main action goes in `FooterBar` (or a sheet's `footer`); optional/advanced fields go behind `Disclosure`; secondary actions on list items go behind one "more" button.
+- `colors.primary` is ink (near-black in light mode, near-white in dark). Anything drawn on it uses `colors.onPrimary`, never a literal white. Hue is reserved for macros and status.
+
 ### Styling & i18n
 
-- Theme tokens (`spacing`, `fontSize`, `borderRadius`, `lightColors`/`darkColors`) come from `src/utils/theme.ts` — never hard-code colors/spacing.
+- Theme tokens (`spacing`, `screenPadding`, `fontSize`, `borderRadius`, `controlHeight`, `lightColors`/`darkColors`) come from `src/utils/theme.ts` — never hard-code colors/spacing.
 - Theme-aware components use a `createStyles(colors)` factory memoized via `useThemeColors()` from `src/shared/providers/ThemeProvider`.
-- All user-visible strings go through `t()` (react-i18next). Keys are `<feature>.<screen-or-context>.<element>`. Adding a key requires updating **both** `src/i18n/locales/en.ts` and `de.ts`.
+- All user-visible strings go through `t()` (react-i18next). Keys are `<feature>.<screen-or-context>.<element>`. Adding a key requires updating **both** `src/i18n/locales/en.ts` and `de.ts`. English copy is sentence case.
 
 ### AI feature
 
