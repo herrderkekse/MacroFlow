@@ -51,6 +51,11 @@ export async function loadSyncSettings(): Promise<SyncCredentials | null> {
     return { url, username, password };
 }
 
+/** The signed-in account's name, without touching the secret store; null when signed out. */
+export function getSyncUsername(): string | null {
+    return getSyncMeta(USERNAME_KEY) || null;
+}
+
 /** Clears the saved account so the app stops syncing (a "sign out"). Local data
  * is untouched; the cursor is reset so a later sign-in re-syncs cleanly. */
 export async function clearSyncSettings(): Promise<void> {

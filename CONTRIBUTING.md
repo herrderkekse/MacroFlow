@@ -17,7 +17,7 @@
 
 - **Feature-first** organisation — every domain lives in its own folder under `src/features/`.
 - **Subdivide by role** — each feature splits into `screens/`, `components/`, `hooks/`, `services/`, `helpers/`, `types.ts`.
-- **Shared code** lives in `src/shared/` (atoms, components, providers, store, types).
+- **Shared code** lives in `src/shared/` (atoms, components, hooks, providers, store, types).
 - **Route files are thin** — one-liner re-exports from the matching feature screen.
 - **Colocate by default, promote when reused** — start in the feature folder; move to `shared/` only when a second feature needs it.
 
@@ -334,7 +334,7 @@ Every screen is assembled from the same parts, so that a header, a search field 
 
 | The user is… | Use | Notes |
 | --- | --- | --- |
-| at one of the three tab roots | a tab screen with `<ScreenHeader variant="large">` and a `subtitle` | Library, Log, More |
+| at one of the three tab roots | a tab screen with a `CollapsibleHeader` (large title, `subtitle`, and a summary card) | Library, Log, More |
 | going a level deeper, or working on something with its own lifecycle (an editor, a workout, settings) | a **pushed screen** with `<ScreenHeader>` | covers the tab bar; back returns |
 | doing something *in the context of* the current screen: edit one value, pick from a list, choose how much / which meal, share | a **`Sheet`** | never a centred pop-up, never a hand-rolled `Modal` |
 | choosing one of several actions (the "+" of a tab, a "more" menu, bulk actions) | an **`ActionSheet`** | every action has an icon *and* a label |
@@ -354,6 +354,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 ```
 
 - **Header** — `ScreenHeader` handles the safe-area inset; never read `insets.top` in a screen or configure a navigator header. Search fields and filter chips that belong to the whole screen go in the header's `children`.
+- **Tab roots** use `CollapsibleHeader` + `useCollapsibleHeader` instead: the title, then a card whose `summary` row stays pinned and whose `details` hide under it (the log's calories → macros; Library's search → filters; More's profile → stats). The content rests with the details tucked away; scrolling up pulls them out, scrolling down tucks away the details, then the title, and only then moves the content. Spread `header.scrollProps` on the screen's `Animated.ScrollView`/`Animated.FlatList` and merge `header.contentStyle` into its `contentContainerStyle`.
 - **Main action** — a form's "Save" lives in a `FooterBar` (or a sheet's `footer`), not at the end of the scroll content. One `primary` button per view.
 - **Creating** — a tab root's create action is the `Fab`; when there are several things to create it opens an `ActionSheet`.
 - **Secondary and destructive actions** on a list item go behind one "more" `IconButton` (→ `ActionSheet`) or into the item's own sheet. Optional or advanced fields go behind a `Disclosure`.
@@ -363,6 +364,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Need | Component |
 | --- | --- |
 | Screen title, back/close, header actions | `components/ScreenHeader` |
+| A tab root's header with its pinned summary card | `components/CollapsibleHeader` + `hooks/useCollapsibleHeader` |
 | Modal bottom sheet (keyboard-aware, drag to dismiss) | `components/Sheet` |
 | Menu of labeled actions | `components/ActionSheet` |
 | Pinned main action | `components/FooterBar` |
@@ -399,7 +401,7 @@ Group imports in this order, separated by blank lines:
 
 1. React / React Native
 2. Expo / third-party libraries
-3. `@/src/shared/` (atoms, components, providers, store, types)
+3. `@/src/shared/` (atoms, components, hooks, providers, store, types)
 4. `@/src/services/` and `@/src/utils/`
 5. Relative feature imports (`./`, `../`)
 

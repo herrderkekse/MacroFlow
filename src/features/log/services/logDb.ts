@@ -125,6 +125,15 @@ export function getStreak(): number {
     return streak >= MINIMAL_STREAK ? streak : 0;
 }
 
+/** How many distinct days have at least one entry. */
+export function getLoggedDayCount(): number {
+    const row = db
+        .select({ count: sql<number>`COUNT(DISTINCT ${entries.date})` })
+        .from(entries)
+        .get();
+    return row?.count ?? 0;
+}
+
 // ── Recipe Logging ─────────────────────────────────────────
 
 export interface LoggedRecipeGroup {

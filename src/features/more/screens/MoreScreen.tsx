@@ -2,14 +2,19 @@ import type { IconName } from "@/src/shared/atoms/IconButton";
 import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import ListGroup from "@/src/shared/components/ListGroup";
 import ListRow from "@/src/shared/components/ListRow";
-import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
+import CollapsibleHeader from "@/src/shared/components/CollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { screenPadding, spacing } from "@/src/utils/theme";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
+import MoreSummaryDetails from "../components/MoreSummaryDetails";
+import MoreSummaryRow from "../components/MoreSummaryRow";
+import { useMoreSummary } from "../hooks/useMoreSummary";
 
 interface MenuItem {
     icon: IconName;
@@ -53,11 +58,22 @@ export default function MoreScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const router = useRouter();
+    const header = useCollapsibleHeader();
+    const summary = useMoreSummary();
 
     return (
         <View style={[styles.screen, { backgroundColor: colors.background }]}>
-            <ScreenHeader variant="large" title={t("nav.more")} subtitle={t("more.subtitle")} />
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <CollapsibleHeader
+                header={header}
+                title={t("nav.more")}
+                summary={<MoreSummaryRow summary={summary} onPress={() => router.push("/settings/account" as unknown as Href)} />}
+                details={<MoreSummaryDetails summary={summary} />}
+            />
+            <Animated.ScrollView
+                {...header.scrollProps}
+                contentContainerStyle={[styles.content, header.contentStyle]}
+                showsVerticalScrollIndicator={false}
+            >
                 {MENU.map((group, index) => (
                     <View key={group.titleKey}>
                         <SectionLabel style={index === 0 ? styles.firstLabel : undefined}>{t(group.titleKey)}</SectionLabel>
@@ -74,7 +90,7 @@ export default function MoreScreen() {
                         </ListGroup>
                     </View>
                 ))}
-            </ScrollView>
+            </Animated.ScrollView>
         </View>
     );
 }
@@ -82,5 +98,5 @@ export default function MoreScreen() {
 const styles = StyleSheet.create({
     screen: { flex: 1 },
     content: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
-    firstLabel: { marginTop: spacing.sm },
+    firstLabel: { marginTop: 0 },
 });

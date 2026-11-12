@@ -1,7 +1,8 @@
 import { getWorkoutMuscleGroupsByDateRange } from "@/src/features/exercise/services/workoutDb";
 import IconButton from "@/src/shared/atoms/IconButton";
 import CalendarPicker from "@/src/shared/components/CalendarPicker";
-import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import CollapsibleHeader from "@/src/shared/components/CollapsibleHeader";
+import type { CollapsibleHeaderController } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { formatDateKey } from "@/src/utils/date";
 import React, { useCallback, useMemo, useState } from "react";
@@ -10,6 +11,13 @@ import { useTranslation } from "react-i18next";
 interface LogHeaderProps {
     date: Date;
     onDateChange: (date: Date) => void;
+    header: CollapsibleHeaderController;
+    /** The day's calories, pinned under the title. */
+    summary: React.ReactNode;
+    /** The calorie bar along the card's bottom edge. */
+    summaryFooter: React.ReactNode;
+    /** Macros, split and weight, revealed under the summary. */
+    details: React.ReactNode;
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -22,9 +30,9 @@ function isSameDay(a: Date, b: Date) {
 
 /**
  * The log's header: the selected day as the screen title (tap for the
- * calendar) and arrows to step a day back or forward.
+ * calendar), arrows to step a day back or forward, and the day's summary card.
  */
-export default function LogHeader({ date, onDateChange }: LogHeaderProps) {
+export default function LogHeader({ date, onDateChange, header, summary, summaryFooter, details }: LogHeaderProps) {
     const colors = useThemeColors();
     const { t, i18n } = useTranslation();
     const [calendarVisible, setCalendarVisible] = useState(false);
@@ -85,15 +93,23 @@ export default function LogHeader({ date, onDateChange }: LogHeaderProps) {
             : isTomorrow
                 ? t("log.tomorrow")
                 : null;
-    const fullDate = date.toLocaleDateString(i18n.language, { weekday: "long", month: "long", day: "numeric" });
-    const shortDate = date.toLocaleDateString(i18n.language, { weekday: "short", month: "short", day: "numeric" });
+    // Without a subtitle, a day outside this year carries its year in the title.
+    const shortDate = date.toLocaleDateString(i18n.language, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        ...(date.getFullYear() !== today.getFullYear() && { year: "numeric" }),
+    });
 
     return (
         <>
-            <ScreenHeader
-                variant="large"
+            <CollapsibleHeader
+                header={header}
+                summary={summary}
+                summaryFooter={summaryFooter}
+                details={details}
+                summaryToggles
                 title={relativeLabel ?? shortDate}
-                subtitle={relativeLabel ? fullDate : String(date.getFullYear())}
                 onTitlePress={() => setCalendarVisible(true)}
                 right={
                     <>

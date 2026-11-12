@@ -16,6 +16,8 @@ interface MacroSplitBarProps extends MacroGrams {
      * how each share would shift once they are eaten.
      */
     scheduled?: MacroGrams;
+    /** A slim bar with the legend centred above it, for tight spots like the log's summary card. */
+    compact?: boolean;
 }
 
 const KCAL_PER_GRAM = { protein: 4, carbs: 4, fat: 9 } as const;
@@ -31,7 +33,7 @@ function shares(grams: MacroGrams) {
  * The one macro split: a single bar divided by energy share, with a legend.
  * Wherever the three macro colours appear as a bar, it is this component.
  */
-export default function MacroSplitBar({ protein, carbs, fat, scheduled }: MacroSplitBarProps) {
+export default function MacroSplitBar({ protein, carbs, fat, scheduled, compact = false }: MacroSplitBarProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const now = shares({ protein, carbs, fat });
@@ -46,14 +48,18 @@ export default function MacroSplitBar({ protein, carbs, fat, scheduled }: MacroS
           })
         : null;
 
+    const bar = (
+        <View style={[styles.bar, compact && styles.barCompact, { backgroundColor: colors.border }]}>
+            {MACROS.map((macro, i) => (
+                <View key={macro} style={{ flex: now.kcal[i], backgroundColor: colors[macro] }} />
+            ))}
+        </View>
+    );
+
     return (
         <View>
-            <View style={[styles.bar, { backgroundColor: colors.border }]}>
-                {MACROS.map((macro, i) => (
-                    <View key={macro} style={{ flex: now.kcal[i], backgroundColor: colors[macro] }} />
-                ))}
-            </View>
-            <View style={styles.legend}>
+            {!compact && bar}
+            <View style={[styles.legend, compact && styles.legendCompact]}>
                 {MACROS.map((macro, i) => {
                     const diff = planned ? planned.percent[i] - now.percent[i] : 0;
                     return (
@@ -72,6 +78,7 @@ export default function MacroSplitBar({ protein, carbs, fat, scheduled }: MacroS
                     );
                 })}
             </View>
+            {compact && bar}
         </View>
     );
 }
@@ -85,6 +92,8 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     legend: { flexDirection: "row", flexWrap: "wrap", columnGap: spacing.md, rowGap: spacing.xs, marginTop: spacing.sm },
+    barCompact: { height: 5, gap: 0 },
+    legendCompact: { justifyContent: "center", marginTop: 0, marginBottom: 6 },
     legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
     dot: { width: 7, height: 7, borderRadius: borderRadius.full },
     legendText: { fontSize: fontSize.xs },

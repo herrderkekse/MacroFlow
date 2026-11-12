@@ -3,14 +3,16 @@ import Chip from "@/src/shared/atoms/Chip";
 import EmptyState from "@/src/shared/atoms/EmptyState";
 import Fab from "@/src/shared/atoms/Fab";
 import ActionSheet, { type ActionSheetItem } from "@/src/shared/components/ActionSheet";
-import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import CollapsibleHeader from "@/src/shared/components/CollapsibleHeader";
 import SearchBar from "@/src/shared/components/SearchBar";
+import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { router, type Href } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 import ForkRecipeSheet from "../components/ForkRecipeSheet";
 import TemplateCard from "../components/TemplateCard";
 import { useTemplateList, type TemplateItem } from "../hooks/useTemplateList";
@@ -38,6 +40,7 @@ export default function TemplatesScreen() {
     const [lastMenuTarget, setLastMenuTarget] = useState<MenuTarget | null>(null);
 
     const list = useTemplateList();
+    const header = useCollapsibleHeader();
 
     function openMenu(target: MenuTarget) {
         setLastMenuTarget(target);
@@ -154,29 +157,37 @@ export default function TemplatesScreen() {
 
     return (
         <View style={styles.screen}>
-            <ScreenHeader variant="large" title={t("templates.title")} subtitle={t("common.itemCount", { count: list.items.length })}>
-                <SearchBar
-                    value={list.query}
-                    onChangeText={list.setQuery}
-                    placeholder={t("templates.searchPlaceholder")}
-                />
-                <View style={styles.filterRow}>
-                    {FILTERS.map((filter) => (
-                        <Chip
-                            key={filter.key}
-                            label={t(filter.labelKey)}
-                            icon={filter.icon}
-                            selected={list.filter === filter.key}
-                            onPress={() => list.toggleFilter(filter.key)}
-                        />
-                    ))}
-                </View>
-            </ScreenHeader>
+            <CollapsibleHeader
+                header={header}
+                title={t("templates.title")}
+                summary={
+                    <SearchBar
+                        value={list.query}
+                        onChangeText={list.setQuery}
+                        placeholder={t("templates.searchPlaceholder")}
+                        style={styles.search}
+                    />
+                }
+                details={
+                    <View style={styles.filterRow}>
+                        {FILTERS.map((filter) => (
+                            <Chip
+                                key={filter.key}
+                                label={t(filter.labelKey)}
+                                icon={filter.icon}
+                                selected={list.filter === filter.key}
+                                onPress={() => list.toggleFilter(filter.key)}
+                            />
+                        ))}
+                    </View>
+                }
+            />
 
-            <FlatList
+            <Animated.FlatList
+                {...header.scrollProps}
                 data={list.items}
                 keyExtractor={(item) => `${item.kind}-${item.data.id}`}
-                contentContainerStyle={styles.list}
+                contentContainerStyle={[styles.list, header.contentStyle]}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
@@ -216,7 +227,9 @@ export default function TemplatesScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        filterRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm + 4 },
-        list: { paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: 104 },
+        // Borderless: the header card is the field's frame.
+        search: { borderWidth: 0, paddingHorizontal: 0, minHeight: 0, backgroundColor: "transparent" },
+        filterRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+        list: { paddingHorizontal: screenPadding, paddingBottom: 104 },
     });
 }

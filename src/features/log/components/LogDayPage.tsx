@@ -1,13 +1,13 @@
 // eslint-disable-next-line boundaries/dependencies
 import WorkoutSummarySection from "@/src/features/exercise/components/WorkoutSummarySection";
-import type { Goals } from "@/src/features/settings/services/settingsDb";
+import type { CollapsibleFollowerProps, CollapsibleScrollProps } from "@/src/shared/hooks/useCollapsibleHeader";
 import { MEAL_TYPES, type MealType } from "@/src/shared/types";
-import { screenPadding, spacing } from "@/src/utils/theme";
+import { screenPadding } from "@/src/utils/theme";
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { computeTotals, type EntryWithFood } from "../helpers/logHelpers";
+import { StyleSheet, View, type ViewStyle } from "react-native";
+import Animated from "react-native-reanimated";
+import type { EntryWithFood } from "../helpers/logHelpers";
 import type { WeightLog } from "../services/logDb";
-import DaySummaryCard from "./DaySummaryCard";
 import LogPhotosSection from "./LogPhotosSection";
 import type { RecipeGroup } from "./MealSection";
 import MealSection from "./MealSection";
@@ -16,7 +16,10 @@ import WeightSection from "./WeightSection";
 interface LogDayPageProps {
     width: number;
     grouped: Record<MealType, EntryWithFood[]>;
-    goals: Goals;
+    /** The header's scroll wiring: the main props for today's page, follower props for its neighbours. */
+    scroll: CollapsibleScrollProps | CollapsibleFollowerProps;
+    /** Room reserved for the header above the content. */
+    contentInset: ViewStyle;
     onAdd: (mt: MealType) => void;
     onEdit: (row: EntryWithFood) => void;
     onEditRecipeGroup: (group: RecipeGroup, multiplier: number) => void;
@@ -28,9 +31,6 @@ interface LogDayPageProps {
     onToggleEntries?: (entryIds: number[]) => void;
     onActivateSelection?: (entryId: number) => void;
     onActivateSelectionMultiple?: (entryIds: number[]) => void;
-    meanWeightKg?: number | null;
-    weightTrend?: "up" | "down" | "flat" | null;
-    weightDaysAgo?: number | null;
     weightLogs?: WeightLog[];
     onAddWeight?: (weightKg: number) => void;
     onDeleteWeight?: (id: number) => void;
@@ -42,7 +42,8 @@ interface LogDayPageProps {
 export default function LogDayPage({
     width,
     grouped,
-    goals,
+    scroll,
+    contentInset,
     onAdd,
     onEdit,
     onEditRecipeGroup,
@@ -54,9 +55,6 @@ export default function LogDayPage({
     onToggleEntries,
     onActivateSelection,
     onActivateSelectionMultiple,
-    meanWeightKg,
-    weightTrend,
-    weightDaysAgo,
     weightLogs,
     onAddWeight,
     onDeleteWeight,
@@ -64,13 +62,16 @@ export default function LogDayPage({
     onQuickAdd,
     workoutRefreshKey,
 }: LogDayPageProps) {
-    const totals = computeTotals(grouped);
     const hasWeightLogs = (weightLogs?.length ?? 0) > 0;
 
     return (
         <View style={[styles.dayPage, { width }]}>
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                <DaySummaryCard totals={totals} scheduledTotals={totals.scheduled} goals={goals} meanWeightKg={meanWeightKg} weightTrend={weightTrend} weightDaysAgo={weightDaysAgo} />
+            <Animated.ScrollView
+                {...scroll}
+                contentContainerStyle={[styles.content, contentInset]}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+            >
                 {MEAL_TYPES.map((meal) => (
                     <MealSection
                         key={meal.key}
@@ -93,12 +94,12 @@ export default function LogDayPage({
                 {hasWeightLogs && <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />}
                 {dateKey && <WorkoutSummarySection date={dateKey} refreshKey={workoutRefreshKey} onQuickAdd={onQuickAdd} hideWhenEmpty />}
                 <LogPhotosSection dateKey={dateKey} refreshKey={workoutRefreshKey} />
-            </ScrollView>
+            </Animated.ScrollView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     dayPage: {},
-    content: { paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: 180 },
+    content: { paddingHorizontal: screenPadding, paddingBottom: 180 },
 });

@@ -10,14 +10,18 @@ import { isShareConfigured, shareLogSelection } from "@/src/features/share/servi
 import Fab from "@/src/shared/atoms/Fab";
 import ActionSheet, { type ActionSheetItem } from "@/src/shared/components/ActionSheet";
 import ShareSheet from "@/src/shared/components/ShareSheet";
+import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { formatDateKey, shiftCalendarDate } from "@/src/utils/date";
 import { spacing, type ThemeColors } from "@/src/utils/theme";
 import { useBottomTabBarHeight } from "expo-router/js-tabs";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, BackHandler, Dimensions, ScrollView, StyleSheet, View } from "react-native";
+import DayCalorieBar from "../components/DayCalorieBar";
+import DaySummaryDetails from "../components/DaySummaryDetails";
+import DaySummaryHeadline from "../components/DaySummaryHeadline";
 import EntrySheet from "../components/EntrySheet";
 import LogDayPage from "../components/LogDayPage";
 import LogHeader from "../components/LogHeader";
@@ -25,6 +29,7 @@ import MoveCopySheet from "../components/MoveCopySheet";
 import PortionSheet from "../components/PortionSheet";
 import SelectionBar from "../components/SelectionBar";
 import WeightSheet from "../components/WeightSheet";
+import { computeTotals } from "../helpers/logHelpers";
 import { useLogData } from "../hooks/useLogData";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -45,6 +50,14 @@ export default function LogScreen() {
     const [shareAvailable, setShareAvailable] = useState(false);
     const [shareVisible, setShareVisible] = useState(false);
     const selectedDateKey = formatDateKey(d.selectedDate);
+    const header = useCollapsibleHeader();
+    const totals = computeTotals(d.grouped);
+
+    // A new day starts at its top, under the header as the user left it.
+    const { settle } = header;
+    useEffect(() => {
+        settle();
+    }, [selectedDateKey, settle]);
 
     // Re-checked on focus so signing in under Account and coming back
     // immediately enables the share action.
@@ -154,15 +167,29 @@ export default function LogScreen() {
         onDeleteRecipeLog: d.handleDeleteRecipeLog,
         onConfirmEntry: d.handleConfirmEntry,
         onConfirmRecipeLog: d.handleConfirmRecipeLog,
-        meanWeightKg: d.meanWeightKg,
-        weightTrend: d.weightTrend,
-        weightDaysAgo: d.weightDaysAgo,
         workoutRefreshKey: d.workoutRefreshKey,
+        contentInset: header.contentStyle,
     };
 
     return (
         <View style={styles.screen}>
-            <LogHeader date={d.selectedDate} onDateChange={d.handleDateChange} />
+            <LogHeader
+                date={d.selectedDate}
+                onDateChange={d.handleDateChange}
+                header={header}
+                summary={<DaySummaryHeadline totals={totals} scheduledTotals={totals.scheduled} goals={d.dailyGoals} />}
+                summaryFooter={<DayCalorieBar totals={totals} scheduledTotals={totals.scheduled} goals={d.dailyGoals} />}
+                details={
+                    <DaySummaryDetails
+                        totals={totals}
+                        scheduledTotals={totals.scheduled}
+                        goals={d.dailyGoals}
+                        meanWeightKg={d.meanWeightKg}
+                        weightTrend={d.weightTrend}
+                        weightDaysAgo={d.weightDaysAgo}
+                    />
+                }
+            />
 
             <ScrollView
                 ref={carouselRef}
@@ -171,16 +198,16 @@ export default function LogScreen() {
                 contentOffset={{ x: SCREEN_WIDTH, y: 0 }}
                 style={styles.carousel} scrollEnabled={!d.selectionMode}
             >
-                <LogDayPage {...dayPageProps} grouped={d.prevGrouped} goals={d.prevGoals}
+                <LogDayPage {...dayPageProps} grouped={d.prevGrouped} scroll={header.followerProps("prev")}
                     dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, -1))} />
-                <LogDayPage {...dayPageProps} grouped={d.grouped} goals={d.dailyGoals}
+                <LogDayPage {...dayPageProps} grouped={d.grouped} scroll={header.scrollProps}
                     selectionMode={d.selectionMode} selectedEntryIds={d.selectedEntryIds}
                     onToggleEntries={d.handleToggleEntries} onActivateSelection={d.handleActivateSelection}
                     onActivateSelectionMultiple={d.handleActivateSelectionMultiple}
                     weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight}
                     dateKey={selectedDateKey}
                     onQuickAdd={() => setShowAddExercise(true)} />
-                <LogDayPage {...dayPageProps} grouped={d.nextGrouped} goals={d.nextGoals}
+                <LogDayPage {...dayPageProps} grouped={d.nextGrouped} scroll={header.followerProps("next")}
                     dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, +1))} />
             </ScrollView>
 

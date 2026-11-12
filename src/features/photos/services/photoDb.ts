@@ -1,7 +1,7 @@
 import { db } from "@/src/services/db";
 import { progressPhotos, workouts } from "@/src/services/db/schema";
 import { parseDateKey } from "@/src/utils/date";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 import type { PhotoWithRelations } from "../types";
 
 type Photo = typeof progressPhotos.$inferSelect;
@@ -24,6 +24,11 @@ export function createPhotoForDate(photo: Omit<NewPhoto, "created_at" | "updated
         .values({ ...photo, created_at: createdAt, updated_at: createdAt })
         .returning()
         .get();
+}
+
+export function getPhotoCount(): number {
+    const row = db.select({ count: sql<number>`COUNT(*)` }).from(progressPhotos).get();
+    return row?.count ?? 0;
 }
 
 export function getPhotoById(id: number): Photo | undefined {

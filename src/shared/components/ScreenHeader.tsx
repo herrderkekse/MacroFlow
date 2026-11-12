@@ -26,6 +26,8 @@ interface ScreenHeaderProps {
     right?: React.ReactNode;
     /** Rendered below the title row and scrolls with nothing: search, filters. */
     children?: React.ReactNode;
+    /** Set to false when a wrapper (e.g. `CollapsibleHeader`) already pads for the status bar. */
+    safeArea?: boolean;
 }
 
 /** Line box of a large title; header actions centre against it. */
@@ -50,6 +52,7 @@ export default function ScreenHeader({
     onTitlePress,
     right,
     children,
+    safeArea = true,
 }: ScreenHeaderProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
@@ -78,7 +81,7 @@ export default function ScreenHeader({
     );
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.container, { paddingTop: safeArea ? insets.top : 0 }]}>
             <View style={[styles.row, isLarge ? styles.rowLarge : styles.rowDefault]}>
                 {!isLarge && (
                     <IconButton

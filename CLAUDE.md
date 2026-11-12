@@ -58,7 +58,7 @@ Full conventions (naming, file-size limits, styling, i18n, import order) are doc
 
 Screens are assembled from shared parts in `src/shared/` — read the "UI System" section of [CONTRIBUTING.md](CONTRIBUTING.md) before adding or changing UI. The load-bearing rules:
 
-- Every screen renders `ScreenHeader` as its first child (`variant="large"` on the three tab roots); navigators never draw headers and screens never read `insets.top`.
+- Every screen renders `ScreenHeader` as its first child; the three tab roots render `CollapsibleHeader` instead (large title + a card whose summary stays pinned while its details and the title scroll away, driven by `useCollapsibleHeader`). Navigators never draw headers and screens never read `insets.top`.
 - Only the three tab roots (Library, Log, More) live in `app/(tabs)/`. Everything else is a pushed screen (`app/settings/*`, `app/log/*`, …) that covers the tab bar.
 - In-context tasks (edit a value, pick from a list, share) are a `Sheet`; a choice among actions is an `ActionSheet`; `Alert.alert` is for destructive yes/no confirmation only. Don't hand-roll a `Modal` except for immersive media (camera, photo viewer).
 - A form's main action goes in `FooterBar` (or a sheet's `footer`); optional/advanced fields go behind `Disclosure`; secondary actions on list items go behind one "more" button.
