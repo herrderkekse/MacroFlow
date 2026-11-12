@@ -55,7 +55,7 @@ export default function ListRow({
             )}
             <View style={styles.main}>
                 <Text style={[styles.title, { color: tint }]} numberOfLines={1}>{title}</Text>
-                {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
+                {subtitle ? <Text style={styles.subtitle} numberOfLines={3}>{subtitle}</Text> : null}
             </View>
             {right}
             {!right && value ? <Text style={styles.value} numberOfLines={1}>{value}</Text> : null}
