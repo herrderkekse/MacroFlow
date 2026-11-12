@@ -27,9 +27,9 @@ interface RecipeGroupRowProps {
 }
 
 /**
- * A logged recipe: one row with the recipe's totals that opens into its
- * ingredients. The less common actions (adjust portions, delete) only
- * appear once it is open.
+ * A logged recipe: one row with the recipe's totals. Tapping it adjusts the
+ * portion; its right-hand column opens the ingredients, under which the
+ * less common actions (adjust portions, delete) appear.
  */
 export default function RecipeGroupRow({
     group,
@@ -83,7 +83,9 @@ export default function RecipeGroupRow({
                     pressed && styles.pressed,
                 ]}
                 onPress={() => {
+                    // The left side adjusts the portion; the right-hand column opens the ingredients.
                     if (selectionMode) selection?.toggleEntries(allGroupEntryIds);
+                    else if (onEditRecipeGroup) onEditRecipeGroup(group, multiplier);
                     else setExpanded(!expanded);
                 }}
                 onLongPress={() => {
