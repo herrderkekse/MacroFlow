@@ -53,7 +53,7 @@ export default function AnalyticsScreen() {
 
     return (
         <View style={styles.container}>
-            <ScreenHeader variant="large" title={t("nav.analytics")} />
+            <ScreenHeader title={t("more.analytics")} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <ScrollView

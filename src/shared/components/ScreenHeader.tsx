@@ -28,6 +28,9 @@ interface ScreenHeaderProps {
     children?: React.ReactNode;
 }
 
+/** Line box of a large title; header actions centre against it. */
+const LARGE_TITLE_LINE_HEIGHT = 36;
+
 function goBack() {
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)");
@@ -96,7 +99,7 @@ export default function ScreenHeader({
                 ) : (
                     <View style={styles.titlePressable}>{titleBlock}</View>
                 )}
-                {right ? <View style={styles.right}>{right}</View> : null}
+                {right ? <View style={[styles.right, isLarge && styles.rightLarge]}>{right}</View> : null}
             </View>
             {children ? <View style={styles.below}>{children}</View> : null}
         </View>
@@ -111,7 +114,15 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             paddingRight: screenPadding - spacing.sm,
         },
-        rowLarge: { minHeight: 64, paddingLeft: screenPadding, paddingTop: spacing.sm },
+        // Top-aligned, so the title starts at the same height on every tab
+        // whether or not a subtitle sits under it.
+        rowLarge: {
+            alignItems: "flex-start",
+            minHeight: 64,
+            paddingLeft: screenPadding,
+            paddingTop: spacing.sm,
+            paddingBottom: spacing.xs,
+        },
         rowDefault: { minHeight: 56, paddingLeft: screenPadding - spacing.sm },
         backButton: { marginRight: spacing.xs },
         titlePressable: { flex: 1, justifyContent: "center" },
@@ -121,6 +132,7 @@ function createStyles(colors: ThemeColors) {
         largeTitle: {
             flexShrink: 1,
             fontSize: fontSize.xxl,
+            lineHeight: LARGE_TITLE_LINE_HEIGHT,
             fontWeight: "700",
             letterSpacing: -0.6,
             color: colors.text,
@@ -134,6 +146,8 @@ function createStyles(colors: ThemeColors) {
         },
         subtitle: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 1 },
         right: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginLeft: spacing.sm },
+        // Centred on the title line rather than on the whole title block.
+        rightLarge: { height: LARGE_TITLE_LINE_HEIGHT },
         below: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.sm },
     });
 }

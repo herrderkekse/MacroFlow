@@ -27,6 +27,7 @@ const MENU: MenuGroup[] = [
     {
         titleKey: "more.groupYou",
         items: [
+            { icon: "stats-chart-outline", labelKey: "more.analytics", descriptionKey: "more.analyticsDescription", route: "/analytics" },
             { icon: "flag-outline", labelKey: "more.goals", descriptionKey: "more.goalsDescription", route: "/settings/goals" },
             { icon: "person-circle-outline", labelKey: "more.account", descriptionKey: "more.accountDescription", route: "/settings/account" },
         ],
@@ -55,7 +56,7 @@ export default function MoreScreen() {
 
     return (
         <View style={[styles.screen, { backgroundColor: colors.background }]}>
-            <ScreenHeader variant="large" title={t("nav.more")} />
+            <ScreenHeader variant="large" title={t("nav.more")} subtitle={t("more.subtitle")} />
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 {MENU.map((group, index) => (
                     <View key={group.titleKey}>

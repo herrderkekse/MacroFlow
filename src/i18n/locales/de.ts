@@ -2,7 +2,6 @@ const de = {
     nav: {
         logs: "Protokoll",
         templates: "Bibliothek",
-        analytics: "Trends",
         settings: "Einstellungen",
         more: "Mehr",
     },
@@ -429,12 +428,14 @@ const de = {
         nextMonth: "Nächster Monat",
     },
     more: {
+        subtitle: "Trends, Ziele, Coach und Einstellungen",
         groupYou: "Du",
         groupCoach: "KI-Coach",
         groupApp: "App",
         account: "Konto & Sync",
         accountDescription: "Daten auf allen Geräten aktuell halten",
         analytics: "Trends",
+        analyticsDescription: "Kalorien, Makros und Gewicht im Verlauf",
         goals: "Ziele",
         goalsDescription: "Tägliche Kalorien- und Makroziele",
         backup: "Sichern & Wiederherstellen",

@@ -3,7 +3,6 @@ const en = {
     nav: {
         logs: "Log",
         templates: "Library",
-        analytics: "Trends",
         settings: "Settings",
         more: "More",
     },
@@ -430,12 +429,14 @@ const en = {
         nextMonth: "Next month",
     },
     more: {
+        subtitle: "Trends, goals, coach and settings",
         groupYou: "You",
         groupCoach: "AI coach",
         groupApp: "App",
         account: "Account & sync",
         accountDescription: "Keep your data in step across devices",
         analytics: "Trends",
+        analyticsDescription: "Calories, macros and weight over time",
         goals: "Goals",
         goalsDescription: "Daily calorie and macro targets",
         backup: "Backup & restore",

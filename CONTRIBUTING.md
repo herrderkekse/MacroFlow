@@ -85,12 +85,12 @@ app/
 ├─ _layout.tsx                          # root layout: providers, status bar, root stack
 ├─ index.tsx                            # redirect → /(tabs)
 ├─ db-test.tsx                          # debug-only screen (remove before 1.0)
+├─ analytics.tsx                        # → AnalyticsScreen (Trends, opened from More)
 ├─ meal-plan.tsx                        # → MealPlanScreen
-├─ (tabs)/                              # the four tab roots — nothing else lives here
-│  ├─ _layout.tsx                       # bottom-tab navigator
-│  ├─ index.tsx                         # → LogScreen
+├─ (tabs)/                              # the three tab roots — nothing else lives here
+│  ├─ _layout.tsx                       # bottom-tab navigator: Library · Log · More
+│  ├─ index.tsx                         # → LogScreen (home, the middle tab)
 │  ├─ templates.tsx                     # → TemplatesScreen (Library)
-│  ├─ analytics.tsx                     # → AnalyticsScreen (Trends)
 │  └─ more.tsx                          # → MoreScreen
 ├─ settings/
 │  ├─ index.tsx                         # → SettingsScreen
@@ -115,7 +115,7 @@ app/
 └─ share/[token].tsx                    # → ImportScreen (share deep link)
 ```
 
-Every folder's `_layout.tsx` is a bare `Stack` with `headerShown: false`: the navigator never draws a header, each screen renders the shared `ScreenHeader` itself (see §UI System). Anything that is not one of the four tab roots is pushed onto a stack and covers the tab bar.
+Every folder's `_layout.tsx` is a bare `Stack` with `headerShown: false`: the navigator never draws a header, each screen renders the shared `ScreenHeader` itself (see §UI System). Anything that is not one of the three tab roots is pushed onto a stack and covers the tab bar.
 
 **Route file pattern** (every file except `_layout.tsx` looks like this):
 
@@ -334,7 +334,7 @@ Every screen is assembled from the same parts, so that a header, a search field 
 
 | The user is… | Use | Notes |
 | --- | --- | --- |
-| at one of the four tab roots | a tab screen with `<ScreenHeader variant="large">` | Log, Library, Trends, More |
+| at one of the three tab roots | a tab screen with `<ScreenHeader variant="large">` and a `subtitle` | Library, Log, More |
 | going a level deeper, or working on something with its own lifecycle (an editor, a workout, settings) | a **pushed screen** with `<ScreenHeader>` | covers the tab bar; back returns |
 | doing something *in the context of* the current screen: edit one value, pick from a list, choose how much / which meal, share | a **`Sheet`** | never a centred pop-up, never a hand-rolled `Modal` |
 | choosing one of several actions (the "+" of a tab, a "more" menu, bulk actions) | an **`ActionSheet`** | every action has an icon *and* a label |

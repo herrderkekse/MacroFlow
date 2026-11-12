@@ -154,7 +154,7 @@ export default function TemplatesScreen() {
 
     return (
         <View style={styles.screen}>
-            <ScreenHeader variant="large" title={t("templates.title")}>
+            <ScreenHeader variant="large" title={t("templates.title")} subtitle={t("common.itemCount", { count: list.items.length })}>
                 <SearchBar
                     value={list.query}
                     onChangeText={list.setQuery}

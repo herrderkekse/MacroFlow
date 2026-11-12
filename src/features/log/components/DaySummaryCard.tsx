@@ -37,8 +37,8 @@ interface DaySummaryCardProps {
 const TREND_ICON = { up: "arrow-up", down: "arrow-down", flat: "arrow-forward" } as const;
 
 /**
- * The day at a glance: calories against the goal, then the three macros.
- * Tapping it reveals the secondary figures — the macro split and the
+ * The day at a glance: calories against the goal. Tapping it reveals the
+ * rest — the three macros against their goals, the macro split and the
  * current weight trend.
  */
 export default function DaySummaryCard({
@@ -101,28 +101,27 @@ export default function DaySummaryCard({
                     colors={colors}
                 />
 
-                <View style={styles.macros}>
-                    {MACROS.map((macro) => (
-                        <View key={macro} style={styles.macro}>
-                            <Text style={styles.macroLabel} numberOfLines={1}>{t(`common.${macro}`)}</Text>
-                            <Text style={styles.macroValue} numberOfLines={1}>
-                                {Math.round(eaten[macro])}
-                                <Text style={styles.macroGoal}> / {Math.round(goals[macro])} {t("common.g")}</Text>
-                            </Text>
-                            <ProgressTrack
-                                value={eaten[macro]}
-                                planned={planned[macro]}
-                                goal={goals[macro]}
-                                color={colors[macro]}
-                                height={4}
-                                colors={colors}
-                            />
-                        </View>
-                    ))}
-                </View>
-
                 {expanded && (
                     <View style={styles.details}>
+                        <View style={styles.macros}>
+                        {MACROS.map((macro) => (
+                            <View key={macro} style={styles.macro}>
+                                <Text style={styles.macroLabel} numberOfLines={1}>{t(`common.${macro}`)}</Text>
+                                <Text style={styles.macroValue} numberOfLines={1}>
+                                    {Math.round(eaten[macro])}
+                                    <Text style={styles.macroGoal}> / {Math.round(goals[macro])} {t("common.g")}</Text>
+                                </Text>
+                                <ProgressTrack
+                                    value={eaten[macro]}
+                                    planned={planned[macro]}
+                                    goal={goals[macro]}
+                                    color={colors[macro]}
+                                    height={4}
+                                    colors={colors}
+                                />
+                            </View>
+                        ))}
+                        </View>
                         <MacroSplitBar
                             protein={eaten.protein}
                             carbs={eaten.carbs}
@@ -208,7 +207,7 @@ function createStyles(colors: ThemeColors) {
             color: colors.text,
             fontVariant: ["tabular-nums"],
         },
-        macros: { flexDirection: "row", gap: spacing.md, marginTop: spacing.md },
+        macros: { flexDirection: "row", gap: spacing.md },
         macro: { flex: 1, gap: 4 },
         macroLabel: { fontSize: fontSize.xs, color: colors.textSecondary },
         macroValue: {

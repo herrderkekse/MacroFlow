@@ -13,7 +13,6 @@ type IconName = React.ComponentProps<typeof Ionicons>["name"];
 const TAB_ICONS: Record<string, { idle: IconName; active: IconName }> = {
     index: { idle: "today-outline", active: "today" },
     templates: { idle: "library-outline", active: "library" },
-    analytics: { idle: "stats-chart-outline", active: "stats-chart" },
     more: { idle: "ellipsis-horizontal-circle-outline", active: "ellipsis-horizontal-circle" },
 };
 
@@ -59,9 +58,9 @@ export default function TabsLayout() {
                 },
             })}
         >
-            <Tabs.Screen name="index" options={{ title: t("nav.logs") }} />
+            {/* The log is the home tab and sits in the middle, under the thumb. */}
             <Tabs.Screen name="templates" options={{ title: t("nav.templates") }} />
-            <Tabs.Screen name="analytics" options={{ title: t("nav.analytics") }} />
+            <Tabs.Screen name="index" options={{ title: t("nav.logs") }} />
             <Tabs.Screen name="more" options={{ title: t("nav.more") }} />
         </Tabs>
     );
