@@ -1,4 +1,5 @@
 import Button from "@/src/shared/atoms/Button";
+import ActionSheet from "@/src/shared/components/ActionSheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { parseDateKey } from "@/src/utils/date";
@@ -6,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import AddExerciseSheet from "../components/AddExerciseSheet";
 import EditWorkoutTimesSheet from "../components/EditWorkoutTimesSheet";
@@ -51,6 +52,7 @@ export default function WorkoutScreen() {
     // Set while the add-exercise sheet is picking the second exercise for a superset (base's id).
     const [supersetBaseId, setSupersetBaseId] = useState<number | null>(null);
     const [showTimesModal, setShowTimesModal] = useState(false);
+    const [showLeaveSheet, setShowLeaveSheet] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
     // Focus state: which exercise is expanded (null = none)
@@ -122,16 +124,8 @@ export default function WorkoutScreen() {
         const isInProgress = workoutData?.workout && !workoutData.workout.ended_at;
         if (!isInProgress) { router.back(); return; }
 
-        Alert.alert(
-            t("exercise.workout.leaveTitle"),
-            t("exercise.workout.leaveMessage"),
-            [
-                { text: t("exercise.workout.leaveContinue"), style: "cancel" },
-                { text: t("exercise.workout.leaveFinish"), onPress: () => { finishCurrentWorkout(); router.back(); } },
-                { text: t("exercise.workout.leaveWithout"), style: "destructive", onPress: () => router.back() },
-            ],
-        );
-    }, [finishCurrentWorkout, router, t, workoutData]);
+        setShowLeaveSheet(true);
+    }, [router, workoutData]);
 
     useFocusEffect(
         useCallback(() => {
@@ -296,6 +290,34 @@ export default function WorkoutScreen() {
                         />
                     ) : null
                 }
+            />
+
+            {/* Leaving mid-workout: closing the sheet is "keep going". */}
+            <ActionSheet
+                visible={showLeaveSheet}
+                onClose={() => setShowLeaveSheet(false)}
+                title={t("exercise.workout.leaveTitle")}
+                subtitle={t("exercise.workout.leaveMessage")}
+                actions={[
+                    {
+                        key: "finish",
+                        icon: "checkmark-done-outline",
+                        label: t("exercise.workout.leaveFinish"),
+                        onPress: () => { finishCurrentWorkout(); router.back(); },
+                    },
+                    {
+                        key: "leave",
+                        icon: "exit-outline",
+                        label: t("exercise.workout.leaveWithout"),
+                        onPress: () => router.back(),
+                    },
+                    {
+                        key: "continue",
+                        icon: "play-outline",
+                        label: t("exercise.workout.leaveContinue"),
+                        onPress: () => { },
+                    },
+                ]}
             />
 
             <AddExerciseSheet

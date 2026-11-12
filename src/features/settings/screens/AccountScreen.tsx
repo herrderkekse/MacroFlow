@@ -155,7 +155,7 @@ export default function AccountScreen() {
             style={styles.screen}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-            <ScreenHeader title={t("account.title")} />
+            <ScreenHeader title={t("more.account")} />
             <ScrollView
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"

@@ -185,7 +185,7 @@ export default function MealPlanScreen() {
 
     return (
         <View style={styles.screen}>
-            <ScreenHeader title={t("ai.mealPlan")} />
+            <ScreenHeader title={t("more.mealPlan")} />
             <ScrollView
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"

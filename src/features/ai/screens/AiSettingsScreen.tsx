@@ -137,7 +137,7 @@ export default function AiSettingsScreen() {
 
     return (
         <View style={styles.screen}>
-            <ScreenHeader title={t("ai.settings")} />
+            <ScreenHeader title={t("more.aiSettings")} />
             <ScrollView
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"

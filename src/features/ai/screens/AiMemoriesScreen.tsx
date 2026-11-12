@@ -64,7 +64,7 @@ export default function AiMemoriesScreen() {
     return (
         <View style={styles.screen}>
             <ScreenHeader
-                title={t("memory.title")}
+                title={t("more.aiMemories")}
                 right={<IconButton icon="add" label={t("memory.add")} onPress={() => setIsAdding(true)} />}
             />
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

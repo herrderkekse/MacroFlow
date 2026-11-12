@@ -20,7 +20,7 @@ export default function Toggle({ value, onValueChange, disabled, label }: Toggle
             disabled={disabled}
             accessibilityLabel={label}
             trackColor={{ false: colors.borderStrong, true: colors.primary }}
-            thumbColor={value ? colors.onPrimary : colors.surface}
+            thumbColor={value ? colors.onPrimary : colors.textTertiary}
             ios_backgroundColor={colors.borderStrong}
         />
     );

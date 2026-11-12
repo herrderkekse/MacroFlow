@@ -1,7 +1,7 @@
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { darkColors, lightColors, type ThemeColors } from "@/src/utils/theme";
-import React, { createContext, useContext, useMemo } from "react";
-import { useColorScheme } from "react-native";
+import React, { createContext, useContext, useEffect, useMemo } from "react";
+import { Appearance, useColorScheme } from "react-native";
 
 const ThemeContext = createContext<ThemeColors>(lightColors);
 
@@ -15,6 +15,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
         return appearanceMode === "dark" ? darkColors : lightColors;
     }, [appearanceMode, systemScheme]);
+
+    // Native surfaces (alerts, pickers, the keyboard) take their theme from the
+    // platform, so the in-app choice is handed down to it as well.
+    useEffect(() => {
+        Appearance.setColorScheme(appearanceMode === "system" ? "unspecified" : appearanceMode);
+    }, [appearanceMode]);
 
     return (
         <ThemeContext.Provider value={colors}>

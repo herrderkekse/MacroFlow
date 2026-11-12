@@ -3,7 +3,7 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -90,7 +90,25 @@ function SheetBody({
     const insets = useSafeAreaInsets();
     const { height: windowHeight } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const maxHeight = Math.round((windowHeight - insets.top) * MAX_HEIGHT_FRACTION);
+    // A modal is its own window and nothing resizes it for the keyboard, so
+    // the sheet lifts itself: the whole sheet sits on top of the keyboard and
+    // may use all the room that is left above it.
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    useEffect(() => {
+        const shown = Keyboard.addListener("keyboardDidShow", (e) => setKeyboardHeight(e.endCoordinates.height));
+        const hidden = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
+        return () => {
+            shown.remove();
+            hidden.remove();
+        };
+    }, []);
+    const isKeyboardOpen = keyboardHeight > 0;
+    const availableHeight = windowHeight - insets.top - keyboardHeight;
+    const maxHeight = isKeyboardOpen
+        ? availableHeight - spacing.sm
+        : Math.round(availableHeight * MAX_HEIGHT_FRACTION);
+    // Above the keyboard there is no system navigation to clear.
+    const bottomInset = (isKeyboardOpen ? 0 : insets.bottom) + spacing.md;
 
     // Starts one window down, so the first frame is already off-screen.
     const offset = useSharedValue(windowHeight);
@@ -130,12 +148,12 @@ function SheetBody({
     const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
     const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
 
-    const contentStyle = [padded && styles.padded, !footer && { paddingBottom: insets.bottom + spacing.md }];
+    const contentStyle = [padded && styles.padded, !footer && { paddingBottom: bottomInset }];
 
     return (
         // A Modal is its own view hierarchy, so gestures inside it need their
         // own gesture root.
-        <GestureHandlerRootView style={styles.root}>
+        <GestureHandlerRootView style={[styles.root, { paddingBottom: keyboardHeight }]}>
             <Animated.View style={[styles.backdrop, backdropStyle]}>
                 <Pressable style={styles.fill} onPress={onClose} accessibilityLabel={t("common.close")} />
             </Animated.View>
@@ -176,7 +194,7 @@ function SheetBody({
                 )}
 
                 {footer ? (
-                    <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>{footer}</View>
+                    <View style={[styles.footer, { paddingBottom: bottomInset }]}>{footer}</View>
                 ) : null}
             </Animated.View>
         </GestureHandlerRootView>
