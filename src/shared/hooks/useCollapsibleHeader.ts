@@ -1,6 +1,13 @@
+import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayoutChangeEvent, StyleProp, ViewStyle } from "react-native";
-import { useAnimatedScrollHandler, useSharedValue, type SharedValue } from "react-native-reanimated";
+import Animated, {
+    scrollTo,
+    useAnimatedRef,
+    useAnimatedScrollHandler,
+    useSharedValue,
+    type SharedValue,
+} from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
 /** A ScrollView or FlatList instance — whichever the screen scrolls with. */
@@ -162,14 +169,32 @@ export function useCollapsibleHeader(): CollapsibleHeaderController {
 
     const setBaseHeight = useCallback((h: number) => update({ base: h }), [update]);
 
+    const animatedRef = useAnimatedRef<Animated.ScrollView>();
+    // Set when a gesture starts below the resting offset: neither the drag nor
+    // its fling may go past rest, so opening the details always takes a
+    // gesture of its own that starts there.
+    const stopAtRest = useSharedValue(false);
+
     const onScroll = useAnimatedScrollHandler({
+        onBeginDrag: (e) => {
+            stopAtRest.set(e.contentOffset.y > detailsH.get() + 1);
+        },
         onScroll: (e) => {
-            scrollY.set(e.contentOffset.y);
+            const y = e.contentOffset.y;
+            const rest = detailsH.get();
+            if (stopAtRest.get() && y < rest) {
+                scrollTo(animatedRef, 0, rest, false);
+                scrollY.set(rest);
+                scheduleOnRN(syncFollowers, rest);
+                return;
+            }
+            scrollY.set(y);
         },
         onEndDrag: (e) => {
             scheduleOnRN(syncFollowers, e.contentOffset.y);
         },
         onMomentumEnd: (e) => {
+            stopAtRest.set(false);
             scheduleOnRN(syncFollowers, e.contentOffset.y);
         },
     });
@@ -178,20 +203,24 @@ export function useCollapsibleHeader(): CollapsibleHeaderController {
         const details = Math.max(0, mRef.current.details);
         // Open if the details are mostly hidden, otherwise tuck them away.
         const target = scrollY.get() > details / 2 ? 0 : details;
+        stopAtRest.set(false);
         scrollNode(primary.current, target, true);
         syncFollowers(target);
-    }, [scrollY, syncFollowers]);
+    }, [scrollY, stopAtRest, syncFollowers]);
 
     const settle = useCallback(() => {
         if (!parked.current) return;
+        stopAtRest.set(false);
         const target = Math.min(Math.max(0, scrollY.get()), collapsedAt());
         if (target !== scrollY.get()) scrollNode(primary.current, target, false);
         syncFollowers(target);
-    }, [scrollY, syncFollowers]);
+    }, [scrollY, stopAtRest, syncFollowers]);
 
     const scrollProps = useMemo<CollapsibleScrollProps>(() => ({
         ref: (node) => {
             primary.current = node;
+            // The same view, for scrolling from the UI thread.
+            (animatedRef as unknown as (n: Scrollable | null) => void)(node);
         },
         onScroll,
         scrollEventThrottle: 16,
@@ -204,7 +233,7 @@ export function useCollapsibleHeader(): CollapsibleHeaderController {
             tryPark();
         },
         style: ready ? undefined : HIDDEN,
-    }), [onScroll, ready, tryPark, update]);
+    }), [animatedRef, onScroll, ready, tryPark, update]);
 
     const followerProps = useCallback((key: string): CollapsibleFollowerProps => ({
         ref: (node) => {
@@ -214,6 +243,18 @@ export function useCollapsibleHeader(): CollapsibleHeaderController {
             if (parked.current) scrollNode(followers.current.get(key), Math.min(Math.max(0, scrollY.get()), collapsedAt()), false);
         },
     }), [scrollY]);
+
+    // Leaving the tab tucks open details away, so it is back at rest on return.
+    useFocusEffect(
+        useCallback(() => () => {
+            const rest = Math.max(0, mRef.current.details);
+            if (!parked.current || scrollY.get() >= rest) return;
+            stopAtRest.set(false);
+            scrollNode(primary.current, rest, false);
+            scrollY.set(rest);
+            syncFollowers(rest);
+        }, [scrollY, stopAtRest, syncFollowers]),
+    );
 
     // Re-check parking whenever a measurement lands.
     useEffect(() => {
