@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { useTranslation } from "react-i18next";
 import { Alert, Keyboard, type FlatList, type ScrollView, type TextInput } from "react-native";
 import type { AiToolCall } from "../helpers/tools";
-import { loadAiConfig } from "../services/aiConfig";
+import { loadAiConfig, loadShowChatOnLog } from "../services/aiConfig";
 import type { UiChatMessage } from "../services/chat";
 import {
     addChatMessage,
@@ -104,8 +104,9 @@ export function useChatSession({ onVisibilityChange, onDataChanged, sessionListR
     // ── AI config check ───────────────────────────────────
     useFocusEffect(
         useCallback(() => {
-            loadAiConfig().then((config) => {
-                const visible = !!config?.apiKey;
+            // Hidden without a provider, or when turned off in AI settings.
+            Promise.all([loadAiConfig(), loadShowChatOnLog()]).then(([config, showOnLog]) => {
+                const visible = !!config?.apiKey && showOnLog;
                 setHasAiConfig(visible);
                 onVisibilityChange?.(visible);
             });

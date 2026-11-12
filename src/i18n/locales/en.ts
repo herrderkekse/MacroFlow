@@ -715,6 +715,8 @@ const en = {
         apiKeyRequired: "Please enter an API key.",
         baseUrl: "Base URL",
         model: "Model",
+        showChatOnLog: "Chat on the log",
+        showChatOnLogDescription: "Show the AI chat bubble at the bottom of the log",
         testConnection: "Test connection",
         connectionSuccess: "Connection successful!",
         connectionFailed: "Connection failed",

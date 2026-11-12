@@ -2,7 +2,10 @@ import Button from "@/src/shared/atoms/Button";
 import FieldLabel from "@/src/shared/atoms/FieldLabel";
 import Input from "@/src/shared/atoms/Input";
 import Notice from "@/src/shared/atoms/Notice";
+import Toggle from "@/src/shared/atoms/Toggle";
 import FooterBar from "@/src/shared/components/FooterBar";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
 import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
@@ -17,8 +20,10 @@ import {
     getProviderDefaults,
     loadActiveProvider,
     loadProviderSettings,
+    loadShowChatOnLog,
     saveActiveProvider,
     saveProviderSettings,
+    saveShowChatOnLog,
     type AiProviderId,
     type ProviderSettings,
 } from "../services/aiConfig";
@@ -43,6 +48,7 @@ export default function AiSettingsScreen() {
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    const [showChatOnLog, setShowChatOnLog] = useState(true);
 
     const current: ProviderSettings = configs[provider] ?? { apiKey: "", ...getProviderDefaults(provider) };
 
@@ -57,10 +63,17 @@ export default function AiSettingsScreen() {
             }
             setProvider(active);
             setConfigs(drafts);
+            setShowChatOnLog(await loadShowChatOnLog());
             setLoaded(true);
         }
         init();
     }, []);
+
+    // Takes effect on its own, unlike the provider fields that wait for Save.
+    function handleShowChatChange(show: boolean) {
+        setShowChatOnLog(show);
+        saveShowChatOnLog(show);
+    }
 
     function updateField(field: keyof ProviderSettings, value: string) {
         setConfigs((prev) => ({
@@ -177,6 +190,14 @@ export default function AiSettingsScreen() {
                     autoCorrect={false}
                     containerStyle={styles.field}
                 />
+
+                <ListGroup style={styles.field}>
+                    <ListRow
+                        title={t("ai.showChatOnLog")}
+                        subtitle={t("ai.showChatOnLogDescription")}
+                        right={<Toggle value={showChatOnLog} onValueChange={handleShowChatChange} label={t("ai.showChatOnLog")} />}
+                    />
+                </ListGroup>
 
                 {current.apiKey.trim().length > 0 && (
                     <Button

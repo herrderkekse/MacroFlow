@@ -715,6 +715,8 @@ const de = {
         apiKeyRequired: "Bitte gib einen API-Schlüssel ein.",
         baseUrl: "Basis-URL",
         model: "Modell",
+        showChatOnLog: "Chat im Protokoll",
+        showChatOnLogDescription: "Die KI-Chatblase unten im Protokoll anzeigen",
         testConnection: "Verbindung testen",
         connectionSuccess: "Verbindung erfolgreich!",
         connectionFailed: "Verbindung fehlgeschlagen",

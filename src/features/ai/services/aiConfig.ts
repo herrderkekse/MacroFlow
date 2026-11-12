@@ -14,6 +14,8 @@ export type ProviderSettings = { apiKey: string; baseUrl: string; model: string 
 /** Legacy key kept only for one-time migration. */
 const LEGACY_STORE_KEY = "ai_provider_config";
 const ACTIVE_PROVIDER_KEY = "ai_active_provider";
+/** Not a secret; kept here so all AI settings live in one place. */
+const SHOW_CHAT_ON_LOG_KEY = "ai_show_chat_on_log";
 
 function configKeyFor(id: AiProviderId): string {
     return `ai_config_${id}`;
@@ -46,6 +48,15 @@ export async function loadActiveProvider(): Promise<AiProviderId> {
 
 export async function saveActiveProvider(id: AiProviderId): Promise<void> {
     await SecureStore.setItemAsync(ACTIVE_PROVIDER_KEY, id);
+}
+
+/** Whether the log shows the AI chat bubble (when a provider is set up). On unless turned off. */
+export async function loadShowChatOnLog(): Promise<boolean> {
+    return (await SecureStore.getItemAsync(SHOW_CHAT_ON_LOG_KEY)) !== "0";
+}
+
+export async function saveShowChatOnLog(show: boolean): Promise<void> {
+    await SecureStore.setItemAsync(SHOW_CHAT_ON_LOG_KEY, show ? "1" : "0");
 }
 
 // ── Aggregate helpers (backward-compatible) ───────────────
