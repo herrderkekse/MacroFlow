@@ -1,11 +1,12 @@
 import Button from "@/src/shared/atoms/Button";
 import Chip from "@/src/shared/atoms/Chip";
 import FieldLabel from "@/src/shared/atoms/FieldLabel";
-import type { IconName } from "@/src/shared/atoms/IconButton";
+import ChipRow from "@/src/shared/components/ChipRow";
 import DateField from "@/src/shared/components/DateField";
+import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import Sheet from "@/src/shared/components/Sheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { MEAL_TYPES } from "@/src/shared/types";
+import { MEAL_TYPES, type MealType } from "@/src/shared/types";
 import { spacing } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -95,29 +96,21 @@ export default function MoveCopySheet({
             <DateField value={targetDate} onChange={setTargetDate} />
 
             <FieldLabel>{t("log.selectMeal")}</FieldLabel>
-            <View style={styles.chipWrap}>
-                <Chip
-                    label={t("log.keepMeal")}
-                    icon="swap-horizontal-outline"
-                    selected={selectedMeal === null}
-                    onPress={() => setSelectedMeal(null)}
-                />
-                {MEAL_TYPES.map((meal) => (
-                    <Chip
-                        key={meal.key}
-                        label={t(`meal.${meal.key}`)}
-                        icon={meal.icon as IconName}
-                        selected={selectedMeal === meal.key}
-                        onPress={() => setSelectedMeal(meal.key)}
-                    />
-                ))}
-            </View>
+            {/* "Keep" leaves every entry in the meal it is in now. */}
+            <SegmentedControl<MealType | "keep">
+                options={[
+                    { key: "keep", label: t("log.keepMeal") },
+                    ...MEAL_TYPES.map((meal) => ({ key: meal.key, label: t(`meal.${meal.key}`) })),
+                ]}
+                value={(selectedMeal as MealType | null) ?? "keep"}
+                onChange={(key) => setSelectedMeal(key === "keep" ? null : key)}
+            />
 
             {/* Only a specific meal can hold recipes to move into. */}
             {selectedMeal !== null && recipeGroups.length > 0 && (
                 <>
                     <FieldLabel>{t("log.selectRecipe")}</FieldLabel>
-                    <View style={styles.chipWrap}>
+                    <ChipRow>
                         <Chip
                             label={t("log.noRecipe")}
                             selected={selectedRecipeLogId === null}
@@ -136,7 +129,7 @@ export default function MoveCopySheet({
                                 />
                             );
                         })}
-                    </View>
+                    </ChipRow>
                 </>
             )}
             <View style={styles.bottomSpace} />
@@ -146,7 +139,6 @@ export default function MoveCopySheet({
 
 const styles = StyleSheet.create({
     firstField: { marginTop: 0 },
-    chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     actions: { flexDirection: "row", gap: spacing.sm },
     action: { flex: 1 },
     bottomSpace: { height: spacing.md },

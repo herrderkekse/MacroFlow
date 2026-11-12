@@ -1,12 +1,13 @@
 import Button from "@/src/shared/atoms/Button";
-import Chip from "@/src/shared/atoms/Chip";
+import IconButton from "@/src/shared/atoms/IconButton";
 import Input from "@/src/shared/atoms/Input";
+import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, spacing, type ThemeColors } from "@/src/utils/theme";
 import { formatQuantity, servingDisplayUnit, unitLabel, type FoodUnit } from "@/src/utils/units";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 export interface ServingUnit {
     id: number;
@@ -80,39 +81,34 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
 
     return (
         <View>
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.unitRow}
-                keyboardShouldPersistTaps="handled"
-            >
+            <View style={styles.pickerRow}>
                 {/* A food's own serving units lead: they are the ones most
                     likely to be picked for that food. */}
-                {servingUnits.map((su) => (
-                    <Chip
-                        key={`su-${su.id}`}
-                        label={`${su.name} (${formatQuantity(su.grams, servingDisplayUnit(su.display_unit))})`}
-                        selected={selectedServingUnit?.id === su.id}
-                        onPress={() => onSelectServingUnit(su)}
-                    />
-                ))}
-                {unitOptions.map((u) => (
-                    <Chip
-                        key={u}
-                        label={unitLabel(u)}
-                        selected={selectedUnit === u && !selectedServingUnit}
-                        onPress={() => onSelectUnit(u)}
-                    />
-                ))}
+                <SegmentedControl<string>
+                    options={[
+                        ...servingUnits.map((su) => ({
+                            key: `su-${su.id}`,
+                            label: `${su.name} (${formatQuantity(su.grams, servingDisplayUnit(su.display_unit))})`,
+                        })),
+                        ...unitOptions.map((u) => ({ key: u, label: unitLabel(u) })),
+                    ]}
+                    value={selectedServingUnit ? `su-${selectedServingUnit.id}` : selectedUnit}
+                    onChange={(key) => {
+                        const su = servingUnits.find((s) => `su-${s.id}` === key);
+                        if (su) onSelectServingUnit(su);
+                        else onSelectUnit(key as FoodUnit);
+                    }}
+                    style={styles.picker}
+                />
                 {canAdd && (
-                    <Chip
+                    <IconButton
+                        icon={showAddUnit ? "close" : "add"}
+                        variant={showAddUnit ? "filled" : "outline"}
                         label={t("templates.newUnit")}
-                        icon="add"
-                        selected={showAddUnit}
                         onPress={() => (showAddUnit ? closeForm() : setShowAddUnit(true))}
                     />
                 )}
-            </ScrollView>
+            </View>
 
             {showAddUnit && (
                 <View style={styles.addUnitForm}>
@@ -146,7 +142,8 @@ export default function UnitPicker<TUnit extends ServingUnit = ServingUnit>({
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        unitRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.md },
+        pickerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+        picker: { flex: 1 },
         addUnitForm: {
             marginTop: spacing.sm + 4,
             padding: spacing.sm + 4,

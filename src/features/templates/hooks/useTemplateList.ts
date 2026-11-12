@@ -30,6 +30,13 @@ export type TemplateItem =
     | { kind: "recipe"; data: Recipe; variants: Recipe[] }
     | { kind: "exercise"; data: ExerciseTemplate };
 
+export interface TemplateMacros {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+}
+
 export interface ForkTarget {
     recipe: Recipe;
 }
@@ -175,19 +182,41 @@ export function useTemplateList() {
         return parts.join(" · ") || t("templates.exercise");
     }
 
-    function recipeSummary(recipeId: number) {
-        const recipeItemsList = getRecipeItems(recipeId);
-        if (recipeItemsList.length === 0) return t("templates.noItems");
-        const totalCals = recipeItemsList.reduce((sum, row) => {
+    /** Per-serving calories and macros of a recipe, or null while it has no ingredients. */
+    function recipeMacros(recipe: Recipe): TemplateMacros | null {
+        const rows = getRecipeItems(recipe.id);
+        if (rows.length === 0) return null;
+        const servings = Math.max(1, recipe.servings);
+        const sum = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        for (const row of rows) {
             const food = row.foods;
-            if (!food) return sum;
-            return sum + (food.calories_per_100g * row.recipe_items.quantity_grams) / 100;
-        }, 0);
-        return `${t("common.itemCount", { count: recipeItemsList.length })} · ${Math.round(totalCals)} ${t("common.cal")}`;
+            if (!food) continue;
+            const factor = row.recipe_items.quantity_grams / 100 / servings;
+            sum.calories += food.calories_per_100g * factor;
+            sum.protein += food.protein_per_100g * factor;
+            sum.carbs += food.carbs_per_100g * factor;
+            sum.fat += food.fat_per_100g * factor;
+        }
+        return sum;
     }
 
-    function foodSummary(food: Food) {
-        return t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) });
+    /** "2 servings · 3 ingredients" */
+    function recipeSummary(recipe: Recipe) {
+        const count = getRecipeItems(recipe.id).length;
+        if (count === 0) return t("templates.noItems");
+        return [
+            t("templates.servingCount", { count: Math.max(1, recipe.servings) }),
+            t("templates.ingredientCount", { count }),
+        ].join(" · ");
+    }
+
+    function foodMacros(food: Food): TemplateMacros {
+        return {
+            calories: food.calories_per_100g,
+            protein: food.protein_per_100g,
+            carbs: food.carbs_per_100g,
+            fat: food.fat_per_100g,
+        };
     }
 
     function toggleFilter(type: "recipes" | "foods" | "exercises") {
@@ -208,7 +237,8 @@ export function useTemplateList() {
         handleDeleteFood,
         handleDeleteExercise,
         recipeSummary,
-        foodSummary,
+        recipeMacros,
+        foodMacros,
         exerciseSummary,
         toggleFilter,
         reload: load,

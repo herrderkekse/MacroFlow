@@ -5,6 +5,7 @@ import EmptyState from "@/src/shared/atoms/EmptyState";
 import IconButton from "@/src/shared/atoms/IconButton";
 import Notice from "@/src/shared/atoms/Notice";
 import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import ChipRow from "@/src/shared/components/ChipRow";
 import FoodRow from "@/src/shared/components/FoodRow";
 import SearchBar from "@/src/shared/components/SearchBar";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
@@ -276,10 +277,10 @@ export default function AddIngredientSheet({
                                 }
                             />
 
-                            <View style={styles.actionRow}>
+                            <ChipRow style={styles.actionRow}>
                                 <Chip label={t("log.scanBarcode")} icon="barcode-outline" onPress={onScan} />
                                 <Chip label={t("log.createNew")} icon="create-outline" onPress={onCreateNew} />
-                            </View>
+                            </ChipRow>
                         </View>
                     </View>
 
@@ -400,7 +401,7 @@ function createStyles(colors: ThemeColors) {
             marginBottom: spacing.sm + 4,
         },
         title: { fontSize: fontSize.lg, fontWeight: "700", letterSpacing: -0.2, color: colors.text },
-        actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm + 4 },
+        actionRow: { marginTop: spacing.sm + 4 },
         results: { flex: 1 },
         groupLabel: { marginTop: spacing.md, marginBottom: 0, paddingHorizontal: screenPadding },
         spinner: { marginVertical: spacing.md },

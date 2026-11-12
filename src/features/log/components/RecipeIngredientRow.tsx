@@ -1,10 +1,11 @@
 import { getServingUnits } from "@/src/features/templates/services/templateDb";
+import TreeBranch from "@/src/shared/components/TreeBranch";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { formatEntryQuantity } from "@/src/utils/units";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { entryMacros } from "../helpers/logHelpers";
 import type { EntryWithFood } from "./mealSectionContext";
 
@@ -31,10 +32,7 @@ export default function RecipeIngredientRow({ row, isLast, onPress }: RecipeIngr
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             accessibilityRole="button"
         >
-            <View style={styles.tree}>
-                <View style={styles.elbow} />
-                {!isLast && <View style={styles.stem} />}
-            </View>
+            <TreeBranch isLast={isLast} />
             <Text style={styles.name} numberOfLines={1}>{food?.name ?? t("log.unknownFood")}</Text>
             <Text style={styles.amount} numberOfLines={1}>
                 {formatEntryQuantity(row.entries.quantity_grams, unit, servingGrams)}
@@ -45,7 +43,6 @@ export default function RecipeIngredientRow({ row, isLast, onPress }: RecipeIngr
 }
 
 function createStyles(colors: ThemeColors) {
-    const line = { borderColor: colors.borderStrong, borderLeftWidth: 1 };
     return StyleSheet.create({
         row: {
             flexDirection: "row",
@@ -55,18 +52,6 @@ function createStyles(colors: ThemeColors) {
             paddingRight: spacing.md,
         },
         pressed: { backgroundColor: colors.surfaceMuted },
-        tree: { width: 16, alignSelf: "stretch" },
-        elbow: {
-            ...line,
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width: "100%",
-            height: "50%",
-            borderBottomWidth: 1,
-            borderBottomLeftRadius: 5,
-        },
-        stem: { ...line, position: "absolute", left: 0, top: "50%", bottom: 0 },
         name: { flex: 1, minWidth: 0, fontSize: fontSize.sm - 1, color: colors.textSecondary, paddingVertical: spacing.sm },
         amount: { fontSize: fontSize.xs, color: colors.textTertiary },
         calories: {

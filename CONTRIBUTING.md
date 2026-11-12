@@ -357,7 +357,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 - **Tab roots** use `CollapsibleHeader` + `useCollapsibleHeader` instead: the title, then a card whose `summary` row stays pinned and whose `details` hide under it (the log's calories → macros; Library's search → filters; More's profile → stats). The content rests with the details tucked away; scrolling up pulls them out, scrolling down tucks away the details, then the title, and only then moves the content. Spread `header.scrollProps` on the screen's `Animated.ScrollView`/`Animated.FlatList` and merge `header.contentStyle` into its `contentContainerStyle`.
 - **Main action** — a form's "Save" lives in a `FooterBar` (or a sheet's `footer`), not at the end of the scroll content. One `primary` button per view.
 - **Creating** — a tab root's create action is the `Fab`; when there are several things to create it opens an `ActionSheet`.
-- **Secondary and destructive actions** on a list item go behind one "more" `IconButton` (→ `ActionSheet`) or into the item's own sheet. Optional or advanced fields go behind a `Disclosure`.
+- **Secondary and destructive actions** on a list item go behind one "more" `IconButton` (→ `ActionSheet`) or into the item's own sheet. In a list where every row would carry that button (Library), a long press on the row opens the `ActionSheet` instead, also exposed as an accessibility action. Optional or advanced fields go behind a `Disclosure`.
 
 ### Building blocks
 
@@ -371,8 +371,8 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Titled group of rows on a page (meals, weight, training, photos): a "+ LABEL" that adds, then a card — or a dashed placeholder while empty | `components/SectionCard` |
 | That "+ LABEL" alone (e.g. pinned apart from its rows) · the dashed "Nothing logged — add food" slot | `components/SectionHeader` · `components/AddPlaceholder` |
 | Settings / menu rows, and a card of them | `components/ListRow`, `components/ListGroup` |
-| One of 2–4 exclusive options that fit a row | `components/SegmentedControl` |
-| Filters, or a longer / scrolling set of options | `atoms/Chip` |
+| A choice that always has exactly one answer, however many options (it scrolls sideways on its own when they do not fit) | `components/SegmentedControl` |
+| A choice that may be empty or tapped off again (filters, an optional pick — tapping the selected chip clears it; never a "None" chip), or one where several can be on at once | `atoms/Chip`, laid out by `components/ChipRow` (centred while they fit; wraps, or scrolls with `scroll`) |
 | Text field · field opened elsewhere · number with −/+ · date · search | `atoms/Input` · `atoms/SelectField` · `components/Stepper` · `components/DateField` · `components/SearchBar` |
 | Label above a non-`Input` control · heading of a group | `atoms/FieldLabel` · `atoms/SectionLabel` |
 | Buttons | `atoms/Button` (`primary`, `secondary`, `outline`, `ghost`, `danger`), `atoms/IconButton`, `atoms/Fab` |
@@ -383,6 +383,8 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Macros: compact "P · C · F" · bare coloured figures ("233 10 40 4") in a row or header · calories + macros of an amount · split bar | `components/MacroInline` · `components/MacroNumbers` · `components/NutritionSummary` · `components/MacroSplitBar` |
 | A food in a result list | `components/FoodRow` |
 | Unit chips incl. a food's serving units | `components/UnitPicker` |
+
+**Segmented control or chips?** One strict rule, about the choice and nothing else: if it always has exactly one answer, it is a `SegmentedControl` — whether it has two options or ten, and whether they are fixed or come from the user's data (meal, units, appearance, exercise type, a chart's metric). If it can be empty — a filter you can tap off, an optional pick cleared by tapping it again — or if several options can be on at once (even when at least one must stay on), it is `Chip`s. How many options there are never decides it; the segmented control scrolls when they do not fit.
 
 `components/BottomSheet` is the *persistent*, snap-point sheet of the AI chat; it is not a substitute for `Sheet`.
 

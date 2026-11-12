@@ -13,6 +13,10 @@ import { useMealSelection } from "./mealSectionContext";
 import RecipeIngredientRow from "./RecipeIngredientRow";
 import SelectCheck from "./SelectCheck";
 
+const HEADER_PAD_V = spacing.sm + 4;
+const HEADER_PAD_H = spacing.md;
+const HEADER_GAP = spacing.sm + 3;
+
 interface RecipeGroupRowProps {
     group: RecipeGroup;
     onEdit?: (row: EntryWithFood) => void;
@@ -107,10 +111,19 @@ export default function RecipeGroupRow({
                     </Text>
                     <Text style={styles.detail} numberOfLines={1}>{detail}</Text>
                 </View>
-                <View style={styles.side}>
+                {/* The whole right-hand column opens the ingredients — also while
+                    selecting — from the row's top to its bottom and out to the
+                    card's edge; the chevron alone is too small to hit. */}
+                <Pressable
+                    onPress={() => setExpanded(!expanded)}
+                    style={({ pressed }) => [styles.side, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("log.showIngredients")}
+                    accessibilityState={{ expanded }}
+                >
                     <MacroNumbers {...sumMacros(group.rows)} muted={isGroupScheduled} />
                     <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={14} color={colors.textTertiary} />
-                </View>
+                </Pressable>
             </Pressable>
 
             {expanded && (
@@ -159,9 +172,9 @@ function createStyles(colors: ThemeColors) {
         header: {
             flexDirection: "row",
             alignItems: "center",
-            gap: spacing.sm + 3,
-            paddingVertical: spacing.sm + 4,
-            paddingHorizontal: spacing.md,
+            gap: HEADER_GAP,
+            paddingVertical: HEADER_PAD_V,
+            paddingHorizontal: HEADER_PAD_H,
         },
         selected: { backgroundColor: colors.primaryLight },
         pressed: { backgroundColor: colors.surfaceMuted },
@@ -170,7 +183,20 @@ function createStyles(colors: ThemeColors) {
         portion: { fontSize: fontSize.xs, fontWeight: "500", color: colors.textTertiary },
         detail: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
         planned: { color: colors.textTertiary },
-        side: { alignSelf: "flex-start", alignItems: "flex-end", gap: 2, marginTop: 1 },
+        // Cancels the header's padding so the target reaches the row's edges,
+        // then pads the content back into place.
+        side: {
+            alignSelf: "stretch",
+            alignItems: "flex-end",
+            gap: 2,
+            marginVertical: -HEADER_PAD_V,
+            marginRight: -HEADER_PAD_H,
+            marginLeft: -HEADER_GAP,
+            paddingTop: HEADER_PAD_V + 1,
+            paddingBottom: HEADER_PAD_V,
+            paddingRight: HEADER_PAD_H,
+            paddingLeft: HEADER_GAP + spacing.sm,
+        },
         children: { paddingBottom: spacing.sm },
         actions: {
             flexDirection: "row",

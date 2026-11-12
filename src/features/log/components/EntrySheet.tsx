@@ -2,6 +2,7 @@ import { addServingUnit, type Food } from "@/src/features/templates/services/tem
 import Button from "@/src/shared/atoms/Button";
 import Chip from "@/src/shared/atoms/Chip";
 import FieldLabel from "@/src/shared/atoms/FieldLabel";
+import ChipRow from "@/src/shared/components/ChipRow";
 import NutritionSummary from "@/src/shared/components/NutritionSummary";
 import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import Sheet from "@/src/shared/components/Sheet";
@@ -130,7 +131,7 @@ export default function EntrySheet({
             {form.recipeGroups.length > 0 && (
                 <>
                     <FieldLabel>{t("log.addToRecipe")}</FieldLabel>
-                    <View style={styles.chipWrap}>
+                    <ChipRow>
                         {form.recipeGroups.map((g) => {
                             const isSelected = form.selectedGroup?.recipeLogId === g.recipeLogId;
                             return (
@@ -146,7 +147,7 @@ export default function EntrySheet({
                                 />
                             );
                         })}
-                    </View>
+                    </ChipRow>
                 </>
             )}
 
@@ -185,7 +186,6 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         firstField: { marginTop: 0 },
         summary: { marginTop: spacing.md },
-        chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
         hint: { fontSize: fontSize.xs, lineHeight: 17, color: colors.textSecondary, marginTop: spacing.sm },
         footerRow: { flexDirection: "row", gap: spacing.sm },
         footerButton: { flex: 1 },

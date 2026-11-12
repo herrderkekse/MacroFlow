@@ -3,15 +3,17 @@ import Chip from "@/src/shared/atoms/Chip";
 import EmptyState from "@/src/shared/atoms/EmptyState";
 import Fab from "@/src/shared/atoms/Fab";
 import ActionSheet, { type ActionSheetItem } from "@/src/shared/components/ActionSheet";
+import ChipRow from "@/src/shared/components/ChipRow";
 import CollapsibleHeader from "@/src/shared/components/CollapsibleHeader";
 import SearchBar from "@/src/shared/components/SearchBar";
+import SectionHeader from "@/src/shared/components/SectionHeader";
 import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, type ThemeColors } from "@/src/utils/theme";
 import { router, type Href } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import ForkRecipeSheet from "../components/ForkRecipeSheet";
 import TemplateCard from "../components/TemplateCard";
@@ -110,21 +112,25 @@ export default function TemplatesScreen() {
         return target.kind === "food" ? target.food.name : target.exercise.name;
     }
 
-    function renderItem({ item }: { item: TemplateItem }) {
+    function renderItem({ item, index }: { item: TemplateItem; index: number }) {
+        const position = { isFirst: index === 0, isLast: index === list.items.length - 1 };
+
         if (item.kind === "recipe") {
             const recipe = item.data as Recipe;
-            const subtitleParts = [list.recipeSummary(recipe.id)];
-            if (item.variants.length > 0) {
-                subtitleParts.push(t("templates.variantCount", { count: item.variants.length }));
-            }
             return (
                 <TemplateCard
                     kind="recipe"
                     data={recipe}
-                    subtitle={subtitleParts.join(" · ")}
+                    {...position}
+                    subtitle={[
+                        list.recipeSummary(recipe),
+                        item.variants.length > 0 ? t("templates.variantCount", { count: item.variants.length }) : null,
+                    ].filter(Boolean).join(" · ")}
+                    macros={list.recipeMacros(recipe)}
                     onMenu={() => openMenu({ kind: "recipe", recipe })}
                     variants={item.variants}
-                    variantSubtitle={(v) => list.recipeSummary(v.id)}
+                    variantSubtitle={list.recipeSummary}
+                    variantMacros={list.recipeMacros}
                     expanded={list.expandedIds.has(recipe.id)}
                     onToggleExpand={() => list.toggleExpanded(recipe.id)}
                     onMenuVariant={(variant) => openMenu({ kind: "recipe", recipe: variant })}
@@ -138,6 +144,7 @@ export default function TemplatesScreen() {
                 <TemplateCard
                     kind="exercise"
                     data={exercise}
+                    {...position}
                     subtitle={list.exerciseSummary(exercise)}
                     onMenu={() => openMenu({ kind: "exercise", exercise })}
                 />
@@ -149,7 +156,9 @@ export default function TemplatesScreen() {
             <TemplateCard
                 kind="food"
                 data={food}
-                subtitle={list.foodSummary(food)}
+                {...position}
+                subtitle={t("templates.foodPer100g")}
+                macros={list.foodMacros(food)}
                 onMenu={() => openMenu({ kind: "food", food })}
             />
         );
@@ -169,7 +178,7 @@ export default function TemplatesScreen() {
                     />
                 }
                 details={
-                    <View style={styles.filterRow}>
+                    <ChipRow>
                         {FILTERS.map((filter) => (
                             <Chip
                                 key={filter.key}
@@ -179,7 +188,7 @@ export default function TemplatesScreen() {
                                 onPress={() => list.toggleFilter(filter.key)}
                             />
                         ))}
-                    </View>
+                    </ChipRow>
                 }
             />
 
@@ -189,6 +198,15 @@ export default function TemplatesScreen() {
                 keyExtractor={(item) => `${item.kind}-${item.data.id}`}
                 contentContainerStyle={[styles.list, header.contentStyle]}
                 keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                    list.items.length > 0 ? (
+                        <SectionHeader
+                            first
+                            title={t("common.itemCount", { count: list.items.length })}
+                            aside={<Text style={styles.sortNote}>{t("templates.sortedByName")}</Text>}
+                        />
+                    ) : null
+                }
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                     <EmptyState
@@ -229,7 +247,7 @@ function createStyles(colors: ThemeColors) {
         screen: { flex: 1, backgroundColor: colors.background },
         // Borderless: the header card is the field's frame.
         search: { borderWidth: 0, paddingHorizontal: 0, minHeight: 0, backgroundColor: "transparent" },
-        filterRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
         list: { paddingHorizontal: screenPadding, paddingBottom: 104 },
+        sortNote: { fontSize: fontSize.xs - 0.5, fontWeight: "500", color: colors.textTertiary },
     });
 }

@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, Text } from "react-native";
 import { EQUIPMENT_LIST, EXERCISE_TYPES, MUSCLE_GROUPS } from "../constants";
 import type { ExerciseForm } from "../hooks/useExerciseForm";
-import type { ResistanceMode, WeightUnit } from "../types";
+import type { ExerciseType, ResistanceMode, WeightUnit } from "../types";
 import ChipSelect from "./ChipSelect";
 import CustomFieldsEditor from "./CustomFieldsEditor";
 
@@ -39,10 +39,10 @@ export default function ExerciseFormFields({ form, autoFocus = false }: Exercise
             )}
 
             <FieldLabel>{t("exercise.createExercise.type")}</FieldLabel>
-            <ChipSelect
-                items={EXERCISE_TYPES.map((et) => ({ key: et.key, label: t(`exercise.types.${et.key}`) }))}
-                selected={form.type}
-                onSelect={(key) => form.setType(key ?? "weight")}
+            <SegmentedControl<ExerciseType>
+                options={EXERCISE_TYPES.map((et) => ({ key: et.key, label: t(`exercise.types.${et.key}`) }))}
+                value={form.type}
+                onChange={form.setType}
             />
 
             <FieldLabel>{t("exercise.createExercise.muscleGroup")}</FieldLabel>
@@ -50,7 +50,6 @@ export default function ExerciseFormFields({ form, autoFocus = false }: Exercise
                 items={MUSCLE_GROUPS.map((mg) => ({ key: mg.key, label: t(mg.labelKey) }))}
                 selected={form.muscleGroup}
                 onSelect={form.setMuscleGroup}
-                noneLabel={t("exercise.createExercise.none")}
             />
 
             <FieldLabel>{t("exercise.createExercise.equipment")}</FieldLabel>
@@ -58,7 +57,6 @@ export default function ExerciseFormFields({ form, autoFocus = false }: Exercise
                 items={EQUIPMENT_LIST.map((eq) => ({ key: eq.key, label: t(`exercise.equipment.${eq.key}`) }))}
                 selected={form.equipment}
                 onSelect={form.setEquipment}
-                noneLabel={t("exercise.createExercise.none")}
             />
 
             {form.type === "other" && (

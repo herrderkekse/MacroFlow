@@ -6,6 +6,7 @@ import IconButton from "@/src/shared/atoms/IconButton";
 import Notice from "@/src/shared/atoms/Notice";
 import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
+import ChipRow from "@/src/shared/components/ChipRow";
 import FoodRow from "@/src/shared/components/FoodRow";
 import ListGroup from "@/src/shared/components/ListGroup";
 import ListRow from "@/src/shared/components/ListRow";
@@ -49,17 +50,11 @@ export default function AddFoodScreen() {
                     placeholder={t("log.searchPlaceholder")}
                     autoFocus={!recipeId}
                 />
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.actionScroll}
-                    contentContainerStyle={styles.actionRow}
-                    keyboardShouldPersistTaps="handled"
-                >
+                <ChipRow scroll bleed={screenPadding} style={styles.actionRow}>
                     <Chip label={t("log.scanBarcode")} icon="barcode-outline" onPress={() => search.setShowScanner(true)} />
                     <Chip label={t("log.createNew")} icon="create-outline" onPress={search.openManualForm} />
                     <Chip label={t("log.quickAdd")} icon="flash-outline" onPress={openQuickAdd} />
-                </ScrollView>
+                </ChipRow>
             </ScreenHeader>
 
             <ScrollView
@@ -241,8 +236,7 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
         // Bleeds to the screen edge so the chips scroll under it.
-        actionScroll: { marginHorizontal: -screenPadding, marginTop: spacing.sm + 4 },
-        actionRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: screenPadding },
+        actionRow: { marginTop: spacing.sm + 4 },
         results: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
         firstLabel: { marginTop: spacing.sm },
         emptyText: { fontSize: fontSize.sm, color: colors.textTertiary, paddingVertical: spacing.sm },

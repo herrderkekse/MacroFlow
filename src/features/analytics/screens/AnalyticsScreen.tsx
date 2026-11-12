@@ -1,5 +1,4 @@
 import Card from "@/src/shared/atoms/Card";
-import Chip from "@/src/shared/atoms/Chip";
 import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import SegmentedControl from "@/src/shared/components/SegmentedControl";
@@ -56,35 +55,20 @@ export default function AnalyticsScreen() {
             <ScreenHeader title={t("more.analytics")} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.metricScroll}
-                    contentContainerStyle={styles.metricRow}
-                >
-                    {METRICS.map((m) => (
-                        <Chip
-                            key={m.key}
-                            label={t(m.labelKey)}
-                            selected={a.metric === m.key}
-                            onPress={() => a.setMetric(m.key)}
-                        />
-                    ))}
-                </ScrollView>
+                <SegmentedControl
+                    options={METRICS.map((m) => ({ key: m.key, label: t(m.labelKey) }))}
+                    value={a.metric}
+                    onChange={a.setMetric}
+                />
 
                 {a.metric === "macros" && (
-                    <View style={styles.chipRow}>
-                        {(["protein", "carbs", "fat"] as MacroKey[]).map((m) => (
-                            <Chip
-                                key={m}
-                                label={t(`analytics.${m}`)}
-                                selected={a.selectedMacro === m}
-                                accentColor={colors[m]}
-                                onPress={() => a.handleMacroSelect(m)}
-                                style={styles.flexChip}
-                            />
-                        ))}
-                    </View>
+                    <SegmentedControl<MacroKey>
+                        size="sm"
+                        options={(["protein", "carbs", "fat"] as MacroKey[]).map((m) => ({ key: m, label: t(`analytics.${m}`) }))}
+                        value={a.selectedMacro}
+                        onChange={a.handleMacroSelect}
+                        style={styles.macroPicker}
+                    />
                 )}
 
                 <SegmentedControl
@@ -164,10 +148,7 @@ function createStyles(colors: ThemeColors) {
         container: { flex: 1, backgroundColor: colors.background },
         scrollContent: { paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: spacing.xl },
         // Bleeds to the screen edge so the chips scroll under it.
-        metricScroll: { marginHorizontal: -screenPadding },
-        metricRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: screenPadding },
-        chipRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm + 4 },
-        flexChip: { flex: 1 },
+        macroPicker: { marginTop: spacing.sm + 4 },
         span: { marginTop: spacing.sm + 4, marginBottom: spacing.sm + 4 },
         statsRow: { flexDirection: "row", gap: spacing.sm },
         statSpacer: { flex: 1 },

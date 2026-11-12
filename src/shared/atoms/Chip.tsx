@@ -9,19 +9,19 @@ interface ChipProps {
     selected?: boolean;
     onPress?: () => void;
     icon?: React.ComponentProps<typeof Ionicons>["name"];
-    /** Fill used while selected; defaults to the ink colour. */
-    accentColor?: string;
     disabled?: boolean;
     style?: StyleProp<ViewStyle>;
 }
 
 /**
- * The one pill for choosing among a few options or toggling a filter.
+ * The one pill for a choice that can be empty (a filter, an optional pick — tapping the selected chip clears it)
+ * or that allows several at once; lay rows of them out with `ChipRow`. A
+ * choice with exactly one answer is a `SegmentedControl` instead.
  * Selected is always a solid fill, unselected always an outline.
  */
-export default function Chip({ label, selected = false, onPress, icon, accentColor, disabled = false, style }: ChipProps) {
+export default function Chip({ label, selected = false, onPress, icon, disabled = false, style }: ChipProps) {
     const colors = useThemeColors();
-    const fill = accentColor ?? colors.primary;
+    const fill = colors.primary;
     const contentColor = selected ? colors.onPrimary : colors.textSecondary;
 
     return (
