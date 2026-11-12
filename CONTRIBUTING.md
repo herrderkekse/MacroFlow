@@ -368,7 +368,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Modal bottom sheet (keyboard-aware, drag to dismiss) | `components/Sheet` |
 | Menu of labeled actions | `components/ActionSheet` |
 | Pinned main action | `components/FooterBar` |
-| Titled group of rows on a page (meals, weight, workouts…) | `components/SectionCard` |
+| Titled group of rows on a page (meals, weight, training, photos): a "+ LABEL" that adds, then a card — or a dashed placeholder while empty | `components/SectionCard` |
 | Settings / menu rows, and a card of them | `components/ListRow`, `components/ListGroup` |
 | One of 2–4 exclusive options that fit a row | `components/SegmentedControl` |
 | Filters, or a longer / scrolling set of options | `atoms/Chip` |
@@ -379,7 +379,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Surface | `atoms/Card` (hairline border, no shadow) |
 | Empty list / no results · inline hint or error | `atoms/EmptyState` · `atoms/Notice` |
 | Optional or advanced section | `components/Disclosure` |
-| Macros: compact "P · C · F" · calories + macros of an amount · split bar | `components/MacroInline` · `components/NutritionSummary` · `components/MacroSplitBar` |
+| Macros: compact "P · C · F" · bare coloured figures ("233 10 40 4") in a row or header · calories + macros of an amount · split bar | `components/MacroInline` · `components/MacroNumbers` · `components/NutritionSummary` · `components/MacroSplitBar` |
 | A food in a result list | `components/FoodRow` |
 | Unit chips incl. a food's serving units | `components/UnitPicker` |
 

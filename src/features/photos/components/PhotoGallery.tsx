@@ -1,9 +1,10 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import PhotoModal from "./PhotoModal";
 import type { PhotoWithRelations } from "../types";
 
@@ -11,11 +12,16 @@ interface PhotoGalleryProps {
     photos: PhotoWithRelations[];
     onPhotoPress?: (photo: PhotoWithRelations, index: number) => void;
     emptyLabel?: string;
+    /** Ends the row with a dashed "+" tile. */
+    onAdd?: () => void;
+    addLabel?: string;
 }
 
-const THUMBNAIL_WIDTH = 128;
-const THUMBNAIL_HEIGHT = 128;
-const TILE_WIDTH = THUMBNAIL_WIDTH + spacing.sm;
+const GAP = spacing.sm + 1;
+/** Three portrait tiles fit across the page; more scroll sideways. */
+const THUMBNAIL_WIDTH = Math.floor((Dimensions.get("window").width - 2 * screenPadding - 2 * GAP) / 3);
+const THUMBNAIL_HEIGHT = Math.round((THUMBNAIL_WIDTH * 4) / 3);
+const TILE_WIDTH = THUMBNAIL_WIDTH + GAP;
 
 interface PhotoTileProps {
     photo: PhotoWithRelations;
@@ -27,7 +33,12 @@ interface PhotoTileProps {
 
 const PhotoTile = React.memo(function PhotoTile({ photo, index, tagText, onPress, styles }: PhotoTileProps) {
     return (
-        <Pressable style={styles.tile} onPress={() => onPress?.(photo, index)}>
+        <Pressable
+            style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+            onPress={() => onPress?.(photo, index)}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={tagText}
+        >
             <View style={styles.imageWrapper}>
                 {photo.image_path ? (
                     <Image
@@ -43,14 +54,11 @@ const PhotoTile = React.memo(function PhotoTile({ photo, index, tagText, onPress
                     </View>
                 )}
             </View>
-            <Text style={styles.tag} numberOfLines={2}>
-                {tagText}
-            </Text>
         </Pressable>
     );
 });
 
-export default function PhotoGallery({ photos, onPhotoPress, emptyLabel }: PhotoGalleryProps) {
+export default function PhotoGallery({ photos, onPhotoPress, emptyLabel, onAdd, addLabel }: PhotoGalleryProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -106,6 +114,18 @@ export default function PhotoGallery({ photos, onPhotoPress, emptyLabel }: Photo
                     length: TILE_WIDTH,
                     offset: TILE_WIDTH * index,
                 })}
+                ListFooterComponent={
+                    onAdd ? (
+                        <Pressable
+                            onPress={onAdd}
+                            style={({ pressed }) => [styles.addTile, pressed && styles.pressed]}
+                            accessibilityRole="button"
+                            accessibilityLabel={addLabel}
+                        >
+                            <Ionicons name="add" size={20} color={colors.textTertiary} />
+                        </Pressable>
+                    ) : null
+                }
                 renderItem={({ item, index }) => (
                     <PhotoTile
                         photo={item}
@@ -129,19 +149,24 @@ export default function PhotoGallery({ photos, onPhotoPress, emptyLabel }: Photo
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        listContent: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.xs,
-            gap: spacing.sm,
-        },
-        tile: {
+        listContent: { gap: GAP },
+        tile: { width: THUMBNAIL_WIDTH },
+        pressed: { opacity: 0.7 },
+        addTile: {
             width: THUMBNAIL_WIDTH,
-            gap: spacing.xs,
+            height: THUMBNAIL_HEIGHT,
+            borderRadius: borderRadius.lg - 2,
+            borderWidth: 1,
+            borderStyle: "dashed",
+            borderColor: colors.borderStrong,
+            backgroundColor: colors.background,
+            alignItems: "center",
+            justifyContent: "center",
         },
         imageWrapper: {
             width: THUMBNAIL_WIDTH,
             height: THUMBNAIL_HEIGHT,
-            borderRadius: borderRadius.md,
+            borderRadius: borderRadius.lg - 2,
             overflow: "hidden",
             backgroundColor: colors.surface,
             borderWidth: 1,
@@ -160,12 +185,6 @@ function createStyles(colors: ThemeColors) {
         imageFallbackText: {
             color: colors.textSecondary,
             fontSize: fontSize.lg,
-        },
-        tag: {
-            color: colors.textSecondary,
-            fontSize: fontSize.xs,
-            lineHeight: 16,
-            minHeight: 32,
         },
         emptyState: {
             borderWidth: 1,

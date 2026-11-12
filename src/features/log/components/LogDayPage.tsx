@@ -62,7 +62,6 @@ export default function LogDayPage({
     onQuickAdd,
     workoutRefreshKey,
 }: LogDayPageProps) {
-    const hasWeightLogs = (weightLogs?.length ?? 0) > 0;
 
     return (
         <View style={[styles.dayPage, { width }]}>
@@ -72,11 +71,11 @@ export default function LogDayPage({
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
             >
-                {MEAL_TYPES.map((meal) => (
+                {MEAL_TYPES.map((meal, index) => (
                     <MealSection
                         key={meal.key}
                         mealType={meal.key}
-                        icon={meal.icon}
+                        first={index === 0}
                         items={grouped[meal.key]}
                         onAdd={() => onAdd(meal.key)}
                         onEdit={onEdit}
@@ -91,8 +90,8 @@ export default function LogDayPage({
                         onActivateSelectionMultiple={onActivateSelectionMultiple}
                     />
                 ))}
-                {hasWeightLogs && <WeightSection weights={weightLogs ?? []} onAdd={onAddWeight ?? (() => { })} onDelete={onDeleteWeight ?? (() => { })} />}
-                {dateKey && <WorkoutSummarySection date={dateKey} refreshKey={workoutRefreshKey} onQuickAdd={onQuickAdd} hideWhenEmpty />}
+                {!!weightLogs?.length && <WeightSection weights={weightLogs} onAdd={onAddWeight} onDelete={onDeleteWeight} />}
+                {dateKey && <WorkoutSummarySection date={dateKey} refreshKey={workoutRefreshKey} onQuickAdd={onQuickAdd} />}
                 <LogPhotosSection dateKey={dateKey} refreshKey={workoutRefreshKey} />
             </Animated.ScrollView>
         </View>

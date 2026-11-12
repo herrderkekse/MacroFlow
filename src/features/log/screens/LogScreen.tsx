@@ -198,7 +198,7 @@ export default function LogScreen() {
                 contentOffset={{ x: SCREEN_WIDTH, y: 0 }}
                 style={styles.carousel} scrollEnabled={!d.selectionMode}
             >
-                <LogDayPage {...dayPageProps} grouped={d.prevGrouped} scroll={header.followerProps("prev")}
+                <LogDayPage {...dayPageProps} grouped={d.prevGrouped} scroll={header.followerProps("prev")} weightLogs={d.prevWeightLogs}
                     dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, -1))} />
                 <LogDayPage {...dayPageProps} grouped={d.grouped} scroll={header.scrollProps}
                     selectionMode={d.selectionMode} selectedEntryIds={d.selectedEntryIds}
@@ -207,7 +207,7 @@ export default function LogScreen() {
                     weightLogs={d.dayWeightLogs} onAddWeight={d.handleAddWeight} onDeleteWeight={d.handleDeleteWeight}
                     dateKey={selectedDateKey}
                     onQuickAdd={() => setShowAddExercise(true)} />
-                <LogDayPage {...dayPageProps} grouped={d.nextGrouped} scroll={header.followerProps("next")}
+                <LogDayPage {...dayPageProps} grouped={d.nextGrouped} scroll={header.followerProps("next")} weightLogs={d.nextWeightLogs}
                     dateKey={formatDateKey(shiftCalendarDate(d.selectedDate, +1))} />
             </ScrollView>
 

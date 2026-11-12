@@ -83,3 +83,28 @@ export function splitEatenPlanned(totals: MacroTotals, scheduled?: MacroTotals) 
     };
     return { eaten, planned, hasPlanned: planned.calories > 0 };
 }
+
+/** Calories and macros of one logged amount. */
+export function entryMacros(row: EntryWithFood): MacroTotals {
+    const food = row.foods;
+    const factor = row.entries.quantity_grams / 100;
+    return {
+        calories: (food?.calories_per_100g ?? 0) * factor,
+        protein: (food?.protein_per_100g ?? 0) * factor,
+        carbs: (food?.carbs_per_100g ?? 0) * factor,
+        fat: (food?.fat_per_100g ?? 0) * factor,
+    };
+}
+
+/** Summed calories and macros of several logged amounts. */
+export function sumMacros(rows: EntryWithFood[]): MacroTotals {
+    return rows.reduce<MacroTotals>((sum, row) => {
+        const m = entryMacros(row);
+        return {
+            calories: sum.calories + m.calories,
+            protein: sum.protein + m.protein,
+            carbs: sum.carbs + m.carbs,
+            fat: sum.fat + m.fat,
+        };
+    }, { ...ZERO_TOTALS });
+}

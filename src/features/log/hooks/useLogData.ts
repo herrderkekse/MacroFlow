@@ -53,6 +53,8 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
 
     const [weightTrend, setWeightTrend] = useState<"up" | "down" | "flat" | null>(null);
     const [dayWeightLogs, setDayWeightLogs] = useState<WeightLog[]>([]);
+    const [prevWeightLogs, setPrevWeightLogs] = useState<WeightLog[]>([]);
+    const [nextWeightLogs, setNextWeightLogs] = useState<WeightLog[]>([]);
     const [meanWeightKg, setMeanWeightKg] = useState<number | null>(null);
     const [weightDaysAgo, setWeightDaysAgo] = useState<number | null>(null);
     const [workoutRefreshKey, setWorkoutRefreshKey] = useState(0);
@@ -77,6 +79,8 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
         }
         const dayWeights = getWeightLogsForDate(center);
         setDayWeightLogs(dayWeights);
+        setPrevWeightLogs(getWeightLogsForDate(prevDate));
+        setNextWeightLogs(getWeightLogsForDate(nextDate));
         if (dayWeights.length > 0) {
             setMeanWeightKg(dayWeights.reduce((s, w) => s + w.weight_kg, 0) / dayWeights.length);
             setWeightDaysAgo(0);
@@ -302,7 +306,7 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
         editingEntry, setEditingEntry, editingRecipeGroup, setEditingRecipeGroup,
         portionInput, setPortionInput,
         selectionMode, selectedEntryIds, moveModalVisible, setMoveModalVisible,
-        weightTrend, dayWeightLogs, meanWeightKg, weightDaysAgo, workoutRefreshKey,
+        weightTrend, dayWeightLogs, prevWeightLogs, nextWeightLogs, meanWeightKg, weightDaysAgo, workoutRefreshKey,
         bumpWorkoutRefreshKey: () => setWorkoutRefreshKey((k) => k + 1),
         handleScrollEnd, handleDelete, handleDeleteRecipeLog,
         handleConfirmEntry, handleConfirmRecipeLog,

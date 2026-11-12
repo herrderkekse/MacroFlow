@@ -1,11 +1,11 @@
 import { getRecipeDisplayName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getRecipeById } from "@/src/features/templates/services/templateDb";
-import type { IconName } from "@/src/shared/atoms/IconButton";
-import MacroInline from "@/src/shared/components/MacroInline";
+import MacroNumbers from "@/src/shared/components/MacroNumbers";
 import SectionCard from "@/src/shared/components/SectionCard";
 import type { MealType } from "@/src/shared/types";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { sumMacros } from "../helpers/logHelpers";
 import { getRecipeLogById } from "../services/logDb";
 import MealEntryRow from "./MealEntryRow";
 import type { EntryWithFood, MealSelectionContextValue, RecipeGroup } from "./mealSectionContext";
@@ -16,7 +16,8 @@ export type { RecipeGroup } from "./mealSectionContext";
 
 interface MealSectionProps {
     mealType: MealType;
-    icon: string;
+    /** The first section of the day sits closer to the header. */
+    first?: boolean;
     items: EntryWithFood[];
     onAdd: () => void;
     onEdit?: (row: EntryWithFood) => void;
@@ -70,7 +71,7 @@ function groupEntries(items: EntryWithFood[]) {
 
 export default function MealSection({
     mealType,
-    icon,
+    first,
     items,
     onAdd,
     onEdit,
@@ -85,20 +86,7 @@ export default function MealSection({
     onActivateSelectionMultiple,
 }: MealSectionProps) {
     const { t } = useTranslation();
-    const totals = items.reduce(
-        (sum, row) => {
-            const food = row.foods;
-            if (!food) return sum;
-            const factor = row.entries.quantity_grams / 100;
-            return {
-                calories: sum.calories + food.calories_per_100g * factor,
-                protein: sum.protein + food.protein_per_100g * factor,
-                carbs: sum.carbs + food.carbs_per_100g * factor,
-                fat: sum.fat + food.fat_per_100g * factor,
-            };
-        },
-        { calories: 0, protein: 0, carbs: 0, fat: 0 },
-    );
+    const totals = sumMacros(items);
 
     const { standalone, recipeGroups } = groupEntries(items);
     const allMealEntryIds = items.map(e => e.entries.id);
@@ -116,17 +104,14 @@ export default function MealSection({
     return (
         <MealSelectionContext.Provider value={selectionContextValue}>
             <SectionCard
-                icon={icon as IconName}
+                first={first}
                 title={t(`meal.${mealType}`)}
-                summary={hasItems ? <MacroInline protein={totals.protein} carbs={totals.carbs} fat={totals.fat} /> : undefined}
-                value={hasItems ? `${Math.round(totals.calories)} ${t("common.cal")}` : undefined}
+                aside={hasItems ? <MacroNumbers size="sm" {...totals} /> : undefined}
                 onAdd={selectionMode ? undefined : onAdd}
                 addLabel={t("log.addFoodTo", { meal: t(`meal.${mealType}`) })}
+                empty={selectionMode ? undefined : { icon: "add", label: t("log.nothingLogged") }}
                 selected={allMealSelected}
-                onHeaderPress={() => {
-                    if (selectionMode && hasItems) onToggleEntries?.(allMealEntryIds);
-                    else if (!selectionMode) onAdd();
-                }}
+                onHeaderPress={selectionMode && hasItems ? () => onToggleEntries?.(allMealEntryIds) : undefined}
                 onHeaderLongPress={() => {
                     if (selectionMode && hasItems) onToggleEntries?.(allMealEntryIds);
                     else if (!selectionMode && hasItems) onActivateSelectionMultiple?.(allMealEntryIds);
