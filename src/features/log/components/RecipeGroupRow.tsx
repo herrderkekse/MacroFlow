@@ -174,8 +174,8 @@ function createStyles(colors: ThemeColors) {
         children: { paddingBottom: spacing.sm },
         actions: {
             flexDirection: "row",
+            justifyContent: "center",
             gap: spacing.xs,
-            paddingLeft: spacing.md + 2,
             paddingTop: spacing.xs,
         },
     });
