@@ -136,11 +136,7 @@ export default function RecipeEditorScreen() {
                     onScroll={handleScroll}
                     scrollEventThrottle={16}
                 >
-                    <RecipeIngredientList
-                        items={recipe.items}
-                        onPressItem={recipe.editIngredient}
-                        onAdd={recipe.openSearchSheet}
-                    />
+                    <RecipeIngredientList items={recipe.items} onPressItem={recipe.editIngredient} />
                 </Animated.ScrollView>
 
                 {/* Clipped by listArea, so the servings row is gone the moment
@@ -168,6 +164,7 @@ export default function RecipeEditorScreen() {
                 canSave={recipe.canSave}
                 onSave={recipe.handleSave}
                 onSaveAndLog={recipe.handleSaveAndLog}
+                onAddIngredient={recipe.openSearchSheet}
             />
 
             <AddIngredientSheet

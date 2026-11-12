@@ -1,5 +1,6 @@
-import Button from "@/src/shared/atoms/Button";
 import ActionSheet from "@/src/shared/components/ActionSheet";
+import AddPlaceholder from "@/src/shared/components/AddPlaceholder";
+import FooterBar from "@/src/shared/components/FooterBar";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { parseDateKey } from "@/src/utils/date";
@@ -7,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { BackHandler, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import AddExerciseSheet from "../components/AddExerciseSheet";
 import EditWorkoutTimesSheet from "../components/EditWorkoutTimesSheet";
@@ -54,6 +55,16 @@ export default function WorkoutScreen() {
     const [showTimesModal, setShowTimesModal] = useState(false);
     const [showLeaveSheet, setShowLeaveSheet] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+    useEffect(() => {
+        const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+        const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+        return () => {
+            show.remove();
+            hide.remove();
+        };
+    }, []);
 
     // Focus state: which exercise is expanded (null = none)
     const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -75,7 +86,6 @@ export default function WorkoutScreen() {
     }, [workout.data?.exercises, expandedId]);
 
     const isFinished = !!workout.data?.workout.ended_at;
-    const isEmpty = (workout.data?.exercises.length ?? 0) === 0;
 
     const handleExpand = useCallback((weId: number) => {
         if (isDragging) return;
@@ -257,6 +267,8 @@ export default function WorkoutScreen() {
                 keyExtractor={(item) => item.key}
                 renderItem={renderCard}
                 contentContainerStyle={styles.list}
+                // Fill the screen, so the add bar below sits at the bottom edge.
+                containerStyle={styles.listContainer}
                 activationDistance={0}
                 autoscrollThreshold={80}
                 autoscrollSpeed={180}
@@ -266,31 +278,20 @@ export default function WorkoutScreen() {
                     <View style={styles.emptyWrap}>
                         <Ionicons name="barbell-outline" size={28} color={colors.textTertiary} />
                         <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
-                        <Button
-                            title={t("exercise.workout.addExercise")}
-                            variant="outline"
-                            icon={<Ionicons name="add" size={18} color={colors.text} />}
-                            onPress={() => setShowAddExercise(true)}
-                            style={styles.addBtn}
-                        />
                         <HistoricalWorkoutList
                             excludeWorkoutId={workout.data?.workout.id}
                             onCopied={workout.reload}
                         />
                     </View>
                 }
-                ListFooterComponent={
-                    !isEmpty ? (
-                        <Button
-                            title={t("exercise.workout.addExercise")}
-                            variant="outline"
-                            icon={<Ionicons name="add" size={18} color={colors.text} />}
-                            onPress={() => setShowAddExercise(true)}
-                            style={styles.addBtn}
-                        />
-                    ) : null
-                }
             />
+
+            {/* Hidden while typing, so the keyboard leaves room for the sets. */}
+            {!keyboardVisible && (
+                <FooterBar>
+                    <AddPlaceholder label={t("exercise.workout.addExercise")} onPress={() => setShowAddExercise(true)} />
+                </FooterBar>
+            )}
 
             {/* Leaving mid-workout: closing the sheet is "keep going". */}
             <ActionSheet

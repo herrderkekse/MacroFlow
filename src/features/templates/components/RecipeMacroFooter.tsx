@@ -1,4 +1,5 @@
 import Button from "@/src/shared/atoms/Button";
+import AddPlaceholder from "@/src/shared/components/AddPlaceholder";
 import FooterBar from "@/src/shared/components/FooterBar";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -15,11 +16,12 @@ interface RecipeMacroFooterProps {
     canSave: boolean;
     onSave: () => void;
     onSaveAndLog: () => void;
+    onAddIngredient: () => void;
 }
 
 /**
- * Pinned summary of what one serving contains, plus the two ways out of the
- * editor — replacing the old, ambiguous "Done" button.
+ * Pinned at the bottom: "+ Add ingredient", what one serving contains, and
+ * the two ways out of the editor.
  */
 export default function RecipeMacroFooter({
     perServing,
@@ -28,6 +30,7 @@ export default function RecipeMacroFooter({
     canSave,
     onSave,
     onSaveAndLog,
+    onAddIngredient,
 }: RecipeMacroFooterProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
@@ -42,6 +45,7 @@ export default function RecipeMacroFooter({
 
     return (
         <FooterBar>
+            <AddPlaceholder label={t("templates.addIngredient")} onPress={onAddIngredient} style={styles.add} />
             <View style={styles.headline}>
                 <Text style={styles.calValue}>
                     {Math.round(perServing.calories)}
@@ -91,6 +95,7 @@ export default function RecipeMacroFooter({
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
+        add: { marginBottom: spacing.sm },
         headline: {
             flexDirection: "row",
             alignItems: "flex-end",

@@ -7,10 +7,11 @@ export function createWorkoutScreenStyles(colors: ThemeColors) {
             flex: 1,
             backgroundColor: colors.background,
         },
+        listContainer: { flex: 1 },
         list: {
             paddingHorizontal: screenPadding,
             paddingTop: spacing.sm,
-            paddingBottom: 100,
+            paddingBottom: spacing.lg,
         },
         emptyWrap: {
             alignItems: "center",
@@ -23,9 +24,6 @@ export function createWorkoutScreenStyles(colors: ThemeColors) {
             fontWeight: "600",
             color: colors.textSecondary,
             textAlign: "center",
-        },
-        addBtn: {
-            marginTop: spacing.sm,
         },
         draggingCard: {
             opacity: 0.95,

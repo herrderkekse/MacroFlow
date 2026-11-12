@@ -369,6 +369,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Menu of labeled actions | `components/ActionSheet` |
 | Pinned main action | `components/FooterBar` |
 | Titled group of rows on a page (meals, weight, training, photos): a "+ LABEL" that adds, then a card — or a dashed placeholder while empty | `components/SectionCard` |
+| That "+ LABEL" alone (e.g. pinned apart from its rows) · the dashed "Nothing logged — add food" slot | `components/SectionHeader` · `components/AddPlaceholder` |
 | Settings / menu rows, and a card of them | `components/ListRow`, `components/ListGroup` |
 | One of 2–4 exclusive options that fit a row | `components/SegmentedControl` |
 | Filters, or a longer / scrolling set of options | `atoms/Chip` |
