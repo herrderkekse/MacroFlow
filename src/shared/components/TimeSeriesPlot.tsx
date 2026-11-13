@@ -4,9 +4,55 @@ import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Svg, { G, Line, Path, Rect } from "react-native-svg";
-import type { ChartModel } from "../helpers/chartModel";
-import { roundedTopBar } from "../helpers/plotPaths";
-import PlotLine from "./PlotLine";
+import type { AxisScale, TimeTick } from "@/src/utils/chartScale";
+import { roundedTopBar } from "@/src/utils/plotPaths";
+import type { Headline } from "./ChartHeadline";
+import TimeSeriesLine from "./TimeSeriesLine";
+
+/** An amount for a stretch of days: `from` to `to` inclusive, counted from the start of the axis. */
+export interface PlotColumn {
+    from: number;
+    to: number;
+    /** Stacked from the baseline up. */
+    segments: { value: number; color: string }[];
+}
+
+/** A level on one day. */
+export interface PlotPoint {
+    day: number;
+    value: number;
+    /**
+     * The smoothed level, where the values are noisy measurements: the line
+     * then follows this and the values are quiet dots behind it. Without it
+     * the line runs through the values themselves.
+     */
+    trend?: number;
+}
+
+/** A reference value (a goal, a record) that held from day `from` up to, not including, day `to`. */
+export interface PlotStep {
+    from: number;
+    to: number;
+    value: number;
+}
+
+/** Everything a chart draws: columns for amounts or points for a level, never both. */
+export interface TimeSeriesModel {
+    /** Days on the time axis. */
+    days: number;
+    scale: AxisScale;
+    ticks: TimeTick[];
+    formatTick: (value: number) => string;
+    columns?: PlotColumn[];
+    points?: PlotPoint[];
+    /** Whether the single values are marked on or behind the line. */
+    showDots?: boolean;
+    lineColor?: string;
+    /** Drawn as a dashed line; the headline's `aside` says what it is. */
+    reference?: PlotStep[];
+    legend?: { color: string; label: string; mark: "dot" | "line" }[];
+    headline: (selected: number | null) => Headline;
+}
 
 /** Room left of the plot for the value labels. */
 const Y_AXIS_WIDTH = 40;
@@ -21,11 +67,9 @@ const X_AXIS_HEIGHT = 24;
 const COLUMN_FILL = 0.64;
 const MAX_COLUMN_WIDTH = 20;
 
-interface TrendPlotProps {
-    model: ChartModel;
+interface TimeSeriesPlotProps {
+    model: TimeSeriesModel;
     width: number;
-    /** Days on the time axis. */
-    days: number;
     /** Index of the selected column or point. */
     selected: number | null;
     onSelect: (index: number | null) => void;
@@ -37,10 +81,10 @@ interface TrendPlotProps {
  * where every day has its place whether or not it was logged. Touching it
  * selects the nearest column or point; touching that one again lets go.
  */
-export default function TrendPlot({ model, width, days, selected, onSelect, accessibilityLabel }: TrendPlotProps) {
+export default function TimeSeriesPlot({ model, width, selected, onSelect, accessibilityLabel }: TimeSeriesPlotProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const { scale, columns, points, goal, lineColor = colors.text } = model;
+    const { days, scale, columns, points, reference, lineColor = colors.text } = model;
 
     const slot = (width - PLOT_INSET) / days;
     const bottom = TOP + PLOT_HEIGHT;
@@ -135,11 +179,12 @@ export default function TrendPlot({ model, width, days, selected, onSelect, acce
                         );
                     })}
 
-                    {goal && goal.length > 0 && (
+                    {/* Under a line and its marks, over the columns it is measured against. */}
+                    {reference && reference.length > 0 && (
                         <Path
-                            d={goal
+                            d={reference
                                 .map((step, i) => {
-                                    const joins = i > 0 && goal[i - 1].to === step.from;
+                                    const joins = i > 0 && reference[i - 1].to === step.from;
                                     // Like the gridlines, it runs out to the edge of the card.
                                     const end = step.to >= days ? width : xAt(step.to);
                                     return `${joins ? "L" : "M"}${xAt(step.from)} ${yAt(step.value)}H${end}`;
@@ -154,7 +199,7 @@ export default function TrendPlot({ model, width, days, selected, onSelect, acce
                     )}
 
                     {points && (
-                        <PlotLine
+                        <TimeSeriesLine
                             points={points}
                             showDots={model.showDots !== false}
                             picked={selected != null ? points[selected] : undefined}

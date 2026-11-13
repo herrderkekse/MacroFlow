@@ -2,7 +2,18 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import type { Headline } from "../helpers/chartModel";
+
+/** What stands above a plot: the whole range at rest, one column or point while it is selected. */
+export interface Headline {
+    caption: string;
+    value?: string;
+    unit?: string;
+    /** Quieter addition after the value. */
+    note?: string;
+    /** Right-hand side of the value row: what the plot's dashed line stands for, e.g. the goal. */
+    aside?: string;
+    tiles?: { color: string; label: string; value: string }[];
+}
 
 interface ChartHeadlineProps {
     headline: Headline;

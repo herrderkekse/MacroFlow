@@ -1,6 +1,7 @@
 import { getWeightLogsForRange, type WeightLog } from "@/src/features/log/services/logDb";
 import { getGoalHistory, getGoals } from "@/src/features/settings/services/settingsDb";
 import { useAppStore } from "@/src/shared/store/useAppStore";
+import type { ChartRange } from "@/src/utils/chartScale";
 import { diffDateKeys, formatDateKey } from "@/src/utils/date";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,7 +14,6 @@ import {
     type Metric,
     type TimeSpan,
 } from "../helpers/analyticsHelpers";
-import type { ChartRange } from "../helpers/chartModel";
 import { WEIGHT_TREND_REACH } from "../helpers/chartSeries";
 import { type DailyTotals, getDailyTotalsForRange } from "../services/analyticsDb";
 
@@ -104,10 +104,13 @@ export function useAnalyticsData() {
     const statsUnit = metric === "calories" ? t("common.kcal") : metric === "weight" ? (isImperial ? "lb" : "kg") : t("common.g");
     const statsLabel = metric === "macros" ? t(`analytics.${selectedMacro}`) : t(`analytics.${metric}`);
 
-    // The same number format as the chart's figures above the statistics.
+    // The same number format as the chart's figures above the statistics. Calories
+    // are whole numbers: a tenth of a kcal says nothing, and four figures with a
+    // thousands separator leave no room for it.
+    const defaultDecimals = metric === "calories" ? 0 : 1;
     const formatLocal = useCallback(
-        (value: number, decimals = 1) => formatNum(value, decimals, i18n.language),
-        [i18n.language],
+        (value: number, decimals = defaultDecimals) => formatNum(value, decimals, i18n.language),
+        [i18n.language, defaultDecimals],
     );
 
     const handleMacroSelect = useCallback((macro: MacroKey) => {

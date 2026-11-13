@@ -1,9 +1,17 @@
-import { parseDateKey, shiftCalendarDate } from "@/src/utils/date";
+import type { TimeSeriesModel } from "@/src/shared/components/TimeSeriesPlot";
+import {
+    amountScale,
+    bucketUnit,
+    chartFormatters,
+    levelScale,
+    PERCENT_SCALE,
+    timeTicks,
+    type ChartRange,
+} from "@/src/utils/chartScale";
 import type { ThemeColors } from "@/src/utils/theme";
 import type { TFunction } from "i18next";
 import type { DailyTotals } from "../services/analyticsDb";
 import { MACRO_KCAL, type MacroKey, type Metric } from "./analyticsHelpers";
-import { amountScale, bucketUnit, levelScale, PERCENT_SCALE, timeTicks, type AxisScale, type TimeTick } from "./chartScale";
 import {
     averageIntake,
     buildIntakeBuckets,
@@ -13,54 +21,13 @@ import {
     goalSteps,
     MACROS,
     macroShares,
-    type GoalStep,
     type IntakeBucket,
-    type WeightPoint,
 } from "./chartSeries";
 
 type NutritionKey = "calories" | MacroKey;
 
 /** Past this many weigh-ins the single dots only blur the line. */
 const MAX_WEIGHT_DOTS = 120;
-
-/** The days on the time axis: `days` of them, starting at `startKey`. */
-export interface ChartRange {
-    startKey: string;
-    days: number;
-}
-
-export interface PlotColumn {
-    from: number;
-    to: number;
-    /** Stacked from the baseline up. */
-    segments: { value: number; color: string }[];
-}
-
-/** What stands above the plot: the whole range at rest, one column or point while it is selected. */
-export interface Headline {
-    caption: string;
-    value?: string;
-    unit?: string;
-    /** Quieter addition after the value. */
-    note?: string;
-    /** Right-hand side of the value row, e.g. the goal. */
-    aside?: string;
-    tiles?: { color: string; label: string; value: string }[];
-}
-
-export interface ChartModel {
-    scale: AxisScale;
-    ticks: TimeTick[];
-    formatTick: (value: number) => string;
-    columns?: PlotColumn[];
-    points?: WeightPoint[];
-    /** Whether the single weigh-ins are drawn behind the trend line. */
-    showDots?: boolean;
-    lineColor?: string;
-    goal?: GoalStep[];
-    legend?: { color: string; label: string; mark: "dot" | "line" }[];
-    headline: (selected: number | null) => Headline;
-}
 
 export interface ChartInput {
     metric: Metric;
@@ -79,31 +46,12 @@ export interface ChartInput {
     t: TFunction;
 }
 
-function formatters(locale: string, startKey: string) {
-    const start = parseDateKey(startKey);
-    const dayMonth = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
-    const dayMonthYear = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" });
-    const weekday = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short" });
-    return {
-        number: (value: number, decimals = 0) =>
-            value.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
-        /** "Mon, Nov 3" for one day, "Nov 3 – Nov 9" for several. */
-        span: (from: number, to: number) => {
-            const first = shiftCalendarDate(start, from);
-            const last = shiftCalendarDate(start, to);
-            if (from === to) return weekday.format(first);
-            const format = first.getFullYear() === last.getFullYear() ? dayMonth : dayMonthYear;
-            return `${format.format(first)} – ${format.format(last)}`;
-        },
-    };
-}
-
-function intakeModel({ metric, range, data, goals, goalHistory, plotWidth, colors, locale, t }: ChartInput): ChartModel | null {
+function intakeModel({ metric, range, data, goals, goalHistory, plotWidth, colors, locale, t }: ChartInput): TimeSeriesModel | null {
     const { startKey, days } = range;
     const overall = averageIntake(data, startKey, days);
     if (!overall) return null;
     let buckets = buildIntakeBuckets(data, startKey, days, bucketUnit(days, plotWidth));
-    const { number, span } = formatters(locale, startKey);
+    const { number, span } = chartFormatters(locale, startKey);
     const ticks = timeTicks(startKey, days, plotWidth, locale);
     const whole = span(0, days - 1);
     const caption = (bucket: IntakeBucket | undefined, restKey: string) => {
@@ -119,6 +67,7 @@ function intakeModel({ metric, range, data, goals, goalHistory, plotWidth, color
         const overallShares = macroShares(overall);
         if (!overallShares || buckets.length === 0) return null;
         return {
+            days,
             scale: PERCENT_SCALE,
             ticks,
             formatTick: (value) => `${value}%`,
@@ -146,7 +95,7 @@ function intakeModel({ metric, range, data, goals, goalHistory, plotWidth, color
         const value = goalOn(goal, bucket.to);
         return value == null ? undefined : `${t("analytics.goal")} ${number(value)}`;
     };
-    const shared = { scale, ticks, goal, formatTick: (value: number) => number(value, scale.decimals) };
+    const shared = { days, scale, ticks, reference: goal, formatTick: (value: number) => number(value, scale.decimals) };
 
     if (key === "calories") {
         return {
@@ -193,17 +142,18 @@ function intakeModel({ metric, range, data, goals, goalHistory, plotWidth, color
     };
 }
 
-function weightModel({ range, weightLogs, weightUnit, weightFactor, plotWidth, colors, locale, t }: ChartInput): ChartModel | null {
+function weightModel({ range, weightLogs, weightUnit, weightFactor, plotWidth, colors, locale, t }: ChartInput): TimeSeriesModel | null {
     const { startKey, days } = range;
     const points = buildWeightSeries(weightLogs, startKey, days, weightFactor);
     if (points.length === 0) return null;
-    const { number, span } = formatters(locale, startKey);
+    const { number, span } = chartFormatters(locale, startKey);
     const values = points.flatMap((point) => [point.value, point.trend]);
     const scale = levelScale(Math.min(...values), Math.max(...values), weightUnit === "lb" ? 2 : 1);
     const trend = t("analytics.trend");
     const showDots = points.length <= MAX_WEIGHT_DOTS;
 
     return {
+        days,
         scale,
         ticks: timeTicks(startKey, days, plotWidth, locale),
         formatTick: (value) => number(value, scale.decimals),
@@ -243,6 +193,6 @@ function weightModel({ range, weightLogs, weightUnit, weightFactor, plotWidth, c
 }
 
 /** Everything the chart card draws for one metric and range; null when there is nothing to draw. */
-export function buildChartModel(input: ChartInput): ChartModel | null {
+export function buildChartModel(input: ChartInput): TimeSeriesModel | null {
     return input.metric === "weight" ? weightModel(input) : intakeModel(input);
 }

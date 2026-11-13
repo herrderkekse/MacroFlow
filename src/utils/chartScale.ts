@@ -66,6 +66,12 @@ export const PERCENT_SCALE: AxisScale = { min: 0, max: 100, ticks: [0, 25, 50, 7
 
 // ── Time axis ──────────────────────────────────────────────
 
+/** The days on a time axis: `days` of them, starting at `startKey`. */
+export interface ChartRange {
+    startKey: string;
+    days: number;
+}
+
 export type BucketUnit = "day" | "week" | "month";
 
 /** How many days one column stands for, so that columns stay wide enough to read and to touch. */
@@ -143,4 +149,27 @@ export function timeTicks(startKey: string, days: number, plotWidth: number, loc
 
     // Too short for a calendar rhythm at this width: name the two ends.
     return dayTicks(days > 1 ? [0, days - 1] : [0]);
+}
+
+// ── Labels ─────────────────────────────────────────────────
+
+/** Number and date labels for a chart whose time axis starts at `startKey`. */
+export function chartFormatters(locale: string, startKey: string) {
+    const start = parseDateKey(startKey);
+    const thisYear = new Date().getFullYear();
+    const dayMonth = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
+    const dayMonthYear = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" });
+    const weekday = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short" });
+    return {
+        number: (value: number, decimals = 0) =>
+            value.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+        /** "Mon, Nov 3" for one day, "Nov 3 – Nov 9" for several; with the year where it is not this one. */
+        span: (from: number, to: number) => {
+            const first = shiftCalendarDate(start, from);
+            const last = shiftCalendarDate(start, to);
+            if (from === to) return (first.getFullYear() === thisYear ? weekday : dayMonthYear).format(first);
+            const format = first.getFullYear() === last.getFullYear() ? dayMonth : dayMonthYear;
+            return `${format.format(first)} – ${format.format(last)}`;
+        },
+    };
 }

@@ -1,7 +1,7 @@
+import type { BucketUnit } from "@/src/utils/chartScale";
 import { diffDateKeys, parseDateKey, shiftCalendarDate } from "@/src/utils/date";
 import type { DailyTotals } from "../services/analyticsDb";
 import { MACRO_KCAL, type MacroKey } from "./analyticsHelpers";
-import type { BucketUnit } from "./chartScale";
 
 export const MACROS: MacroKey[] = ["protein", "carbs", "fat"];
 

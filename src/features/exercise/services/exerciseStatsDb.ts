@@ -6,9 +6,13 @@ import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
 import type { WorkoutExerciseWithSets } from "./workoutDb";
 
+/** A day's best set, by estimated one-rep maximum. Weights are in kilograms. */
 export interface Estimated1RMPoint {
     date: string;
     e1rm: number;
+    /** The set the estimate comes from. */
+    weightKg: number;
+    reps: number;
 }
 
 export interface WorkoutVolume {
@@ -65,18 +69,19 @@ export function getEstimated1RMSeries(templateId: number): Estimated1RMPoint[] {
         .orderBy(asc(workouts.date), asc(workoutExercises.id), asc(exerciseSets.set_order), asc(exerciseSets.id))
         .all();
 
-    const bestByDate = new Map<string, number>();
+    const bestByDate = new Map<string, Estimated1RMPoint>();
     for (const row of rows) {
         if (row.weight === null || row.reps === null || row.reps <= 0) continue;
 
-        const e1rm = oneRepMax.toEstimated1RM(oneRepMax.toKg(row.weight, row.weightUnit), row.reps);
-        const currentBest = bestByDate.get(row.date) ?? null;
+        const weightKg = oneRepMax.toKg(row.weight, row.weightUnit);
+        const e1rm = oneRepMax.toEstimated1RM(weightKg, row.reps);
+        const currentBest = bestByDate.get(row.date)?.e1rm ?? null;
         if (oneRepMax.isBetterPerformance(e1rm, currentBest, template.resistance_mode)) {
-            bestByDate.set(row.date, e1rm);
+            bestByDate.set(row.date, { date: row.date, e1rm, weightKg, reps: row.reps });
         }
     }
 
-    return Array.from(bestByDate.entries()).map(([date, e1rm]) => ({ date, e1rm }));
+    return Array.from(bestByDate.values());
 }
 
 export function getWorkoutVolume(workoutId: number): WorkoutVolume {
