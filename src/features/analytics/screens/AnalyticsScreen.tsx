@@ -41,15 +41,6 @@ export default function AnalyticsScreen() {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const a = useAnalyticsData();
 
-    // Chart layout
-    const hasSecondaryAxis = a.metric === "carbs" || a.metric === "protein" || a.metric === "fat";
-    const chartWidthProp =
-        a.screenWidth - a.chartContainerPadding - a.yAxisLabelWidth - (hasSecondaryAxis ? a.secondaryAxisWidth - spacing.lg : 0);
-    const pointCount =
-        a.metric === "weight" ? a.weightData.length : a.data.length;
-    const computedSpacing = pointCount > 1 ? chartWidthProp / (pointCount - 1) : chartWidthProp;
-    const chartSpacing = a.shouldScroll ? 8 : computedSpacing;
-
     return (
         <View style={styles.container}>
             <ScreenHeader title={t("more.analytics")} />
@@ -80,15 +71,13 @@ export default function AnalyticsScreen() {
                 />
 
                 <AnalyticsChart
-                    data={a.data}
-                    weightData={a.weightData}
                     metric={a.metric}
-                    timeSpan={a.timeSpan}
+                    range={a.range}
+                    data={a.data}
+                    weightLogs={a.weightLogs}
+                    goals={a.goals}
+                    goalHistory={a.goalHistory}
                     isImperial={a.isImperial}
-                    KG_TO_LB={a.KG_TO_LB}
-                    chartWidthProp={chartWidthProp}
-                    chartSpacing={chartSpacing}
-                    shouldScroll={a.shouldScroll}
                     loading={a.loading}
                 />
 

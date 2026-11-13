@@ -428,6 +428,11 @@ const de = {
         trendUp: "Steigend",
         trendDown: "Fallend",
         trendFlat: "Stabil",
+        dailyAverage: "Tagesdurchschnitt",
+        averageSplit: "Durchschnittliche Verteilung",
+        change: "Veränderung",
+        goal: "Ziel",
+        weighIns: "Messungen",
         noData: "Keine Daten für den gewählten Zeitraum",
         calorieDisclaimer:
             "Die Kalorienangaben können aufgrund von Alkohol, Ballaststoffen oder Dateninkonsistenzen von der Summe der Makros abweichen. Die Makros werden normalisiert, um den Kalorien zu entsprechen.",
