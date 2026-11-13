@@ -17,9 +17,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }, [appearanceMode, systemScheme]);
 
     // Native surfaces (alerts, pickers, the keyboard) take their theme from the
-    // platform, so the in-app choice is handed down to it as well.
+    // platform, so the in-app choice is handed down to it as well. (Not
+    // available on web, where only the screen gallery runs.)
     useEffect(() => {
-        Appearance.setColorScheme(appearanceMode === "system" ? "unspecified" : appearanceMode);
+        Appearance.setColorScheme?.(appearanceMode === "system" ? "unspecified" : appearanceMode);
     }, [appearanceMode]);
 
     return (

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MacroFlow screens</title>
+<style>
+  :root {
+    --canvas: #edeae5; --ink: #171614; --muted: #6e6a63; --faint: #a29d95;
+    --chip: #f7f5f1; --chip-on: #171614; --chip-on-text: #f7f5f1; --hairline: #d9d5ce;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #0e0d0c; --ink: #edeae5; --muted: #a29d95; --faint: #6e6a63;
+      --chip: #1c1b19; --chip-on: #edeae5; --chip-on-text: #171614; --hairline: #2c2a27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--canvas);
+    border-bottom: 1px solid var(--hairline); padding: 14px 32px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px;
+  }
+  h1 { font: 600 18px system-ui; letter-spacing: -.01em; margin: 0; margin-right: auto; }
+  .control { display: flex; align-items: center; gap: 8px; }
+  .control > span { font: 600 10px system-ui; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .segments { display: flex; background: var(--chip); border: 1px solid var(--hairline); border-radius: 9px; padding: 2px; }
+  .segments button {
+    border: 0; background: none; color: var(--muted); font: 500 13px system-ui;
+    padding: 5px 11px; border-radius: 7px; cursor: pointer;
+  }
+  .segments button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-text); }
+  input[type="range"] { width: 110px; accent-color: var(--ink); }
+  .reload { border: 1px solid var(--hairline); background: var(--chip); color: var(--ink); border-radius: 9px; padding: 6px 12px; font: 500 13px system-ui; cursor: pointer; }
+
+  main { padding: 28px 32px 64px; display: flex; flex-direction: column; gap: 40px; }
+  section h2 { font: 600 10px system-ui; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 0 0 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .screen { display: flex; flex-direction: column; gap: 8px; }
+  .screen-label { display: flex; align-items: baseline; gap: 8px; }
+  .screen-label strong { font: 600 13px system-ui; }
+  .screen-label a { font: 12px ui-monospace, monospace; color: var(--faint); text-decoration: none; }
+  .screen-label a:hover { color: var(--muted); text-decoration: underline; }
+  .frames { display: flex; gap: 12px; }
+  .frame {
+    width: calc(390px * var(--scale)); height: calc(844px * var(--scale));
+    border-radius: calc(28px * var(--scale)); overflow: hidden; background: var(--chip);
+    box-shadow: 0 0 0 1px var(--hairline), 0 12px 32px rgba(0, 0, 0, .10);
+  }
+  .frame iframe { width: 390px; height: 844px; border: 0; transform: scale(var(--scale)); transform-origin: 0 0; display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MacroFlow screens</h1>
+  <div class="control"><span>Theme</span><div class="segments" data-setting="theme">
+    <button data-value="light">Light</button><button data-value="dark">Dark</button><button data-value="both">Both</button>
+  </div></div>
+  <div class="control"><span>Language</span><div class="segments" data-setting="lang">
+    <button data-value="en">English</button><button data-value="de">Deutsch</button>
+  </div></div>
+  <label class="control"><span>Size</span><input type="range" id="scale" min="0.4" max="1" step="0.05"></label>
+  <button class="reload" id="reload" title="Reload every frame (picks up code changes)">Reload all</button>
+</header>
+<main id="sections"></main>
+
+<script>
+  // Every screen in the app, grouped by area. Ids refer to gallery/sampleData.ts
+  // (ids are assigned in insertion order: e.g. recipe 3 is the salmon variant,
+  // workout 5 is today's). Add new routes here.
+  const SECTIONS = [
+    { title: "Tabs", screens: [
+      ["Library", "/templates"],
+      ["Log", "/"],
+      ["More", "/more"],
+    ]},
+    { title: "Logging", screens: [
+      ["Add food", "/log/add?mealType=dinner"],
+      ["Quick add", "/log/quick-add?mealType=snack"],
+      ["Trends", "/analytics"],
+    ]},
+    { title: "Library editors", screens: [
+      ["Recipe", "/templates/edit?recipeId=1"],
+      ["Recipe variant", "/templates/edit?recipeId=3"],
+      ["New recipe", "/templates/edit"],
+      ["Food", "/templates/food-edit?foodId=8"],
+      ["New food", "/templates/food-edit"],
+      ["Exercise", "/templates/exercise-edit?exerciseId=1"],
+      ["New exercise", "/templates/exercise-edit"],
+    ]},
+    { title: "Workout", screens: [
+      ["Workout", "/workout?workoutId=5"],
+      ["New workout", "/workout"],
+      ["Exercise history", "/workout/exercise-history?templateId=1"],
+    ]},
+    { title: "Photos", screens: [
+      ["Progress photos", "/photos/photos"],
+      ["Photo details", "/photos/photo-details?count=1&images=" + encodeURIComponent(JSON.stringify(["/gallery/photo.svg"]))],
+    ]},
+    { title: "Settings", screens: [
+      ["Settings", "/settings"],
+      ["Goals", "/settings/goals"],
+      ["Account & sync", "/settings/account"],
+      ["Backup & restore", "/settings/backup"],
+    ]},
+    { title: "AI coach", screens: [
+      ["AI settings", "/settings/ai-settings"],
+      ["Memories", "/settings/ai-memories"],
+      ["Meal plan", "/meal-plan"],
+    ]},
+    { title: "Other", screens: [
+      ["Import shared items", "/share/example-token"],
+    ]},
+  ];
+
+  // ── Settings (remembered per browser) ──────────────────────────────────────
+  const DEFAULTS = { theme: "light", lang: "en", scale: "0.6" };
+  function load(key) {
+    try { return localStorage.getItem("gallery." + key) ?? DEFAULTS[key]; } catch { return DEFAULTS[key]; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem("gallery." + key, value); } catch { /* not persisted */ }
+  }
+  const settings = { theme: load("theme"), lang: load("lang"), scale: load("scale") };
+
+  function frameUrl(route, theme) {
+    const url = new URL(route, location.origin);
+    url.searchParams.set("theme", theme);
+    url.searchParams.set("lang", settings.lang);
+    return url.pathname + url.search;
+  }
+
+  // ── Frame loading ──────────────────────────────────────────────────────────
+  // Every frame is a full instance of the app. Starting dozens at once runs the
+  // browser out of memory, so frames load only when scrolled near, a few at a
+  // time.
+  const MAX_LOADING = 3;
+  const waiting = [];
+  const loading = new Set();
+
+  function pump() {
+    while (loading.size < MAX_LOADING && waiting.length) {
+      const iframe = waiting.shift();
+      if (!iframe.isConnected) continue;
+      loading.add(iframe);
+      const done = () => { if (loading.delete(iframe)) pump(); };
+      iframe.addEventListener("load", () => setTimeout(done, 1500), { once: true });
+      setTimeout(done, 20000);
+      iframe.src = iframe.dataset.src;
+    }
+  }
+
+  const frameObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      frameObserver.unobserve(entry.target);
+      waiting.push(entry.target);
+    }
+    pump();
+  }, { rootMargin: "400px" });
+
+  function render() {
+    frameObserver.disconnect();
+    waiting.length = 0;
+    loading.clear();
+    document.documentElement.style.setProperty("--scale", settings.scale);
+    const themes = settings.theme === "both" ? ["light", "dark"] : [settings.theme];
+    const main = document.getElementById("sections");
+    main.replaceChildren(...SECTIONS.map(({ title, screens }) => {
+      const section = document.createElement("section");
+      const h2 = document.createElement("h2");
+      h2.textContent = title;
+      const row = document.createElement("div");
+      row.className = "row";
+      for (const [name, route] of screens) {
+        const screen = document.createElement("div");
+        screen.className = "screen";
+        const label = document.createElement("div");
+        label.className = "screen-label";
+        const strong = document.createElement("strong");
+        strong.textContent = name;
+        const link = document.createElement("a");
+        link.href = frameUrl(route, themes[0]);
+        link.target = "_blank";
+        link.textContent = route.split("?")[0];
+        link.title = "Open full size";
+        label.append(strong, link);
+        const frames = document.createElement("div");
+        frames.className = "frames";
+        for (const theme of themes) {
+          const frame = document.createElement("div");
+          frame.className = "frame";
+          const iframe = document.createElement("iframe");
+          iframe.title = `${name} (${theme})`;
+          iframe.dataset.src = frameUrl(route, theme);
+          frame.append(iframe);
+          frameObserver.observe(iframe);
+          frames.append(frame);
+        }
+        screen.append(label, frames);
+        row.append(screen);
+      }
+      section.append(h2, row);
+      return section;
+    }));
+  }
+
+  for (const group of document.querySelectorAll(".segments")) {
+    const key = group.dataset.setting;
+    const sync = () => group.querySelectorAll("button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.value === settings[key])));
+    group.addEventListener("click", (event) => {
+      const value = event.target.closest("button")?.dataset.value;
+      if (!value || value === settings[key]) return;
+      settings[key] = value;
+      save(key, value);
+      sync();
+      render();
+    });
+    sync();
+  }
+
+  const scaleInput = document.getElementById("scale");
+  scaleInput.value = settings.scale;
+  scaleInput.addEventListener("input", () => {
+    settings.scale = scaleInput.value;
+    save("scale", settings.scale);
+    document.documentElement.style.setProperty("--scale", settings.scale);
+  });
+
+  document.getElementById("reload").addEventListener("click", render);
+
+  render();
+</script>
+</body>
+</html>

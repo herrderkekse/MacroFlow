@@ -16,6 +16,7 @@ npm run web             # expo start --web (not actively supported)
 npm run lint            # expo lint (ESLint, flat config)
 npm run reset-project   # scripts/reset-project.js — resets example assets
 npm run gen-assets      # scripts/generate-images.js
+npm run gallery         # every screen side by side in the browser, for design review (gallery/README.md)
 ```
 
 `npm test` runs the Jest (`jest-expo`) suite; coverage is currently focused on the share/import feature's pure logic (`src/features/share/services/__tests__`). Tests mock the DB-owning modules (`templateDb`/`logDb`) so they run without native `expo-sqlite`. `npm run lint` remains the other automated check — run both before finishing a change (`--fix` should not be assumed to be non-destructive; review its diff).
