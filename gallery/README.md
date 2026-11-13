@@ -9,7 +9,9 @@ npm run gallery -- --clear # same, with Metro's cache cleared (see Troubleshooti
 ```
 
 The header switches theme (light, dark, both side by side), language and frame
-size. Each frame is the real app, running on the web build, so you can click
+size. Below it, the screen picker chooses which screens to show (**All** /
+**None** to reset): with all of them the page is grouped by area, with a subset
+they sit in one row, so any two screens can be compared side by side. Each frame is the real app, running on the web build, so you can click
 around in it. Edits to app code show after **Reload all**. A route's path above
 its frame opens it full size in a new tab.
 
