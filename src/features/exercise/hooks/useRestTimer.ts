@@ -25,7 +25,7 @@ interface TimerState {
 }
 
 interface TimerStore extends TimerState {
-    start: (workoutExerciseId: number, setType: string) => void;
+    start: (workoutExerciseId: number | null, setType: string) => void;
     stop: () => void;
     setDuration: (seconds: number) => void;
 }
@@ -67,8 +67,10 @@ export interface UseRestTimerReturn {
     isRunning: boolean;
     elapsedSeconds: number;
     targetSeconds: number;
+    /** What a rest started now would count down from (a working set's rest). */
+    nextTargetSeconds: number;
     workoutExerciseId: number | null;
-    start: (workoutExerciseId: number, setType: string) => void;
+    start: (workoutExerciseId: number | null, setType: string) => void;
     skip: () => void;
     setDuration: (seconds: number) => void;
     isTargetReached: boolean;
@@ -135,6 +137,7 @@ export function useRestTimer(): UseRestTimerReturn {
         isRunning: store.isRunning,
         elapsedSeconds,
         targetSeconds: store.targetDurationSeconds,
+        nextTargetSeconds: store.lastUsedDuration ?? REST_DEFAULTS.working,
         workoutExerciseId: store.workoutExerciseId,
         start: store.start,
         skip,

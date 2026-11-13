@@ -1,7 +1,7 @@
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { StyleSheet } from "react-native";
+import type { TFunction } from "i18next";
 import { parseCustomValues, type CustomValues } from "../helpers/customFields";
 import type { ExerciseSet } from "../services/exerciseDb";
+import type { ExerciseType } from "../types";
 
 export interface Prefill {
     weight: number | null;
@@ -45,149 +45,25 @@ function prefillFromSet(s: ExerciseSet): Prefill {
     };
 }
 
-/** Build a compact summary string for a set list, e.g. "80kg × 8" for the best completed set. */
-export function bestSetSummary(sets: ExerciseSet[]): string {
-    const completed = sets.filter((s) => !!s.completed_at);
-    if (completed.length === 0) return "";
-    // Pick the set with the highest weight (or most reps for bodyweight)
-    const best = completed.reduce((a, b) => {
+/**
+ * One line about an exercise's last session for the card's head: "Last: 4 × 8
+ * @ 75 kg" (set count, then the heaviest set), or that there is none yet.
+ */
+export function lastSessionLine(lastSets: ExerciseSet[], exerciseType: ExerciseType, t: TFunction): string {
+    if (lastSets.length === 0) return t("exercise.exerciseCard.noHistoryYet");
+    const count = lastSets.length;
+    const best = lastSets.reduce((a, b) => {
         const aScore = (a.weight ?? 0) * 1000 + (a.reps ?? 0);
         const bScore = (b.weight ?? 0) * 1000 + (b.reps ?? 0);
         return bScore > aScore ? b : a;
     });
-    if (best.weight != null && best.reps != null) {
-        return `${best.weight}${best.weight_unit ?? "kg"} × ${best.reps}`;
+    let summary: string;
+    if (exerciseType === "weight" && best.weight != null && best.reps != null) {
+        summary = `${count} × ${best.reps} @ ${best.weight} ${best.weight_unit ?? "kg"}`;
+    } else if ((exerciseType === "weight" || exerciseType === "bodyweight") && best.reps != null) {
+        summary = `${count} × ${best.reps}`;
+    } else {
+        summary = t("exercise.workoutSummary.setCount", { count });
     }
-    if (best.reps != null) return `× ${best.reps}`;
-    if (best.duration_seconds != null) return `${best.duration_seconds}s`;
-    return "";
-}
-
-// ── Expanded card styles ────────────────────────────────────────────────────
-
-export function createExerciseCardStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        card: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.md,
-            borderWidth: 2,
-            borderColor: colors.primary,
-        },
-        titleRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.sm,
-        },
-        orderNum: {
-            fontSize: fontSize.lg,
-            fontWeight: "800",
-            color: colors.primary,
-        },
-        exerciseName: {
-            flex: 1,
-            fontSize: fontSize.lg,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        noteText: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            fontStyle: "italic",
-            marginBottom: spacing.sm,
-        },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingBottom: spacing.xs,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            marginBottom: spacing.xs,
-        },
-        headerCell: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            textTransform: "uppercase",
-        },
-        setCol: { width: 32 },
-        handleCol: { width: 24 },
-        valueCol: { flex: 1, textAlign: "center" as const },
-        rirCol: { width: 36, textAlign: "center" as const },
-        emptyCol: { width: 28, alignItems: "center" as const },
-        emptyText: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            textAlign: "center",
-            paddingVertical: spacing.md,
-        },
-        addSetBtn: {
-            paddingVertical: spacing.sm,
-            alignItems: "center",
-        },
-        addSetText: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.primary,
-        },
-    });
-}
-
-// ── Collapsed card styles ───────────────────────────────────────────────────
-
-export function createCollapsedCardStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        card: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            paddingVertical: spacing.sm + 2,
-            paddingHorizontal: spacing.md,
-            marginBottom: spacing.sm,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-        },
-        orderNum: {
-            fontSize: fontSize.sm,
-            fontWeight: "700",
-            color: colors.textTertiary,
-            width: 22,
-        },
-        name: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            fontWeight: "500",
-            color: colors.text,
-        },
-        progressBadge: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            backgroundColor: colors.primaryLight,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 3,
-            borderRadius: borderRadius.sm,
-        },
-        progressBadgeComplete: {
-            backgroundColor: colors.success + "22",
-        },
-        progressText: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.primary,
-        },
-        progressTextComplete: {
-            color: colors.success,
-        },
-        bestSetText: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            fontWeight: "500",
-        },
-        chevron: {
-            marginLeft: 2,
-        },
-    });
+    return t("exercise.exerciseCard.last", { summary });
 }

@@ -354,6 +354,8 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 ```
 
 - **Header** — `ScreenHeader` handles the safe-area inset; never read `insets.top` in a screen or configure a navigator header. Search fields and filter chips that belong to the whole screen go in the header's `children`.
+- **Editable names** — a screen whose subject has a name the user sets (a recipe, a workout) makes that name its title: pass `editableTitle` to `ScreenHeader` (a pencil marks it; a tap turns it into the field). The `subtitle` says what it is ("Recipe", "Variant of …", "In progress · 24 min · 3 exercises"); further actions go in `right` (one icon, or a "more" button → `ActionSheet`). Don't draw a second, larger title in the content.
+- **Pinned status under the header** — an editor that is worked through rather than filled in (the recipe editor, a workout) puts its status in a `PinnedCard` directly under the header, outside the scroll: the same card as a tab root's, with the one figure in its summary (kcal per serving; rest left / sets done), a bar along its bottom edge, and secondary settings in its details, opened by tapping it (the servings it makes; the rest duration). Its `FooterBar` holds the dashed `AddPlaceholder` for the list, then the two ways out side by side, the main one on the right ("Save & log" | "Save recipe"; "Finish later" | "Finish workout").
 - **Tab roots** use `CollapsibleHeader` + `useCollapsibleHeader` instead: the title, then a card whose `summary` row stays pinned and whose `details` hide under it (the log's calories → macros; Library's search → filters; More's profile → stats). The content rests with the details tucked away; scrolling up pulls them out, scrolling down tucks away the details, then the title, and only then moves the content. Spread `header.scrollProps` on the screen's `Animated.ScrollView`/`Animated.FlatList` and merge `header.contentStyle` into its `contentContainerStyle`.
 - **Main action** — a form's "Save" lives in a `FooterBar` (or a sheet's `footer`), not at the end of the scroll content. One `primary` button per view.
 - **Creating** — a tab root's create action is the `Fab`; when there are several things to create it opens an `ActionSheet`.
@@ -365,6 +367,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | --- | --- |
 | Screen title, back/close, header actions | `components/ScreenHeader` |
 | A tab root's header with its pinned summary card | `components/CollapsibleHeader` + `hooks/useCollapsibleHeader` |
+| The same card pinned under a pushed screen's header, details opened by a tap | `components/PinnedCard` |
 | Modal bottom sheet (keyboard-aware, drag to dismiss) | `components/Sheet` |
 | Menu of labeled actions | `components/ActionSheet` |
 | Pinned main action | `components/FooterBar` |
@@ -378,11 +381,13 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Buttons | `atoms/Button` (`primary`, `secondary`, `outline`, `ghost`, `danger`), `atoms/IconButton`, `atoms/Fab` |
 | On/off | `atoms/Toggle` |
 | Surface | `atoms/Card` (hairline border, no shadow) |
-| Empty list / no results · inline hint or error | `atoms/EmptyState` · `atoms/Notice` |
+| Empty list / no results · inline hint or error | `atoms/EmptyState` (centred in the space its list would fill: let the scroll content `flexGrow: 1` and give the placeholder `flex: 1`; anything shown after it, like recent workouts, comes first and the placeholder takes what is left) · `atoms/Notice` |
 | Optional or advanced section | `components/Disclosure` |
 | Macros: compact "P · C · F" · bare coloured figures ("233 10 40 4") in a row or header · calories + macros of an amount · split bar | `components/MacroInline` · `components/MacroNumbers` · `components/NutritionSummary` · `components/MacroSplitBar` |
 | A food in a result list | `components/FoodRow` |
 | Unit chips incl. a food's serving units | `components/UnitPicker` |
+
+**"+" or "•"?** Every small-caps heading of a group carries a marker in front of it, and the marker says what tapping the heading does: "+" when it adds to the group ("+ BREAKFAST", "+ EXERCISES", "+ ITEMS"), "•" when it is only a heading ("• RECENT WORKOUTS", "• YOU" on More, "• GENERAL" in Settings). The components enforce it: `SectionHeader` shows the "+" when it gets `onAdd` and the dot otherwise; `SectionLabel` always shows the dot. A group that can be added to takes a `SectionHeader` with `onAdd` — don't put an add button somewhere else next to a "•" heading. Counts and sort order go on the right (`aside`), not in the title.
 
 **Segmented control or chips?** One strict rule, about the choice and nothing else: if it always has exactly one answer, it is a `SegmentedControl` — whether it has two options or ten, and whether they are fixed or come from the user's data (meal, units, appearance, exercise type, a chart's metric). If it can be empty — a filter you can tap off, an optional pick cleared by tapping it again — or if several options can be on at once (even when at least one must stay on), it is `Chip`s. How many options there are never decides it; the segmented control scrolls when they do not fit.
 

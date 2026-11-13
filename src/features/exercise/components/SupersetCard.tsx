@@ -1,26 +1,20 @@
-import IconButton from "@/src/shared/atoms/IconButton";
 import ActionSheet from "@/src/shared/components/ActionSheet";
-import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { parseCustomFields } from "../helpers/customFields";
 import { activeRowIndex, nextAddTarget, orderSupersetRows, type SupersetRow, type WorkoutCard } from "../helpers/supersets";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
-import { createExerciseCardStyles, getPrefillForSet } from "./ExerciseCardHelpers";
+import { getPrefillForSet, lastSessionLine } from "./ExerciseCardHelpers";
 import { ExerciseNoteModal } from "./ExerciseCardModals";
-import RestTimer from "./RestTimer";
 import SetInputRow, { type SetValues } from "./SetInputRow";
+import { AddSetButton, CardTitle, CollapsedCard, ExpandedCardFrame, NoSetsLine, SetColumns } from "./WorkoutCardParts";
 
-// Distinct, theme-aware accent per member so each set row can be tied to its exercise.
-function memberColor(colors: ThemeColors, memberIndex: number): string {
-    return memberIndex === 0 ? colors.primary : colors.exercise;
-}
+/** Each member's letter; a set row reads "A1", "B1", … to tie it to its exercise. */
+const LETTERS = ["A", "B", "C", "D"];
 
 interface SupersetCardProps {
     card: WorkoutCard;
@@ -39,66 +33,33 @@ interface SupersetCardProps {
     onAddSet: (workoutExerciseId: number) => void;
     onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     onReorderSet: (setId: number, toIndex: number) => void;
-    restTimerActive: boolean;
-    restTimerElapsed: number;
-    restTimerTarget: number;
-    restTimerReached: boolean;
-    onRestTimerSkip: () => void;
-    onRestTimerChangeDuration: (seconds: number) => void;
 }
 
 export default function SupersetCard(props: SupersetCardProps) {
-    const { card, isExpanded, onExpand, onDragStart } = props;
+    const { card, index, isExpanded, onExpand, onDragStart } = props;
     if (!isExpanded) {
-        return <CollapsedSupersetCard card={card} index={props.index} onExpand={onExpand} onLongPress={onDragStart} />;
+        const sets = card.members.flatMap((m) => m.sets);
+        return (
+            <CollapsedCard
+                index={index}
+                title={card.members.map((m) => m.exerciseTemplate?.name ?? "?").join(" + ")}
+                isSuperset
+                done={sets.filter((s) => !!s.completed_at).length}
+                total={sets.length}
+                onExpand={onExpand}
+                onLongPress={onDragStart}
+            />
+        );
     }
     return <ExpandedSupersetCard {...props} />;
 }
 
-// ── Collapsed ────────────────────────────────────────────────────────────────
-
-function CollapsedSupersetCard({ card, index, onExpand, onLongPress }: {
-    card: WorkoutCard; index: number; onExpand: () => void; onLongPress: () => void;
-}) {
-    const colors = useThemeColors();
-    const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
-
-    const allSets = card.members.flatMap((m) => m.sets);
-    const completed = allSets.filter((s) => !!s.completed_at).length;
-    const isAllDone = allSets.length > 0 && completed === allSets.length;
-
-    return (
-        <Pressable style={styles.collapsedCard} onPress={onExpand} onLongPress={onLongPress}>
-            <Text style={styles.collapsedOrderNum}>{index + 1}.</Text>
-            <Text style={styles.collapsedName} numberOfLines={1}>
-                {card.members.map((m) => m.exerciseTemplate?.name ?? "?").join("  +  ")}
-            </Text>
-            <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
-                {isAllDone && <Ionicons name="checkmark-circle" size={12} color={colors.success} />}
-                <Text style={[styles.progressText, isAllDone && styles.progressTextComplete]}>
-                    {allSets.length === 0
-                        ? t("exercise.exerciseCard.noSetsYet")
-                        : t("exercise.exerciseCard.setsProgress", { completed, total: allSets.length })}
-                </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-        </Pressable>
-    );
-}
-
-// ── Expanded ─────────────────────────────────────────────────────────────────
-
 function ExpandedSupersetCard({
     card, index, isFinished, onDragStart, getLastSets,
     onRemove, onNoteChange, onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast, onReorderSet,
-    restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip, onRestTimerChangeDuration,
 }: SupersetCardProps) {
-    const colors = useThemeColors();
     const { t } = useTranslation();
     const router = useRouter();
-    const styles = useMemo(() => createStyles(colors), [colors]);
-    const cardStyles = useMemo(() => createExerciseCardStyles(colors), [colors]);
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [noteOpen, setNoteOpen] = useState(false);
@@ -109,6 +70,7 @@ function ExpandedSupersetCard({
     const noteHost = members[0];
     const rows = useMemo(() => orderSupersetRows(members), [members]);
     const activeIdx = isFinished ? -1 : activeRowIndex(rows);
+    const addTarget = nextAddTarget(members);
 
     function renderRow({ item: row, drag, getIndex }: RenderItemParams<SupersetRow>) {
         const i = getIndex() ?? 0;
@@ -117,51 +79,34 @@ function ExpandedSupersetCard({
         const exerciseType = (template?.type as ExerciseType) ?? "weight";
         const customFields = parseCustomFields(template?.custom_fields);
         const prefill = getPrefillForSet(row.withinIndex, member.sets, getLastSets(template?.id ?? null));
-        const active = i === activeIdx;
         return (
-            <React.Fragment key={row.set.id}>
-                {active && restTimerActive && (
-                    <RestTimer
-                        elapsedSeconds={restTimerElapsed}
-                        targetSeconds={restTimerTarget}
-                        isTargetReached={restTimerReached}
-                        onSkip={onRestTimerSkip}
-                        onChangeDuration={onRestTimerChangeDuration}
-                    />
-                )}
-                <View style={styles.rowWrap}>
-                    <View style={styles.chipCol}>
-                        <View style={[styles.rowBar, { backgroundColor: memberColor(colors, row.memberIndex) }]} />
-                    </View>
-                    <View style={styles.rowInput}>
-                        <SetInputRow
-                            set={row.set}
-                            index={row.withinIndex}
-                            exerciseType={exerciseType}
-                            customFields={customFields}
-                            isActive={active}
-                            isFinished={isFinished}
-                            prefillWeight={prefill.weight}
-                            prefillReps={prefill.reps}
-                            prefillRir={prefill.rir}
-                            prefillDuration={prefill.duration}
-                            prefillDistance={prefill.distance}
-                            prefillCustom={prefill.custom}
-                            onConfirm={onConfirmSet}
-                            onUpdate={onUpdateSet}
-                            onDelete={onDeleteSet}
-                            onTypeChange={onSetTypeChange}
-                            onDragStart={drag}
-                        />
-                    </View>
-                </View>
-            </React.Fragment>
+            <SetInputRow
+                set={row.set}
+                index={row.withinIndex}
+                letter={LETTERS[row.memberIndex]}
+                isFirst={i === 0}
+                exerciseType={exerciseType}
+                customFields={customFields}
+                isActive={i === activeIdx}
+                isFinished={isFinished}
+                prefillWeight={prefill.weight}
+                prefillReps={prefill.reps}
+                prefillRir={prefill.rir}
+                prefillDuration={prefill.duration}
+                prefillDistance={prefill.distance}
+                prefillCustom={prefill.custom}
+                onConfirm={onConfirmSet}
+                onUpdate={onUpdateSet}
+                onDelete={onDeleteSet}
+                onTypeChange={onSetTypeChange}
+                onDragStart={drag}
+            />
         );
     }
 
+    // Column headings only make sense while both members log the same values.
     const sameType = members.every((m) => m.exerciseTemplate?.type === members[0].exerciseTemplate?.type);
     const headerType = (members[0].exerciseTemplate?.type as ExerciseType) ?? "weight";
-    const headerCustomFields = parseCustomFields(members[0].exerciseTemplate?.custom_fields);
 
     function handleRemove(member: WorkoutExerciseWithSets) {
         setMenuOpen(false);
@@ -190,57 +135,33 @@ function ExpandedSupersetCard({
         });
     }
 
-    function handleAddSet() {
-        onAddSet(members[nextAddTarget(members)].workoutExercise.id);
-    }
-
     return (
-        <Pressable style={[cardStyles.card, styles.supersetCardBorder]} onLongPress={onDragStart} delayLongPress={180}>
-            {/* Title row: order number, colored "A + B" title, history + menu */}
-            <View style={styles.titleRow}>
-                <Text style={cardStyles.orderNum}>{index + 1}.</Text>
-                <Text style={styles.titleText} numberOfLines={2}>
-                    {members.map((m, i) => (
-                        <Text key={m.workoutExercise.id} style={{ color: memberColor(colors, i) }}>
-                            {i > 0 ? "  +  " : ""}{m.exerciseTemplate?.name ?? "?"}
-                        </Text>
-                    ))}
-                </Text>
-                <IconButton icon="bar-chart-outline" size="sm" color={colors.textSecondary} label={t("exercise.exerciseCard.history")} onPress={handleHistory} />
-                <IconButton icon="ellipsis-horizontal" size="sm" color={colors.textSecondary} label={t("common.moreActions")} onPress={() => setMenuOpen(true)} />
-            </View>
+        <ExpandedCardFrame onLongPress={onDragStart}>
+            <CardTitle
+                index={index}
+                members={members.map((m, i) => ({
+                    key: m.workoutExercise.id,
+                    letter: LETTERS[i],
+                    name: m.exerciseTemplate?.name ?? "?",
+                    last: lastSessionLine(
+                        getLastSets(m.exerciseTemplate?.id ?? null),
+                        (m.exerciseTemplate?.type as ExerciseType) ?? "weight",
+                        t,
+                    ),
+                }))}
+                note={noteHost.workoutExercise.notes}
+                onHistory={handleHistory}
+                onMenu={() => setMenuOpen(true)}
+            />
 
-            {/* Shared note */}
-            {noteHost.workoutExercise.notes ? (
-                <Text style={cardStyles.noteText} numberOfLines={2}>{noteHost.workoutExercise.notes}</Text>
-            ) : null}
-
-            {/* Column headers (only when both members share a type) */}
             {sameType && (
-                <View style={cardStyles.headerRow}>
-                    <View style={styles.chipCol} />
-                    <View style={cardStyles.handleCol} />
-                    <Text style={[cardStyles.headerCell, cardStyles.setCol]}>{t("exercise.exerciseCard.set")}</Text>
-                    {headerType === "weight" && (
-                        <Text style={[cardStyles.headerCell, cardStyles.valueCol]}>{t("exercise.exerciseCard.weight")}</Text>
-                    )}
-                    {headerType !== "cardio" && !(headerType === "other" && headerCustomFields.length > 0) && (
-                        <Text style={[cardStyles.headerCell, cardStyles.valueCol]}>{t("exercise.exerciseCard.reps")}</Text>
-                    )}
-                    {headerType === "cardio" && (
-                        <>
-                            <Text style={[cardStyles.headerCell, cardStyles.valueCol]}>{t("exercise.exerciseCard.duration")}</Text>
-                            <Text style={[cardStyles.headerCell, cardStyles.valueCol]}>{t("exercise.exerciseCard.distance")}</Text>
-                        </>
-                    )}
-                    {headerType !== "cardio" && !(headerType === "other" && headerCustomFields.length > 0) && (
-                        <Text style={[cardStyles.headerCell, cardStyles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
-                    )}
-                    <Text style={[cardStyles.headerCell, cardStyles.emptyCol]}></Text>
-                </View>
+                <SetColumns
+                    exerciseType={headerType}
+                    customFields={parseCustomFields(members[0].exerciseTemplate?.custom_fields)}
+                />
             )}
 
-            {/* Combined set rows (draggable; a colored bar ties each set to its exercise) */}
+            {/* Both members' sets in one list, in the order they are done. */}
             <DraggableFlatList
                 data={rows}
                 keyExtractor={(row) => String(row.set.id)}
@@ -250,17 +171,16 @@ function ExpandedSupersetCard({
                 renderItem={renderRow}
             />
 
-            {rows.length === 0 && (
-                <Text style={cardStyles.emptyText}>{t("exercise.workout.emptyState")}</Text>
-            )}
+            {rows.length === 0 && <NoSetsLine />}
 
             {!isFinished && (
-                <Pressable style={cardStyles.addSetBtn} onPress={handleAddSet}>
-                    <Text style={cardStyles.addSetText}>{t("exercise.exerciseCard.addSet")}</Text>
-                </Pressable>
+                <AddSetButton
+                    label={t("exercise.superset.addSetTo", { letter: LETTERS[addTarget] })}
+                    onPress={() => onAddSet(members[addTarget].workoutExercise.id)}
+                />
             )}
 
-            {/* Unified menu: one shared note, then per-member copy and remove */}
+            {/* One menu: the shared note, then copy and remove per member. */}
             <ActionSheet
                 visible={menuOpen}
                 onClose={() => setMenuOpen(false)}
@@ -300,82 +220,6 @@ function ExpandedSupersetCard({
                     save: t("common.save"),
                 }}
             />
-        </Pressable>
+        </ExpandedCardFrame>
     );
-}
-
-const CHIP_COL_WIDTH = 12;
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        // Collapsed
-        collapsedCard: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            paddingVertical: spacing.sm + 2,
-            paddingHorizontal: spacing.md,
-            marginBottom: spacing.sm,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-        },
-        collapsedOrderNum: {
-            fontSize: fontSize.sm,
-            fontWeight: "700",
-            color: colors.textTertiary,
-            width: 22,
-        },
-        collapsedName: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            fontWeight: "500",
-            color: colors.text,
-        },
-        progressBadge: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            backgroundColor: colors.primaryLight,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 3,
-            borderRadius: borderRadius.sm,
-        },
-        progressBadgeComplete: { backgroundColor: colors.success + "22" },
-        progressText: { fontSize: fontSize.xs, fontWeight: "600", color: colors.primary },
-        progressTextComplete: { color: colors.success },
-
-        // Expanded
-        supersetCardBorder: {
-            borderColor: colors.exercise,
-        },
-        titleRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.sm,
-        },
-        titleText: {
-            flex: 1,
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-        },
-        chipCol: {
-            width: CHIP_COL_WIDTH,
-            alignItems: "center",
-            paddingVertical: 4,
-        },
-        rowWrap: {
-            flexDirection: "row",
-            alignItems: "stretch",
-        },
-        // flex:1 fills the (stretched) chipCol's full height, so the bar spans the row.
-        rowBar: {
-            flex: 1,
-            width: 3,
-            borderRadius: 2,
-        },
-        rowInput: {
-            flex: 1,
-        },
-    });
 }

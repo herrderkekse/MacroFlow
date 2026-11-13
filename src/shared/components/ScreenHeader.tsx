@@ -3,9 +3,9 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ScreenHeaderProps {
@@ -22,12 +22,28 @@ interface ScreenHeaderProps {
     backIcon?: "back" | "close";
     /** Makes the title a button (e.g. the log's date opens the calendar). */
     onTitlePress?: () => void;
+    /**
+     * Makes the title the field that edits it (a recipe's or a workout's
+     * name): a pencil marks it, a tap turns it into an input. `title` stays
+     * what is shown when not editing, so it can fall back to a default.
+     */
+    editableTitle?: EditableTitle;
     /** Up to three actions on the right, normally `IconButton`s. */
     right?: React.ReactNode;
     /** Rendered below the title row and scrolls with nothing: search, filters. */
     children?: React.ReactNode;
     /** Set to false when a wrapper (e.g. `CollapsibleHeader`) already pads for the status bar. */
     safeArea?: boolean;
+}
+
+interface EditableTitle {
+    /** The stored name, possibly empty; edited live through `onChange`. */
+    value: string;
+    onChange: (value: string) => void;
+    /** Shown in the input while the name is empty. */
+    placeholder?: string;
+    /** Label for screen readers on the title button (e.g. "Rename workout"). */
+    label: string;
 }
 
 /** Line box of a large title; header actions centre against it. */
@@ -50,6 +66,7 @@ export default function ScreenHeader({
     onBack,
     backIcon = "back",
     onTitlePress,
+    editableTitle,
     right,
     children,
     safeArea = true,
@@ -59,6 +76,15 @@ export default function ScreenHeader({
     const insets = useSafeAreaInsets();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const isLarge = variant === "large";
+    const [editing, setEditing] = useState(false);
+
+    // Android keeps a field focused after its keyboard is dismissed; treat
+    // that as done editing, so the title goes back to being a heading.
+    useEffect(() => {
+        if (!editing) return;
+        const sub = Keyboard.addListener("keyboardDidHide", () => setEditing(false));
+        return () => sub.remove();
+    }, [editing]);
 
     const titleBlock = (
         <View style={styles.titleBlock}>
@@ -72,6 +98,9 @@ export default function ScreenHeader({
                 </Text>
                 {onTitlePress && (
                     <Ionicons name="chevron-down" size={isLarge ? 18 : 14} color={colors.textTertiary} />
+                )}
+                {editableTitle && (
+                    <Ionicons name="pencil" size={13} color={colors.textTertiary} />
                 )}
             </View>
             {subtitle ? (
@@ -91,7 +120,34 @@ export default function ScreenHeader({
                         style={styles.backButton}
                     />
                 )}
-                {onTitlePress ? (
+                {editableTitle && editing ? (
+                    <View style={styles.titlePressable}>
+                        <TextInput
+                            style={styles.titleInput}
+                            value={editableTitle.value}
+                            onChangeText={editableTitle.onChange}
+                            placeholder={editableTitle.placeholder}
+                            placeholderTextColor={colors.textTertiary}
+                            selectionColor={colors.textSecondary}
+                            onBlur={() => setEditing(false)}
+                            autoFocus
+                            selectTextOnFocus
+                            returnKeyType="done"
+                        />
+                        {subtitle ? (
+                            <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+                        ) : null}
+                    </View>
+                ) : editableTitle ? (
+                    <Pressable
+                        onPress={() => setEditing(true)}
+                        style={({ pressed }) => [styles.titlePressable, pressed && styles.pressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel={editableTitle.label}
+                    >
+                        {titleBlock}
+                    </Pressable>
+                ) : onTitlePress ? (
                     <Pressable
                         onPress={onTitlePress}
                         style={({ pressed }) => [styles.titlePressable, pressed && styles.pressed]}
@@ -146,6 +202,20 @@ function createStyles(colors: ThemeColors) {
             fontWeight: "700",
             letterSpacing: -0.2,
             color: colors.text,
+        },
+        // Same box as the title it replaces, underlined while it is a field.
+        titleInput: {
+            fontSize: fontSize.lg,
+            fontWeight: "700",
+            letterSpacing: -0.2,
+            color: colors.text,
+            padding: 0,
+            paddingBottom: 1,
+            // The underline must not push the subtitle down (the title would jump).
+            marginBottom: -2,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.primary,
+            includeFontPadding: false,
         },
         subtitle: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 1 },
         right: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginLeft: spacing.sm },

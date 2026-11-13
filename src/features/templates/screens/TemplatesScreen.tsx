@@ -9,11 +9,11 @@ import SearchBar from "@/src/shared/components/SearchBar";
 import SectionHeader from "@/src/shared/components/SectionHeader";
 import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { fontSize, screenPadding, type ThemeColors } from "@/src/utils/theme";
+import { screenPadding, type ThemeColors } from "@/src/utils/theme";
 import { router, type Href } from "expo-router";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
 import ForkRecipeSheet from "../components/ForkRecipeSheet";
 import TemplateCard from "../components/TemplateCard";
@@ -200,10 +200,14 @@ export default function TemplatesScreen() {
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
                     list.items.length > 0 ? (
+                        // "+ ITEMS" adds like every other "+" heading (the same menu as the Fab);
+                        // how many there are and how they are sorted sit on the right.
                         <SectionHeader
                             first
-                            title={t("common.itemCount", { count: list.items.length })}
-                            aside={<Text style={styles.sortNote}>{t("templates.sortedByName")}</Text>}
+                            title={t("templates.items")}
+                            onAdd={() => setIsCreateOpen(true)}
+                            addLabel={t("templates.createNew")}
+                            hint={`${list.items.length} · ${t("templates.sortedByName")}`}
                         />
                     ) : null
                 }
@@ -248,6 +252,5 @@ function createStyles(colors: ThemeColors) {
         // Borderless: the header card is the field's frame.
         search: { borderWidth: 0, paddingHorizontal: 0, minHeight: 0, backgroundColor: "transparent" },
         list: { paddingHorizontal: screenPadding, paddingBottom: 104 },
-        sortNote: { fontSize: fontSize.xs - 0.5, fontWeight: "500", color: colors.textTertiary },
     });
 }

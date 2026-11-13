@@ -2,7 +2,7 @@ import EmptyState from "@/src/shared/atoms/EmptyState";
 import ListRow from "@/src/shared/components/ListRow";
 import Sheet from "@/src/shared/components/Sheet";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius } from "@/src/utils/theme";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
@@ -12,6 +12,7 @@ import {
     getRecentWorkouts,
     type Workout,
 } from "../services/exerciseDb";
+import { getMuscleGroupColor } from "../helpers/muscleGroupColor";
 
 interface CopyWorkoutSheetProps {
     visible: boolean;
@@ -103,18 +104,3 @@ const styles = StyleSheet.create({
     dots: { flexDirection: "row", gap: 4 },
     dot: { width: 8, height: 8, borderRadius: borderRadius.full },
 });
-
-const MUSCLE_GROUP_COLOR_MAP: Partial<Record<string, keyof ThemeColors>> = {
-    chest: "exerciseChest",
-    back: "exerciseBack",
-    legs: "exerciseLegs",
-    shoulders: "exerciseShoulders",
-    arms: "exerciseArms",
-    core: "exerciseCore",
-    full_body: "exerciseFullBody",
-};
-
-function getMuscleGroupColor(muscleGroup: string, colors: ThemeColors): string {
-    const key = MUSCLE_GROUP_COLOR_MAP[muscleGroup];
-    return key ? colors[key] : colors.exercise;
-}

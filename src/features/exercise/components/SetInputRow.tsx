@@ -17,6 +17,10 @@ const SET_TYPE_LABELS: Record<SetType, string> = {
 
 interface SetInputRowProps {
     set: ExerciseSet; index: number; exerciseType: ExerciseType;
+    /** A superset member's letter, put in front of the set number ("A1"). */
+    letter?: string;
+    /** The first row draws no divider above it. */
+    isFirst?: boolean;
     customFields: CustomField[];
     isActive: boolean; isFinished: boolean;
     prefillWeight: number | null; prefillReps: number | null; prefillRir: number | null;
@@ -41,7 +45,7 @@ function customValuesToInputs(json: string | null | undefined): Record<string, s
 }
 
 export default function SetInputRow({
-    set, index, exerciseType, customFields, isActive, isFinished,
+    set, index, exerciseType, letter = "", isFirst = false, customFields, isActive, isFinished,
     prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance, prefillCustom,
     onConfirm, onUpdate, onDelete, onTypeChange, onDragStart,
 }: SetInputRowProps) {
@@ -143,40 +147,43 @@ export default function SetInputRow({
         );
     }, [set.id, onDelete, t]);
 
+    const label = `${letter}${typeLabel}${index + 1}`;
+
     // Scheduled / pending — display-only dim row
     if (isScheduled && !isActive) {
         return (
-            <Pressable style={[styles.setRow, styles.setRowScheduled]} onLongPress={handleLongPressSetNum}>
-                <Pressable style={styles.handleCol} onLongPress={onDragStart} hitSlop={8}>
-                    <Ionicons name="reorder-two-outline" size={16} color={colors.textTertiary} />
+            <Pressable
+                style={[styles.setRow, !isFirst && styles.divider, styles.setRowScheduled]}
+                onLongPress={onDragStart}
+                delayLongPress={250}
+            >
+                <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol} hitSlop={4}>
+                    <Text style={[styles.setLabel, { color: colors.textTertiary }]}>{label}</Text>
                 </Pressable>
-                <Text style={[styles.setCell, styles.setCol, { color: colors.textTertiary }]}>
-                    {typeLabel}{index + 1}
-                </Text>
                 <ScheduledCells set={set} exerciseType={exerciseType} customFields={customFields} textColor={colors.textTertiary} styles={styles} />
-                <Pressable style={styles.checkCol} onPress={handleDelete}>
-                    <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+                <Pressable style={styles.checkCol} onPress={handleDelete} hitSlop={6} accessibilityLabel={t("exercise.exerciseCard.deleteSet")}>
+                    <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
                 </Pressable>
             </Pressable>
         );
     }
 
     // Editable row — completed and active sets
-    const textColor = isActiveSet ? colors.text : colors.textSecondary;
+    const textColor = isActiveSet || isCompleted ? colors.text : colors.textTertiary;
     const fieldStyle = (field: string) => focusedField === field ? styles.input : styles.inlineInput;
 
     return (
-        <View style={[styles.setRow, isActiveSet && styles.activeRow]}>
-            <Pressable style={styles.handleCol} onLongPress={onDragStart} hitSlop={8}>
-                <Ionicons name="reorder-two-outline" size={16} color={colors.textTertiary} />
-            </Pressable>
-            <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol}>
+        <Pressable
+            style={[styles.setRow, isActiveSet ? styles.activeRow : !isFirst && styles.divider]}
+            onLongPress={onDragStart}
+            delayLongPress={250}
+        >
+            <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol} hitSlop={4}>
                 <Text style={[
-                    styles.setCell,
-                    { color: isActiveSet ? colors.primary : textColor },
-                    isActiveSet && { fontWeight: "700" },
+                    styles.setLabel,
+                    { color: isActiveSet ? colors.text : isCompleted ? colors.textSecondary : colors.textTertiary },
                 ]}>
-                    {typeLabel}{index + 1}
+                    {label}
                 </Text>
             </Pressable>
 
@@ -196,8 +203,8 @@ export default function SetInputRow({
                         onFocus={() => setFocusedField("weight")}
                         onBlur={() => handleBlurSave("weight")}
                     />
-                    <Pressable onPress={handleToggleUnit} style={styles.unitToggle}>
-                        <Text style={[styles.unitText, { color: colors.primary }]}>{unit}</Text>
+                    <Pressable onPress={handleToggleUnit} style={styles.unitToggle} hitSlop={6}>
+                        <Text style={[styles.unitText, { color: colors.textTertiary }]}>{unit}</Text>
                     </Pressable>
                 </View>
             )}
@@ -286,14 +293,28 @@ export default function SetInputRow({
             )}
 
             {isActiveSet ? (
-                <Pressable style={styles.checkCol} onPress={handleConfirm}>
-                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                <Pressable
+                    style={styles.checkCol}
+                    onPress={handleConfirm}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("exercise.exerciseCard.completeSet")}
+                >
+                    <View style={styles.confirm}>
+                        <Ionicons name="checkmark" size={16} color={colors.onPrimary} />
+                    </View>
                 </Pressable>
             ) : (
-                <Pressable style={styles.checkCol} onPress={handleDelete}>
-                    <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+                <Pressable
+                    style={styles.checkCol}
+                    onPress={handleDelete}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("exercise.exerciseCard.deleteSet")}
+                >
+                    <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
                 </Pressable>
             )}
-        </View>
+        </Pressable>
     );
 }

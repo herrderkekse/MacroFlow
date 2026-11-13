@@ -1,3 +1,4 @@
+import { SectionBullet, sectionTitleText } from "@/src/shared/atoms/SectionLabel";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,10 +8,14 @@ import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type StylePr
 export interface SectionHeaderProps {
     /** Shown in small caps ("+ BREAKFAST"). */
     title: string;
-    /** Makes the label an add button, with a "+" in front of it. */
+    /**
+     * Makes the label an add button, with a "+" in front of it. Without it
+     * the heading gets a dot instead ("• RECENT WORKOUTS"): every heading
+     * carries one of the two, so the marker says whether tapping it adds.
+     */
     onAdd?: () => void;
     addLabel?: string;
-    /** Faint note after the label ("2 photos"). */
+    /** Faint note on the right ("2 photos", "3 items"): counts never go in the title. */
     hint?: string;
     /** Right end of the row: totals, a small extra action. */
     aside?: React.ReactNode;
@@ -46,11 +51,11 @@ export default function SectionHeader({
                 accessibilityRole="button"
                 accessibilityLabel={onAdd && !onHeaderPress ? (addLabel ?? title) : title}
             >
-                {onAdd && <Ionicons name="add" size={15} color={colors.textSecondary} />}
+                {onAdd ? <Ionicons name="add" size={15} color={colors.textSecondary} /> : <SectionBullet />}
                 <Text style={styles.title} numberOfLines={1}>{title}</Text>
             </Pressable>
-            {hint ? <Text style={styles.hint} numberOfLines={1}>{hint}</Text> : null}
             <View style={styles.spacer} />
+            {hint ? <Text style={styles.hint} numberOfLines={1}>{hint}</Text> : null}
             {aside}
         </View>
     );
@@ -69,13 +74,7 @@ function createStyles(colors: ThemeColors) {
         headerFirst: { paddingTop: spacing.xs },
         label: { flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 },
         pressed: { opacity: 0.6 },
-        title: {
-            fontSize: fontSize.xxs - 1,
-            fontWeight: "600",
-            letterSpacing: 0.9,
-            textTransform: "uppercase",
-            color: colors.textTertiary,
-        },
+        title: { ...sectionTitleText, color: colors.textTertiary },
         hint: { flexShrink: 1, fontSize: fontSize.xxs, color: colors.textTertiary, opacity: 0.75 },
         spacer: { flex: 1 },
     });

@@ -1,29 +1,30 @@
+import IconButton from "@/src/shared/atoms/IconButton";
+import EmptyState from "@/src/shared/atoms/EmptyState";
 import ActionSheet from "@/src/shared/components/ActionSheet";
-import AddPlaceholder from "@/src/shared/components/AddPlaceholder";
-import FooterBar from "@/src/shared/components/FooterBar";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import SectionHeader from "@/src/shared/components/SectionHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import { parseDateKey } from "@/src/utils/date";
-import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, Text, UIManager, View } from "react-native";
+import { BackHandler, Keyboard, KeyboardAvoidingView, LayoutAnimation, Platform, UIManager, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import AddExerciseSheet from "../components/AddExerciseSheet";
-import EditWorkoutTimesSheet from "../components/EditWorkoutTimesSheet";
 import ExerciseCard from "../components/ExerciseCard";
 import HistoricalWorkoutList from "../components/HistoricalWorkoutList";
 import SupersetCard from "../components/SupersetCard";
-import WorkoutHeader from "../components/WorkoutHeader";
+import WorkoutFooter from "../components/WorkoutFooter";
 import WorkoutKeepAwake from "../components/WorkoutKeepAwake";
+import WorkoutMenu from "../components/WorkoutMenu";
+import WorkoutStatusCard from "../components/WorkoutStatusCard";
 import { groupIntoCards, type WorkoutCard } from "../helpers/supersets";
+import { countSets, workoutSubtitle } from "../helpers/workoutStatus";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
 import { useWorkoutActions } from "../hooks/useWorkoutActions";
-import {
-    copySetsFromLastSession, type ExerciseTemplate,
-} from "../services/exerciseDb";
+import { copySetsFromLastSession, deleteWorkout, type ExerciseTemplate } from "../services/exerciseDb";
 import { createWorkoutScreenStyles } from "./WorkoutScreenStyles";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -32,7 +33,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function WorkoutScreen() {
     const colors = useThemeColors();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const styles = useMemo(() => createWorkoutScreenStyles(colors), [colors]);
     const router = useRouter();
     const params = useLocalSearchParams<{ workoutId?: string; date?: string }>();
@@ -52,7 +53,7 @@ export default function WorkoutScreen() {
     const [showAddExercise, setShowAddExercise] = useState(false);
     // Set while the add-exercise sheet is picking the second exercise for a superset (base's id).
     const [supersetBaseId, setSupersetBaseId] = useState<number | null>(null);
-    const [showTimesModal, setShowTimesModal] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
     const [showLeaveSheet, setShowLeaveSheet] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -130,6 +131,13 @@ export default function WorkoutScreen() {
         if (endEpoch != null) workout.updateEndTime(endEpoch);
     }
 
+    function handleDiscard() {
+        if (!workoutData) return;
+        if (!isFinished) restTimer.skip();
+        deleteWorkout(workoutData.workout.id);
+        router.back();
+    }
+
     const handleBack = useCallback(() => {
         const isInProgress = workoutData?.workout && !workoutData.workout.ended_at;
         if (!isInProgress) { router.back(); return; }
@@ -159,6 +167,7 @@ export default function WorkoutScreen() {
     );
 
     const cards = useMemo(() => groupIntoCards(exercises), [exercises]);
+    const sets = useMemo(() => countSets(exercises), [exercises]);
 
     const getLastSets = useCallback(
         (templateId: number | null) => (templateId ? (actions.lastSetsCache.get(templateId) ?? []) : []),
@@ -178,88 +187,86 @@ export default function WorkoutScreen() {
 
     function renderCard({ item, drag, isActive, getIndex }: RenderItemParams<WorkoutCard>) {
         const index = getIndex() ?? 0;
-        const timerActive = restTimer.isRunning;
         const isExpanded = item.members.some((m) => m.workoutExercise.id === expandedId);
         const wrapStyle = isActive ? styles.draggingCard : undefined;
+        const shared = {
+            index,
+            isFinished,
+            isExpanded,
+            onDragStart: drag,
+            onRemove: workout.removeExercise,
+            onNoteChange: actions.handleNoteChange,
+            onConfirmSet: actions.handleConfirmSet,
+            onUpdateSet: actions.handleUpdateSet,
+            onDeleteSet: actions.handleDeleteSet,
+            onSetTypeChange: actions.handleSetTypeChange,
+            onAddSet: actions.handleAddSet,
+            onCopyFromLast: actions.handleCopyFromLast,
+        };
 
         if (item.isSuperset) {
             return (
                 <View style={wrapStyle}>
                     <SupersetCard
+                        {...shared}
                         card={item}
-                        index={index}
-                        isFinished={isFinished}
-                        isExpanded={isExpanded}
                         onExpand={() => handleExpand(item.members[0].workoutExercise.id)}
-                        onDragStart={drag}
                         getLastSets={getLastSets}
-                        onRemove={workout.removeExercise}
-                        onNoteChange={actions.handleNoteChange}
-                        onConfirmSet={actions.handleConfirmSet}
-                        onUpdateSet={actions.handleUpdateSet}
-                        onDeleteSet={actions.handleDeleteSet}
-                        onSetTypeChange={actions.handleSetTypeChange}
-                        onAddSet={actions.handleAddSet}
-                        onCopyFromLast={actions.handleCopyFromLast}
                         onReorderSet={actions.handleReorderSupersetSet}
-                        restTimerActive={timerActive}
-                        restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
-                        restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
-                        restTimerReached={timerActive ? restTimer.isTargetReached : false}
-                        onRestTimerSkip={restTimer.skip}
-                        onRestTimerChangeDuration={restTimer.setDuration}
                     />
                 </View>
             );
         }
 
         const member = item.members[0];
-        const tid = member.workoutExercise.exercise_template_id;
         return (
             <View style={wrapStyle}>
                 <ExerciseCard
+                    {...shared}
                     item={member}
-                    index={index}
-                    isFinished={isFinished}
-                    isExpanded={isExpanded}
                     onExpand={() => handleExpand(member.workoutExercise.id)}
-                    onDragStart={drag}
-                    lastWorkoutSets={tid ? (actions.lastSetsCache.get(tid) ?? []) : []}
-                    onRemove={workout.removeExercise}
-                    onNoteChange={actions.handleNoteChange}
-                    onConfirmSet={actions.handleConfirmSet}
-                    onUpdateSet={actions.handleUpdateSet}
-                    onDeleteSet={actions.handleDeleteSet}
-                    onSetTypeChange={actions.handleSetTypeChange}
-                    onAddSet={actions.handleAddSet}
-                    onCopyFromLast={actions.handleCopyFromLast}
+                    lastWorkoutSets={getLastSets(member.workoutExercise.exercise_template_id)}
                     onReorderSets={actions.handleReorderSets}
                     onSuperset={handleSuperset}
-                    restTimerActive={timerActive}
-                    restTimerElapsed={timerActive ? restTimer.elapsedSeconds : 0}
-                    restTimerTarget={timerActive ? restTimer.targetSeconds : 0}
-                    restTimerReached={timerActive ? restTimer.isTargetReached : false}
-                    onRestTimerSkip={restTimer.skip}
-                    onRestTimerChangeDuration={restTimer.setDuration}
                 />
             </View>
         );
     }
+
+    const title = workoutData?.workout.title || t("exercise.workout.defaultTitle");
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
             <Stack.Screen options={{ headerShown: false }} />
             <WorkoutKeepAwake enabled={keepAwakeInWorkout} />
 
-            <WorkoutHeader
-                title={workout.data?.workout.title || t("exercise.workout.defaultTitle")}
-                elapsedMs={workout.elapsedMs}
-                isFinished={isFinished}
-                hasUnfinishedSets={workout.hasUnfinishedSets}
-                onTitleChange={workout.updateTitle}
-                onFinish={handleFinish}
+            <ScreenHeader
+                title={title}
+                subtitle={workoutData
+                    ? workoutSubtitle(workoutData.workout, workout.elapsedMs, exercises.length, t, i18n.language)
+                    : undefined}
                 onBack={handleBack}
-                onTimerPress={() => setShowTimesModal(true)}
+                editableTitle={{
+                    value: workoutData?.workout.title ?? "",
+                    onChange: workout.updateTitle,
+                    placeholder: t("exercise.workout.defaultTitle"),
+                    label: t("exercise.workout.rename"),
+                }}
+                right={
+                    <IconButton icon="ellipsis-horizontal" label={t("common.moreActions")} onPress={() => setShowMenu(true)} />
+                }
+            />
+
+            <WorkoutStatusCard
+                isLive={!isFinished}
+                resting={restTimer.isRunning}
+                elapsedSeconds={restTimer.elapsedSeconds}
+                targetSeconds={restTimer.isRunning ? restTimer.targetSeconds : restTimer.nextTargetSeconds}
+                setsDone={sets.done}
+                setsTotal={sets.total}
+                onStartRest={() => restTimer.start(null, "working")}
+                onSkipRest={restTimer.skip}
+                onChangeDuration={restTimer.setDuration}
             />
 
             <DraggableFlatList
@@ -267,30 +274,55 @@ export default function WorkoutScreen() {
                 keyExtractor={(item) => item.key}
                 renderItem={renderCard}
                 contentContainerStyle={styles.list}
-                // Fill the screen, so the add bar below sits at the bottom edge.
+                // Fill the screen, so the footer below sits at the bottom edge.
                 containerStyle={styles.listContainer}
                 activationDistance={0}
                 autoscrollThreshold={80}
                 autoscrollSpeed={180}
                 onDragBegin={() => setIsDragging(true)}
                 onDragEnd={handleDragEnd}
+                // "+ EXERCISES", like the recipe editor's "+ INGREDIENTS".
+                ListHeaderComponent={
+                    <SectionHeader
+                        title={t("exercise.workout.exercisesHeader")}
+                        hint={exercises.length > 0 ? t("common.itemCount", { count: exercises.length }) : undefined}
+                        onAdd={() => setShowAddExercise(true)}
+                        addLabel={t("exercise.workout.addExercise")}
+                        first
+                    />
+                }
                 ListEmptyComponent={
-                    <View style={styles.emptyWrap}>
-                        <Ionicons name="barbell-outline" size={28} color={colors.textTertiary} />
-                        <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
-                        <HistoricalWorkoutList
-                            excludeWorkoutId={workout.data?.workout.id}
-                            onCopied={workout.reload}
-                        />
-                    </View>
+                    <HistoricalWorkoutList
+                        excludeWorkoutId={workout.data?.workout.id}
+                        onCopied={workout.reload}
+                        style={styles.emptyWrap}
+                        emptyState={
+                            <EmptyState icon="barbell-outline" title={t("exercise.workout.emptyState")} style={styles.empty} />
+                        }
+                    />
                 }
             />
 
             {/* Hidden while typing, so the keyboard leaves room for the sets. */}
             {!keyboardVisible && (
-                <FooterBar>
-                    <AddPlaceholder label={t("exercise.workout.addExercise")} onPress={() => setShowAddExercise(true)} />
-                </FooterBar>
+                <WorkoutFooter
+                    isLive={!isFinished}
+                    openSets={sets.total - sets.done}
+                    onAddExercise={() => setShowAddExercise(true)}
+                    onFinish={handleFinish}
+                    onLeave={() => router.back()}
+                />
+            )}
+
+            {workoutData?.workout && (
+                <WorkoutMenu
+                    visible={showMenu}
+                    onClose={() => setShowMenu(false)}
+                    workout={workoutData.workout}
+                    onSaveTimes={handleSaveTimes}
+                    onCopied={workout.reload}
+                    onDiscard={handleDiscard}
+                />
             )}
 
             {/* Leaving mid-workout: closing the sheet is "keep going". */}
@@ -326,22 +358,6 @@ export default function WorkoutScreen() {
                 onClose={handleCloseAddExercise}
                 onSelect={handleExerciseSelected}
             />
-
-            {workout.data?.workout && (
-                <EditWorkoutTimesSheet
-                    visible={showTimesModal}
-                    onClose={() => setShowTimesModal(false)}
-                    startedAt={workout.data.workout.started_at}
-                    endedAt={workout.data.workout.ended_at}
-                    onSave={handleSaveTimes}
-                    labels={{
-                        title: t("exercise.workout.editTimes"),
-                        startLabel: t("exercise.workout.startedAt"),
-                        endLabel: t("exercise.workout.endedAt"),
-                        save: t("common.save"),
-                    }}
-                />
-            )}
         </KeyboardAvoidingView>
     );
 }

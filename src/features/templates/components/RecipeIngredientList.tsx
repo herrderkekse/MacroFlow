@@ -16,7 +16,7 @@ interface RecipeIngredientListProps {
 /**
  * The recipe's ingredients as a card of rows, like the meals of the log:
  * name and amount, then calories and macros. Its heading and the add button
- * are pinned by the screen, so neither is rendered here.
+ * are rendered by the screen, so neither is here.
  */
 export default function RecipeIngredientList({ items, onPressItem }: RecipeIngredientListProps) {
     const { t } = useTranslation();
@@ -100,6 +100,7 @@ function createStyles(colors: ThemeColors) {
         name: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
         amount: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
         numbers: { alignSelf: "flex-start", marginTop: 1 },
-        empty: { paddingVertical: spacing.xl },
+        // Centred in the space the list would fill (the scroll content grows to the footer).
+        empty: { flex: 1, justifyContent: "center", paddingVertical: spacing.xl },
     });
 }

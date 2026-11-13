@@ -1,28 +1,26 @@
 import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, controlHeight, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, controlHeight, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 interface RecipeServingsRowProps {
     servings: number;
     onChangeServings: (value: number) => void;
-    onLayout: (event: LayoutChangeEvent) => void;
 }
 
-/** "Makes N servings" — the yield the per-serving macros are divided by. */
+/** "Makes N servings" — the yield the per-serving macros are divided by; in the macro card's details. */
 export default function RecipeServingsRow({
     servings,
     onChangeServings,
-    onLayout,
 }: RecipeServingsRowProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     return (
-        <View style={styles.row} onLayout={onLayout}>
+        <View style={styles.row}>
             <View style={styles.labels}>
                 <Text style={styles.label}>{t("templates.makes")}</Text>
                 <Text style={styles.hint}>{t("templates.macrosPerServing")}</Text>
@@ -56,11 +54,6 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             justifyContent: "space-between",
             gap: spacing.md,
-            backgroundColor: colors.background,
-            paddingHorizontal: screenPadding,
-            paddingBottom: spacing.sm + 4,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
         },
         labels: { flex: 1 },
         label: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
