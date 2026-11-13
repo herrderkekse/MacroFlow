@@ -284,7 +284,7 @@ export default function AddIngredientSheet({
                         </View>
                     </View>
 
-                    <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
+                    <ScrollView style={styles.results} contentContainerStyle={styles.resultsContent} keyboardShouldPersistTaps="handled">
                         {offError && (
                             <Notice
                                 tone="danger"
@@ -322,7 +322,7 @@ export default function AddIngredientSheet({
                             />
                         )}
 
-                        {!canSearchOFF && <EmptyState title={t("templates.searchPrompt")} />}
+                        {!canSearchOFF && <EmptyState icon="search-outline" title={t("templates.searchPrompt")} fill />}
 
                         {isSearchingOFF && (
                             <ActivityIndicator color={colors.textSecondary} style={styles.spinner} />
@@ -403,6 +403,7 @@ function createStyles(colors: ThemeColors) {
         title: { fontSize: fontSize.lg, fontWeight: "700", letterSpacing: -0.2, color: colors.text },
         actionRow: { marginTop: spacing.sm + 4 },
         results: { flex: 1 },
+        resultsContent: { flexGrow: 1 },
         groupLabel: { marginTop: spacing.md, marginBottom: 0, paddingHorizontal: screenPadding },
         spinner: { marginVertical: spacing.md },
         error: { marginTop: spacing.md, marginHorizontal: screenPadding },

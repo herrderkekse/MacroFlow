@@ -190,7 +190,7 @@ export default function AddFoodScreen() {
                 )}
 
                 {!search.showLocalSection && (
-                    <EmptyState icon="search-outline" title={t("log.searchPrompt")} style={styles.placeholder} />
+                    <EmptyState icon="search-outline" title={t("log.searchPrompt")} fill />
                 )}
             </ScrollView>
 
@@ -237,11 +237,10 @@ function createStyles(colors: ThemeColors) {
         screen: { flex: 1, backgroundColor: colors.background },
         // Bleeds to the screen edge so the chips scroll under it.
         actionRow: { marginTop: spacing.sm + 4 },
-        results: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
+        results: { flexGrow: 1, paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
         firstLabel: { marginTop: spacing.sm },
         emptyText: { fontSize: fontSize.sm, color: colors.textTertiary, paddingVertical: spacing.sm },
         spinner: { marginVertical: spacing.md },
         error: { marginTop: spacing.sm },
-        placeholder: { marginTop: spacing.xl },
     });
 }

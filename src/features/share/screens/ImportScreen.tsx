@@ -77,6 +77,7 @@ export default function ImportScreen() {
                         <EmptyState
                             icon="cloud-offline-outline"
                             title={state.message}
+                            fill
                             action={<Button title={t("common.close")} variant="outline" size="sm" onPress={close} />}
                         />
                     )}

@@ -74,6 +74,7 @@ export default function AiMemoriesScreen() {
                     <EmptyState
                         icon="bookmark-outline"
                         title={t("memory.empty")}
+                        fill
                         action={<Button title={t("memory.add")} size="sm" variant="outline" onPress={() => setIsAdding(true)} />}
                     />
                 ) : (
@@ -123,7 +124,7 @@ export default function AiMemoriesScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        content: { flexGrow: 1, paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
         description: {
             fontSize: fontSize.sm,
             lineHeight: 20,

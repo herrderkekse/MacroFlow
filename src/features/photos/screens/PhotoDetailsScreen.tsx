@@ -121,7 +121,7 @@ export default function PhotoDetailsScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 {imageUris.length === 0 ? (
-                    <EmptyState icon="image-outline" title={t("log.photoDetailsMissingImages")} />
+                    <EmptyState icon="image-outline" title={t("log.photoDetailsMissingImages")} fill />
                 ) : (
                     <>
                         <FlatList
@@ -187,7 +187,7 @@ export default function PhotoDetailsScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         container: { flex: 1, backgroundColor: colors.background },
-        content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        content: { flexGrow: 1, paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
         grid: { gap: spacing.sm },
         gridRow: { gap: spacing.sm },
         thumbnail: { flex: 1, aspectRatio: 1, borderRadius: borderRadius.md },

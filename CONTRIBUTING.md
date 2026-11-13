@@ -381,7 +381,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Buttons | `atoms/Button` (`primary`, `secondary`, `outline`, `ghost`, `danger`), `atoms/IconButton`, `atoms/Fab` |
 | On/off | `atoms/Toggle` |
 | Surface | `atoms/Card` (hairline border, no shadow) |
-| Empty list / no results · inline hint or error | `atoms/EmptyState` (centred in the space its list would fill: let the scroll content `flexGrow: 1` and give the placeholder `flex: 1`; anything shown after it, like recent workouts, comes first and the placeholder takes what is left) · `atoms/Notice` |
+| Empty list / no results · inline hint or error | `atoms/EmptyState` — a placeholder or prompt that stands in for the whole list ("No ingredients yet", "Search for a food…") gets `fill`, centring it in the space the list would fill; its scroll content needs `flexGrow: 1`. Anything shown after it (recent workouts) comes first and the placeholder takes what is left · `atoms/Notice` |
 | Optional or advanced section | `components/Disclosure` |
 | Macros: compact "P · C · F" · bare coloured figures ("233 10 40 4") in a row or header · calories + macros of an amount · split bar | `components/MacroInline` · `components/MacroNumbers` · `components/NutritionSummary` · `components/MacroSplitBar` |
 | A food in a result list | `components/FoodRow` |

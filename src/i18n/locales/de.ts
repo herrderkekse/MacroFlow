@@ -348,7 +348,7 @@ const de = {
         onDeviceResults: "Auf dem Gerät",
         noSavedFood: "Nichts gespeichert für „{{query}}“",
         noSavedFoodHint: "Tippe auf den Globus, um OpenFoodFacts zu durchsuchen, oder lege das Lebensmittel selbst an.",
-        searchPrompt: "Durchsuche deine Lebensmittel, scanne einen Barcode oder lege ein neues an.",
+        searchPrompt: "Durchsuche deine Lebensmittel, scanne einen Barcode oder lege ein neues an",
         thisIngredient: "Diese Zutat",
         discardTitle: "Änderungen verwerfen?",
         discardMessage: "Dieses Rezept wurde noch nicht gespeichert.",

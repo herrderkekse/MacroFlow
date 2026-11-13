@@ -24,7 +24,7 @@ export default function RecipeIngredientList({ items, onPressItem }: RecipeIngre
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     if (items.length === 0) {
-        return <EmptyState icon="restaurant-outline" title={t("templates.noIngredients")} style={styles.empty} />;
+        return <EmptyState icon="restaurant-outline" title={t("templates.noIngredients")} fill />;
     }
 
     return (
@@ -100,7 +100,5 @@ function createStyles(colors: ThemeColors) {
         name: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
         amount: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
         numbers: { alignSelf: "flex-start", marginTop: 1 },
-        // Centred in the space the list would fill (the scroll content grows to the footer).
-        empty: { flex: 1, justifyContent: "center", paddingVertical: spacing.xl },
     });
 }

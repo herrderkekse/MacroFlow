@@ -350,7 +350,7 @@ const en = {
         onDeviceResults: "On device",
         noSavedFood: "Nothing saved for “{{query}}”",
         noSavedFoodHint: "Tap the globe to search OpenFoodFacts, or create the food yourself.",
-        searchPrompt: "Search your foods, scan a barcode, or create a new one.",
+        searchPrompt: "Search your foods, scan a barcode, or create a new one",
         thisIngredient: "This ingredient",
         discardTitle: "Discard changes?",
         discardMessage: "This recipe has not been saved yet.",

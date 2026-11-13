@@ -311,11 +311,7 @@ export default function ExerciseHistoryScreen() {
                         onCopy={parsedWeId ? () => handleCopySets(item.workoutExercise.id) : undefined}
                     />
                 )}
-                ListEmptyComponent={
-                    <View style={styles.center}>
-                        <EmptyState icon="bar-chart-outline" title={t("exercise.history.noHistory")} />
-                    </View>
-                }
+                ListEmptyComponent={<EmptyState icon="bar-chart-outline" title={t("exercise.history.noHistory")} fill />}
             />
         </View>
     );
@@ -325,7 +321,7 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
         center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg },
-        listContent: { paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: spacing.xl },
+        listContent: { flexGrow: 1, paddingHorizontal: screenPadding, paddingTop: spacing.xs, paddingBottom: spacing.xl },
         selectorRow: {
             flexDirection: "row",
             gap: spacing.sm,
