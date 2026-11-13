@@ -22,14 +22,17 @@ const ISOLATION_HEADERS = {
     "cross-origin-opener-policy": "same-origin",
 };
 
-// Extra arguments go to Expo, e.g. `npm run gallery -- --clear`.
-const expo = spawn("npx", ["expo", "start", "--web", "--port", String(EXPO_PORT), ...process.argv.slice(2)], {
-    stdio: ["ignore", "inherit", "inherit"],
-    env: { ...process.env, BROWSER: "none" },
-});
-expo.on("exit", (code) => process.exit(code ?? 0));
-for (const signal of ["SIGINT", "SIGTERM"]) {
-    process.on(signal, () => expo.kill(signal));
+/** Starts Expo once the proxy owns its port, so a failed start leaves nothing behind. */
+function startExpo() {
+    // Extra arguments go to Expo, e.g. `npm run gallery -- --clear`.
+    const expo = spawn("npx", ["expo", "start", "--web", "--port", String(EXPO_PORT), ...process.argv.slice(2)], {
+        stdio: ["ignore", "inherit", "inherit"],
+        env: { ...process.env, BROWSER: "none" },
+    });
+    expo.on("exit", (code) => process.exit(code ?? 0));
+    for (const signal of ["SIGINT", "SIGTERM"]) {
+        process.on(signal, () => expo.kill(signal));
+    }
 }
 
 const GALLERY_PAGE = path.join(__dirname, "index.html");
@@ -74,6 +77,19 @@ server.on("upgrade", (req, socket, head) => {
     socket.on("error", () => upstream.destroy());
 });
 
+server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+        console.error(
+            `Port ${PUBLIC_PORT} is already in use; is the gallery already running?\n` +
+            `Stop it, or pick other ports: GALLERY_PORT=8190 npm run gallery (uses that port and the next one).`,
+        );
+    } else {
+        console.error(error);
+    }
+    process.exit(1);
+});
+
 server.listen(PUBLIC_PORT, () => {
     console.log(`\nScreen gallery: http://localhost:${PUBLIC_PORT}/gallery\n`);
+    startExpo();
 });
