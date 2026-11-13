@@ -8,7 +8,9 @@ import EmptyState from "@/src/shared/atoms/EmptyState";
 import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { parseDateKey } from "@/src/utils/date";
 import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +22,7 @@ import ReadOnlyExerciseCard from "../components/ReadOnlyExerciseCard";
 
 export default function ExerciseHistoryScreen() {
     const colors = useThemeColors();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { width: windowWidth } = useWindowDimensions();
     const router = useRouter();
@@ -92,6 +94,17 @@ export default function ExerciseHistoryScreen() {
     }, [e1rmSeries, colors.textSecondary, colors.success, colors.primary, selectedPointIndex, toDisplayUnit]);
     const chartSpacing = chartData.length > 1 ? chartWidth / (chartData.length - 1) : chartWidth;
 
+    const formatSessionDate = useCallback((dateKey: string) => {
+        const date = parseDateKey(dateKey);
+        const sameYear = date.getFullYear() === new Date().getFullYear();
+        return date.toLocaleDateString(i18n.language, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            ...(sameYear ? {} : { year: "numeric" }),
+        });
+    }, [i18n.language]);
+
     const selectedPointDetails = useMemo(() => {
         if (selectedPointIndex === null || selectedPointIndex < 0 || selectedPointIndex >= e1rmSeries.length) {
             return null;
@@ -116,13 +129,13 @@ export default function ExerciseHistoryScreen() {
         }
 
         return {
-            dateLabel: point.date,
+            dateLabel: formatSessionDate(point.date),
             e1rm: formatDisplayValue(toDisplayUnit(point.e1rm)),
             bestSetLabel: bestSet
                 ? `${formatDisplayValue(toDisplayUnit(bestSet.weightKg))} ${displayUnit} x ${bestSet.reps}`
                 : null,
         };
-    }, [selectedPointIndex, e1rmSeries, history, template?.resistance_mode, formatDisplayValue, displayUnit, toDisplayUnit]);
+    }, [selectedPointIndex, e1rmSeries, history, template?.resistance_mode, formatDisplayValue, displayUnit, toDisplayUnit, formatSessionDate]);
 
     const pbE1rm = personalBest ? toDisplayUnit(personalBest.e1rm) : null;
     const currentE1rm = e1rmSeries.length > 0
@@ -300,16 +313,25 @@ export default function ExerciseHistoryScreen() {
                             </View>
                         )}
 
-                        {history.length > 0 && (
-                            <SectionLabel>{t("exercise.history.sessions")}</SectionLabel>
-                        )}
                     </>
                 }
                 renderItem={({ item }) => (
-                    <ReadOnlyExerciseCard
-                        item={item}
-                        onCopy={parsedWeId ? () => handleCopySets(item.workoutExercise.id) : undefined}
-                    />
+                    <>
+                        <SectionLabel
+                            right={parsedWeId ? (
+                                <Pressable
+                                    onPress={() => handleCopySets(item.workoutExercise.id)}
+                                    hitSlop={8}
+                                    accessibilityLabel={t("exercise.history.copyToCurrent")}
+                                >
+                                    <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                                </Pressable>
+                            ) : undefined}
+                        >
+                            {`${formatSessionDate(item.workout.date)} · ${item.workout.title || t("exercise.workout.defaultTitle")}`}
+                        </SectionLabel>
+                        <ReadOnlyExerciseCard item={item} />
+                    </>
                 )}
                 ListEmptyComponent={<EmptyState icon="bar-chart-outline" title={t("exercise.history.noHistory")} fill />}
             />

@@ -1,170 +1,86 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { parseCustomFields, parseCustomValues, type CustomField } from "../helpers/customFields";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
+import { SET_TYPE_LABELS, type SetType } from "./ExerciseCardHelpers";
+import { CustomReadonlyCells, createSetInputStyles } from "./SetInputHelpers";
+import { NoSetsLine, ReadOnlyCardFrame, SetColumns } from "./WorkoutCardParts";
 
 interface ReadOnlyExerciseCardProps {
     item: WorkoutExerciseWithSets;
-    onCopy?: () => void;
 }
 
-export default function ReadOnlyExerciseCard({ item, onCopy }: ReadOnlyExerciseCardProps) {
-    const colors = useThemeColors();
-    const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+/**
+ * The completed sets of one past session, drawn like an open card in the workout
+ * but with nothing to act on: no title, no add-set bar, no check or trash column.
+ * Its date and workout are the section heading above it.
+ */
+export default function ReadOnlyExerciseCard({ item }: ReadOnlyExerciseCardProps) {
     const exerciseType: ExerciseType = (item.exerciseTemplate?.type as ExerciseType) ?? "weight";
     const customFields = parseCustomFields(item.exerciseTemplate?.custom_fields);
-    const useCustom = exerciseType === "other" && customFields.length > 0;
     const completedSets = item.sets.filter((s) => !!s.completed_at);
 
     return (
-        <View style={styles.card}>
-            {/* Title row: date + copy icon */}
-            <View style={styles.titleRow}>
-                <Text style={styles.dateText}>{item.workout.date}</Text>
-                {onCopy && (
-                    <Pressable onPress={onCopy} hitSlop={8}>
-                        <Ionicons name="copy-outline" size={18} color={colors.primary} />
-                    </Pressable>
-                )}
-            </View>
-
-            {/* Column headers */}
-            <View style={styles.headerRow}>
-                <Text style={[styles.headerCell, styles.setCol]}>{t("exercise.exerciseCard.set")}</Text>
-                {exerciseType === "weight" && (
-                    <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.weight")}</Text>
-                )}
-                {exerciseType !== "cardio" && !useCustom && (
-                    <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.reps")}</Text>
-                )}
-                {exerciseType === "cardio" && (
-                    <>
-                        <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.duration")}</Text>
-                        <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.distance")}</Text>
-                    </>
-                )}
-                {useCustom && customFields.map((f) => (
-                    <Text key={f.id} style={[styles.headerCell, styles.valueCol]} numberOfLines={1}>
-                        {f.name}{f.unit ? ` (${f.unit})` : ""}
-                    </Text>
-                ))}
-                {exerciseType !== "cardio" && !useCustom && (
-                    <Text style={[styles.headerCell, styles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
-                )}
-            </View>
-
-            {/* Set rows */}
+        <ReadOnlyCardFrame>
+            <SetColumns exerciseType={exerciseType} customFields={customFields} withActionColumn={false} />
             {completedSets.map((set, i) => (
-                <ReadOnlySetRow key={set.id} set={set} index={i} exerciseType={exerciseType} customFields={customFields} styles={styles} colors={colors} />
+                <ReadOnlySetRow key={set.id} set={set} index={i} exerciseType={exerciseType} customFields={customFields} />
             ))}
-
-            {completedSets.length === 0 && (
-                <Text style={styles.emptyText}>{t("exercise.exerciseCard.noSetsYet")}</Text>
-            )}
-        </View>
+            {completedSets.length === 0 && <NoSetsLine />}
+        </ReadOnlyCardFrame>
     );
 }
 
-function ReadOnlySetRow({ set, index, exerciseType, customFields, styles, colors }: {
+/** A completed `SetInputRow`, with its values as text instead of inputs. */
+function ReadOnlySetRow({ set, index, exerciseType, customFields }: {
     set: ExerciseSet; index: number; exerciseType: ExerciseType; customFields: CustomField[];
-    styles: ReturnType<typeof createStyles>; colors: ReturnType<typeof useThemeColors>;
 }) {
-    const textColor = colors.text;
+    const colors = useThemeColors();
+    const styles = useMemo(() => createSetInputStyles(colors), [colors]);
     const useCustom = exerciseType === "other" && customFields.length > 0;
-    const customValues = useCustom ? parseCustomValues(set.custom_values) : {};
+    const value = [styles.inlineInput, { color: colors.text }];
+    const label = `${SET_TYPE_LABELS[set.type as SetType] ?? ""}${index + 1}`;
+
     return (
-        <View style={styles.setRow}>
-            <Text style={[styles.setCell, styles.setCol, { color: colors.textSecondary }]}>{index + 1}</Text>
+        <View style={[styles.setRow, index > 0 && styles.divider]}>
+            <View style={styles.setCol}>
+                <Text style={[styles.setLabel, { color: colors.textSecondary }]}>{label}</Text>
+            </View>
+
             {exerciseType === "weight" && (
-                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                    {set.weight != null ? `${set.weight} ${set.weight_unit}` : "—"}
-                </Text>
+                <View style={styles.weightInputGroup}>
+                    <Text style={[value, styles.weightInput]}>{set.weight ?? "—"}</Text>
+                    <View style={styles.unitToggle}>
+                        <Text style={[styles.unitText, { color: colors.textTertiary }]}>{set.weight_unit}</Text>
+                    </View>
+                </View>
             )}
+
             {exerciseType !== "cardio" && !useCustom && (
-                <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                    {set.reps ?? "—"}
-                </Text>
+                <Text style={[value, styles.valueCol]}>{set.reps ?? "—"}</Text>
             )}
+
             {exerciseType === "cardio" && (
                 <>
-                    <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                        {set.duration_seconds ? `${set.duration_seconds}s` : "—"}
-                    </Text>
-                    <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                        {set.distance_meters ? `${set.distance_meters}m` : "—"}
-                    </Text>
+                    <Text style={[value, styles.valueCol]}>{set.duration_seconds ?? "—"}</Text>
+                    <Text style={[value, styles.valueCol]}>{set.distance_meters ?? "—"}</Text>
                 </>
             )}
-            {useCustom && customFields.map((f) => (
-                <Text key={f.id} style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                    {customValues[f.id] != null ? `${customValues[f.id]}${f.unit ? ` ${f.unit}` : ""}` : "—"}
-                </Text>
-            ))}
+
+            {useCustom && (
+                <CustomReadonlyCells
+                    fields={customFields}
+                    values={parseCustomValues(set.custom_values)}
+                    textColor={colors.text}
+                    styles={styles}
+                />
+            )}
+
             {exerciseType !== "cardio" && !useCustom && (
-                <Text style={[styles.setCell, styles.rirCol, { color: textColor }]}>
-                    {set.rir ?? "—"}
-                </Text>
+                <Text style={[value, styles.rirCol]}>{set.rir ?? "—"}</Text>
             )}
         </View>
     );
-}
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        card: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-        },
-        titleRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: spacing.sm,
-        },
-        dateText: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingBottom: spacing.xs,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            marginBottom: spacing.xs,
-        },
-        headerCell: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            textTransform: "uppercase",
-        },
-        setCol: { width: 32 },
-        valueCol: { flex: 1, textAlign: "center" },
-        rirCol: { width: 36, textAlign: "center" },
-        setRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingVertical: spacing.xs,
-        },
-        setCell: {
-            fontSize: fontSize.sm,
-            textAlign: "center",
-        },
-        emptyText: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            textAlign: "center",
-            paddingVertical: spacing.sm,
-        },
-    });
 }

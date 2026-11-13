@@ -3,6 +3,14 @@ import { parseCustomValues, type CustomValues } from "../helpers/customFields";
 import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 
+export const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
+export type SetType = (typeof SET_TYPES)[number];
+
+/** The prefix of a set's number ("W1", "D3"); a working set has none. */
+export const SET_TYPE_LABELS: Record<SetType, string> = {
+    warmup: "W", working: "", dropset: "D", failure: "F",
+};
+
 export interface Prefill {
     weight: number | null;
     reps: number | null;

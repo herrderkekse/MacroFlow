@@ -711,7 +711,6 @@ const de = {
             noHistory: "Noch kein Verlauf",
             copiedSets: "{{count}} Sätze kopiert",
             noSetsInSession: "Keine abgeschlossenen Sätze in dieser Einheit",
-            sessions: "Einheiten",
         },
         copyWorkout: {
             title: "Aus Verlauf starten",

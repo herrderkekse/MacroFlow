@@ -6,14 +6,8 @@ import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { parseCustomValues, type CustomField, type CustomValues } from "../helpers/customFields";
 import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType, SetValues } from "../types";
+import { SET_TYPES, SET_TYPE_LABELS, type SetType } from "./ExerciseCardHelpers";
 import { CustomEditableCells, ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
-
-const SET_TYPES = ["warmup", "working", "dropset", "failure"] as const;
-type SetType = (typeof SET_TYPES)[number];
-
-const SET_TYPE_LABELS: Record<SetType, string> = {
-    warmup: "W", working: "", dropset: "D", failure: "F",
-};
 
 interface SetInputRowProps {
     set: ExerciseSet; index: number; exerciseType: ExerciseType;

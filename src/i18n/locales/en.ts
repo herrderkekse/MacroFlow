@@ -711,7 +711,6 @@ const en = {
             noHistory: "No history yet",
             copiedSets: "Copied {{count}} sets",
             noSetsInSession: "No completed sets in this session",
-            sessions: "Sessions",
         },
         copyWorkout: {
             title: "Start from history",

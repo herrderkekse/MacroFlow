@@ -115,10 +115,12 @@ export function CardTitle({ index, members, note, onHistory, onMenu }: CardTitle
 interface SetColumnsProps {
     exerciseType: ExerciseType;
     customFields: CustomField[];
+    /** Keep room for the rows' check/trash column; off for read-only cards, whose rows have none. */
+    withActionColumn?: boolean;
 }
 
 /** Column headings over the set rows, matching `SetInputRow`'s cells. */
-export function SetColumns({ exerciseType, customFields }: SetColumnsProps) {
+export function SetColumns({ exerciseType, customFields, withActionColumn = true }: SetColumnsProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createCardStyles(colors), [colors]);
@@ -147,7 +149,7 @@ export function SetColumns({ exerciseType, customFields }: SetColumnsProps) {
             {exerciseType !== "cardio" && !useCustom && (
                 <Text style={[styles.columnText, styles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
             )}
-            <View style={styles.actionCol} />
+            {withActionColumn && <View style={styles.actionCol} />}
         </View>
     );
 }
@@ -177,6 +179,13 @@ export function ExpandedCardFrame({ children, onLongPress }: { children: React.R
             {children}
         </Pressable>
     );
+}
+
+/** The frame of a past session's card: an open card at rest, without the ink border of the one being worked on. */
+export function ReadOnlyCardFrame({ children }: { children: React.ReactNode }) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createCardStyles(colors), [colors]);
+    return <View style={[styles.card, styles.readOnly]}>{children}</View>;
 }
 
 /** The quiet line an open card shows while it has no sets. */
@@ -236,6 +245,7 @@ function createCardStyles(colors: ThemeColors) {
             paddingTop: spacing.sm + 6,
             marginBottom: spacing.sm + 4,
         },
+        readOnly: { paddingBottom: spacing.xs, marginBottom: spacing.sm },
         // Open cards inset each part instead of padding the card (see SetInputRow).
         titleRow: {
             flexDirection: "row",
