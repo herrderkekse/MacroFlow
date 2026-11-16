@@ -40,24 +40,26 @@ export default function SectionHeader({
     const styles = useMemo(() => createStyles(colors), [colors]);
     const onLabelPress = onHeaderPress ?? onAdd;
 
+    // The whole row is the target, not just the label: the far end of it is
+    // where a right thumb lands. Buttons inside `aside` keep their own press.
     return (
-        <View style={[styles.header, first && styles.headerFirst, style]} onLayout={onLayout}>
-            <Pressable
-                onPress={onLabelPress}
-                onLongPress={onHeaderLongPress}
-                disabled={!onLabelPress && !onHeaderLongPress}
-                hitSlop={{ top: 11, bottom: 11, left: 8, right: 8 }}
-                style={({ pressed }) => [styles.label, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={onAdd && !onHeaderPress ? (addLabel ?? title) : title}
-            >
+        <Pressable
+            onPress={onLabelPress}
+            onLongPress={onHeaderLongPress}
+            disabled={!onLabelPress && !onHeaderLongPress}
+            onLayout={onLayout}
+            style={({ pressed }) => [styles.header, first && styles.headerFirst, style, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={onAdd && !onHeaderPress ? (addLabel ?? title) : title}
+        >
+            <View style={styles.label}>
                 {onAdd ? <Ionicons name="add" size={15} color={colors.textSecondary} /> : <SectionBullet />}
                 <Text style={styles.title} numberOfLines={1}>{title}</Text>
-            </Pressable>
+            </View>
             <View style={styles.spacer} />
             {hint ? <Text style={styles.hint} numberOfLines={1}>{hint}</Text> : null}
             {aside}
-        </View>
+        </Pressable>
     );
 }
 
