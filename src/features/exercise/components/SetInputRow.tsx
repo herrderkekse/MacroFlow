@@ -11,6 +11,7 @@ import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType, SetValues } from "../types";
 import { SET_TYPES, SET_TYPE_LABELS, type SetType } from "./ExerciseCardHelpers";
 import { CustomEditableCells, ScheduledCells, createSetInputStyles } from "./SetInputHelpers";
+import SetLabelCell from "./SetLabelCell";
 
 interface SetInputRowProps {
     set: ExerciseSet; index: number; exerciseType: ExerciseType;
@@ -196,14 +197,13 @@ export default function SetInputRow({
             onLongPress={onDragStart}
             delayLongPress={250}
         >
-            <Pressable onLongPress={handleLongPressSetNum} style={styles.setCol} hitSlop={4}>
-                <Text style={[
-                    styles.setLabel,
-                    { color: isActiveSet ? colors.text : isCompleted ? colors.textSecondary : colors.textTertiary },
-                ]}>
-                    {label}
-                </Text>
-            </Pressable>
+            <SetLabelCell
+                label={label}
+                color={isActiveSet ? colors.text : isCompleted ? colors.textSecondary : colors.textTertiary}
+                setUuid={set.uuid}
+                showAddHint={isActiveSet}
+                onLongPress={handleLongPressSetNum}
+            />
 
             {exerciseType === "weight" && (
                 <View style={styles.weightInputGroup}>

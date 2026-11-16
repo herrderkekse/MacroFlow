@@ -7,6 +7,7 @@ import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseD
 import type { ExerciseType } from "../types";
 import { SET_TYPE_LABELS, type SetType } from "./ExerciseCardHelpers";
 import { CustomReadonlyCells, createSetInputStyles } from "./SetInputHelpers";
+import SetLabelCell from "./SetLabelCell";
 import { NoSetsLine, ReadOnlyCardFrame, SetColumns } from "./WorkoutCardParts";
 
 interface ReadOnlyExerciseCardProps {
@@ -46,9 +47,7 @@ function ReadOnlySetRow({ set, index, exerciseType, customFields }: {
 
     return (
         <View style={[styles.setRow, index > 0 && styles.divider]}>
-            <View style={styles.setCol}>
-                <Text style={[styles.setLabel, { color: colors.textSecondary }]}>{label}</Text>
-            </View>
+            <SetLabelCell label={label} color={colors.textSecondary} setUuid={set.uuid} />
 
             {exerciseType === "weight" && (
                 <View style={styles.weightInputGroup}>

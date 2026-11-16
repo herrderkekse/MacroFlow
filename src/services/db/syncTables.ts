@@ -7,8 +7,9 @@
 // upserts can resolve foreign keys, and pushed/applied deletes run in reverse.
 //
 // NOT in this list (and therefore never synced): sync_queue, sync_meta,
-// sync_row_versions, and everything in SecureStore (AI API keys, the sync
-// password itself).
+// sync_row_versions, set_videos (it names files that only exist on this
+// device), and everything in SecureStore (AI API keys, the sync password
+// itself).
 
 export interface SyncTableDef {
     /** SQLite table name. */

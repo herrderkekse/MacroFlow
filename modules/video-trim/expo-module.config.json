@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["VideoTrimModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.videotrim.VideoTrimModule"]
+  }
+}

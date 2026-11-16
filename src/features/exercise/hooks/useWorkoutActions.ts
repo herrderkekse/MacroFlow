@@ -10,6 +10,7 @@ import {
     getLastCompletedSetsForTemplate, updateSet, reorderSet,
     updateWorkoutExercise, type ExerciseSet,
 } from "../services/exerciseDb";
+import { removeVideoOfSet } from "../services/setVideoFiles";
 
 export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestTimerReturn) {
     const { t } = useTranslation();
@@ -74,6 +75,7 @@ export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestT
     }, [workout]);
 
     const handleDeleteSet = useCallback((setId: number) => {
+        removeVideoOfSet(setId);
         deleteSet(setId);
         workout.reload();
     }, [workout]);
