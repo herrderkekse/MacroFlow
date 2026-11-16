@@ -23,7 +23,6 @@ interface LogDayPageProps {
     onAdd: (mt: MealType) => void;
     onEdit: (row: EntryWithFood) => void;
     onEditRecipeGroup: (group: RecipeGroup, multiplier: number) => void;
-    onDeleteRecipeLog: (recipeLogId: number) => void;
     onConfirmEntry?: (id: number) => void;
     onConfirmRecipeLog?: (recipeLogId: number) => void;
     selectionMode?: boolean;
@@ -47,7 +46,6 @@ export default function LogDayPage({
     onAdd,
     onEdit,
     onEditRecipeGroup,
-    onDeleteRecipeLog,
     onConfirmEntry,
     onConfirmRecipeLog,
     selectionMode,
@@ -80,7 +78,6 @@ export default function LogDayPage({
                         onAdd={() => onAdd(meal.key)}
                         onEdit={onEdit}
                         onEditRecipeGroup={onEditRecipeGroup}
-                        onDeleteRecipeLog={onDeleteRecipeLog}
                         onConfirmEntry={onConfirmEntry}
                         onConfirmRecipeLog={onConfirmRecipeLog}
                         selectionMode={selectionMode}

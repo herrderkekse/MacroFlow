@@ -1,5 +1,4 @@
 import { getRecipeItems } from "@/src/features/templates/services/templateDb";
-import Button from "@/src/shared/atoms/Button";
 import MacroNumbers from "@/src/shared/components/MacroNumbers";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
@@ -21,21 +20,19 @@ interface RecipeGroupRowProps {
     group: RecipeGroup;
     onEdit?: (row: EntryWithFood) => void;
     onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
-    onDeleteRecipeLog?: (recipeLogId: number) => void;
     onConfirmRecipeLog?: (recipeLogId: number) => void;
     isFirst?: boolean;
 }
 
 /**
- * A logged recipe: one row with the recipe's totals. Tapping it adjusts the
- * portion; its right-hand column opens the ingredients, under which the
- * less common actions (adjust portions, delete) appear.
+ * A logged recipe: one row with the recipe's totals. Tapping it opens the
+ * portion sheet (which also deletes the log); its right-hand column opens
+ * the ingredients.
  */
 export default function RecipeGroupRow({
     group,
     onEdit,
     onEditRecipeGroup,
-    onDeleteRecipeLog,
     onConfirmRecipeLog,
     isFirst = false,
 }: RecipeGroupRowProps) {
@@ -141,27 +138,6 @@ export default function RecipeGroupRow({
                             }}
                         />
                     ))}
-                    {!selectionMode && (
-                        <View style={styles.actions}>
-                            {onEditRecipeGroup && (
-                                <Button
-                                    title={t("log.adjustPortions")}
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={<Ionicons name="resize-outline" size={15} color={colors.text} />}
-                                    onPress={() => onEditRecipeGroup(group, multiplier)}
-                                />
-                            )}
-                            <Button
-                                title={t("common.delete")}
-                                variant="ghost"
-                                size="sm"
-                                textStyle={{ color: colors.danger }}
-                                icon={<Ionicons name="trash-outline" size={15} color={colors.danger} />}
-                                onPress={() => onDeleteRecipeLog?.(group.recipeLogId)}
-                            />
-                        </View>
-                    )}
                 </View>
             )}
         </View>
@@ -200,11 +176,5 @@ function createStyles(colors: ThemeColors) {
             paddingLeft: HEADER_GAP + spacing.sm,
         },
         children: { paddingBottom: spacing.sm },
-        actions: {
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: spacing.xs,
-            paddingTop: spacing.xs,
-        },
     });
 }

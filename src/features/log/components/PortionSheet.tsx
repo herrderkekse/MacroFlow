@@ -13,11 +13,13 @@ interface PortionSheetProps {
     value: string;
     onChangeValue: (value: string) => void;
     onSave: () => void;
+    /** Removes the whole logged recipe. */
+    onDelete?: () => void;
     onClose: () => void;
 }
 
-/** Scales a logged recipe to a different number of portions. */
-export default function PortionSheet({ visible, recipeName, value, onChangeValue, onSave, onClose }: PortionSheetProps) {
+/** Scales a logged recipe to a different number of portions, or deletes it. */
+export default function PortionSheet({ visible, recipeName, value, onChangeValue, onSave, onDelete, onClose }: PortionSheetProps) {
     const { t } = useTranslation();
     const isValid = (parseFloat(value.replace(",", ".")) || 0) > 0;
 
@@ -27,9 +29,14 @@ export default function PortionSheet({ visible, recipeName, value, onChangeValue
             onClose={onClose}
             title={t("log.adjustPortions")}
             subtitle={recipeName}
-            footer={<Button title={t("common.save")} onPress={onSave} disabled={!isValid} />}
+            footer={
+                <>
+                    <Button title={t("common.save")} onPress={onSave} disabled={!isValid} />
+                    {onDelete && <Button title={t("log.deleteEntry")} variant="danger" onPress={onDelete} />}
+                </>
+            }
         >
-            <Stepper value={value} onChangeText={onChangeValue} step={0.25} min={0.25} suffix="×" style={styles.stepper} />
+            <Stepper value={value} onChangeText={onChangeValue} step={1} min={0.25} style={styles.stepper} />
         </Sheet>
     );
 }

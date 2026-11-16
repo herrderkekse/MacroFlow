@@ -158,13 +158,18 @@ export default function LogScreen() {
         if (id != null) d.handleDelete(id);
     }
 
+    function handleDeleteEditingRecipeGroup() {
+        const id = d.editingRecipeGroup?.group.recipeLogId;
+        d.setEditingRecipeGroup(null);
+        if (id != null) d.handleDeleteRecipeLog(id);
+    }
+
     const editingGroup = d.editingRecipeGroup?.group;
     const dayPageProps = {
         width: SCREEN_WIDTH,
         onAdd: d.navigateToAdd,
         onEdit: d.handleEdit,
         onEditRecipeGroup: d.handleEditRecipeGroup,
-        onDeleteRecipeLog: d.handleDeleteRecipeLog,
         onConfirmEntry: d.handleConfirmEntry,
         onConfirmRecipeLog: d.handleConfirmRecipeLog,
         workoutRefreshKey: d.workoutRefreshKey,
@@ -247,6 +252,7 @@ export default function LogScreen() {
                 value={d.portionInput}
                 onChangeValue={d.setPortionInput}
                 onSave={d.handleSavePortionMultiplier}
+                onDelete={handleDeleteEditingRecipeGroup}
                 onClose={() => d.setEditingRecipeGroup(null)}
             />
 

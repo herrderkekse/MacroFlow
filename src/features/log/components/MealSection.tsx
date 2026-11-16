@@ -22,7 +22,6 @@ interface MealSectionProps {
     onAdd: () => void;
     onEdit?: (row: EntryWithFood) => void;
     onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
-    onDeleteRecipeLog?: (recipeLogId: number) => void;
     onConfirmEntry?: (id: number) => void;
     onConfirmRecipeLog?: (recipeLogId: number) => void;
     selectionMode?: boolean;
@@ -76,7 +75,6 @@ export default function MealSection({
     onAdd,
     onEdit,
     onEditRecipeGroup,
-    onDeleteRecipeLog,
     onConfirmEntry,
     onConfirmRecipeLog,
     selectionMode,
@@ -123,7 +121,6 @@ export default function MealSection({
                         group={rg}
                         onEdit={onEdit}
                         onEditRecipeGroup={onEditRecipeGroup}
-                        onDeleteRecipeLog={onDeleteRecipeLog}
                         onConfirmRecipeLog={onConfirmRecipeLog}
                         isFirst={index === 0}
                     />

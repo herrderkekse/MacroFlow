@@ -1,9 +1,9 @@
 import IconButton from "@/src/shared/atoms/IconButton";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, controlHeight, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 
 interface StepperProps {
     /** The raw text of the field, so partial input like "1." survives. */
@@ -20,23 +20,36 @@ function round(value: number) {
     return String(Math.round(value * 100) / 100);
 }
 
+// Values off the step grid (1.5 with a step of 1) snap to the next grid line
+// rather than staying off it (2, not 2.5). The epsilon absorbs float error.
+const EPSILON = 1e-9;
+function stepUp(current: number, step: number) {
+    return (Math.floor(current / step + EPSILON) + 1) * step;
+}
+function stepDown(current: number, step: number) {
+    return (Math.ceil(current / step - EPSILON) - 1) * step;
+}
+
 /** The one "number with − and +" control: portions, servings, counts. */
 export default function Stepper({ value, onChangeText, step = 1, min = 0, suffix, style }: StepperProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const current = parseFloat(value.replace(",", ".")) || min;
+    const inputRef = useRef<TextInput>(null);
 
     return (
         <View style={[styles.container, style]}>
             <IconButton
                 icon="remove"
                 label={t("common.decrease")}
-                onPress={() => onChangeText(round(Math.max(min, current - step)))}
+                onPress={() => onChangeText(round(Math.max(min, stepDown(current, step))))}
                 disabled={current <= min}
             />
-            <View style={styles.field}>
+            {/* The whole space between the buttons focuses the field, not just the digits. */}
+            <Pressable style={styles.field} onPress={() => inputRef.current?.focus()} accessible={false}>
                 <TextInput
+                    ref={inputRef}
                     value={value}
                     onChangeText={onChangeText}
                     keyboardType="decimal-pad"
@@ -45,8 +58,8 @@ export default function Stepper({ value, onChangeText, step = 1, min = 0, suffix
                     style={styles.input}
                 />
                 {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
-            </View>
-            <IconButton icon="add" label={t("common.increase")} onPress={() => onChangeText(round(current + step))} />
+            </Pressable>
+            <IconButton icon="add" label={t("common.increase")} onPress={() => onChangeText(round(stepUp(current, step)))} />
         </View>
     );
 }
@@ -63,9 +76,10 @@ function createStyles(colors: ThemeColors) {
             borderColor: colors.borderStrong,
             backgroundColor: colors.surface,
         },
-        field: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center" },
+        field: { flex: 1, alignSelf: "stretch", flexDirection: "row", alignItems: "center", justifyContent: "center" },
         input: {
-            minWidth: 48,
+            alignSelf: "stretch",
+            minWidth: 96,
             padding: 0,
             textAlign: "center",
             fontSize: fontSize.lg,
