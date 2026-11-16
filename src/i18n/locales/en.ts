@@ -696,7 +696,6 @@ const en = {
             duration: "Rest duration",
             skipRest: "Skip rest",
             start: "Start rest",
-            seconds: "{{count}} s",
             notificationTitle: "Rest over",
             notificationBody: "💪 Time for your next set!",
         },

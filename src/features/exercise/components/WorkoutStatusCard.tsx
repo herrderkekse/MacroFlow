@@ -1,4 +1,4 @@
-import Button, { buttonContentColor } from "@/src/shared/atoms/Button";
+import Button from "@/src/shared/atoms/Button";
 import Chip from "@/src/shared/atoms/Chip";
 import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import ChipRow from "@/src/shared/components/ChipRow";
@@ -9,9 +9,9 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import RestDurationStepper from "./RestDurationStepper";
 
-const PRESETS = [30, 60, 90, 120, 180, 300];
-const FINE_STEP = 15;
+const PRESETS = [30, 60, 120, 180, 240, 300];
 
 interface WorkoutStatusCardProps {
     /** False for a finished workout: the card only reports the sets then. */
@@ -109,23 +109,7 @@ export default function WorkoutStatusCard({
                     />
                 ))}
             </ChipRow>
-            <View style={styles.fineRow}>
-                <Button
-                    title={t("exercise.restTimer.seconds", { count: FINE_STEP })}
-                    variant="outline"
-                    size="sm"
-                    icon={<Ionicons name="remove" size={14} color={buttonContentColor(colors, "outline")} />}
-                    onPress={() => onChangeDuration(targetSeconds - FINE_STEP)}
-                />
-                <Text style={styles.target}>{formatClock(targetSeconds)}</Text>
-                <Button
-                    title={t("exercise.restTimer.seconds", { count: FINE_STEP })}
-                    variant="outline"
-                    size="sm"
-                    icon={<Ionicons name="add" size={14} color={buttonContentColor(colors, "outline")} />}
-                    onPress={() => onChangeDuration(targetSeconds + FINE_STEP)}
-                />
-            </View>
+            <RestDurationStepper seconds={targetSeconds} onChange={onChangeDuration} />
             {resting && (
                 <Button
                     title={t("exercise.restTimer.skipRest")}
@@ -170,7 +154,5 @@ function createStyles(colors: ThemeColors) {
         fill: { height: 5 },
         details: { gap: spacing.sm + 2 },
         label: { marginTop: 0, marginBottom: 0 },
-        fineRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-        target: { flex: 1, textAlign: "center", fontSize: fontSize.lg, fontWeight: "600", color: colors.text },
     });
 }

@@ -696,7 +696,6 @@ const de = {
             duration: "Pausendauer",
             skipRest: "Pause überspringen",
             start: "Pause starten",
-            seconds: "{{count}} s",
             notificationTitle: "Pause vorbei",
             notificationBody: "💪 Zeit für den nächsten Satz!",
         },

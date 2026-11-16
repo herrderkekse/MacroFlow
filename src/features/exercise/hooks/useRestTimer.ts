@@ -9,6 +9,10 @@ import {
 } from "../services/restTimerNotifications";
 import { playTimerChimeIfEnabled } from "../services/restTimerSound";
 
+/** The shortest and longest rest the timer accepts. */
+export const REST_MIN_SECONDS = 15;
+export const REST_MAX_SECONDS = 60 * 60;
+
 const REST_DEFAULTS: Record<string, number> = {
     warmup: 60,
     working: 120,
@@ -48,7 +52,7 @@ const useTimerStore = create<TimerStore>((set, get) => ({
         cancelRestTimerNotification();
     },
     setDuration: (seconds) => {
-        const clamped = Math.max(15, seconds);
+        const clamped = Math.min(REST_MAX_SECONDS, Math.max(REST_MIN_SECONDS, Math.round(seconds)));
         const { isRunning, startedAtEpoch } = get();
         set({ targetDurationSeconds: clamped, lastUsedDuration: clamped });
         if (isRunning && startedAtEpoch > 0) {
