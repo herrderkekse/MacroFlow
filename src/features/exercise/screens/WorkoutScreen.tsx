@@ -21,6 +21,7 @@ import WorkoutMenu from "../components/WorkoutMenu";
 import WorkoutStatusCard from "../components/WorkoutStatusCard";
 import { groupIntoCards, type WorkoutCard } from "../helpers/supersets";
 import { countSets, workoutSubtitle } from "../helpers/workoutStatus";
+import { resetDurationClock, useDurationTimerAlarm } from "../hooks/useDurationClock";
 import { useRestTimer } from "../hooks/useRestTimer";
 import { useWorkout } from "../hooks/useWorkout";
 import { useWorkoutActions } from "../hooks/useWorkoutActions";
@@ -45,13 +46,17 @@ export default function WorkoutScreen() {
 
     const workout = useWorkout({ workoutId, date: workoutDate });
     const restTimer = useRestTimer();
+    useDurationTimerAlarm();
     const actions = useWorkoutActions(workout, restTimer);
     const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
     const workoutData = workout.data;
     const reloadWorkout = workout.reload;
-    // The rest timer is persisted across app restarts, so a finished workout must end it.
+    // The rest timer and duration clock are persisted across app restarts, so a finished workout must end them.
     const finishCurrentWorkout = () => {
-        if (workout.finishCurrentWorkout()) restTimer.skip();
+        if (workout.finishCurrentWorkout()) {
+            restTimer.skip();
+            resetDurationClock();
+        }
     };
     const [showAddExercise, setShowAddExercise] = useState(false);
     // Set while the add-exercise sheet is picking the second exercise for a superset (base's id).
@@ -136,7 +141,10 @@ export default function WorkoutScreen() {
 
     function handleDiscard() {
         if (!workoutData) return;
-        if (!isFinished) restTimer.skip();
+        if (!isFinished) {
+            restTimer.skip();
+            resetDurationClock();
+        }
         deleteWorkout(workoutData.workout.id);
         router.back();
     }

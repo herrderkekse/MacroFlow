@@ -1,11 +1,14 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { parseCustomFields } from "../helpers/customFields";
+import { durationTargetFor } from "../helpers/durationClock";
+import { useDurationClock } from "../hooks/useDurationClock";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { getPrefillForSet, isActiveSet, lastSessionLine } from "./ExerciseCardHelpers";
+import DurationClockSheet from "./DurationClockSheet";
 import SetInputRow, { type SetValues } from "./SetInputRow";
 import { AddSetButton, CardTitle, ExpandedCardFrame, NoSetsLine, SetColumns } from "./WorkoutCardParts";
 
@@ -36,6 +39,10 @@ export function ExpandedExerciseCard({
     const { t } = useTranslation();
     const router = useRouter();
     const customFields = parseCustomFields(template?.custom_fields);
+    const durationTarget = isFinished ? null : durationTargetFor(exerciseType, customFields);
+    const [clockOpen, setClockOpen] = useState(false);
+    // Only the open sheet needs the reading every second; the watch icon does not.
+    const clock = useDurationClock(item.workoutExercise.id, clockOpen);
 
     function handleHistory() {
         if (!template) return;
@@ -57,6 +64,8 @@ export function ExpandedExerciseCard({
                 note={item.workoutExercise.notes}
                 onHistory={handleHistory}
                 onMenu={onOpenMenu}
+                onClock={durationTarget ? () => setClockOpen(true) : undefined}
+                clockActive={clock.isOwn}
             />
 
             <SetColumns exerciseType={exerciseType} customFields={customFields} />
@@ -85,6 +94,8 @@ export function ExpandedExerciseCard({
                             prefillDuration={prefill.duration}
                             prefillDistance={prefill.distance}
                             prefillCustom={prefill.custom}
+                            durationTarget={durationTarget}
+                            clockExerciseId={item.workoutExercise.id}
                             onConfirm={onConfirmSet}
                             onUpdate={onUpdateSet}
                             onDelete={onDeleteSet}
@@ -98,6 +109,10 @@ export function ExpandedExerciseCard({
             {item.sets.length === 0 && <NoSetsLine />}
 
             <AddSetButton label={t("exercise.exerciseCard.addSet")} onPress={() => onAddSet(item.workoutExercise.id)} />
+
+            {durationTarget && (
+                <DurationClockSheet visible={clockOpen} onClose={() => setClockOpen(false)} title={name} clock={clock} />
+            )}
         </ExpandedCardFrame>
     );
 }

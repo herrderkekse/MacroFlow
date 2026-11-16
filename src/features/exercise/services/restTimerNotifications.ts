@@ -6,6 +6,13 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 export const REST_TIMER_NOTIFICATION_ID = "rest-timer";
+/** A duration exercise's countdown (issue #421); shares the rest timer's channels and sound. */
+export const DURATION_TIMER_NOTIFICATION_ID = "duration-timer";
+
+/** The notifications the in-app timers stand in for while the workout screen is visible. */
+export function isWorkoutTimerNotification(identifier: string): boolean {
+    return identifier === REST_TIMER_NOTIFICATION_ID || identifier === DURATION_TIMER_NOTIFICATION_ID;
+}
 
 const CHANNEL_SOUND = "rest-timer";
 const CHANNEL_SILENT = "rest-timer-silent";
@@ -95,7 +102,22 @@ async function ensurePermission(): Promise<boolean> {
  * The sound decision (setting + Bluetooth connectivity) is captured at schedule
  * time, which is at most one rest period before it fires.
  */
-export async function scheduleRestTimerNotification(fireAtEpoch: number) {
+export function scheduleRestTimerNotification(fireAtEpoch: number) {
+    return scheduleTimerNotification(
+        REST_TIMER_NOTIFICATION_ID, fireAtEpoch,
+        "exercise.restTimer.notificationTitle", "exercise.restTimer.notificationBody",
+    );
+}
+
+/** Schedule (or replace) the "timer done" notification of a duration exercise. */
+export function scheduleDurationTimerNotification(fireAtEpoch: number) {
+    return scheduleTimerNotification(
+        DURATION_TIMER_NOTIFICATION_ID, fireAtEpoch,
+        "exercise.durationClock.notificationTitle", "exercise.durationClock.notificationBody",
+    );
+}
+
+async function scheduleTimerNotification(identifier: string, fireAtEpoch: number, titleKey: string, bodyKey: string) {
     try {
         if (Platform.OS === "web" || fireAtEpoch <= Date.now()) return;
         if (!(await ensurePermission())) return;
@@ -103,10 +125,10 @@ export async function scheduleRestTimerNotification(fireAtEpoch: number) {
 
         const withSound = await shouldPlayTimerSound();
         await Notifications.scheduleNotificationAsync({
-            identifier: REST_TIMER_NOTIFICATION_ID,
+            identifier,
             content: {
-                title: i18n.t("exercise.restTimer.notificationTitle"),
-                body: i18n.t("exercise.restTimer.notificationBody"),
+                title: i18n.t(titleKey),
+                body: i18n.t(bodyKey),
                 sound: withSound ? NOTIFICATION_SOUND : false,
                 ...(Platform.OS === "android"
                     ? { channelId: withSound ? CHANNEL_SOUND : CHANNEL_SILENT }
@@ -123,7 +145,16 @@ export async function scheduleRestTimerNotification(fireAtEpoch: number) {
 }
 
 /** Cancel the pending notification and dismiss it if it was already delivered. */
-export async function cancelRestTimerNotification() {
-    await Notifications.cancelScheduledNotificationAsync(REST_TIMER_NOTIFICATION_ID).catch(() => { });
-    await Notifications.dismissNotificationAsync(REST_TIMER_NOTIFICATION_ID).catch(() => { });
+export function cancelRestTimerNotification() {
+    return cancelTimerNotification(REST_TIMER_NOTIFICATION_ID);
+}
+
+/** Cancel (and dismiss) a duration exercise's "timer done" notification. */
+export function cancelDurationTimerNotification() {
+    return cancelTimerNotification(DURATION_TIMER_NOTIFICATION_ID);
+}
+
+async function cancelTimerNotification(identifier: string) {
+    await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => { });
+    await Notifications.dismissNotificationAsync(identifier).catch(() => { });
 }

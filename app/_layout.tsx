@@ -1,5 +1,5 @@
 import "@/polyfills";
-import { isWorkoutScreenVisible, REST_TIMER_NOTIFICATION_ID, shouldPlayTimerSound } from "@/src/features/exercise/services/restTimerNotifications";
+import { isWorkoutScreenVisible, isWorkoutTimerNotification, shouldPlayTimerSound } from "@/src/features/exercise/services/restTimerNotifications";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
 import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
 import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
@@ -20,13 +20,13 @@ import { useEffect } from "react";
 import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-// Foreground notification behavior: show the rest-timer notification unless the
+// Foreground notification behavior: show the rest/duration timer notifications unless the
 // user is already watching the workout screen (where the in-app timer chimes
 // itself). Everything else keeps the pre-handler default of not presenting.
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const showRestTimer =
-      notification.request.identifier === REST_TIMER_NOTIFICATION_ID && !isWorkoutScreenVisible();
+      isWorkoutTimerNotification(notification.request.identifier) && !isWorkoutScreenVisible();
     return {
       shouldShowBanner: showRestTimer,
       shouldShowList: showRestTimer,
