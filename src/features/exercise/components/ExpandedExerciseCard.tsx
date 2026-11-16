@@ -1,17 +1,13 @@
-import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, Text, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { parseCustomFields } from "../helpers/customFields";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
-import { createExerciseCardStyles, getPrefillForSet, isActiveSet } from "./ExerciseCardHelpers";
-import { ExerciseCardMenu, ExerciseNoteModal } from "./ExerciseCardModals";
-import RestTimer from "./RestTimer";
+import { getPrefillForSet, isActiveSet, lastSessionLine } from "./ExerciseCardHelpers";
 import SetInputRow, { type SetValues } from "./SetInputRow";
+import { AddSetButton, CardTitle, ExpandedCardFrame, NoSetsLine, SetColumns } from "./WorkoutCardParts";
 
 interface ExpandedExerciseCardProps {
     item: WorkoutExerciseWithSets;
@@ -21,127 +17,50 @@ interface ExpandedExerciseCardProps {
     exerciseType: ExerciseType;
     template: WorkoutExerciseWithSets["exerciseTemplate"];
     lastWorkoutSets: ExerciseSet[];
-    menuOpen: boolean;
-    setMenuOpen: (v: boolean) => void;
+    onOpenMenu: () => void;
     onDragStart: () => void;
-    noteOpen: boolean;
-    setNoteOpen: (v: boolean) => void;
-    noteDraft: string;
-    setNoteDraft: (v: string) => void;
-    onRemove: (workoutExerciseId: number) => void;
-    onNoteChange: (workoutExerciseId: number, note: string) => void;
     onConfirmSet: (setId: number, values: SetValues) => void;
     onUpdateSet: (setId: number, values: SetValues) => void;
     onDeleteSet: (setId: number) => void;
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
-    onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
-    onSuperset: (baseWorkoutExerciseId: number) => void;
-    restTimerActive: boolean;
-    restTimerElapsed: number;
-    restTimerTarget: number;
-    restTimerReached: boolean;
-    onRestTimerSkip: () => void;
-    onRestTimerChangeDuration: (seconds: number) => void;
 }
 
+/** The exercise being worked on: its sets as rows, the next one highlighted. */
 export function ExpandedExerciseCard({
-    item, index, isFinished, name, exerciseType, template,
-    lastWorkoutSets,
-    menuOpen, setMenuOpen, onDragStart, noteOpen, setNoteOpen, noteDraft, setNoteDraft,
-    onRemove, onNoteChange,
-    onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast,
-    onReorderSets, onSuperset,
-    restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
-    onRestTimerChangeDuration,
+    item, index, isFinished, name, exerciseType, template, lastWorkoutSets,
+    onOpenMenu, onDragStart,
+    onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onReorderSets,
 }: ExpandedExerciseCardProps) {
-    const colors = useThemeColors();
     const { t } = useTranslation();
-    const styles = useMemo(() => createExerciseCardStyles(colors), [colors]);
     const router = useRouter();
     const customFields = parseCustomFields(template?.custom_fields);
-    const useCustom = exerciseType === "other" && customFields.length > 0;
-
-    function handleRemove() {
-        Alert.alert(
-            t("exercise.exerciseCard.remove"),
-            t("exercise.exerciseCard.removeConfirm"),
-            [
-                { text: t("common.cancel"), style: "cancel" },
-                { text: t("common.delete"), style: "destructive", onPress: () => onRemove(item.workoutExercise.id) },
-            ],
-        );
-        setMenuOpen(false);
-    }
 
     function handleHistory() {
-        if (template) {
-            router.push({
-                pathname: "/workout/exercise-history",
-                params: {
-                    templateId: String(template.id),
-                    name: template.name,
-                    workoutExerciseId: String(item.workoutExercise.id),
-                },
-            });
-        }
-    }
-
-    function handleSaveNote() {
-        onNoteChange(item.workoutExercise.id, noteDraft.trim());
-        setNoteOpen(false);
+        if (!template) return;
+        router.push({
+            pathname: "/workout/exercise-history",
+            params: {
+                templateId: String(template.id),
+                name: template.name,
+                workoutExerciseId: String(item.workoutExercise.id),
+            },
+        });
     }
 
     return (
-        <Pressable style={styles.card} onLongPress={onDragStart} delayLongPress={180}>
-            {/* Title row */}
-            <View style={styles.titleRow}>
-                <Text style={styles.orderNum}>{index + 1}.</Text>
-                <Text style={styles.exerciseName} numberOfLines={1}>{name}</Text>
-                <Pressable onPress={handleHistory} hitSlop={8}>
-                    <Ionicons name="bar-chart-outline" size={18} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => setMenuOpen(true)} hitSlop={8}>
-                    <Ionicons name="ellipsis-vertical" size={18} color={colors.textSecondary} />
-                </Pressable>
-            </View>
+        <ExpandedCardFrame onLongPress={onDragStart}>
+            <CardTitle
+                index={index}
+                members={[{ key: item.workoutExercise.id, name, last: lastSessionLine(lastWorkoutSets, exerciseType, t) }]}
+                note={item.workoutExercise.notes}
+                onHistory={handleHistory}
+                onMenu={onOpenMenu}
+            />
 
-            {/* Note display */}
-            {item.workoutExercise.notes ? (
-                <Text style={styles.noteText} numberOfLines={2}>
-                    {item.workoutExercise.notes}
-                </Text>
-            ) : null}
+            <SetColumns exerciseType={exerciseType} customFields={customFields} />
 
-            {/* Column headers */}
-            <View style={styles.headerRow}>
-                <View style={styles.handleCol} />
-                <Text style={[styles.headerCell, styles.setCol]}>{t("exercise.exerciseCard.set")}</Text>
-                {exerciseType === "weight" && (
-                    <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.weight")}</Text>
-                )}
-                {exerciseType !== "cardio" && !useCustom && (
-                    <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.reps")}</Text>
-                )}
-                {exerciseType === "cardio" && (
-                    <>
-                        <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.duration")}</Text>
-                        <Text style={[styles.headerCell, styles.valueCol]}>{t("exercise.exerciseCard.distance")}</Text>
-                    </>
-                )}
-                {useCustom && customFields.map((f) => (
-                    <Text key={f.id} style={[styles.headerCell, styles.valueCol]} numberOfLines={1}>
-                        {f.name}{f.unit ? ` (${f.unit})` : ""}
-                    </Text>
-                ))}
-                {exerciseType !== "cardio" && !useCustom && (
-                    <Text style={[styles.headerCell, styles.rirCol]}>{t("exercise.exerciseCard.rir")}</Text>
-                )}
-                <Text style={[styles.headerCell, styles.emptyCol]}></Text>
-            </View>
-
-            {/* Set rows */}
             <DraggableFlatList
                 data={item.sets}
                 keyExtractor={(set) => String(set.id)}
@@ -151,83 +70,34 @@ export function ExpandedExerciseCard({
                 renderItem={({ item: set, drag, getIndex }: RenderItemParams<ExerciseSet>) => {
                     const si = getIndex() ?? 0;
                     const prefill = getPrefillForSet(si, item.sets, lastWorkoutSets);
-                    const active = isActiveSet(set, si, item.sets);
                     return (
-                        <React.Fragment key={set.id}>
-                            {active && restTimerActive && (
-                                <RestTimer
-                                    elapsedSeconds={restTimerElapsed}
-                                    targetSeconds={restTimerTarget}
-                                    isTargetReached={restTimerReached}
-                                    onSkip={onRestTimerSkip}
-                                    onChangeDuration={onRestTimerChangeDuration}
-                                />
-                            )}
-                            <SetInputRow
-                                set={set}
-                                index={si}
-                                exerciseType={exerciseType}
-                                customFields={customFields}
-                                isActive={active}
-                                isFinished={isFinished}
-                                prefillWeight={prefill.weight}
-                                prefillReps={prefill.reps}
-                                prefillRir={prefill.rir}
-                                prefillDuration={prefill.duration}
-                                prefillDistance={prefill.distance}
-                                prefillCustom={prefill.custom}
-                                onConfirm={onConfirmSet}
-                                onUpdate={onUpdateSet}
-                                onDelete={onDeleteSet}
-                                onTypeChange={onSetTypeChange}
-                                onDragStart={drag}
-                            />
-                        </React.Fragment>
+                        <SetInputRow
+                            set={set}
+                            index={si}
+                            isFirst={si === 0}
+                            exerciseType={exerciseType}
+                            customFields={customFields}
+                            isActive={isActiveSet(set, si, item.sets)}
+                            isFinished={isFinished}
+                            prefillWeight={prefill.weight}
+                            prefillReps={prefill.reps}
+                            prefillRir={prefill.rir}
+                            prefillDuration={prefill.duration}
+                            prefillDistance={prefill.distance}
+                            prefillCustom={prefill.custom}
+                            onConfirm={onConfirmSet}
+                            onUpdate={onUpdateSet}
+                            onDelete={onDeleteSet}
+                            onTypeChange={onSetTypeChange}
+                            onDragStart={drag}
+                        />
                     );
                 }}
             />
 
-            {/* Empty state */}
-            {item.sets.length === 0 && (
-                <Text style={styles.emptyText}>{t("exercise.workout.emptyState")}</Text>
-            )}
+            {item.sets.length === 0 && <NoSetsLine />}
 
-            {/* + Add Set button */}
-            <Pressable style={styles.addSetBtn} onPress={() => onAddSet(item.workoutExercise.id)}>
-                <Text style={styles.addSetText}>{t("exercise.exerciseCard.addSet")}</Text>
-            </Pressable>
-
-            <ExerciseCardMenu
-                visible={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                isFinished={isFinished}
-                hasNote={!!item.workoutExercise.notes}
-                hasTemplate={!!template}
-                onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
-                onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
-                onRemove={handleRemove}
-                onSuperset={template ? () => { setMenuOpen(false); onSuperset(item.workoutExercise.id); } : undefined}
-                labels={{
-                    editNote: t("exercise.exerciseCard.editNote"),
-                    addNote: t("exercise.exerciseCard.addNote"),
-                    copyFromLast: t("exercise.exerciseCard.copyFromLast"),
-                    superset: t("exercise.exerciseCard.superset"),
-                    remove: t("exercise.exerciseCard.remove"),
-                }}
-            />
-
-            <ExerciseNoteModal
-                visible={noteOpen}
-                onClose={() => setNoteOpen(false)}
-                value={noteDraft}
-                onChangeText={setNoteDraft}
-                onSave={handleSaveNote}
-                labels={{
-                    title: t("exercise.exerciseCard.note"),
-                    placeholder: t("exercise.exerciseCard.notePlaceholder"),
-                    save: t("common.save"),
-                }}
-            />
-        </Pressable>
+            <AddSetButton label={t("exercise.exerciseCard.addSet")} onPress={() => onAddSet(item.workoutExercise.id)} />
+        </ExpandedCardFrame>
     );
 }

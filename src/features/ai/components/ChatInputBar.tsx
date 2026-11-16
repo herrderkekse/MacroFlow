@@ -1,4 +1,4 @@
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { floatingShadow, borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +38,7 @@ export default function ChatInputBar({
                 <Ionicons
                     name="chatbubble-ellipses-outline"
                     size={18}
-                    color={isOpen ? colors.primary : colors.textTertiary}
+                    color={isOpen ? colors.text : colors.textTertiary}
                 />
                 <TextInput
                     ref={inputRef}
@@ -47,6 +47,7 @@ export default function ChatInputBar({
                     onChangeText={onChangeText}
                     placeholder={t("chat.placeholder")}
                     placeholderTextColor={colors.textTertiary}
+                    selectionColor={colors.textSecondary}
                     onFocus={() => { if (!isOpen) openSheet(); }}
                     onSubmitEditing={onSend}
                     blurOnSubmit={false}
@@ -69,7 +70,7 @@ export default function ChatInputBar({
                         pressed && { opacity: 0.8 },
                     ]}
                 >
-                    <Ionicons name="send" size={16} color="#fff" />
+                    <Ionicons name="arrow-up" size={18} color={colors.onPrimary} />
                 </Pressable>
             )}
         </View>
@@ -89,16 +90,13 @@ function createStyles(colors: ThemeColors) {
             alignItems: "center",
             gap: spacing.sm,
             backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
+            borderRadius: borderRadius.lg,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: colors.borderStrong,
             paddingLeft: spacing.md,
-            paddingRight: spacing.xs,
+            paddingRight: spacing.xs + 2,
+            ...floatingShadow,
             elevation: 12,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.12,
-            shadowRadius: 6,
             zIndex: 110,
         },
         inputTouchArea: {

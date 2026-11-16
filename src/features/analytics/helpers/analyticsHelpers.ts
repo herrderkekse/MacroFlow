@@ -28,13 +28,7 @@ export const METRICS: { key: Metric; labelKey: string }[] = [
 
 export const MACRO_KCAL: Record<MacroKey, number> = { protein: 4, carbs: 4, fat: 9 };
 
-export const ANIMATION_DURATION = 0;
-export const CURVATURE = 0.1;
-export const START_OPACITY = 1;
-export const END_OPACITY = 1;
-export const START_SHADE = -20;
-export const END_SHADE = -20;
-export const GRAPH_HEIGHT = 220;
+export const KG_TO_LB = 2.20462;
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -42,24 +36,6 @@ export function daysAgo(n: number): string {
     const d = new Date();
     d.setDate(d.getDate() - n);
     return formatDateKey(d);
-}
-
-export function formatLabel(date: string) {
-    const parts = date.split("-");
-    return `${parts[2]}/${parts[1]}`;
-}
-
-export function shadeColor(color: string, percent: number): string {
-    const f = parseInt(color.slice(1), 16);
-    const t = percent < 0 ? 0 : 255;
-    const p = Math.abs(percent) / 100;
-    const R = f >> 16;
-    const G = (f >> 8) & 0x00ff;
-    const B = f & 0x0000ff;
-    const newR = Math.round((t - R) * p + R);
-    const newG = Math.round((t - G) * p + G);
-    const newB = Math.round((t - B) * p + B);
-    return `#${(0x1000000 + (newR << 16) + (newG << 8) + newB).toString(16).slice(1)}`;
 }
 
 export function computeStats(values: number[]) {
@@ -79,6 +55,6 @@ export function computeStats(values: number[]) {
     return { min, max, avg, median, stdDev, variance, trend };
 }
 
-export function formatNum(v: number, decimals = 1): string {
-    return v.toFixed(decimals);
+export function formatNum(v: number, decimals = 1, locale?: string): string {
+    return v.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }

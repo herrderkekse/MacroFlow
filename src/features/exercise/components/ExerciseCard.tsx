@@ -1,14 +1,12 @@
-import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert } from "react-native";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
-import { createCollapsedCardStyles } from "./ExerciseCardHelpers";
 import { ExerciseCardMenu, ExerciseNoteModal } from "./ExerciseCardModals";
 import { ExpandedExerciseCard } from "./ExpandedExerciseCard";
 import type { SetValues } from "./SetInputRow";
+import { CollapsedCard } from "./WorkoutCardParts";
 
 interface ExerciseCardProps {
     item: WorkoutExerciseWithSets;
@@ -28,21 +26,14 @@ interface ExerciseCardProps {
     onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
     onSuperset: (baseWorkoutExerciseId: number) => void;
-    restTimerActive: boolean;
-    restTimerElapsed: number;
-    restTimerTarget: number;
-    restTimerReached: boolean;
-    onRestTimerSkip: () => void;
-    onRestTimerChangeDuration: (seconds: number) => void;
 }
 
+/** One exercise of a workout: a one-line card until it is opened to log its sets. */
 export default function ExerciseCard({
     item, index, isFinished, isExpanded, onExpand, onDragStart, lastWorkoutSets,
     onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast, onReorderSets,
     onSuperset,
-    restTimerActive, restTimerElapsed, restTimerTarget, restTimerReached, onRestTimerSkip,
-    onRestTimerChangeDuration,
 }: ExerciseCardProps) {
     const { t } = useTranslation();
     const template = item.exerciseTemplate;
@@ -54,6 +45,7 @@ export default function ExerciseCard({
     const [noteDraft, setNoteDraft] = useState(item.workoutExercise.notes ?? "");
 
     function handleRemove() {
+        setMenuOpen(false);
         Alert.alert(
             t("exercise.exerciseCard.remove"),
             t("exercise.exerciseCard.removeConfirm"),
@@ -62,7 +54,6 @@ export default function ExerciseCard({
                 { text: t("common.delete"), style: "destructive", onPress: () => onRemove(item.workoutExercise.id) },
             ],
         );
-        setMenuOpen(false);
     }
 
     function handleSaveNote() {
@@ -70,131 +61,69 @@ export default function ExerciseCard({
         setNoteOpen(false);
     }
 
-    // Show collapsed card for non-expanded exercises
-    if (!isExpanded) {
-        return (
-            <>
-                <CollapsedExerciseCard
+    const done = item.sets.filter((s) => !!s.completed_at).length;
+
+    return (
+        <>
+            {isExpanded ? (
+                <ExpandedExerciseCard
                     item={item}
                     index={index}
+                    isFinished={isFinished}
                     name={name}
+                    exerciseType={exerciseType}
+                    template={template}
+                    lastWorkoutSets={lastWorkoutSets}
+                    onOpenMenu={() => setMenuOpen(true)}
+                    onDragStart={onDragStart}
+                    onConfirmSet={onConfirmSet}
+                    onUpdateSet={onUpdateSet}
+                    onDeleteSet={onDeleteSet}
+                    onSetTypeChange={onSetTypeChange}
+                    onAddSet={onAddSet}
+                    onReorderSets={onReorderSets}
+                />
+            ) : (
+                <CollapsedCard
+                    index={index}
+                    title={name}
+                    done={done}
+                    total={item.sets.length}
                     onExpand={onExpand}
                     onLongPress={onDragStart}
                 />
-                <ExerciseCardMenu
-                    visible={menuOpen}
-                    onClose={() => setMenuOpen(false)}
-                    isFinished={isFinished}
-                    hasNote={!!item.workoutExercise.notes}
-                    hasTemplate={!!template}
-                    onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
-                    onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
-                    onRemove={handleRemove}
-                    onSuperset={template ? () => { setMenuOpen(false); onSuperset(item.workoutExercise.id); } : undefined}
-                    labels={{
-                        editNote: t("exercise.exerciseCard.editNote"),
-                        addNote: t("exercise.exerciseCard.addNote"),
-                        copyFromLast: t("exercise.exerciseCard.copyFromLast"),
-                        superset: t("exercise.exerciseCard.superset"),
-                        remove: t("exercise.exerciseCard.remove"),
-                    }}
-                />
-                <ExerciseNoteModal
-                    visible={noteOpen}
-                    onClose={() => setNoteOpen(false)}
-                    value={noteDraft}
-                    onChangeText={setNoteDraft}
-                    onSave={handleSaveNote}
-                    labels={{
-                        title: t("exercise.exerciseCard.note"),
-                        placeholder: t("exercise.exerciseCard.notePlaceholder"),
-                        save: t("common.save"),
-                    }}
-                />
-            </>
-        );
-    }
-
-    return (
-        <ExpandedExerciseCard
-            item={item}
-            index={index}
-            isFinished={isFinished}
-            name={name}
-            exerciseType={exerciseType}
-            template={template}
-            lastWorkoutSets={lastWorkoutSets}
-            menuOpen={menuOpen}
-            setMenuOpen={setMenuOpen}
-            onDragStart={onDragStart}
-            noteOpen={noteOpen}
-            setNoteOpen={setNoteOpen}
-            noteDraft={noteDraft}
-            setNoteDraft={setNoteDraft}
-            onRemove={onRemove}
-            onNoteChange={onNoteChange}
-            onConfirmSet={onConfirmSet}
-            onUpdateSet={onUpdateSet}
-            onDeleteSet={onDeleteSet}
-            onSetTypeChange={onSetTypeChange}
-            onAddSet={onAddSet}
-            onCopyFromLast={onCopyFromLast}
-            onReorderSets={onReorderSets}
-            onSuperset={onSuperset}
-            restTimerActive={restTimerActive}
-            restTimerElapsed={restTimerElapsed}
-            restTimerTarget={restTimerTarget}
-            restTimerReached={restTimerReached}
-            onRestTimerSkip={onRestTimerSkip}
-            onRestTimerChangeDuration={onRestTimerChangeDuration}
-        />
-    );
-}
-
-// ── Collapsed card ──────────────────────────────────────────────────────────
-
-interface CollapsedProps {
-    item: WorkoutExerciseWithSets;
-    index: number;
-    name: string;
-    onExpand: () => void;
-    onLongPress: () => void;
-}
-
-function CollapsedExerciseCard({ item, index, name, onExpand, onLongPress }: CollapsedProps) {
-    const colors = useThemeColors();
-    const { t } = useTranslation();
-    const styles = useMemo(() => createCollapsedCardStyles(colors), [colors]);
-
-    const totalSets = item.sets.length;
-    const completedSets = item.sets.filter((s) => !!s.completed_at).length;
-    const isAllDone = totalSets > 0 && completedSets === totalSets;
-
-    function getProgressLabel(): string {
-        if (totalSets === 0) return t("exercise.exerciseCard.noSetsYet");
-        return t("exercise.exerciseCard.setsProgress", { completed: completedSets, total: totalSets });
-    }
-
-    return (
-        <Pressable style={styles.card} onPress={onExpand} onLongPress={onLongPress}>
-            <Text style={styles.orderNum}>{index + 1}.</Text>
-            <Text style={styles.name} numberOfLines={1}>{name}</Text>
-
-            <View style={[styles.progressBadge, isAllDone && styles.progressBadgeComplete]}>
-                {isAllDone && (
-                    <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                )}
-                <Text style={[styles.progressText, isAllDone && styles.progressTextComplete]}>
-                    {getProgressLabel()}
-                </Text>
-            </View>
-
-            <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.textTertiary}
-                style={styles.chevron}
+            )}
+            <ExerciseCardMenu
+                visible={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                title={name}
+                isFinished={isFinished}
+                hasNote={!!item.workoutExercise.notes}
+                hasTemplate={!!template}
+                onEditNote={() => { setMenuOpen(false); setNoteDraft(item.workoutExercise.notes ?? ""); setNoteOpen(true); }}
+                onCopyFromLast={() => { onCopyFromLast(item.workoutExercise.id, template!.id); setMenuOpen(false); }}
+                onRemove={handleRemove}
+                onSuperset={template ? () => { setMenuOpen(false); onSuperset(item.workoutExercise.id); } : undefined}
+                labels={{
+                    editNote: t("exercise.exerciseCard.editNote"),
+                    addNote: t("exercise.exerciseCard.addNote"),
+                    copyFromLast: t("exercise.exerciseCard.copyFromLast"),
+                    superset: t("exercise.exerciseCard.superset"),
+                    remove: t("exercise.exerciseCard.remove"),
+                }}
             />
-        </Pressable>
+            <ExerciseNoteModal
+                visible={noteOpen}
+                onClose={() => setNoteOpen(false)}
+                value={noteDraft}
+                onChangeText={setNoteDraft}
+                onSave={handleSaveNote}
+                labels={{
+                    title: t("exercise.exerciseCard.note"),
+                    placeholder: t("exercise.exerciseCard.notePlaceholder"),
+                    save: t("common.save"),
+                }}
+            />
+        </>
     );
 }

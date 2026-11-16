@@ -1,12 +1,11 @@
 import { getRecipeDisplayName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getRecipeById } from "@/src/features/templates/services/templateDb";
-import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import MacroNumbers from "@/src/shared/components/MacroNumbers";
+import SectionCard from "@/src/shared/components/SectionCard";
 import type { MealType } from "@/src/shared/types";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { sumMacros } from "../helpers/logHelpers";
 import { getRecipeLogById } from "../services/logDb";
 import MealEntryRow from "./MealEntryRow";
 import type { EntryWithFood, MealSelectionContextValue, RecipeGroup } from "./mealSectionContext";
@@ -17,13 +16,12 @@ export type { RecipeGroup } from "./mealSectionContext";
 
 interface MealSectionProps {
     mealType: MealType;
-    icon: string;
+    /** The first section of the day sits closer to the header. */
+    first?: boolean;
     items: EntryWithFood[];
     onAdd: () => void;
-    onDeleteEntry: (id: number) => void;
     onEdit?: (row: EntryWithFood) => void;
     onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
-    onDeleteRecipeLog?: (recipeLogId: number) => void;
     onConfirmEntry?: (id: number) => void;
     onConfirmRecipeLog?: (recipeLogId: number) => void;
     selectionMode?: boolean;
@@ -72,13 +70,11 @@ function groupEntries(items: EntryWithFood[]) {
 
 export default function MealSection({
     mealType,
-    icon,
+    first,
     items,
     onAdd,
-    onDeleteEntry,
     onEdit,
     onEditRecipeGroup,
-    onDeleteRecipeLog,
     onConfirmEntry,
     onConfirmRecipeLog,
     selectionMode,
@@ -88,32 +84,11 @@ export default function MealSection({
     onActivateSelectionMultiple,
 }: MealSectionProps) {
     const { t } = useTranslation();
-    const colors = useThemeColors();
-    const styles = useMemo(() => createStyles(colors), [colors]);
-    const totalCals = items.reduce((sum, row) => {
-        const cals = row.foods?.calories_per_100g ?? 0;
-        const qty = row.entries.quantity_grams;
-        return sum + (cals * qty) / 100;
-    }, 0);
-
-    const totalProtein = items.reduce((sum, row) => {
-        const p = row.foods?.protein_per_100g ?? 0;
-        return sum + (p * row.entries.quantity_grams) / 100;
-    }, 0);
-
-    const totalCarbs = items.reduce((sum, row) => {
-        const c = row.foods?.carbs_per_100g ?? 0;
-        return sum + (c * row.entries.quantity_grams) / 100;
-    }, 0);
-
-    const totalFat = items.reduce((sum, row) => {
-        const f = row.foods?.fat_per_100g ?? 0;
-        return sum + (f * row.entries.quantity_grams) / 100;
-    }, 0);
+    const totals = sumMacros(items);
 
     const { standalone, recipeGroups } = groupEntries(items);
     const allMealEntryIds = items.map(e => e.entries.id);
-    const allMealSelected = selectionMode && items.length > 0 && items.every(e => selectedEntryIds?.has(e.entries.id));
+    const allMealSelected = !!selectionMode && items.length > 0 && items.every(e => !!selectedEntryIds?.has(e.entries.id));
     const selectionContextValue: MealSelectionContextValue = {
         selectionMode: selectionMode ?? false,
         selectedEntryIds: selectedEntryIds ?? new Set<number>(),
@@ -122,143 +97,44 @@ export default function MealSection({
         activateSelectionMultiple: (entryIds) => onActivateSelectionMultiple?.(entryIds),
     };
 
+    const hasItems = items.length > 0;
+
     return (
         <MealSelectionContext.Provider value={selectionContextValue}>
-            <View style={[styles.container, allMealSelected && styles.selectedMeal]}>
-                <Pressable
-                    style={styles.header}
-                    onPress={() => {
-                        if (selectionMode && items.length > 0) {
-                            onToggleEntries?.(allMealEntryIds);
-                        } else if (!selectionMode) {
-                            onAdd();
-                        }
-                    }}
-                    onLongPress={() => {
-                        if (selectionMode && items.length > 0) {
-                            onToggleEntries?.(allMealEntryIds);
-                        } else if (!selectionMode && items.length > 0) {
-                            onActivateSelectionMultiple?.(allMealEntryIds);
-                        }
-                    }}
-                >
-                    <View style={styles.headerLeft}>
-                        <Ionicons name={icon as never} size={18} color={colors.textSecondary} />
-                        <Text style={styles.title}>{t(`meal.${mealType}`)}</Text>
-
-                        {items.length > 0 && (
-                            <View style={styles.pillsContainer}>
-                                <View style={styles.pill}>
-                                    <Text style={[styles.pillText, { color: colors.textSecondary }]}>
-                                        <Text style={{ color: colors.calories }}>{Math.round(totalCals)} {t("common.cal")}</Text>
-                                        <Text style={{ color: colors.textSecondary }}> - </Text>
-                                        <Text style={{ color: colors.protein }}>{Math.round(totalProtein)}g</Text>
-                                        <Text style={{ color: colors.textSecondary }}> | </Text>
-                                        <Text style={{ color: colors.carbs }}>{Math.round(totalCarbs)}g</Text>
-                                        <Text style={{ color: colors.textSecondary }}> | </Text>
-                                        <Text style={{ color: colors.fat }}>{Math.round(totalFat)}g</Text>
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
-                    </View>
-                    {!selectionMode && (
-                        <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
-                    )}
-                </Pressable>
-
-                {items.length === 0 ? (
-                    <Pressable onPress={() => !selectionMode && onAdd()} style={styles.emptyPressable}>
-                        <Text style={styles.empty}>{t("log.noFoodsLogged")}</Text>
-                    </Pressable>
-                ) : (
-                    <>
-                        {recipeGroups.map((rg) => (
-                            <RecipeGroupRow
-                                key={rg.recipeLogId}
-                                group={rg}
-                                onEdit={onEdit}
-                                onDeleteEntry={onDeleteEntry}
-                                onEditRecipeGroup={onEditRecipeGroup}
-                                onDeleteRecipeLog={onDeleteRecipeLog}
-                                onConfirmRecipeLog={onConfirmRecipeLog}
-                                allMealSelected={allMealSelected}
-                            />
-                        ))}
-
-                        {standalone.map((row) => (
-                            <MealEntryRow
-                                key={row.entries.id}
-                                row={row}
-                                onEdit={onEdit}
-                                onDeleteEntry={onDeleteEntry}
-                                onConfirmEntry={onConfirmEntry}
-                                allMealSelected={allMealSelected}
-                            />
-                        ))}
-                    </>
-                )}
-            </View>
+            <SectionCard
+                first={first}
+                title={t(`meal.${mealType}`)}
+                aside={hasItems ? <MacroNumbers size="sm" {...totals} /> : undefined}
+                onAdd={selectionMode ? undefined : onAdd}
+                addLabel={t("log.addFoodTo", { meal: t(`meal.${mealType}`) })}
+                empty={selectionMode ? undefined : { icon: "add", label: t("log.nothingLogged") }}
+                selected={allMealSelected}
+                onHeaderPress={selectionMode && hasItems ? () => onToggleEntries?.(allMealEntryIds) : undefined}
+                onHeaderLongPress={() => {
+                    if (selectionMode && hasItems) onToggleEntries?.(allMealEntryIds);
+                    else if (!selectionMode && hasItems) onActivateSelectionMultiple?.(allMealEntryIds);
+                }}
+            >
+                {recipeGroups.map((rg, index) => (
+                    <RecipeGroupRow
+                        key={rg.recipeLogId}
+                        group={rg}
+                        onEdit={onEdit}
+                        onEditRecipeGroup={onEditRecipeGroup}
+                        onConfirmRecipeLog={onConfirmRecipeLog}
+                        isFirst={index === 0}
+                    />
+                ))}
+                {standalone.map((row, index) => (
+                    <MealEntryRow
+                        key={row.entries.id}
+                        row={row}
+                        onEdit={onEdit}
+                        onConfirmEntry={onConfirmEntry}
+                        isFirst={index === 0 && recipeGroups.length === 0}
+                    />
+                ))}
+            </SectionCard>
         </MealSelectionContext.Provider>
     );
-}
-
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        container: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.md,
-        },
-        header: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: spacing.sm,
-        },
-        headerLeft: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-        },
-        title: {
-            fontSize: fontSize.md,
-            fontWeight: "600",
-            color: colors.text,
-        },
-        pillsContainer: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.xs,
-            marginLeft: spacing.xs,
-        },
-        pill: {
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 2,
-            minHeight: 20,
-            justifyContent: "center",
-            alignItems: "center",
-        },
-        pillText: {
-            fontSize: fontSize.xs,
-            color: "#ffffff",
-            fontWeight: "600",
-        },
-        empty: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            fontStyle: "italic",
-            paddingVertical: spacing.xs,
-        },
-        emptyPressable: {
-            alignSelf: "stretch",
-            marginTop: -spacing.sm,
-            paddingTop: spacing.sm,
-        },
-        selectedMeal: {
-            borderWidth: 1.5,
-            borderColor: colors.primary,
-        },
-    });
 }

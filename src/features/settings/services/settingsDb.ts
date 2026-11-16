@@ -1,6 +1,6 @@
 import { db } from "@/src/services/db";
 import { goalHistory, goals, notificationSettings } from "@/src/services/db/schema";
-import { desc, eq, lte } from "drizzle-orm";
+import { asc, desc, eq, lte } from "drizzle-orm";
 
 export type Goals = typeof goals.$inferSelect;
 export type NotificationSettings = typeof notificationSettings.$inferSelect;
@@ -47,6 +47,21 @@ export function getGoalsForDate(dateKey: string): Goals | undefined {
     if (!snapshot) return current;
     const { calories, protein, carbs, fat } = snapshot;
     return { ...current, calories, protein, carbs, fat };
+}
+
+/** Every recorded change of the nutrition goals, oldest first. */
+export function getGoalHistory(): (NutritionGoals & { date: string })[] {
+    return db
+        .select({
+            date: goalHistory.date,
+            calories: goalHistory.calories,
+            protein: goalHistory.protein,
+            carbs: goalHistory.carbs,
+            fat: goalHistory.fat,
+        })
+        .from(goalHistory)
+        .orderBy(asc(goalHistory.date), asc(goalHistory.id))
+        .all();
 }
 
 // ── Notification Settings ──────────────────────────────────

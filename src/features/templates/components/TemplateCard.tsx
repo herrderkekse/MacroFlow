@@ -1,150 +1,211 @@
 import type { ExerciseTemplate } from "@/src/features/exercise/services/exerciseTemplateDb";
+import MacroNumbers from "@/src/shared/components/MacroNumbers";
+import TreeBranch from "@/src/shared/components/TreeBranch";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
-import React, { useMemo } from "react";
+import React, { memo, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { TemplateMacros, TemplateVariant } from "../helpers/templateRows";
 import type { Food, Recipe } from "../services/templateDb";
 
 interface TemplateCardProps {
     kind: "recipe" | "food" | "exercise";
     data: Recipe | Food | ExerciseTemplate;
+    /** "2 servings · 3 ingredients", "Food · per 100 g", "Weight · Chest". */
     subtitle: string;
-    onDelete: () => void;
+    /** Calories and macros to show (per serving / per 100 g); none for exercises. */
+    macros?: TemplateMacros | null;
+    /** Where the row sits in the list's single card, for its rounded ends. */
+    isFirst: boolean;
+    isLast: boolean;
+    /**
+     * Opens an item's menu of secondary actions (variant, delete); bound to a
+     * long press. Called with the row's own item, or with one of its variants.
+     * Keep it stable — the row is memoized.
+     */
+    onMenu: (kind: TemplateCardProps["kind"], data: TemplateCardProps["data"]) => void;
     // Recipe-only: variant group support
-    onFork?: () => void;
-    variants?: Recipe[];
-    variantSubtitle?: (variant: Recipe) => string;
+    variants?: TemplateVariant[];
     expanded?: boolean;
-    onToggleExpand?: () => void;
-    onForkVariant?: (variant: Recipe) => void;
-    onDeleteVariant?: (variant: Recipe) => void;
+    /** Called with the recipe's id; keep it stable. */
+    onToggleExpand?: (recipeId: number) => void;
 }
 
-export default function TemplateCard({
+const NO_VARIANTS: TemplateVariant[] = [];
+
+const ROW_PAD_V = spacing.md - 2;
+const ROW_PAD_H = spacing.md - 1;
+const ROW_GAP = spacing.sm + 4;
+
+const KIND_ICON = {
+    recipe: "book-outline",
+    food: "nutrition-outline",
+    exercise: "barbell-outline",
+} as const;
+
+function openTemplate(kind: TemplateCardProps["kind"], id: number) {
+    const pathname = kind === "recipe" ? "/templates/edit" : kind === "food" ? "/templates/food-edit" : "/templates/exercise-edit";
+    const key = kind === "recipe" ? "recipeId" : kind === "food" ? "foodId" : "exerciseId";
+    router.push({ pathname, params: { [key]: String(id) } } as unknown as Href);
+}
+
+/**
+ * One library item, as a row of the list's single card: a kind badge, the
+ * name over its details, and its calories and macros on the right. A
+ * recipe's chevron opens its variants, hanging off a tree line. Tapping opens the
+ * editor; a long press opens the menu (create a variant, delete).
+ */
+function TemplateCard({
     kind,
     data,
     subtitle,
-    onDelete,
-    onFork,
-    variants = [],
-    variantSubtitle,
+    macros,
+    isFirst,
+    isLast,
+    onMenu,
+    variants = NO_VARIANTS,
     expanded = false,
     onToggleExpand,
-    onForkVariant,
-    onDeleteVariant,
 }: TemplateCardProps) {
     const colors = useThemeColors();
+    const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
-
-    const config = {
-        recipe: { icon: "book-outline" as const, color: colors.primary },
-        food: { icon: "nutrition-outline" as const, color: colors.success },
-        exercise: { icon: "barbell-outline" as const, color: colors.exercise },
-    }[kind];
-
-    function openRecipe(id: number) {
-        router.push({ pathname: "/templates/edit", params: { recipeId: String(id) } } as unknown as Href);
-    }
-
-    function handlePress() {
-        if (kind === "recipe") {
-            openRecipe(data.id);
-        } else if (kind === "food") {
-            router.push({ pathname: "/templates/food-edit", params: { foodId: String(data.id) } } as unknown as Href);
-        } else {
-            router.push({ pathname: "/templates/exercise-edit", params: { exerciseId: String(data.id) } } as unknown as Href);
-        }
-    }
+    const menuAction = [{ name: "longpress", label: t("common.moreActions") }];
+    const hasVariants = variants.length > 0 && !!onToggleExpand;
+    const openMenu = () => onMenu(kind, data);
 
     return (
-        <View style={styles.card}>
-            <Pressable style={styles.row} onPress={handlePress}>
-                <Ionicons name={config.icon} size={22} color={config.color} style={styles.cardIcon} />
-                <View style={styles.cardInfo}>
-                    <Text style={styles.cardName} numberOfLines={1}>{data.name}</Text>
-                    <Text style={styles.cardSub}>{subtitle}</Text>
+        <View style={[styles.card, isFirst && styles.first, isLast && styles.last, !isFirst && styles.divider]}>
+            <Pressable
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                onPress={() => openTemplate(kind, data.id)}
+                onLongPress={openMenu}
+                accessibilityRole="button"
+                accessibilityActions={menuAction}
+                onAccessibilityAction={openMenu}
+            >
+                <View style={styles.badge}>
+                    <Ionicons name={KIND_ICON[kind]} size={16} color={colors.textSecondary} />
                 </View>
-                {variants.length > 0 && onToggleExpand && (
-                    <Pressable onPress={onToggleExpand} hitSlop={8} style={styles.actionIcon}>
-                        <Ionicons
-                            name={expanded ? "chevron-up" : "chevron-down"}
-                            size={20}
-                            color={colors.textSecondary}
-                        />
+                <View style={styles.info}>
+                    <Text style={styles.name} numberOfLines={1}>{data.name}</Text>
+                    <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+                </View>
+                {hasVariants ? (
+                    // The whole right-hand column toggles, from the row's top
+                    // to its bottom and out to the card's edge — the chevron
+                    // alone is too small to hit.
+                    <Pressable
+                        onPress={() => onToggleExpand(data.id)}
+                        style={({ pressed }) => [styles.side, styles.sideTarget, pressed && styles.pressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("templates.showVariants")}
+                        accessibilityState={{ expanded }}
+                    >
+                        {macros && <MacroNumbers {...macros} />}
+                        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={14} color={colors.textTertiary} />
                     </Pressable>
-                )}
-                {onFork && (
-                    <Pressable onPress={onFork} hitSlop={8} style={styles.actionIcon}>
-                        <Ionicons name="git-branch-outline" size={20} color={colors.textSecondary} />
-                    </Pressable>
-                )}
-                <Pressable onPress={onDelete} hitSlop={8}>
-                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                </Pressable>
+                ) : macros ? (
+                    <View style={styles.side}>
+                        <MacroNumbers {...macros} />
+                    </View>
+                ) : null}
             </Pressable>
 
-            {expanded && variants.map((variant) => (
-                <View key={variant.id} style={styles.variantRow}>
-                    <Pressable style={styles.variantInfo} onPress={() => openRecipe(variant.id)}>
-                        <Ionicons
-                            name="return-down-forward-outline"
-                            size={18}
-                            color={colors.textTertiary}
-                            style={styles.cardIcon}
-                        />
-                        <View style={styles.cardInfo}>
-                            <Text style={styles.cardName} numberOfLines={1}>{variant.name}</Text>
-                            {variantSubtitle && <Text style={styles.cardSub}>{variantSubtitle(variant)}</Text>}
+            {expanded && variants.map((variant, index) => {
+                const openVariantMenu = () => onMenu("recipe", variant.recipe);
+                return (
+                    <Pressable
+                        key={variant.recipe.id}
+                        style={({ pressed }) => [styles.variantRow, pressed && styles.pressed]}
+                        onPress={() => openTemplate("recipe", variant.recipe.id)}
+                        onLongPress={openVariantMenu}
+                        accessibilityRole="button"
+                        accessibilityActions={menuAction}
+                        onAccessibilityAction={openVariantMenu}
+                    >
+                        <TreeBranch isLast={index === variants.length - 1} />
+                        <View style={styles.variantInfo}>
+                            <Text style={styles.variantName} numberOfLines={1}>{variant.recipe.name}</Text>
+                            <Text style={styles.variantSubtitle} numberOfLines={1}>{variant.subtitle}</Text>
                         </View>
+                        {variant.calories != null && (
+                            <Text style={styles.variantCal}>{Math.round(variant.calories)}</Text>
+                        )}
                     </Pressable>
-                    {onForkVariant && (
-                        <Pressable onPress={() => onForkVariant(variant)} hitSlop={8} style={styles.actionIcon}>
-                            <Ionicons name="git-branch-outline" size={18} color={colors.textSecondary} />
-                        </Pressable>
-                    )}
-                    {onDeleteVariant && (
-                        <Pressable onPress={() => onDeleteVariant(variant)} hitSlop={8}>
-                            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                        </Pressable>
-                    )}
-                </View>
-            ))}
+                );
+            })}
         </View>
     );
 }
 
+// Memoized: the library re-renders on every keystroke in its search field.
+export default memo(TemplateCard);
+
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
+        // Consecutive rows join into one card: sides on every row, the ends
+        // rounded on the first and last.
         card: {
             backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
+            borderColor: colors.border,
+            borderLeftWidth: 1,
+            borderRightWidth: 1,
+            overflow: "hidden",
         },
+        first: { borderTopWidth: 1, borderTopLeftRadius: borderRadius.lg, borderTopRightRadius: borderRadius.lg },
+        last: { borderBottomWidth: 1, borderBottomLeftRadius: borderRadius.lg, borderBottomRightRadius: borderRadius.lg },
+        divider: { borderTopWidth: StyleSheet.hairlineWidth },
         row: {
             flexDirection: "row",
             alignItems: "center",
+            gap: ROW_GAP,
+            paddingVertical: ROW_PAD_V,
+            paddingHorizontal: ROW_PAD_H,
         },
+        pressed: { backgroundColor: colors.surfaceMuted },
+        badge: {
+            width: 34,
+            height: 34,
+            borderRadius: borderRadius.sm + 2,
+            backgroundColor: colors.background,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        info: { flex: 1, minWidth: 0 },
+        name: { fontSize: fontSize.md - 1, fontWeight: "600", color: colors.text },
+        subtitle: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 3 },
+        // Top-aligned with the name, as on the log's entries; the chevron under the figures.
+        side: { alignSelf: "flex-start", alignItems: "flex-end", gap: 4, marginTop: 2 },
+        // Cancels the row's padding (and the gap before it) so the target
+        // reaches the row's edges, then pads the content back into place.
+        sideTarget: {
+            alignSelf: "stretch",
+            marginTop: -(ROW_PAD_V - 2),
+            marginBottom: -ROW_PAD_V,
+            marginRight: -ROW_PAD_H,
+            marginLeft: -ROW_GAP,
+            paddingTop: ROW_PAD_V + 2,
+            paddingBottom: ROW_PAD_V,
+            paddingRight: ROW_PAD_H,
+            paddingLeft: ROW_GAP + spacing.sm,
+        },
+        // The tree line drops from the middle of the badge above.
         variantRow: {
             flexDirection: "row",
             alignItems: "center",
-            marginTop: spacing.sm,
-            paddingTop: spacing.sm,
-            paddingLeft: spacing.sm,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border,
+            gap: spacing.sm + 2,
+            paddingLeft: ROW_PAD_H + 17,
+            paddingRight: ROW_PAD_H,
         },
-        variantInfo: {
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-        },
-        cardIcon: { marginRight: spacing.sm },
-        actionIcon: { marginRight: spacing.md },
-        cardInfo: { flex: 1, marginRight: spacing.sm },
-        cardName: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
-        cardSub: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+        variantInfo: { flex: 1, minWidth: 0, paddingVertical: spacing.sm + 1 },
+        variantName: { fontSize: fontSize.sm - 0.5, fontWeight: "600", color: colors.text },
+        variantSubtitle: { fontSize: fontSize.xs - 0.5, color: colors.textTertiary, marginTop: 2 },
+        variantCal: { fontSize: fontSize.sm - 1.5, fontWeight: "600", color: colors.textSecondary, fontVariant: ["tabular-nums"] },
     });
 }

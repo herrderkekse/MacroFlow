@@ -1,4 +1,4 @@
-import { spacing, type ThemeColors } from "@/src/utils/theme";
+import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { StyleSheet } from "react-native";
 
 export function createWorkoutScreenStyles(colors: ThemeColors) {
@@ -7,24 +7,17 @@ export function createWorkoutScreenStyles(colors: ThemeColors) {
             flex: 1,
             backgroundColor: colors.background,
         },
+        listContainer: { flex: 1 },
         list: {
-            padding: spacing.md,
-            paddingBottom: 100,
+            paddingHorizontal: screenPadding,
+            paddingTop: spacing.sm,
+            paddingBottom: spacing.lg,
+            // Grows to the footer, so an empty workout's placeholder can centre in the free space.
+            flexGrow: 1,
         },
-        emptyWrap: {
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: spacing.xl * 2,
-            gap: spacing.md,
-        },
-        emptyText: {
-            fontSize: 14,
-            color: colors.textTertiary,
-            textAlign: "center",
-        },
-        addBtn: {
-            marginTop: spacing.sm,
-        },
+        // Matches the recipe editor's empty ingredient list.
+        emptyWrap: { flex: 1 },
+        empty: { paddingVertical: spacing.xl },
         draggingCard: {
             opacity: 0.95,
             transform: [{ scale: 1.01 }],

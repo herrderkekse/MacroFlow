@@ -38,7 +38,7 @@ export default function ChatBubble({ message, colors, showActions, onCopy, onRet
                     ? { backgroundColor: colors.primary }
                     : isToolRequest || isToolResult
                         ? { backgroundColor: colors.primaryLight, borderColor: colors.border, borderWidth: 1 }
-                        : { backgroundColor: colors.surface, borderColor: colors.primary, borderWidth: 1 },
+                        : { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderWidth: 1 },
             ]}
         >
             {(isToolRequest || isToolResult) && (
@@ -46,15 +46,15 @@ export default function ChatBubble({ message, colors, showActions, onCopy, onRet
                     <Ionicons
                         name={isToolRequest ? "construct-outline" : "checkmark-circle-outline"}
                         size={14}
-                        color={colors.primary}
+                        color={colors.textSecondary}
                     />
-                    <Text style={[styles.toolLabelText, { color: colors.primary }]}>
+                    <Text style={[styles.toolLabelText, { color: colors.textSecondary }]}>
                         {isToolRequest ? t("chat.toolLabel") : t("chat.resultLabel")}
                     </Text>
                 </View>
             )}
             {isUser ? (
-                <Text style={[styles.text, { color: "#fff" }]}>
+                <Text style={[styles.text, { color: colors.onPrimary }]}>
                     {message.content}
                 </Text>
             ) : (
@@ -63,7 +63,7 @@ export default function ChatBubble({ message, colors, showActions, onCopy, onRet
                 </Markdown>
             )}
             {showActions && !isUser && message.content.length > 0 && (
-                <View style={styles.actions}>
+                <View style={[styles.actions, { borderTopColor: colors.border }]}>
                     <Pressable onPress={handleCopy} hitSlop={8} style={styles.actionBtn}>
                         <Ionicons
                             name={copied ? "checkmark" : "copy-outline"}
@@ -121,7 +121,6 @@ const styles = StyleSheet.create({
         marginTop: spacing.xs,
         paddingTop: spacing.xs,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: "rgba(0,0,0,0.08)",
     },
     actionBtn: {
         flexDirection: "row",

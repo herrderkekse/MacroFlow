@@ -16,6 +16,7 @@ npm run web             # expo start --web (not actively supported)
 npm run lint            # expo lint (ESLint, flat config)
 npm run reset-project   # scripts/reset-project.js — resets example assets
 npm run gen-assets      # scripts/generate-images.js
+npm run gallery         # every screen side by side in the browser, for design review (gallery/README.md)
 ```
 
 `npm test` runs the Jest (`jest-expo`) suite; coverage is currently focused on the share/import feature's pure logic (`src/features/share/services/__tests__`). Tests mock the DB-owning modules (`templateDb`/`logDb`) so they run without native `expo-sqlite`. `npm run lint` remains the other automated check — run both before finishing a change (`--fix` should not be assumed to be non-destructive; review its diff).
@@ -54,11 +55,23 @@ Full conventions (naming, file-size limits, styling, i18n, import order) are doc
 - Per-screen derived/fetched data → a custom hook in the feature's `hooks/`.
 - Global cross-feature state (selected date, unit system, appearance, language) → the single Zustand store at `src/shared/store/useAppStore.ts`. Keep it small; it holds UI state only, never DB calls in actions — services handle persistence.
 
+### UI system
+
+Screens are assembled from shared parts in `src/shared/` — read the "UI System" section of [CONTRIBUTING.md](CONTRIBUTING.md) before adding or changing UI. The load-bearing rules:
+
+- Every screen renders `ScreenHeader` as its first child; the three tab roots render `CollapsibleHeader` instead (large title + a card whose summary stays pinned while its details and the title scroll away, driven by `useCollapsibleHeader`). Navigators never draw headers and screens never read `insets.top`.
+- Only the three tab roots (Library, Log, More) live in `app/(tabs)/`. Everything else is a pushed screen (`app/settings/*`, `app/log/*`, …) that covers the tab bar.
+- In-context tasks (edit a value, pick from a list, share) are a `Sheet`; a choice among actions is an `ActionSheet`; `Alert.alert` is for destructive yes/no confirmation only. Don't hand-roll a `Modal` except for immersive media (camera, photo viewer).
+- A form's main action goes in `FooterBar` (or a sheet's `footer`); optional/advanced fields go behind `Disclosure`; secondary actions on list items go behind one "more" button, or a long press on the row (→ `ActionSheet`) in lists where every row would carry one (Library).
+- A choice that always has exactly one answer is a `SegmentedControl` (it scrolls on its own when the options do not fit); a choice that can be empty, or allows several at once, is `Chip`s in a `ChipRow`. The number of options never decides it.
+- Every small-caps group heading has a marker: "+" when tapping it adds to the group (`SectionHeader` with `onAdd`), "•" when it is only a heading (`SectionHeader` without `onAdd`, or `SectionLabel`). Counts and sort order go on the right.
+- `colors.primary` is ink (near-black in light mode, near-white in dark). Anything drawn on it uses `colors.onPrimary`, never a literal white. Hue is reserved for macros and status.
+
 ### Styling & i18n
 
-- Theme tokens (`spacing`, `fontSize`, `borderRadius`, `lightColors`/`darkColors`) come from `src/utils/theme.ts` — never hard-code colors/spacing.
+- Theme tokens (`spacing`, `screenPadding`, `fontSize`, `borderRadius`, `controlHeight`, `lightColors`/`darkColors`) come from `src/utils/theme.ts` — never hard-code colors/spacing.
 - Theme-aware components use a `createStyles(colors)` factory memoized via `useThemeColors()` from `src/shared/providers/ThemeProvider`.
-- All user-visible strings go through `t()` (react-i18next). Keys are `<feature>.<screen-or-context>.<element>`. Adding a key requires updating **both** `src/i18n/locales/en.ts` and `de.ts`.
+- All user-visible strings go through `t()` (react-i18next). Keys are `<feature>.<screen-or-context>.<element>`. Adding a key requires updating **both** `src/i18n/locales/en.ts` and `de.ts`. English copy is sentence case.
 
 ### AI feature
 

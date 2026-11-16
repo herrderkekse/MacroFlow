@@ -1,212 +1,212 @@
 import type { ExerciseTemplate } from "@/src/features/exercise/services/exerciseTemplateDb";
+import Chip from "@/src/shared/atoms/Chip";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import Fab from "@/src/shared/atoms/Fab";
+import ActionSheet, { type ActionSheetItem } from "@/src/shared/components/ActionSheet";
+import ChipRow from "@/src/shared/components/ChipRow";
+import CollapsibleHeader from "@/src/shared/components/CollapsibleHeader";
+import SearchBar from "@/src/shared/components/SearchBar";
+import SectionHeader from "@/src/shared/components/SectionHeader";
+import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { screenPadding, type ThemeColors } from "@/src/utils/theme";
 import { router, type Href } from "expo-router";
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import ForkRecipeModal from "../components/ForkRecipeModal";
+import { StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
+import ForkRecipeSheet from "../components/ForkRecipeSheet";
 import TemplateCard from "../components/TemplateCard";
 import { useTemplateList, type TemplateItem } from "../hooks/useTemplateList";
 import type { Food, Recipe } from "../services/templateDb";
+
+/** What the "more" menu is currently open for. */
+type MenuTarget =
+    | { kind: "recipe"; recipe: Recipe }
+    | { kind: "food"; food: Food }
+    | { kind: "exercise"; exercise: ExerciseTemplate };
+
+const FILTERS = [
+    { key: "recipes", labelKey: "templates.filterRecipes", icon: "book-outline" },
+    { key: "foods", labelKey: "templates.filterFoods", icon: "nutrition-outline" },
+    { key: "exercises", labelKey: "templates.filterExercises", icon: "barbell-outline" },
+] as const;
 
 export default function TemplatesScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
+    // Kept while the sheet slides out, so its rows do not vanish mid-animation.
+    const [lastMenuTarget, setLastMenuTarget] = useState<MenuTarget | null>(null);
 
     const list = useTemplateList();
+    const header = useCollapsibleHeader();
 
-    function renderItem({ item }: { item: TemplateItem }) {
-        const handleDelete =
-            item.kind === "recipe" ? () => list.handleDeleteRecipe(item.data as Recipe) :
-            item.kind === "exercise" ? () => list.handleDeleteExercise(item.data as ExerciseTemplate) :
-            () => list.handleDeleteFood(item.data as Food);
+    // Stable, so the memoized rows are not re-rendered by a new callback.
+    const openMenu = useCallback((kind: MenuTarget["kind"], data: Recipe | Food | ExerciseTemplate) => {
+        const target = (
+            kind === "recipe" ? { kind, recipe: data } : kind === "food" ? { kind, food: data } : { kind, exercise: data }
+        ) as MenuTarget;
+        setLastMenuTarget(target);
+        setMenuTarget(target);
+    }, []);
 
-        if (item.kind === "recipe") {
-            const recipe = item.data as Recipe;
-            const subtitleParts = [list.recipeSummary(recipe.id)];
-            if (item.variants.length > 0) {
-                subtitleParts.push(t("templates.variantCount", { count: item.variants.length }));
-            }
-            return (
-                <TemplateCard
-                    kind="recipe"
-                    data={recipe}
-                    subtitle={subtitleParts.join(" · ")}
-                    onDelete={handleDelete}
-                    onFork={() => list.setForkTarget({ recipe })}
-                    variants={item.variants}
-                    variantSubtitle={(v) => list.recipeSummary(v.id)}
-                    expanded={list.expandedIds.has(recipe.id)}
-                    onToggleExpand={() => list.toggleExpanded(recipe.id)}
-                    onForkVariant={(v) => list.setForkTarget({ recipe: v })}
-                    onDeleteVariant={(v) => list.handleDeleteRecipe(v)}
-                />
-            );
+    const createActions: ActionSheetItem[] = [
+        {
+            key: "food",
+            icon: "nutrition-outline",
+            label: t("templates.newFood"),
+            description: t("templates.newFoodDescription"),
+            onPress: () => router.push("/templates/food-edit" as unknown as Href),
+        },
+        {
+            key: "recipe",
+            icon: "book-outline",
+            label: t("templates.newRecipe"),
+            description: t("templates.newRecipeDescription"),
+            onPress: () => router.push("/templates/edit" as unknown as Href),
+        },
+        {
+            key: "exercise",
+            icon: "barbell-outline",
+            label: t("templates.newExercise"),
+            description: t("templates.newExerciseDescription"),
+            onPress: () => router.push("/templates/exercise-edit" as unknown as Href),
+        },
+    ];
+
+    function menuActions(target: MenuTarget | null): ActionSheetItem[] {
+        if (!target) return [];
+        if (target.kind === "recipe") {
+            return [
+                {
+                    key: "fork",
+                    icon: "git-branch-outline",
+                    label: t("templates.createVariant"),
+                    onPress: () => list.setForkTarget({ recipe: target.recipe }),
+                },
+                {
+                    key: "delete",
+                    icon: "trash-outline",
+                    label: t("common.delete"),
+                    destructive: true,
+                    onPress: () => list.handleDeleteRecipe(target.recipe),
+                },
+            ];
         }
+        return [
+            {
+                key: "delete",
+                icon: "trash-outline",
+                label: t("common.delete"),
+                destructive: true,
+                onPress: () =>
+                    target.kind === "food"
+                        ? list.handleDeleteFood(target.food)
+                        : list.handleDeleteExercise(target.exercise),
+            },
+        ];
+    }
 
-        const subtitle =
-            item.kind === "exercise"
-                ? list.exerciseSummary(item.data as ExerciseTemplate)
-                : list.foodSummary(item.data as Food);
+    function menuTitle(target: MenuTarget | null) {
+        if (!target) return undefined;
+        if (target.kind === "recipe") return target.recipe.name;
+        return target.kind === "food" ? target.food.name : target.exercise.name;
+    }
 
+    function renderItem({ item, index }: { item: TemplateItem; index: number }) {
         return (
             <TemplateCard
                 kind={item.kind}
                 data={item.data}
-                subtitle={subtitle}
-                onDelete={handleDelete}
+                isFirst={index === 0}
+                isLast={index === list.items.length - 1}
+                subtitle={item.subtitle}
+                macros={item.macros}
+                onMenu={openMenu}
+                variants={item.kind === "recipe" ? item.variants : undefined}
+                expanded={item.kind === "recipe" && list.expandedIds.has(item.data.id)}
+                onToggleExpand={item.kind === "recipe" ? list.toggleExpanded : undefined}
             />
         );
     }
 
     return (
-        <View style={[styles.screen, { paddingTop: insets.top }]}>
-            <Text style={styles.heading}>{t("templates.title")}</Text>
-            <View style={styles.searchRow}>
-                <Ionicons name="search" size={18} color={colors.textTertiary} />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder={t("templates.searchPlaceholder")}
-                    placeholderTextColor={colors.textTertiary}
-                    value={list.query}
-                    onChangeText={list.setQuery}
-                />
-                {list.query.length > 0 && (
-                    <Pressable onPress={() => list.setQuery("")} hitSlop={8}>
-                        <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-                    </Pressable>
-                )}
-            </View>
+        <View style={styles.screen}>
+            <CollapsibleHeader
+                header={header}
+                title={t("templates.title")}
+                summary={
+                    <SearchBar
+                        value={list.query}
+                        onChangeText={list.setQuery}
+                        placeholder={t("templates.searchPlaceholder")}
+                        style={styles.search}
+                    />
+                }
+                details={
+                    <ChipRow>
+                        {FILTERS.map((filter) => (
+                            <Chip
+                                key={filter.key}
+                                label={t(filter.labelKey)}
+                                icon={filter.icon}
+                                selected={list.filter === filter.key}
+                                onPress={() => list.toggleFilter(filter.key)}
+                            />
+                        ))}
+                    </ChipRow>
+                }
+            />
 
-            <Pressable
-                onPress={() => list.setFilterExpanded((prev) => !prev)}
-                style={styles.filterHeader}
-            >
-                <Text style={styles.filterLabel}>{t("templates.filter")}</Text>
-                <Ionicons
-                    name={list.filterExpanded ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={colors.textSecondary}
-                />
-            </Pressable>
-            {list.filterExpanded && (
-                <View style={styles.filterRow}>
-                    <Pressable
-                        style={[styles.filterButton, list.filter === "recipes" && styles.filterButtonActive]}
-                        onPress={() => list.toggleFilter("recipes")}
-                    >
-                        <Ionicons
-                            name="book-outline"
-                            size={16}
-                            color={list.filter === "recipes" ? colors.primary : colors.textSecondary}
-                            style={{ marginRight: spacing.xs }}
-                        />
-                        <Text style={[styles.filterButtonText, list.filter === "recipes" && styles.filterButtonTextActive]}>
-                            {t("templates.filterRecipes")}
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        style={[styles.filterButton, list.filter === "foods" && styles.filterButtonActive]}
-                        onPress={() => list.toggleFilter("foods")}
-                    >
-                        <Ionicons
-                            name="nutrition-outline"
-                            size={16}
-                            color={list.filter === "foods" ? colors.primary : colors.textSecondary}
-                            style={{ marginRight: spacing.xs }}
-                        />
-                        <Text style={[styles.filterButtonText, list.filter === "foods" && styles.filterButtonTextActive]}>
-                            {t("templates.filterFoods")}
-                        </Text>
-                    </Pressable>
-                    <Pressable
-                        style={[styles.filterButton, list.filter === "exercises" && styles.filterButtonActive]}
-                        onPress={() => list.toggleFilter("exercises")}
-                    >
-                        <Ionicons
-                            name="barbell-outline"
-                            size={16}
-                            color={list.filter === "exercises" ? colors.primary : colors.textSecondary}
-                            style={{ marginRight: spacing.xs }}
-                        />
-                        <Text style={[styles.filterButtonText, list.filter === "exercises" && styles.filterButtonTextActive]}>
-                            {t("templates.filterExercises")}
-                        </Text>
-                    </Pressable>
-                </View>
-            )}
-
-            <FlatList
+            <Animated.FlatList
+                {...header.scrollProps}
                 data={list.items}
                 keyExtractor={(item) => `${item.kind}-${item.data.id}`}
-                contentContainerStyle={styles.list}
+                contentContainerStyle={[styles.list, header.contentStyle]}
+                keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                    list.items.length > 0 ? (
+                        // "+ ITEMS" adds like every other "+" heading (the same menu as the Fab);
+                        // how many there are and how they are sorted sit on the right.
+                        <SectionHeader
+                            first
+                            title={t("templates.items")}
+                            onAdd={() => setIsCreateOpen(true)}
+                            addLabel={t("templates.createNew")}
+                            hint={`${list.items.length} · ${t("templates.sortedByName")}`}
+                        />
+                    ) : null
+                }
+                showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
-                    <Text style={styles.empty}>
-                        {list.query ? t("templates.noMatchingTemplates") : t("templates.noTemplatesYet")}
-                    </Text>
+                    <EmptyState
+                        icon={list.query ? "search-outline" : "library-outline"}
+                        title={list.query ? t("templates.noMatchingTemplates") : t("templates.noTemplatesYet")}
+                    />
                 }
                 renderItem={renderItem}
             />
 
-            <Pressable
-                style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-                onPress={() => list.setFabExpanded((prev) => !prev)}
-            >
-                <Ionicons name={list.fabExpanded ? "close" : "add"} size={28} color="#fff" />
-            </Pressable>
+            <Fab label={t("templates.createNew")} onPress={() => setIsCreateOpen(true)} />
 
-            {list.fabExpanded && (
-                <>
-                    <Pressable style={styles.fabOverlay} onPress={() => list.setFabExpanded(false)} />
+            <ActionSheet
+                visible={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                title={t("templates.createNew")}
+                actions={createActions}
+            />
 
-                    <Pressable
-                        style={[styles.miniFab, styles.miniFabTop]}
-                        onPress={() => {
-                            list.setFabExpanded(false);
-                            router.push("/templates/food-edit" as unknown as Href);
-                        }}
-                    >
-                        <Ionicons name="nutrition-outline" size={20} color="#fff" />
-                        <Text style={styles.miniFabLabel}>{t("templates.newFood")}</Text>
-                    </Pressable>
+            <ActionSheet
+                visible={!!menuTarget}
+                onClose={() => setMenuTarget(null)}
+                title={menuTitle(menuTarget ?? lastMenuTarget)}
+                actions={menuActions(menuTarget ?? lastMenuTarget)}
+            />
 
-                    <Pressable
-                        style={[styles.miniFab, styles.miniFabMiddle]}
-                        onPress={() => {
-                            list.setFabExpanded(false);
-                            router.push("/templates/edit" as unknown as Href);
-                        }}
-                    >
-                        <Ionicons name="book-outline" size={20} color="#fff" />
-                        <Text style={styles.miniFabLabel}>{t("templates.newRecipe")}</Text>
-                    </Pressable>
-
-                    <Pressable
-                        style={[styles.miniFab, styles.miniFabBottom]}
-                        onPress={() => {
-                            list.setFabExpanded(false);
-                            router.push("/templates/exercise-edit" as unknown as Href);
-                        }}
-                    >
-                        <Ionicons name="barbell-outline" size={20} color="#fff" />
-                        <Text style={styles.miniFabLabel}>{t("templates.newExercise")}</Text>
-                    </Pressable>
-                </>
-            )}
-
-            <ForkRecipeModal
+            <ForkRecipeSheet
                 target={list.forkTarget}
                 onClose={() => list.setForkTarget(null)}
                 onSubmit={list.handleForkSubmit}
@@ -218,127 +218,8 @@ export default function TemplatesScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        heading: {
-            fontSize: fontSize.xl,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: spacing.lg,
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
-        },
-        searchRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            marginHorizontal: spacing.md,
-            marginBottom: spacing.xs,
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            gap: spacing.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-        },
-        searchInput: {
-            flex: 1,
-            fontSize: fontSize.md,
-            color: colors.text,
-            padding: 0,
-        },
-        filterHeader: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginHorizontal: spacing.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-        },
-        filterLabel: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.textSecondary,
-        },
-        filterRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            marginHorizontal: spacing.md,
-            paddingHorizontal: spacing.md,
-            marginBottom: spacing.sm,
-        },
-        filterButton: {
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: spacing.sm,
-            borderRadius: borderRadius.sm,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-        },
-        filterButtonActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        filterButtonText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        filterButtonTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
-        },
-        list: { paddingHorizontal: spacing.md, paddingBottom: 100 },
-        empty: {
-            textAlign: "center",
-            color: colors.textTertiary,
-            marginTop: spacing.xl,
-            fontSize: fontSize.sm,
-        },
-        fab: {
-            position: "absolute",
-            bottom: 24,
-            right: 24,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: colors.primary,
-            alignItems: "center",
-            justifyContent: "center",
-            elevation: 4,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-        },
-        fabPressed: { opacity: 0.85 },
-        fabOverlay: {
-            ...StyleSheet.absoluteFill,
-            backgroundColor: "rgba(0,0,0,0.3)",
-        },
-        miniFab: {
-            position: "absolute",
-            right: 24,
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: colors.primary,
-            borderRadius: 28,
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            elevation: 4,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
-        },
-        miniFabTop: { bottom: 24 + 56 + spacing.md + (48 + spacing.sm) * 2 },
-        miniFabMiddle: { bottom: 24 + 56 + spacing.md + 48 + spacing.sm },
-        miniFabBottom: { bottom: 24 + 56 + spacing.md },
-        miniFabLabel: {
-            color: "#fff",
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            marginLeft: spacing.sm,
-        },
+        // Borderless: the header card is the field's frame.
+        search: { borderWidth: 0, paddingHorizontal: 0, minHeight: 0, backgroundColor: "transparent" },
+        list: { paddingHorizontal: screenPadding, paddingBottom: 104 },
     });
 }

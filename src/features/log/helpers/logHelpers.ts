@@ -62,3 +62,49 @@ export function computeTotals(grouped: Record<MealType, EntryWithFood[]>) {
         scheduled,
     };
 }
+
+export interface MacroTotals {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+}
+
+const ZERO_TOTALS: MacroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+/** Splits a day's totals into what was eaten and what is only planned. */
+export function splitEatenPlanned(totals: MacroTotals, scheduled?: MacroTotals) {
+    const planned = scheduled ?? ZERO_TOTALS;
+    const eaten: MacroTotals = {
+        calories: totals.calories - planned.calories,
+        protein: totals.protein - planned.protein,
+        carbs: totals.carbs - planned.carbs,
+        fat: totals.fat - planned.fat,
+    };
+    return { eaten, planned, hasPlanned: planned.calories > 0 };
+}
+
+/** Calories and macros of one logged amount. */
+export function entryMacros(row: EntryWithFood): MacroTotals {
+    const food = row.foods;
+    const factor = row.entries.quantity_grams / 100;
+    return {
+        calories: (food?.calories_per_100g ?? 0) * factor,
+        protein: (food?.protein_per_100g ?? 0) * factor,
+        carbs: (food?.carbs_per_100g ?? 0) * factor,
+        fat: (food?.fat_per_100g ?? 0) * factor,
+    };
+}
+
+/** Summed calories and macros of several logged amounts. */
+export function sumMacros(rows: EntryWithFood[]): MacroTotals {
+    return rows.reduce<MacroTotals>((sum, row) => {
+        const m = entryMacros(row);
+        return {
+            calories: sum.calories + m.calories,
+            protein: sum.protein + m.protein,
+            carbs: sum.carbs + m.carbs,
+            fat: sum.fat + m.fat,
+        };
+    }, { ...ZERO_TOTALS });
+}

@@ -5,7 +5,6 @@ import {
     getExercisesForWorkout,
     getUnfinishedWorkoutByDate,
     getWorkoutById,
-    hasUnfinishedScheduledSets,
     removeExerciseFromWorkout,
     reorderExercise,
     reorderExerciseGroups,
@@ -14,7 +13,7 @@ import {
     type WorkoutWithExercises,
 } from "@/src/features/exercise/services/exerciseDb";
 import { formatDateKey } from "@/src/utils/date";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseWorkoutOptions {
     workoutId?: number;
@@ -36,7 +35,6 @@ export interface UseWorkoutReturn {
     moveExercise: (workoutExerciseId: number, newOrder: number) => void;
     reorderCards: (orderedExerciseIds: number[]) => void;
     reload: () => void;
-    hasUnfinishedSets: boolean;
 }
 
 export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWorkoutReturn {
@@ -206,11 +204,6 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         [currentWorkout],
     );
 
-    const hasUnfinishedSets = useMemo(
-        () => currentWorkout ? hasUnfinishedScheduledSets(currentWorkout.id) : false,
-        [currentWorkout],
-    );
-
     return {
         data,
         isResumed,
@@ -226,6 +219,5 @@ export function useWorkout({ workoutId, date }: UseWorkoutOptions = {}): UseWork
         moveExercise,
         reorderCards,
         reload,
-        hasUnfinishedSets,
     };
 }

@@ -1,17 +1,21 @@
+import { requestNotificationPermission } from "@/src/features/exercise/services/restTimerNotifications";
 import { SUPPORTED_LANGUAGES } from "@/src/i18n";
+import Card from "@/src/shared/atoms/Card";
+import FieldLabel from "@/src/shared/atoms/FieldLabel";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import Toggle from "@/src/shared/atoms/Toggle";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import type { AppearanceMode, ExerciseTimerSound, Language, UnitSystem } from "@/src/shared/types";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { requestNotificationPermission } from "@/src/features/exercise/services/restTimerNotifications";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import NotificationSettings from "../components/NotificationSettings";
-import SettingsToggleRow from "../components/SettingsToggleRow";
 import SyncSettings from "../components/SyncSettings";
 import { setGoals } from "../services/settingsDb";
 
@@ -24,8 +28,6 @@ export default function SettingsScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
 
     const unitSystem = useAppStore((s) => s.unitSystem);
     const setUnitSystem = useAppStore((s) => s.setUnitSystem);
@@ -38,23 +40,6 @@ export default function SettingsScreen() {
     const exerciseTimerSound = useAppStore((s) => s.exerciseTimerSound);
     const setExerciseTimerSound = useAppStore((s) => s.setExerciseTimerSound);
 
-    const UNIT_OPTIONS: { key: UnitSystem; label: string }[] = [
-        { key: "metric", label: t("settings.unitsMetric") },
-        { key: "imperial", label: t("settings.unitsImperial") },
-    ];
-
-    const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string }[] = [
-        { key: "system", label: t("settings.appearanceSystem") },
-        { key: "light", label: t("settings.appearanceLight") },
-        { key: "dark", label: t("settings.appearanceDark") },
-    ];
-
-    const TIMER_SOUND_OPTIONS: { key: ExerciseTimerSound; label: string }[] = [
-        { key: "off", label: t("settings.exerciseTimerSoundOff") },
-        { key: "on", label: t("settings.exerciseTimerSoundOn") },
-        { key: "bluetooth", label: t("settings.exerciseTimerSoundBluetooth") },
-    ];
-
     function handleUnitChange(system: UnitSystem) {
         setUnitSystem(system);
         setGoals({ unit_system: system });
@@ -63,6 +48,11 @@ export default function SettingsScreen() {
     function handleLanguageChange(lang: Language) {
         setLanguage(lang);
         setGoals({ language: lang });
+    }
+
+    function handleAppearanceChange(mode: AppearanceMode) {
+        setAppearanceMode(mode);
+        setGoals({ appearance_mode: mode });
     }
 
     function handleKeepAwakeChange(value: boolean) {
@@ -84,148 +74,82 @@ export default function SettingsScreen() {
     }
 
     return (
-        <ScrollView
-            style={styles.screen}
-            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
-            keyboardShouldPersistTaps="handled"
-        >
-            <View style={styles.headerRow}>
-                <Pressable onPress={() => router.navigate("/(tabs)/more" as any)} style={styles.backBtn} hitSlop={8}>
-                    <Ionicons name="chevron-back" size={24} color={colors.primary} />
-                </Pressable>
-                <Text style={styles.heading}>{t("settings.title")}</Text>
-            </View>
+        <View style={styles.screen}>
+            <ScreenHeader title={t("settings.title")} />
+            <ScrollView
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <SectionLabel style={styles.firstLabel}>{t("settings.groupGeneral")}</SectionLabel>
+                <Card style={styles.fieldCard}>
+                    <FieldLabel style={styles.firstField}>{t("settings.language")}</FieldLabel>
+                    <SegmentedControl
+                        options={SUPPORTED_LANGUAGES.map((lang) => ({ key: lang, label: LANGUAGE_LABELS[lang] }))}
+                        value={language}
+                        onChange={handleLanguageChange}
+                    />
 
-            <Text style={styles.sectionLabel}>{t("settings.language")}</Text>
-            <View style={styles.chipRow}>
-                {SUPPORTED_LANGUAGES.map((lang) => (
-                    <Pressable
-                        key={lang}
-                        style={[styles.chip, language === lang && styles.chipActive]}
-                        onPress={() => handleLanguageChange(lang)}
-                    >
-                        <Text style={[styles.chipText, language === lang && styles.chipTextActive]}>
-                            {LANGUAGE_LABELS[lang]}
-                        </Text>
-                    </Pressable>
-                ))}
-            </View>
+                    <FieldLabel>{t("settings.appearance")}</FieldLabel>
+                    <SegmentedControl<AppearanceMode>
+                        options={[
+                            { key: "system", label: t("settings.appearanceSystem"), icon: "phone-portrait-outline" },
+                            { key: "light", label: t("settings.appearanceLight"), icon: "sunny-outline" },
+                            { key: "dark", label: t("settings.appearanceDark"), icon: "moon-outline" },
+                        ]}
+                        value={appearanceMode}
+                        onChange={handleAppearanceChange}
+                    />
 
-            <Text style={styles.sectionLabel}>{t("settings.appearance")}</Text>
-            <View style={styles.chipRow}>
-                {APPEARANCE_OPTIONS.map((opt) => (
-                    <Pressable
-                        key={opt.key}
-                        style={[styles.chip, appearanceMode === opt.key && styles.chipActive]}
-                        onPress={() => { setAppearanceMode(opt.key); setGoals({ appearance_mode: opt.key }); }}
-                    >
-                        <Text style={[styles.chipText, appearanceMode === opt.key && styles.chipTextActive]}>
-                            {opt.label}
-                        </Text>
-                    </Pressable>
-                ))}
-            </View>
+                    <FieldLabel>{t("settings.units")}</FieldLabel>
+                    <SegmentedControl<UnitSystem>
+                        options={[
+                            { key: "metric", label: t("settings.unitsMetric") },
+                            { key: "imperial", label: t("settings.unitsImperial") },
+                        ]}
+                        value={unitSystem}
+                        onChange={handleUnitChange}
+                    />
+                </Card>
 
-            <Text style={styles.sectionLabel}>{t("settings.units")}</Text>
-            <View style={styles.chipRow}>
-                {UNIT_OPTIONS.map((opt) => (
-                    <Pressable
-                        key={opt.key}
-                        style={[styles.chip, unitSystem === opt.key && styles.chipActive]}
-                        onPress={() => handleUnitChange(opt.key)}
-                    >
-                        <Text style={[styles.chipText, unitSystem === opt.key && styles.chipTextActive]}>
-                            {opt.label}
-                        </Text>
-                    </Pressable>
-                ))}
-            </View>
+                <SectionLabel>{t("settings.groupWorkout")}</SectionLabel>
+                <ListGroup>
+                    <ListRow
+                        title={t("settings.keepAwakeInWorkout")}
+                        subtitle={t("settings.keepAwakeInWorkoutDescription")}
+                        right={<Toggle value={keepAwakeInWorkout} onValueChange={handleKeepAwakeChange} />}
+                    />
+                    <View style={styles.inlineField}>
+                        <FieldLabel style={styles.firstField}>{t("settings.exerciseTimerSound")}</FieldLabel>
+                        <SegmentedControl<ExerciseTimerSound>
+                            options={[
+                                { key: "off", label: t("settings.exerciseTimerSoundOff") },
+                                { key: "on", label: t("settings.exerciseTimerSoundOn") },
+                                { key: "bluetooth", label: t("settings.exerciseTimerSoundBluetooth") },
+                            ]}
+                            value={exerciseTimerSound}
+                            onChange={handleTimerSoundChange}
+                        />
+                        <Text style={styles.hint}>{t("settings.exerciseTimerSoundDescription")}</Text>
+                    </View>
+                </ListGroup>
 
-            <SettingsToggleRow
-                colors={colors}
-                label={t("settings.keepAwakeInWorkout")}
-                description={t("settings.keepAwakeInWorkoutDescription")}
-                value={keepAwakeInWorkout}
-                onValueChange={handleKeepAwakeChange}
-            />
+                <NotificationSettings />
 
-            <Text style={styles.sectionLabel}>{t("settings.exerciseTimerSound")}</Text>
-            <Text style={styles.sectionDescription}>{t("settings.exerciseTimerSoundDescription")}</Text>
-            <View style={styles.chipRow}>
-                {TIMER_SOUND_OPTIONS.map((opt) => (
-                    <Pressable
-                        key={opt.key}
-                        style={[styles.chip, exerciseTimerSound === opt.key && styles.chipActive]}
-                        onPress={() => handleTimerSoundChange(opt.key)}
-                    >
-                        <Text style={[styles.chipText, exerciseTimerSound === opt.key && styles.chipTextActive]}>
-                            {opt.label}
-                        </Text>
-                    </Pressable>
-                ))}
-            </View>
-
-            <NotificationSettings colors={colors} />
-
-            <SyncSettings colors={colors} />
-        </ScrollView>
+                <SyncSettings />
+            </ScrollView>
+        </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 40 },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.lg,
-        },
-        backBtn: { padding: 4 },
-        heading: {
-            fontSize: fontSize.xl,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        sectionLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            letterSpacing: 0.5,
-            marginBottom: spacing.sm,
-            marginTop: spacing.md,
-        },
-        sectionDescription: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-        },
-        chipRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        chip: {
-            flex: 1,
-            paddingVertical: spacing.sm + 2,
-            borderRadius: borderRadius.md,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-            alignItems: "center",
-        },
-        chipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        chipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        chipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
-        },
+        content: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
+        firstLabel: { marginTop: spacing.sm },
+        fieldCard: { paddingTop: spacing.md },
+        firstField: { marginTop: 0 },
+        inlineField: { paddingHorizontal: screenPadding, paddingVertical: spacing.md },
+        hint: { fontSize: fontSize.xs, lineHeight: 17, color: colors.textSecondary, marginTop: spacing.sm },
     });
 }

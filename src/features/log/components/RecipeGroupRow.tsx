@@ -1,159 +1,141 @@
 import { getRecipeItems } from "@/src/features/templates/services/templateDb";
+import MacroNumbers from "@/src/shared/components/MacroNumbers";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import MealEntryRow from "./MealEntryRow";
+import { sumMacros } from "../helpers/logHelpers";
 import type { EntryWithFood, RecipeGroup } from "./mealSectionContext";
 import { useMealSelection } from "./mealSectionContext";
+import RecipeIngredientRow from "./RecipeIngredientRow";
+import SelectCheck from "./SelectCheck";
 
+const HEADER_PAD_V = spacing.sm + 4;
+const HEADER_PAD_H = spacing.md;
+const HEADER_GAP = spacing.sm + 3;
+
+interface RecipeGroupRowProps {
+    group: RecipeGroup;
+    onEdit?: (row: EntryWithFood) => void;
+    onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
+    onConfirmRecipeLog?: (recipeLogId: number) => void;
+    isFirst?: boolean;
+}
+
+/**
+ * A logged recipe: one row with the recipe's totals. Tapping it opens the
+ * portion sheet (which also deletes the log); its right-hand column opens
+ * the ingredients.
+ */
 export default function RecipeGroupRow({
     group,
     onEdit,
-    onDeleteEntry,
     onEditRecipeGroup,
-    onDeleteRecipeLog,
     onConfirmRecipeLog,
-    allMealSelected,
-}: {
-    group: RecipeGroup;
-    onEdit?: (row: EntryWithFood) => void;
-    onDeleteEntry: (id: number) => void;
-    onEditRecipeGroup?: (group: RecipeGroup, currentMultiplier: number) => void;
-    onDeleteRecipeLog?: (recipeLogId: number) => void;
-    onConfirmRecipeLog?: (recipeLogId: number) => void;
-    allMealSelected?: boolean;
-}) {
+    isFirst = false,
+}: RecipeGroupRowProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const selection = useMealSelection();
     const [expanded, setExpanded] = useState(false);
-
-    const totalCals = group.rows.reduce((sum, row) => {
-        const food = row.foods;
-        if (!food) return sum;
-        return sum + (food.calories_per_100g * row.entries.quantity_grams) / 100;
-    }, 0);
-
     const multiplier = group.portion;
 
     const isModified = useMemo(() => {
         const templateItems = getRecipeItems(group.recipeId);
         if (templateItems.length !== group.rows.length) return true;
         const templateMap = new Map(
-            templateItems.map((t) => [t.recipe_items.food_id, t.recipe_items.quantity_grams]),
+            templateItems.map((item) => [item.recipe_items.food_id, item.recipe_items.quantity_grams]),
         );
         for (const row of group.rows) {
             const templateQty = templateMap.get(row.entries.food_id!);
             if (templateQty === undefined) return true;
-            const expected = templateQty * multiplier;
-            if (Math.abs(row.entries.quantity_grams - expected) > 0.01) return true;
+            if (Math.abs(row.entries.quantity_grams - templateQty * multiplier) > 0.01) return true;
         }
         return false;
     }, [group.recipeId, group.rows, multiplier]);
 
     const selectionMode = selection?.selectionMode ?? false;
     const selectedEntryIds = selection?.selectedEntryIds ?? new Set<number>();
-    const allGroupSelected = selectionMode && group.rows.length > 0 && group.rows.every(r => selectedEntryIds.has(r.entries.id));
+    const allGroupEntryIds = group.rows.map((r) => r.entries.id);
+    const allGroupSelected = selectionMode && group.rows.length > 0 && group.rows.every((r) => selectedEntryIds.has(r.entries.id));
+    const isGroupScheduled = group.rows.length > 0 && group.rows.every((r) => r.entries.is_scheduled === 1);
+    const canConfirm = isGroupScheduled && !!onConfirmRecipeLog && !selectionMode;
 
-    const displayName = multiplier !== 1
-        ? `${multiplier}x ${group.recipeName}`
-        : group.recipeName;
-
-    const allGroupEntryIds = group.rows.map(r => r.entries.id);
-    const isGroupScheduled = group.rows.length > 0 && group.rows.every(r => r.entries.is_scheduled === 1);
+    const detail = [
+        group.recipeVariant ?? t("log.recipe"),
+        t("common.itemCount", { count: group.rows.length }),
+        isModified ? t("log.recipeModified") : null,
+        isGroupScheduled ? t("log.planned") : null,
+    ].filter(Boolean).join(" · ");
 
     return (
-        <View style={[
-            styles.recipeGroup,
-            allGroupSelected && !allMealSelected && styles.selectedGroup,
-            isGroupScheduled && styles.scheduledEntry,
-        ]}>
+        <View style={!isFirst && styles.divider}>
             <Pressable
-                style={styles.recipeHeader}
+                style={({ pressed }) => [
+                    styles.header,
+                    allGroupSelected && styles.selected,
+                    pressed && styles.pressed,
+                ]}
                 onPress={() => {
-                    if (selectionMode) {
-                        selection?.toggleEntries(allGroupEntryIds);
-                    } else {
-                        setExpanded(!expanded);
-                    }
+                    // The left side adjusts the portion; the right-hand column opens the ingredients.
+                    if (selectionMode) selection?.toggleEntries(allGroupEntryIds);
+                    else if (onEditRecipeGroup) onEditRecipeGroup(group, multiplier);
+                    else setExpanded(!expanded);
                 }}
                 onLongPress={() => {
-                    if (selectionMode) {
-                        setExpanded(!expanded);
-                    } else {
-                        selection?.activateSelectionMultiple(allGroupEntryIds);
-                    }
+                    if (selectionMode) setExpanded(!expanded);
+                    else selection?.activateSelectionMultiple(allGroupEntryIds);
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ expanded, selected: selectionMode ? allGroupSelected : undefined }}
             >
-                <Ionicons
-                    name={expanded ? "chevron-down" : "chevron-forward"}
-                    size={16}
-                    color={isGroupScheduled ? colors.disabled : colors.textSecondary}
-                />
-                <Ionicons
-                    name={isModified ? "create-outline" : "book-outline"}
-                    size={16}
-                    color={isGroupScheduled ? colors.disabled : (isModified ? colors.textSecondary : colors.primary)}
-                    style={{ marginLeft: 4 }}
-                />
-                <View style={styles.nameColumn}>
-                    <Text style={[styles.recipeName, isGroupScheduled && styles.scheduledText]} numberOfLines={1}>
-                        {displayName}
-                    </Text>
-                    {group.recipeVariant != null && (
-                        <Text style={[styles.recipeVariant, isGroupScheduled && styles.scheduledText]} numberOfLines={1}>
-                            {group.recipeVariant}
-                        </Text>
-                    )}
-                </View>
-                <Text style={[styles.recipeDetail, isGroupScheduled && styles.scheduledText]}>
-                    {t("common.itemCount", { count: group.rows.length })} · {Math.round(totalCals)} {t("common.cal")}
-                </Text>
-                {!selectionMode && (
-                    <>
-                        {isGroupScheduled && onConfirmRecipeLog && (
-                            <Pressable
-                                onPress={() => onConfirmRecipeLog(group.recipeLogId)}
-                                hitSlop={8}
-                                style={{ marginRight: spacing.xs }}
-                            >
-                                <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
-                            </Pressable>
-                        )}
-                        {onEditRecipeGroup && (
-                            <Pressable
-                                onPress={() => onEditRecipeGroup(group, multiplier)}
-                                hitSlop={8}
-                                style={{ marginRight: spacing.xs }}
-                            >
-                                <Ionicons name="resize-outline" size={18} color={colors.primary} />
-                            </Pressable>
-                        )}
-                        <Pressable
-                            onPress={() => onDeleteRecipeLog?.(group.recipeLogId)}
-                            hitSlop={8}
-                        >
-                            <Ionicons name="close-circle-outline" size={20} color={colors.textTertiary} />
-                        </Pressable>
-                    </>
+                {selectionMode && <SelectCheck checked={allGroupSelected} />}
+                {canConfirm && (
+                    <Pressable
+                        onPress={() => onConfirmRecipeLog(group.recipeLogId)}
+                        hitSlop={10}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("log.confirmEaten")}
+                    >
+                        <Ionicons name="ellipse-outline" size={21} color={colors.textSecondary} />
+                    </Pressable>
                 )}
+                <View style={styles.info}>
+                    <Text style={[styles.name, isGroupScheduled && styles.planned]} numberOfLines={1}>
+                        {group.recipeName}
+                        {multiplier !== 1 && <Text style={styles.portion}>{` · ×${multiplier}`}</Text>}
+                    </Text>
+                    <Text style={styles.detail} numberOfLines={1}>{detail}</Text>
+                </View>
+                {/* The whole right-hand column opens the ingredients — also while
+                    selecting — from the row's top to its bottom and out to the
+                    card's edge; the chevron alone is too small to hit. */}
+                <Pressable
+                    onPress={() => setExpanded(!expanded)}
+                    style={({ pressed }) => [styles.side, pressed && styles.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("log.showIngredients")}
+                    accessibilityState={{ expanded }}
+                >
+                    <MacroNumbers {...sumMacros(group.rows)} muted={isGroupScheduled} />
+                    <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={14} color={colors.textTertiary} />
+                </Pressable>
             </Pressable>
 
             {expanded && (
-                <View style={[styles.childContainer, allGroupSelected && styles.selectedChildContainer]}>
-                    {group.rows.map((row) => (
-                        <MealEntryRow
+                <View style={styles.children}>
+                    {group.rows.map((row, index) => (
+                        <RecipeIngredientRow
                             key={row.entries.id}
                             row={row}
-                            onEdit={onEdit}
-                            onDeleteEntry={onDeleteEntry}
-                            isChild
-                            allMealSelected={allMealSelected}
-                            allGroupSelected={allGroupSelected}
+                            isLast={index === group.rows.length - 1}
+                            onPress={() => {
+                                if (selectionMode) selection?.toggleEntries([row.entries.id]);
+                                else onEdit?.(row);
+                            }}
                         />
                     ))}
                 </View>
@@ -164,54 +146,35 @@ export default function RecipeGroupRow({
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        recipeGroup: {
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border,
-        },
-        selectedGroup: {
-            borderWidth: 1.5,
-            borderTopWidth: 1.5,
-            borderColor: colors.primary,
-            borderTopColor: colors.primary,
-            borderRadius: borderRadius.sm,
-            marginVertical: 2,
-            paddingHorizontal: spacing.xs,
-            zIndex: 1,
-        },
-        scheduledEntry: {
-            opacity: 0.6,
-        },
-        scheduledText: {
-            color: colors.disabled,
-        },
-        recipeHeader: {
+        divider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+        header: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: spacing.sm,
-            gap: spacing.xs,
+            gap: HEADER_GAP,
+            paddingVertical: HEADER_PAD_V,
+            paddingHorizontal: HEADER_PAD_H,
         },
-        nameColumn: { flex: 1 },
-        recipeName: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.primary,
+        selected: { backgroundColor: colors.primaryLight },
+        pressed: { backgroundColor: colors.surfaceMuted },
+        info: { flex: 1, minWidth: 0 },
+        name: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
+        portion: { fontSize: fontSize.xs, fontWeight: "500", color: colors.textTertiary },
+        detail: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
+        planned: { color: colors.textTertiary },
+        // Cancels the header's padding so the target reaches the row's edges,
+        // then pads the content back into place.
+        side: {
+            alignSelf: "stretch",
+            alignItems: "flex-end",
+            gap: 2,
+            marginVertical: -HEADER_PAD_V,
+            marginRight: -HEADER_PAD_H,
+            marginLeft: -HEADER_GAP,
+            paddingTop: HEADER_PAD_V + 1,
+            paddingBottom: HEADER_PAD_V,
+            paddingRight: HEADER_PAD_H,
+            paddingLeft: HEADER_GAP + spacing.sm,
         },
-        recipeVariant: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-        },
-        recipeDetail: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-            marginRight: spacing.sm,
-        },
-        childContainer: {
-            borderLeftWidth: 2,
-            borderLeftColor: colors.primary + "40",
-            marginLeft: spacing.sm,
-        },
-        selectedChildContainer: {
-            borderLeftColor: colors.primary,
-        },
+        children: { paddingBottom: spacing.sm },
     });
 }

@@ -1,8 +1,15 @@
 import { isObsolete, productName, productNutrition, type OFFProduct } from "@/src/services/openfoodfacts";
 import Button from "@/src/shared/atoms/Button";
+import Chip from "@/src/shared/atoms/Chip";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import IconButton from "@/src/shared/atoms/IconButton";
+import Notice from "@/src/shared/atoms/Notice";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import ChipRow from "@/src/shared/components/ChipRow";
+import FoodRow from "@/src/shared/components/FoodRow";
+import SearchBar from "@/src/shared/components/SearchBar";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,7 +20,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     useWindowDimensions,
     View,
 } from "react-native";
@@ -250,131 +256,101 @@ export default function AddIngredientSheet({
                         <View style={styles.header}>
                             <View style={styles.titleRow}>
                                 <Text style={styles.title}>{t("templates.addIngredient")}</Text>
-                                <Pressable onPress={onClose} hitSlop={8}>
-                                    <Ionicons name="close" size={24} color={colors.textSecondary} />
-                                </Pressable>
+                                <IconButton icon="close" label={t("common.close")} onPress={onClose} variant="tonal" size="sm" />
                             </View>
 
-                            <View style={styles.searchRow}>
-                                <Ionicons name="search" size={17} color={colors.textTertiary} />
-                                <TextInput
-                                    style={styles.searchInput}
-                                    placeholder={t("templates.searchFoods")}
-                                    placeholderTextColor={colors.textTertiary}
-                                    value={query}
-                                    onChangeText={onChangeQuery}
-                                    autoFocus
-                                    returnKeyType="search"
-                                />
-                                {query.length > 0 && (
-                                    <Pressable onPress={() => onChangeQuery("")} hitSlop={8}>
-                                        <Ionicons name="close-circle" size={17} color={colors.textTertiary} />
-                                    </Pressable>
-                                )}
-                                {canSearchOFF && !hasSearchedOFF && (
-                                    <>
-                                        <View style={styles.divider} />
-                                        <Pressable onPress={onSearchOFF} hitSlop={8} disabled={isSearchingOFF}>
-                                            <Ionicons
-                                                name="globe-outline"
-                                                size={19}
-                                                color={colors.primary}
-                                                style={isSearchingOFF ? styles.dimmed : undefined}
-                                            />
-                                        </Pressable>
-                                    </>
-                                )}
-                            </View>
+                            <SearchBar
+                                value={query}
+                                onChangeText={onChangeQuery}
+                                placeholder={t("templates.searchFoods")}
+                                autoFocus
+                                trailing={
+                                    canSearchOFF && !hasSearchedOFF ? (
+                                        <IconButton
+                                            icon="globe-outline"
+                                            size="sm"
+                                            label={t("log.searchOnline")}
+                                            onPress={onSearchOFF}
+                                            disabled={isSearchingOFF}
+                                        />
+                                    ) : undefined
+                                }
+                            />
 
-                            <View style={styles.actionRow}>
-                                <Button
-                                    title={t("log.scanBarcode")}
-                                    variant="outline"
-                                    icon={<Ionicons name="barcode-outline" size={18} color={colors.primary} />}
-                                    onPress={onScan}
-                                    style={styles.actionBtn}
-                                    textStyle={styles.actionBtnText}
-                                />
-                                <Button
-                                    title={t("log.createNew")}
-                                    variant="outline"
-                                    icon={<Ionicons name="create-outline" size={17} color={colors.primary} />}
-                                    onPress={onCreateNew}
-                                    style={styles.actionBtn}
-                                    textStyle={styles.actionBtnText}
-                                />
-                            </View>
+                            <ChipRow style={styles.actionRow}>
+                                <Chip label={t("log.scanBarcode")} icon="barcode-outline" onPress={onScan} />
+                                <Chip label={t("log.createNew")} icon="create-outline" onPress={onCreateNew} />
+                            </ChipRow>
                         </View>
                     </View>
 
-                    <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
+                    <ScrollView style={styles.results} contentContainerStyle={styles.resultsContent} keyboardShouldPersistTaps="handled">
                         {offError && (
-                            <View style={styles.errorBox}>
-                                <Text style={styles.errorText}>{offError}</Text>
-                                <Button
-                                    title={t("common.retry")}
-                                    variant="ghost"
-                                    onPress={onSearchOFF}
-                                    textStyle={styles.actionBtnText}
-                                />
-                            </View>
+                            <Notice
+                                tone="danger"
+                                style={styles.error}
+                                action={<Button title={t("common.retry")} variant="ghost" size="sm" onPress={onSearchOFF} />}
+                            >
+                                {offError}
+                            </Notice>
                         )}
 
                         {localResults.length > 0 && (
                             <>
-                                <Text style={styles.groupLabel}>{t("templates.onDeviceResults")}</Text>
+                                <SectionLabel style={styles.groupLabel}>{t("templates.onDeviceResults")}</SectionLabel>
                                 {localResults.map((food) => (
-                                    <ResultRow
+                                    <FoodRow
                                         key={food.id}
                                         name={food.name}
-                                        hint={t("templates.calPer100g", { cal: Math.round(food.calories_per_100g) })}
+                                        nutrition={{
+                                            calories: food.calories_per_100g,
+                                            protein: food.protein_per_100g,
+                                            carbs: food.carbs_per_100g,
+                                            fat: food.fat_per_100g,
+                                        }}
                                         onPress={() => onSelectLocal(food)}
-                                        styles={styles}
-                                        colors={colors}
                                     />
                                 ))}
                             </>
                         )}
 
                         {noLocalResults && !isSearchingOFF && (
-                            <View style={styles.emptyState}>
-                                <Ionicons name="help-circle-outline" size={28} color={colors.textTertiary} />
-                                <Text style={styles.emptyTitle}>{t("templates.noSavedFood", { query: trimmed })}</Text>
-                                <Text style={styles.emptyBody}>{t("templates.noSavedFoodHint")}</Text>
-                            </View>
+                            <EmptyState
+                                icon="help-circle-outline"
+                                title={t("templates.noSavedFood", { query: trimmed })}
+                                message={t("templates.noSavedFoodHint")}
+                            />
                         )}
 
-                        {!canSearchOFF && (
-                            <Text style={styles.emptyBody}>{t("templates.searchPrompt")}</Text>
-                        )}
+                        {!canSearchOFF && <EmptyState icon="search-outline" title={t("templates.searchPrompt")} fill />}
 
                         {isSearchingOFF && (
-                            <ActivityIndicator color={colors.primary} style={styles.spinner} />
+                            <ActivityIndicator color={colors.textSecondary} style={styles.spinner} />
                         )}
 
                         {offResults.length > 0 && (
                             <>
-                                <Text style={styles.groupLabel}>{t("log.sectionOpenFoodFacts")}</Text>
+                                <SectionLabel style={styles.groupLabel}>{t("log.sectionOpenFoodFacts")}</SectionLabel>
                                 {offResults.map((product) => {
                                     // The search index carries only the as-sold
                                     // per-100 g figures, so this preview can fall
                                     // short of the hydrated import.
                                     const nutrition = productNutrition(product);
                                     return (
-                                        <ResultRow
+                                        <FoodRow
                                             key={product.code}
                                             name={productName(product, t("common.unknown"))}
-                                            hint={
-                                                nutrition
-                                                    ? t("templates.calPer100g", {
-                                                          cal: Math.round(nutrition.calories_per_100g),
-                                                      })
-                                                    : t("common.offNoNutrition")
+                                            nutrition={
+                                                nutrition && {
+                                                    calories: nutrition.calories_per_100g,
+                                                    protein: nutrition.protein_per_100g,
+                                                    carbs: nutrition.carbs_per_100g,
+                                                    fat: nutrition.fat_per_100g,
+                                                }
                                             }
                                             warning={isObsolete(product) ? t("common.offObsolete") : undefined}
+                                            isOnline
                                             onPress={() => onSelectOFF(product)}
-                                            styles={styles}
-                                            colors={colors}
                                         />
                                     );
                                 })}
@@ -382,7 +358,7 @@ export default function AddIngredientSheet({
                         )}
 
                         {hasSearchedOFF && offResults.length === 0 && !offError && (
-                            <Text style={styles.emptyBody}>{t("common.noOnlineResults")}</Text>
+                            <EmptyState title={t("common.noOnlineResults")} />
                         )}
                         {/* The sheet is taller than its snap point, so the
                             part hanging below the screen has to be scrolled
@@ -395,65 +371,25 @@ export default function AddIngredientSheet({
     );
 }
 
-interface ResultRowProps {
-    name: string;
-    hint: string;
-    /** Caveat about the item itself, e.g. an OFF product that was delisted. */
-    warning?: string;
-    onPress: () => void;
-    styles: ReturnType<typeof createStyles>;
-    colors: ThemeColors;
-}
-
-function ResultRow({ name, hint, warning, onPress, styles, colors }: ResultRowProps) {
-    return (
-        <Pressable onPress={onPress} style={styles.resultRow}>
-            <View style={styles.resultMain}>
-                <Text style={styles.resultName} numberOfLines={1}>{name}</Text>
-                <Text style={styles.resultHint}>{hint}</Text>
-                {warning && (
-                    <View style={styles.resultWarning}>
-                        <Ionicons name="warning-outline" size={12} color={colors.warning} />
-                        <Text style={styles.resultWarningText}>{warning}</Text>
-                    </View>
-                )}
-            </View>
-            <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
-        </Pressable>
-    );
-}
-
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         flex: { flex: 1 },
-        backdrop: {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(15, 23, 42, 0.42)",
-        },
+        backdrop: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlay },
         sheet: {
             position: "absolute",
             left: 0,
             right: 0,
             bottom: 0,
             backgroundColor: colors.surface,
-            borderTopLeftRadius: borderRadius.lg + 6,
-            borderTopRightRadius: borderRadius.lg + 6,
+            borderTopLeftRadius: borderRadius.xl,
+            borderTopRightRadius: borderRadius.xl,
         },
         // The grabber is thin, so the area around it carries the touch target.
-        handleArea: { alignItems: "center", paddingVertical: spacing.md },
-        grabber: {
-            width: 38,
-            height: 4,
-            borderRadius: 999,
-            backgroundColor: colors.border,
-        },
+        handleArea: { alignItems: "center", paddingTop: spacing.sm + 2, paddingBottom: spacing.sm },
+        grabber: { width: 36, height: 4, borderRadius: borderRadius.full, backgroundColor: colors.borderStrong },
         header: {
-            paddingHorizontal: spacing.md,
-            paddingBottom: spacing.md,
+            paddingHorizontal: screenPadding,
+            paddingBottom: spacing.sm + 4,
             borderBottomWidth: StyleSheet.hairlineWidth,
             borderBottomColor: colors.border,
         },
@@ -461,70 +397,15 @@ function createStyles(colors: ThemeColors) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: spacing.md,
+            paddingTop: spacing.xs,
+            marginBottom: spacing.sm + 4,
         },
-        title: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
-        searchRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            backgroundColor: colors.background,
-            borderRadius: borderRadius.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm + 3,
-        },
-        searchInput: { flex: 1, fontSize: fontSize.md, color: colors.text, padding: 0 },
-        divider: { width: 1, height: 18, backgroundColor: colors.border },
-        dimmed: { opacity: 0.45 },
-        actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-        actionBtn: { flex: 1 },
-        actionBtnText: { fontSize: fontSize.sm },
-        results: { flex: 1, paddingHorizontal: spacing.md },
-        groupLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "700",
-            letterSpacing: 0.6,
-            color: colors.textTertiary,
-            textTransform: "uppercase",
-            marginTop: spacing.md,
-            marginBottom: spacing.xs,
-        },
-        resultRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.md,
-            paddingVertical: spacing.sm + 3,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: colors.border,
-        },
-        resultMain: { flex: 1 },
-        resultName: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
-        resultHint: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
-        resultWarning: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
-        resultWarningText: { fontSize: fontSize.xs, color: colors.warning },
-        emptyState: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.lg },
-        emptyTitle: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text, textAlign: "center" },
-        emptyBody: {
-            fontSize: fontSize.xs,
-            color: colors.textTertiary,
-            textAlign: "center",
-            lineHeight: 18,
-            maxWidth: 260,
-            alignSelf: "center",
-            paddingVertical: spacing.md,
-        },
+        title: { fontSize: fontSize.lg, fontWeight: "700", letterSpacing: -0.2, color: colors.text },
+        actionRow: { marginTop: spacing.sm + 4 },
+        results: { flex: 1 },
+        resultsContent: { flexGrow: 1 },
+        groupLabel: { marginTop: spacing.md, marginBottom: 0, paddingHorizontal: screenPadding },
         spinner: { marginVertical: spacing.md },
-        errorBox: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: colors.background,
-            borderRadius: borderRadius.sm,
-            padding: spacing.sm,
-            marginTop: spacing.md,
-            borderWidth: 1,
-            borderColor: colors.danger,
-        },
-        errorText: { flex: 1, fontSize: fontSize.sm, color: colors.danger },
+        error: { marginTop: spacing.md, marginHorizontal: screenPadding },
     });
 }

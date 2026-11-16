@@ -1,15 +1,18 @@
 import Button from "@/src/shared/atoms/Button";
+import FieldLabel from "@/src/shared/atoms/FieldLabel";
 import Input from "@/src/shared/atoms/Input";
+import Notice from "@/src/shared/atoms/Notice";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import FooterBar from "@/src/shared/components/FooterBar";
 import UnitPicker from "@/src/shared/components/UnitPicker";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { useAppStore } from "@/src/shared/store/useAppStore";
 import logger from "@/src/utils/logger";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { screenPadding, spacing } from "@/src/utils/theme";
 import { unitsForSystem, type FoodUnit } from "@/src/utils/units";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { addFood, addServingUnit, deleteServingUnit, duplicateFood, getFoodById, getServingUnits, softDeleteFood, updateFood, updateServingUnit, type Food, type ServingUnit } from "../services/templateDb";
 import BarcodeField from "./BarcodeField";
 import ServingUnitEditor, { type ServingUnitRow } from "./ServingUnitEditor";
@@ -27,12 +30,14 @@ interface FoodFormProps {
     submitLabel?: string;
     /** Called after successful save with the created/updated food */
     onSaved: (food: Food) => void;
+    /** Rendered inside a sheet rather than as a screen (matches the sheet's surface). */
+    inSheet?: boolean;
 }
 
-export default function FoodForm({ foodId, initialName, initialBarcode, notice, submitLabel, onSaved }: FoodFormProps) {
+/** The full food form: fields scroll, the save action stays pinned below them. */
+export default function FoodForm({ foodId, initialName, initialBarcode, notice, submitLabel, onSaved, inSheet = false }: FoodFormProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
     const unitSystem = useAppStore((s) => s.unitSystem);
 
     const [name, setName] = useState(initialName ?? "");
@@ -175,40 +180,35 @@ export default function FoodForm({ foodId, initialName, initialBarcode, notice, 
     const unitOptions = unitsForSystem(unitSystem);
 
     return (
-        <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-        >
-            {notice && (
-                <View style={styles.notice}>
-                    <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
-                    <Text style={styles.noticeText}>{notice}</Text>
-                </View>
-            )}
+        <View style={styles.flex}>
+            <ScrollView
+                style={styles.flex}
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                {notice && <Notice tone="warning" style={styles.field}>{notice}</Notice>}
 
-            <Input
-                label={t("log.foodName")}
-                placeholder={t("log.foodNamePlaceholder")}
-                value={name}
-                onChangeText={setName}
-                autoFocus={!foodId}
-                containerStyle={styles.field}
-            />
+                <Input
+                    label={t("log.foodName")}
+                    placeholder={t("log.foodNamePlaceholder")}
+                    value={name}
+                    onChangeText={setName}
+                    autoFocus={!foodId}
+                />
 
-            <Text style={styles.sectionLabel}>{t("log.defaultUnit")}</Text>
-            <UnitPicker
-                unitOptions={unitOptions}
-                selectedUnit={defaultUnit}
-                onSelectUnit={(u) => setDefaultUnit(u)}
-                servingUnits={[]}
-                selectedServingUnit={null}
-                onSelectServingUnit={() => { }}
-                hideAddButton
-            />
+                <FieldLabel>{t("log.defaultUnit")}</FieldLabel>
+                <UnitPicker
+                    unitOptions={unitOptions}
+                    selectedUnit={defaultUnit}
+                    onSelectUnit={(u) => setDefaultUnit(u)}
+                    servingUnits={[]}
+                    selectedServingUnit={null}
+                    onSelectServingUnit={() => { }}
+                    hideAddButton
+                />
 
-            <Text style={styles.sectionLabel}>{t("log.nutritionPer100g")}</Text>
-
-            <View style={styles.row}>
+                <SectionLabel>{t("log.nutritionPer100g")}</SectionLabel>
                 <Input
                     label={t("settings.calories")}
                     placeholder="0"
@@ -216,96 +216,57 @@ export default function FoodForm({ foodId, initialName, initialBarcode, notice, 
                     value={calories}
                     onChangeText={setCalories}
                     keyboardType="decimal-pad"
-                    containerStyle={styles.halfField}
+                    containerStyle={styles.field}
                 />
-                <Input
-                    label={t("settings.protein")}
-                    placeholder="0"
-                    suffix={t("common.g")}
-                    value={protein}
-                    onChangeText={setProtein}
-                    keyboardType="decimal-pad"
-                    containerStyle={styles.halfField}
-                />
-            </View>
+                <View style={styles.row}>
+                    <Input
+                        label={t("settings.protein")}
+                        placeholder="0"
+                        suffix={t("common.g")}
+                        value={protein}
+                        onChangeText={setProtein}
+                        keyboardType="decimal-pad"
+                        containerStyle={styles.rowField}
+                    />
+                    <Input
+                        label={t("settings.carbs")}
+                        placeholder="0"
+                        suffix={t("common.g")}
+                        value={carbs}
+                        onChangeText={setCarbs}
+                        keyboardType="decimal-pad"
+                        containerStyle={styles.rowField}
+                    />
+                    <Input
+                        label={t("settings.fat")}
+                        placeholder="0"
+                        suffix={t("common.g")}
+                        value={fat}
+                        onChangeText={setFat}
+                        keyboardType="decimal-pad"
+                        containerStyle={styles.rowField}
+                    />
+                </View>
 
-            <View style={styles.row}>
-                <Input
-                    label={t("settings.carbs")}
-                    placeholder="0"
-                    suffix={t("common.g")}
-                    value={carbs}
-                    onChangeText={setCarbs}
-                    keyboardType="decimal-pad"
-                    containerStyle={styles.halfField}
-                />
-                <Input
-                    label={t("settings.fat")}
-                    placeholder="0"
-                    suffix={t("common.g")}
-                    value={fat}
-                    onChangeText={setFat}
-                    keyboardType="decimal-pad"
-                    containerStyle={styles.halfField}
-                />
-            </View>
+                {macroWarning && <Notice tone="warning" style={styles.warning}>{macroWarning}</Notice>}
 
-            {macroWarning && <Text style={styles.macroWarning}>{macroWarning}</Text>}
+                <SectionLabel>{t("templates.servingUnits")}</SectionLabel>
+                <ServingUnitEditor rows={servingUnitRows} onChange={setServingUnitRows} />
 
-            <Text style={styles.sectionLabel}>{t("templates.servingUnits")}</Text>
-            <ServingUnitEditor rows={servingUnitRows} onChange={setServingUnitRows} />
-
-            <BarcodeField value={barcode} onChange={setBarcode} />
-
-            <Button
-                title={submitLabel ?? t("common.save")}
-                onPress={handleSave}
-                disabled={!name.trim()}
-                style={styles.saveButton}
-            />
-        </ScrollView>
+                <BarcodeField value={barcode} onChange={setBarcode} />
+            </ScrollView>
+            <FooterBar style={inSheet ? { backgroundColor: colors.surface } : undefined}>
+                <Button title={submitLabel ?? t("common.save")} onPress={handleSave} disabled={!name.trim()} />
+            </FooterBar>
+        </View>
     );
 }
 
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        content: { padding: spacing.lg },
-        field: { marginBottom: spacing.md },
-        sectionLabel: {
-            fontSize: fontSize.sm,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            marginBottom: spacing.md,
-            marginTop: spacing.sm,
-        },
-        row: {
-            flexDirection: "row",
-            gap: spacing.md,
-            marginBottom: spacing.md,
-        },
-        halfField: { flex: 1 },
-        notice: {
-            flexDirection: "row",
-            alignItems: "flex-start",
-            gap: spacing.sm,
-            padding: spacing.md,
-            marginBottom: spacing.md,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.warning,
-            backgroundColor: colors.surface,
-        },
-        noticeText: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            lineHeight: 18,
-            color: colors.textSecondary,
-        },
-        macroWarning: {
-            fontSize: fontSize.sm,
-            color: colors.warning,
-            marginBottom: spacing.md,
-        },
-        saveButton: { marginTop: spacing.md },
-    });
-}
+const styles = StyleSheet.create({
+    flex: { flex: 1 },
+    content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+    field: { marginBottom: spacing.md },
+    row: { flexDirection: "row", gap: spacing.sm },
+    rowField: { flex: 1 },
+    warning: { marginTop: spacing.md },
+});

@@ -11,7 +11,7 @@ module.exports = defineConfig([
   },
   // Standalone Node CLI scripts (not part of the app bundle): give them Node globals.
   {
-    files: ['scripts/**/*.js'],
+    files: ['scripts/**/*.js', 'gallery/**/*.js'],
     languageOptions: {
       globals: globals.node,
     },

@@ -1,237 +1,201 @@
 import { isObsolete, productName, productNutrition } from "@/src/services/openfoodfacts";
 import Button from "@/src/shared/atoms/Button";
+import Chip from "@/src/shared/atoms/Chip";
+import EmptyState from "@/src/shared/atoms/EmptyState";
+import IconButton from "@/src/shared/atoms/IconButton";
+import Notice from "@/src/shared/atoms/Notice";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import BarcodeScannerView from "@/src/shared/components/BarcodeScannerView";
+import ChipRow from "@/src/shared/components/ChipRow";
+import FoodRow from "@/src/shared/components/FoodRow";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import SearchBar from "@/src/shared/components/SearchBar";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import type { MealType } from "@/src/shared/types";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import EntryModal from "../components/EntryModal";
-import FoodListItem from "../components/FoodListItem";
-import ManualFoodForm from "../components/ManualFoodForm";
-import RecipeLogModal from "../components/RecipeLogModal";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import EntrySheet from "../components/EntrySheet";
+import CreateFoodSheet from "../components/CreateFoodSheet";
+import RecipeLogSheet from "../components/RecipeLogSheet";
 import { useAddFoodSearch } from "../hooks/useAddFoodSearch";
 
 export default function AddFoodScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
     const { mealType, recipeId } = useLocalSearchParams<{ mealType?: string; recipeId?: string }>();
 
     const search = useAddFoodSearch();
 
+    const mealLabel = mealType ? t(`meal.${mealType}`) : undefined;
+
+    function openQuickAdd() {
+        const target = mealType ? `/log/quick-add?mealType=${mealType}` : "/log/quick-add";
+        router.push(target as unknown as Href);
+    }
+
     return (
-        <View style={[styles.screen, { paddingTop: insets.top }]}>
-            {/* Search bar */}
-            <View style={styles.searchRow}>
-                <Ionicons name="search" size={20} color={colors.textTertiary} />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder={t("log.searchPlaceholder")}
-                    placeholderTextColor={colors.textTertiary}
+        <View style={styles.screen}>
+            <ScreenHeader title={t("log.addFoodTitle")} subtitle={mealLabel}>
+                <SearchBar
                     value={search.query}
                     onChangeText={search.setQuery}
+                    placeholder={t("log.searchPlaceholder")}
                     autoFocus={!recipeId}
-                    returnKeyType="search"
                 />
-                {search.query.length > 0 && (
-                    <Pressable onPress={() => search.setQuery("")} hitSlop={8}>
-                        <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
-                    </Pressable>
-                )}
-            </View>
+                <ChipRow scroll bleed={screenPadding} style={styles.actionRow}>
+                    <Chip label={t("log.scanBarcode")} icon="barcode-outline" onPress={() => search.setShowScanner(true)} />
+                    <Chip label={t("log.createNew")} icon="create-outline" onPress={search.openManualForm} />
+                    <Chip label={t("log.quickAdd")} icon="flash-outline" onPress={openQuickAdd} />
+                </ChipRow>
+            </ScreenHeader>
 
-            {/* Action buttons */}
-            <View style={styles.actionRow}>
-                <Button
-                    title={t("log.scanBarcode")}
-                    variant="outline"
-                    icon={<Ionicons name="barcode-outline" size={18} color={colors.text} />}
-                    onPress={() => search.setShowScanner(true)}
-                    style={styles.actionButton}
-                />
-                <Button
-                    title={t("log.createNew")}
-                    variant="outline"
-                    icon={<Ionicons name="create-outline" size={18} color={colors.text} />}
-                    onPress={search.openManualForm}
-                    style={styles.actionButton}
-                />
-            </View>
-            <View style={styles.quickAddRow}>
-                <Button
-                    title={t("log.quickAdd")}
-                    variant="secondary"
-                    icon={<Ionicons name="flash-outline" size={18} color={colors.primary} />}
-                    onPress={() => {
-                        const target = mealType
-                            ? `/log/quick-add?mealType=${mealType}`
-                            : "/log/quick-add";
-                        router.push(target as unknown as Href);
-                    }}
-                    style={styles.quickAddButton}
-                />
-            </View>
-
-            {/* Results */}
             <ScrollView
                 contentContainerStyle={styles.results}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-                {/* Recipe results */}
                 {search.showLocalSection && search.recipeResults.length > 0 && (
                     <>
-                        <Text style={styles.sectionLabel}>{t("log.sectionRecipes")}</Text>
-                        {search.recipeResults.map((group) => {
-                            const expanded = search.expandedRecipeIds.has(group.recipe.id);
-                            return (
-                                <View key={group.recipe.id} style={styles.recipeCard}>
-                                    <Pressable
-                                        style={styles.recipeRow}
-                                        onPress={() => search.setSelectedRecipe(group.recipe)}
-                                    >
-                                        <Ionicons name="book-outline" size={18} color={colors.primary} />
-                                        <Text style={styles.recipeRowName} numberOfLines={1}>{group.recipe.name}</Text>
-                                        {group.variants.length > 0 && (
-                                            <Pressable
-                                                onPress={() => search.toggleRecipeExpanded(group.recipe.id)}
-                                                hitSlop={8}
-                                                style={styles.variantToggle}
-                                            >
-                                                <Text style={styles.variantToggleText}>{group.variants.length}</Text>
-                                                <Ionicons
-                                                    name={expanded ? "chevron-up" : "chevron-down"}
-                                                    size={16}
-                                                    color={colors.textTertiary}
-                                                />
-                                            </Pressable>
-                                        )}
-                                        <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-                                    </Pressable>
-                                    {expanded && group.variants.map((variant) => (
-                                        <Pressable
-                                            key={variant.id}
-                                            style={[styles.recipeRow, styles.recipeVariantRow]}
-                                            onPress={() => search.setSelectedRecipe(variant)}
-                                        >
-                                            <Ionicons name="return-down-forward-outline" size={18} color={colors.textTertiary} />
-                                            <Text style={styles.recipeRowName} numberOfLines={1}>{variant.name}</Text>
-                                            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            );
-                        })}
+                        <SectionLabel style={styles.firstLabel}>{t("log.sectionRecipes")}</SectionLabel>
+                        <ListGroup>
+                            {search.recipeResults.map((group) => {
+                                const expanded = search.expandedRecipeIds.has(group.recipe.id);
+                                return (
+                                    <View key={group.recipe.id}>
+                                        <ListRow
+                                            icon="book-outline"
+                                            title={group.recipe.name}
+                                            subtitle={
+                                                group.variants.length > 0
+                                                    ? t("templates.variantCount", { count: group.variants.length })
+                                                    : undefined
+                                            }
+                                            onPress={() => search.setSelectedRecipe(group.recipe)}
+                                            right={
+                                                group.variants.length > 0 ? (
+                                                    <IconButton
+                                                        icon={expanded ? "chevron-up" : "chevron-down"}
+                                                        size="sm"
+                                                        label={t("templates.showVariants")}
+                                                        onPress={() => search.toggleRecipeExpanded(group.recipe.id)}
+                                                    />
+                                                ) : undefined
+                                            }
+                                        />
+                                        {expanded && group.variants.map((variant) => (
+                                            <ListRow
+                                                key={variant.id}
+                                                icon="return-down-forward-outline"
+                                                title={variant.name}
+                                                onPress={() => search.setSelectedRecipe(variant)}
+                                            />
+                                        ))}
+                                    </View>
+                                );
+                            })}
+                        </ListGroup>
                     </>
                 )}
 
-                {/* Local results */}
                 {search.showLocalSection && (
                     <>
-                        <Text style={styles.sectionLabel}>{t("log.sectionOnDevice")}</Text>
+                        <SectionLabel style={search.recipeResults.length === 0 ? styles.firstLabel : undefined}>
+                            {t("log.sectionOnDevice")}
+                        </SectionLabel>
                         {search.localResults.length === 0 ? (
                             <Text style={styles.emptyText}>{t("log.noLocalResults")}</Text>
                         ) : (
-                            search.localResults.map((food) => (
-                                <FoodListItem
-                                    key={food.id}
-                                    name={food.name}
-                                    calories={food.calories_per_100g}
-                                    protein={food.protein_per_100g}
-                                    carbs={food.carbs_per_100g}
-                                    fat={food.fat_per_100g}
-                                    onPress={() => search.handleSelectLocal(food)}
-                                />
-                            ))
+                            <ListGroup>
+                                {search.localResults.map((food) => (
+                                    <FoodRow
+                                        key={food.id}
+                                        name={food.name}
+                                        nutrition={{
+                                            calories: food.calories_per_100g,
+                                            protein: food.protein_per_100g,
+                                            carbs: food.carbs_per_100g,
+                                            fat: food.fat_per_100g,
+                                        }}
+                                        onPress={() => search.handleSelectLocal(food)}
+                                    />
+                                ))}
+                            </ListGroup>
                         )}
-                    </>
-                )}
 
-                {/* OpenFoodFacts section */}
-                {search.showLocalSection && (
-                    <>
-                        <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>
-                            {t("log.sectionOpenFoodFacts")}
-                        </Text>
+                        <SectionLabel>{t("log.sectionOpenFoodFacts")}</SectionLabel>
 
                         {!search.hasSearchedOFF && !search.isSearchingOFF && (
                             <Button
                                 title={t("log.searchOnline")}
-                                variant="secondary"
-                                icon={<Ionicons name="globe-outline" size={16} color={colors.primary} />}
+                                variant="outline"
+                                icon={<Ionicons name="globe-outline" size={17} color={colors.text} />}
                                 onPress={search.handleSearchOFF}
-                                style={{ marginBottom: spacing.sm }}
                             />
                         )}
 
                         {search.isSearchingOFF && (
-                            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
+                            <ActivityIndicator color={colors.textSecondary} style={styles.spinner} />
                         )}
 
                         {search.offError && (
-                            <View style={styles.errorBox}>
-                                <Text style={styles.errorText}>{search.offError}</Text>
-                                <Button
-                                    title={t("common.retry")}
-                                    variant="ghost"
-                                    onPress={search.handleSearchOFF}
-                                    textStyle={{ fontSize: fontSize.sm }}
-                                />
-                            </View>
+                            <Notice
+                                tone="danger"
+                                style={styles.error}
+                                action={<Button title={t("common.retry")} variant="ghost" size="sm" onPress={search.handleSearchOFF} />}
+                            >
+                                {search.offError}
+                            </Notice>
                         )}
 
                         {search.hasSearchedOFF && search.offResults.length === 0 && !search.offError && (
                             <Text style={styles.emptyText}>{t("common.noOnlineResults")}</Text>
                         )}
 
-                        {search.offResults.map((p) => {
-                            // The search index carries only the as-sold per-100 g
-                            // figures, so this preview can fall short of what the
-                            // import ends up with once the product is hydrated.
-                            const nutrition = productNutrition(p);
-                            return (
-                                <FoodListItem
-                                    key={p.code}
-                                    name={productName(p, t("common.unknown"))}
-                                    calories={nutrition?.calories_per_100g ?? 0}
-                                    protein={nutrition?.protein_per_100g ?? 0}
-                                    carbs={nutrition?.carbs_per_100g ?? 0}
-                                    fat={nutrition?.fat_per_100g ?? 0}
-                                    unknownNutrition={!nutrition}
-                                    warning={isObsolete(p) ? t("common.offObsolete") : undefined}
-                                    badge="OFF"
-                                    onPress={() => search.handleSelectOFF(p)}
-                                />
-                            );
-                        })}
+                        {search.offResults.length > 0 && (
+                            <ListGroup>
+                                {search.offResults.map((p) => {
+                                    // The search index carries only the as-sold per-100 g
+                                    // figures, so this preview can fall short of what the
+                                    // import ends up with once the product is hydrated.
+                                    const nutrition = productNutrition(p);
+                                    return (
+                                        <FoodRow
+                                            key={p.code}
+                                            name={productName(p, t("common.unknown"))}
+                                            nutrition={
+                                                nutrition && {
+                                                    calories: nutrition.calories_per_100g,
+                                                    protein: nutrition.protein_per_100g,
+                                                    carbs: nutrition.carbs_per_100g,
+                                                    fat: nutrition.fat_per_100g,
+                                                }
+                                            }
+                                            warning={isObsolete(p) ? t("common.offObsolete") : undefined}
+                                            isOnline
+                                            onPress={() => search.handleSelectOFF(p)}
+                                        />
+                                    );
+                                })}
+                            </ListGroup>
+                        )}
                     </>
                 )}
 
                 {!search.showLocalSection && (
-                    <View style={styles.placeholder}>
-                        <Ionicons name="search-outline" size={48} color={colors.border} />
-                        <Text style={styles.placeholderText}>{t("log.searchPrompt")}</Text>
-                    </View>
+                    <EmptyState icon="search-outline" title={t("log.searchPrompt")} fill />
                 )}
             </ScrollView>
 
             {/* Modals */}
-            <ManualFoodForm
+            <CreateFoodSheet
                 visible={search.showManualForm}
                 onClose={search.handleCloseManualForm}
                 onFoodCreated={search.handleFoodCreated}
@@ -248,14 +212,14 @@ export default function AddFoodScreen() {
                 onNotFound={search.handleBarcodeNotFound}
             />
 
-            <EntryModal
+            <EntrySheet
                 food={search.selectedFood}
                 defaultMealType={mealType as MealType | undefined}
                 onClose={() => search.setSelectedFood(null)}
                 onSaved={search.handleEntrySaved}
             />
 
-            <RecipeLogModal
+            <RecipeLogSheet
                 recipe={search.selectedRecipe}
                 defaultMealType={mealType as MealType | undefined}
                 onClose={() => search.setSelectedRecipe(null)}
@@ -271,110 +235,12 @@ export default function AddFoodScreen() {
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        searchRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: colors.surface,
-            marginHorizontal: spacing.md,
-            marginTop: spacing.md,
-            paddingHorizontal: spacing.md,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            gap: spacing.sm,
-        },
-        searchInput: {
-            flex: 1,
-            paddingVertical: spacing.sm + 2,
-            fontSize: fontSize.md,
-            color: colors.text,
-        },
-        actionRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            paddingHorizontal: spacing.md,
-            marginTop: spacing.md,
-        },
-        actionButton: { flex: 1 },
-        quickAddRow: {
-            paddingHorizontal: spacing.md,
-            marginTop: spacing.sm,
-        },
-        quickAddButton: { width: "100%" },
-        results: { padding: spacing.md, paddingBottom: 40 },
-        sectionLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "700",
-            color: colors.textTertiary,
-            letterSpacing: 1,
-            marginBottom: spacing.sm,
-        },
-        emptyText: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            fontStyle: "italic",
-            marginBottom: spacing.md,
-        },
-        errorBox: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.sm,
-            padding: spacing.sm,
-            marginBottom: spacing.sm,
-            borderWidth: 1,
-            borderColor: colors.danger,
-        },
-        errorText: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            color: colors.danger,
-        },
-        placeholder: {
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: 80,
-        },
-        placeholderText: {
-            fontSize: fontSize.sm,
-            color: colors.textTertiary,
-            textAlign: "center",
-            marginTop: spacing.md,
-            maxWidth: 220,
-        },
-        recipeCard: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.md,
-            marginBottom: spacing.sm,
-        },
-        recipeRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            padding: spacing.md,
-        },
-        recipeRowName: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            fontWeight: "500",
-            color: colors.text,
-        },
-        recipeVariantRow: {
-            marginHorizontal: spacing.md,
-            paddingHorizontal: spacing.xs,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: colors.border,
-        },
-        variantToggle: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 2,
-            paddingHorizontal: spacing.xs,
-        },
-        variantToggleText: {
-            fontSize: fontSize.xs,
-            color: colors.textTertiary,
-        },
+        // Bleeds to the screen edge so the chips scroll under it.
+        actionRow: { marginTop: spacing.sm + 4 },
+        results: { flexGrow: 1, paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
+        firstLabel: { marginTop: spacing.sm },
+        emptyText: { fontSize: fontSize.sm, color: colors.textTertiary, paddingVertical: spacing.sm },
+        spinner: { marginVertical: spacing.md },
+        error: { marginTop: spacing.sm },
     });
 }

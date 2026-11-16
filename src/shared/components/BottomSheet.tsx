@@ -26,6 +26,11 @@ interface BottomSheetProps {
     children: React.ReactNode;
 }
 
+/**
+ * A *persistent* sheet that lives inside a screen and is dragged between
+ * snap points (the AI chat). For anything modal — pick, edit, confirm — use
+ * `Sheet` instead.
+ */
 export default forwardRef<BottomSheetRef, BottomSheetProps>(function BottomSheet(
     { snapPoints, initialIndex = 0, onSnapChange, children },
     ref,
@@ -123,7 +128,7 @@ export default forwardRef<BottomSheetRef, BottomSheetProps>(function BottomSheet
         >
             <GestureDetector gesture={panGesture}>
                 <Animated.View style={styles.handleArea}>
-                    <View style={[styles.handle, { backgroundColor: colors.textTertiary }]} />
+                    <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
                 </Animated.View>
             </GestureDetector>
             <View style={styles.body}>{children}</View>
@@ -137,21 +142,21 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        borderTopLeftRadius: borderRadius.lg,
-        borderTopRightRadius: borderRadius.lg,
+        borderTopLeftRadius: borderRadius.xl,
+        borderTopRightRadius: borderRadius.xl,
         borderTopWidth: 1,
         elevation: 8,
         overflow: "hidden",
     },
     handleArea: {
         alignItems: "center",
-        paddingVertical: 14,
+        paddingTop: 10,
+        paddingBottom: 8,
     },
     handle: {
-        width: 40,
-        height: 5,
-        borderRadius: 2.5,
-        opacity: 0.5,
+        width: 36,
+        height: 4,
+        borderRadius: borderRadius.full,
     },
     body: {
         flex: 1,

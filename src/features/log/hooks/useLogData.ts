@@ -42,8 +42,6 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
         uuid: null,
     };
     const [dailyGoals, setDailyGoals] = useState<Goals>(defaultGoals);
-    const [prevGoals, setPrevGoals] = useState<Goals>(defaultGoals);
-    const [nextGoals, setNextGoals] = useState<Goals>(defaultGoals);
 
     const [editingEntry, setEditingEntry] = useState<EntryWithFood | null>(null);
     const [editingRecipeGroup, setEditingRecipeGroup] = useState<{ group: RecipeGroup; multiplier: number } | null>(null);
@@ -55,6 +53,8 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
 
     const [weightTrend, setWeightTrend] = useState<"up" | "down" | "flat" | null>(null);
     const [dayWeightLogs, setDayWeightLogs] = useState<WeightLog[]>([]);
+    const [prevWeightLogs, setPrevWeightLogs] = useState<WeightLog[]>([]);
+    const [nextWeightLogs, setNextWeightLogs] = useState<WeightLog[]>([]);
     const [meanWeightKg, setMeanWeightKg] = useState<number | null>(null);
     const [weightDaysAgo, setWeightDaysAgo] = useState<number | null>(null);
     const [workoutRefreshKey, setWorkoutRefreshKey] = useState(0);
@@ -67,10 +67,6 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
         setNextGrouped(loadGrouped(nextDate));
         const centerGoals = getGoalsForDate(formatDateKey(center));
         if (centerGoals) setDailyGoals(centerGoals);
-        const prevDayGoals = getGoalsForDate(formatDateKey(prevDate));
-        if (prevDayGoals) setPrevGoals(prevDayGoals);
-        const nextDayGoals = getGoalsForDate(formatDateKey(nextDate));
-        if (nextDayGoals) setNextGoals(nextDayGoals);
         const g = getGoals();
         if (g) {
             if (g.unit_system === "metric" || g.unit_system === "imperial") {
@@ -83,6 +79,8 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
         }
         const dayWeights = getWeightLogsForDate(center);
         setDayWeightLogs(dayWeights);
+        setPrevWeightLogs(getWeightLogsForDate(prevDate));
+        setNextWeightLogs(getWeightLogsForDate(nextDate));
         if (dayWeights.length > 0) {
             setMeanWeightKg(dayWeights.reduce((s, w) => s + w.weight_kg, 0) / dayWeights.length);
             setWeightDaysAgo(0);
@@ -304,11 +302,11 @@ export function useLogData(carouselRef: RefObject<ScrollView | null>) {
 
     return {
         selectedDate, chatBarVisible, setChatBarVisible,
-        grouped, prevGrouped, nextGrouped, dailyGoals, prevGoals, nextGoals,
+        grouped, prevGrouped, nextGrouped, dailyGoals,
         editingEntry, setEditingEntry, editingRecipeGroup, setEditingRecipeGroup,
         portionInput, setPortionInput,
         selectionMode, selectedEntryIds, moveModalVisible, setMoveModalVisible,
-        weightTrend, dayWeightLogs, meanWeightKg, weightDaysAgo, workoutRefreshKey,
+        weightTrend, dayWeightLogs, prevWeightLogs, nextWeightLogs, meanWeightKg, weightDaysAgo, workoutRefreshKey,
         bumpWorkoutRefreshKey: () => setWorkoutRefreshKey((k) => k + 1),
         handleScrollEnd, handleDelete, handleDeleteRecipeLog,
         handleConfirmEntry, handleConfirmRecipeLog,

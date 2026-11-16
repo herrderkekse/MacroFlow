@@ -9,6 +9,10 @@ import {
 } from "../services/restTimerNotifications";
 import { playTimerChimeIfEnabled } from "../services/restTimerSound";
 
+/** The shortest and longest rest the timer accepts. */
+export const REST_MIN_SECONDS = 15;
+export const REST_MAX_SECONDS = 60 * 60;
+
 const REST_DEFAULTS: Record<string, number> = {
     warmup: 60,
     working: 120,
@@ -25,7 +29,7 @@ interface TimerState {
 }
 
 interface TimerStore extends TimerState {
-    start: (workoutExerciseId: number, setType: string) => void;
+    start: (workoutExerciseId: number | null, setType: string) => void;
     stop: () => void;
     setDuration: (seconds: number) => void;
 }
@@ -48,7 +52,7 @@ const useTimerStore = create<TimerStore>((set, get) => ({
         cancelRestTimerNotification();
     },
     setDuration: (seconds) => {
-        const clamped = Math.max(15, seconds);
+        const clamped = Math.min(REST_MAX_SECONDS, Math.max(REST_MIN_SECONDS, Math.round(seconds)));
         const { isRunning, startedAtEpoch } = get();
         set({ targetDurationSeconds: clamped, lastUsedDuration: clamped });
         if (isRunning && startedAtEpoch > 0) {
@@ -67,8 +71,10 @@ export interface UseRestTimerReturn {
     isRunning: boolean;
     elapsedSeconds: number;
     targetSeconds: number;
+    /** What a rest started now would count down from (a working set's rest). */
+    nextTargetSeconds: number;
     workoutExerciseId: number | null;
-    start: (workoutExerciseId: number, setType: string) => void;
+    start: (workoutExerciseId: number | null, setType: string) => void;
     skip: () => void;
     setDuration: (seconds: number) => void;
     isTargetReached: boolean;
@@ -135,6 +141,7 @@ export function useRestTimer(): UseRestTimerReturn {
         isRunning: store.isRunning,
         elapsedSeconds,
         targetSeconds: store.targetDurationSeconds,
+        nextTargetSeconds: store.lastUsedDuration ?? REST_DEFAULTS.working,
         workoutExerciseId: store.workoutExerciseId,
         start: store.start,
         skip,

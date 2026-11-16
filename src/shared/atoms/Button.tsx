@@ -1,32 +1,41 @@
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { borderRadius, controlHeight, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useMemo } from "react";
 import {
     ActivityIndicator,
     Pressable,
     StyleSheet,
     Text,
+    type StyleProp,
     type TextStyle,
     type ViewStyle,
 } from "react-native";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+type ButtonSize = "md" | "sm";
 
 interface ButtonProps {
     title: string;
     onPress: () => void;
     variant?: ButtonVariant;
+    size?: ButtonSize;
     disabled?: boolean;
     loading?: boolean;
     icon?: React.ReactNode;
-    style?: ViewStyle;
-    textStyle?: TextStyle;
+    style?: StyleProp<ViewStyle>;
+    textStyle?: StyleProp<TextStyle>;
 }
 
+/**
+ * The one button. `primary` is the single main action of a view, `secondary`
+ * a tonal alternative, `outline` a neutral action, `ghost` an inline text
+ * action and `danger` a destructive one.
+ */
 export default function Button({
     title,
     onPress,
     variant = "primary",
+    size = "md",
     disabled = false,
     loading = false,
     icon,
@@ -42,8 +51,11 @@ export default function Button({
         <Pressable
             onPress={onPress}
             disabled={isDisabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isDisabled }}
             style={({ pressed }) => [
                 styles.base,
+                size === "sm" && styles.small,
                 variantStyles[variant],
                 pressed && !isDisabled && styles.pressed,
                 isDisabled && styles.disabled,
@@ -51,16 +63,15 @@ export default function Button({
             ]}
         >
             {loading ? (
-                <ActivityIndicator
-                    size="small"
-                    color={variant === "primary" ? "#fff" : colors.primary}
-                />
+                <ActivityIndicator size="small" color={variantTextStyles[variant].color} />
             ) : (
                 <>
                     {icon}
                     <Text
+                        numberOfLines={1}
                         style={[
                             styles.text,
+                            size === "sm" && styles.smallText,
                             variantTextStyles[variant],
                             textStyle,
                         ]}
@@ -73,19 +84,26 @@ export default function Button({
     );
 }
 
+/** Colour for an icon passed to a button of the given variant. */
+export function buttonContentColor(colors: ThemeColors, variant: ButtonVariant = "primary"): string {
+    return getVariantTextStyles(colors)[variant].color;
+}
+
 const styles = StyleSheet.create({
     base: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        paddingVertical: spacing.sm + 2,
+        minHeight: controlHeight.md,
         paddingHorizontal: spacing.md,
         borderRadius: borderRadius.md,
         gap: spacing.sm,
     },
-    pressed: { opacity: 0.75 },
-    disabled: { opacity: 0.45 },
-    text: { fontSize: fontSize.md, fontWeight: "600" },
+    small: { minHeight: controlHeight.sm, paddingHorizontal: spacing.sm + 4 },
+    pressed: { opacity: 0.7 },
+    disabled: { opacity: 0.4 },
+    text: { fontSize: fontSize.md, fontWeight: "600", flexShrink: 1 },
+    smallText: { fontSize: fontSize.sm },
 });
 
 function getVariantStyles(colors: ThemeColors): Record<ButtonVariant, ViewStyle> {
@@ -93,19 +111,21 @@ function getVariantStyles(colors: ThemeColors): Record<ButtonVariant, ViewStyle>
         primary: { backgroundColor: colors.primary },
         secondary: { backgroundColor: colors.primaryLight },
         outline: {
-            backgroundColor: "transparent",
-            borderWidth: 1.5,
-            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.borderStrong,
         },
         ghost: { backgroundColor: "transparent" },
+        danger: { backgroundColor: colors.dangerLight },
     };
 }
 
-function getVariantTextStyles(colors: ThemeColors): Record<ButtonVariant, TextStyle> {
+function getVariantTextStyles(colors: ThemeColors): Record<ButtonVariant, { color: string }> {
     return {
-        primary: { color: "#FFFFFF" },
-        secondary: { color: colors.primary },
+        primary: { color: colors.onPrimary },
+        secondary: { color: colors.text },
         outline: { color: colors.text },
-        ghost: { color: colors.primary },
+        ghost: { color: colors.text },
+        danger: { color: colors.danger },
     };
 }

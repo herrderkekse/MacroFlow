@@ -104,35 +104,59 @@ export function createSetInputStyles(colors: ThemeColors) {
         setRow: {
             flexDirection: "row",
             alignItems: "center",
-            paddingVertical: spacing.sm,
+            gap: spacing.sm,
+            minHeight: 44,
+            paddingVertical: 2,
+            // The card has no side padding of its own, so the active band can
+            // reach its edges; every other row keeps the inset here.
+            marginHorizontal: spacing.md,
         },
+        divider: {
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
+        },
+        // The set to do next: a band across the whole card.
         activeRow: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.sm,
-            marginHorizontal: -(spacing.xs - 2),
-            paddingHorizontal: spacing.xs,
+            backgroundColor: colors.background,
+            marginHorizontal: 0,
+            paddingHorizontal: spacing.md,
+            marginVertical: spacing.xs,
         },
         setRowScheduled: {
             opacity: 0.6,
         },
         setCell: {
             fontSize: fontSize.sm,
+            fontWeight: "600",
         },
-        setCol: { width: 32, justifyContent: "center" },
-        handleCol: { width: 24, alignItems: "center", justifyContent: "center" },
+        setLabel: {
+            fontSize: fontSize.xs,
+            fontWeight: "600",
+        },
+        setCol: { width: 30, justifyContent: "center" },
         valueCol: { flex: 1, textAlign: "center" },
-        rirCol: { width: 36, textAlign: "center" },
-        checkCol: { width: 28, alignItems: "center" },
+        rirCol: { width: 40, textAlign: "center" },
+        checkCol: { width: 30, alignItems: "center", justifyContent: "center" },
+        confirm: {
+            width: 28,
+            height: 28,
+            borderRadius: borderRadius.full,
+            backgroundColor: colors.primary,
+            alignItems: "center",
+            justifyContent: "center",
+        },
         input: {
             fontSize: fontSize.sm,
+            fontWeight: "600",
             textAlign: "center",
             borderBottomWidth: 1,
-            borderBottomColor: colors.border,
+            borderBottomColor: colors.primary,
             paddingVertical: 2,
             marginHorizontal: 2,
         },
         inlineInput: {
             fontSize: fontSize.sm,
+            fontWeight: "600",
             textAlign: "center",
             paddingVertical: 2,
             marginHorizontal: 2,
@@ -145,17 +169,16 @@ export function createSetInputStyles(colors: ThemeColors) {
         },
         weightInput: {
             textAlign: "right",
-            minWidth: 48,
+            minWidth: 44,
         },
         unitToggle: {
-            paddingLeft: 2,
-            paddingRight: spacing.xs,
+            paddingLeft: 3,
             paddingVertical: 2,
-            minWidth: 28,
+            minWidth: 22,
         },
         unitText: {
             fontSize: fontSize.xs,
-            fontWeight: "700",
+            fontWeight: "600",
         },
     });
 }

@@ -1,11 +1,13 @@
+import Button from "@/src/shared/atoms/Button";
+import IconButton from "@/src/shared/atoms/IconButton";
 import Input from "@/src/shared/atoms/Input";
-import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { servingDisplayUnit, unitLabel, type FoodUnit } from "@/src/utils/units";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
+import { spacing } from "@/src/utils/theme";
+import { servingDisplayUnit, unitLabel, type FoodUnit } from "@/src/utils/units";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import { StyleSheet, View } from "react-native";
 
 export interface ServingUnitRow {
     id?: number;
@@ -36,7 +38,6 @@ function amountLabelKey(unit: FoodUnit): string {
 export default function ServingUnitEditor({ rows, onChange }: ServingUnitEditorProps) {
     const { t } = useTranslation();
     const colors = useThemeColors();
-    const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     function updateRow(idx: number, patch: Partial<ServingUnitRow>) {
         const next = [...rows];
@@ -59,14 +60,14 @@ export default function ServingUnitEditor({ rows, onChange }: ServingUnitEditorP
                 return (
                     <View key={row.id ?? `new-${idx}`} style={styles.servingRow}>
                         <Input
-                            label={t("templates.servingUnitName")}
+                            label={idx === 0 ? t("templates.servingUnitName") : undefined}
                             placeholder={t("templates.servingUnitNamePlaceholder")}
                             value={row.name}
                             onChangeText={(v) => updateRow(idx, { name: v })}
                             containerStyle={styles.servingNameField}
                         />
                         <Input
-                            label={t(amountLabelKey(unit))}
+                            label={idx === 0 ? t(amountLabelKey(unit)) : undefined}
                             placeholder="0"
                             suffix={unitLabel(unit)}
                             value={row.grams}
@@ -74,49 +75,32 @@ export default function ServingUnitEditor({ rows, onChange }: ServingUnitEditorP
                             keyboardType="decimal-pad"
                             containerStyle={styles.servingGramsField}
                         />
-                        <Pressable
+                        <IconButton
+                            icon="close"
+                            color={colors.textTertiary}
+                            label={t("common.delete")}
                             onPress={() => removeRow(idx)}
-                            hitSlop={8}
                             style={styles.servingDeleteBtn}
-                        >
-                            <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                        </Pressable>
+                        />
                     </View>
                 );
             })}
-            <Pressable onPress={addRow} style={styles.addServingBtn}>
-                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-                <Text style={styles.addServingText}>{t("templates.addServingUnit")}</Text>
-            </Pressable>
+            <Button
+                title={t("templates.addServingUnit")}
+                variant="outline"
+                size="sm"
+                icon={<Ionicons name="add" size={16} color={colors.text} />}
+                onPress={addRow}
+                style={styles.addServingBtn}
+            />
         </View>
     );
 }
 
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        servingRow: {
-            flexDirection: "row",
-            alignItems: "flex-end",
-            gap: spacing.sm,
-            marginBottom: spacing.sm,
-        },
-        servingNameField: { flex: 2 },
-        servingGramsField: { flex: 1 },
-        servingDeleteBtn: {
-            paddingBottom: spacing.sm,
-            paddingHorizontal: spacing.xs,
-        },
-        addServingBtn: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.xs,
-            marginBottom: spacing.md,
-            paddingVertical: spacing.sm,
-        },
-        addServingText: {
-            fontSize: fontSize.sm,
-            color: colors.primary,
-            fontWeight: "600",
-        },
-    });
-}
+const styles = StyleSheet.create({
+    servingRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm, marginBottom: spacing.sm },
+    servingNameField: { flex: 2 },
+    servingGramsField: { flex: 1.3 },
+    servingDeleteBtn: { marginBottom: 4, marginRight: -spacing.xs },
+    addServingBtn: { alignSelf: "flex-start" },
+});

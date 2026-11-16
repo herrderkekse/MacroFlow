@@ -24,7 +24,7 @@ export default function ToolApprovalBanner({ toolCall, colors, onApprove, onDeny
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Ionicons name="construct-outline" size={16} color={colors.primary} />
+                <Ionicons name="construct-outline" size={16} color={colors.text} />
                 <Text style={styles.name}>{displayName}</Text>
             </View>
             <Text style={styles.permission}>
@@ -42,8 +42,8 @@ export default function ToolApprovalBanner({ toolCall, colors, onApprove, onDeny
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         container: {
-            backgroundColor: colors.primaryLight,
-            borderRadius: borderRadius.md,
+            backgroundColor: colors.surfaceMuted,
+            borderRadius: borderRadius.lg,
             padding: spacing.md,
             marginBottom: spacing.sm,
             borderWidth: 1,

@@ -1,29 +1,29 @@
 import Button from "@/src/shared/atoms/Button";
+import FieldLabel from "@/src/shared/atoms/FieldLabel";
 import Input from "@/src/shared/atoms/Input";
+import Notice from "@/src/shared/atoms/Notice";
+import Toggle from "@/src/shared/atoms/Toggle";
+import FooterBar from "@/src/shared/components/FooterBar";
+import ListGroup from "@/src/shared/components/ListGroup";
+import ListRow from "@/src/shared/components/ListRow";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
+import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
+import { screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { generateText } from "ai";
-import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { createModelFromConfig } from "../helpers/createModelFromConfig";
 import {
     deleteProviderSettings,
     getProviderDefaults,
     loadActiveProvider,
     loadProviderSettings,
+    loadShowChatOnLog,
     saveActiveProvider,
     saveProviderSettings,
+    saveShowChatOnLog,
     type AiProviderId,
     type ProviderSettings,
 } from "../services/aiConfig";
@@ -42,14 +42,13 @@ export default function AiSettingsScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
 
     const [provider, setProvider] = useState<AiProviderId>("nvidia");
     const [configs, setConfigs] = useState<Partial<Record<AiProviderId, ProviderSettings>>>({});
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    const [showChatOnLog, setShowChatOnLog] = useState(true);
 
     const current: ProviderSettings = configs[provider] ?? { apiKey: "", ...getProviderDefaults(provider) };
 
@@ -64,20 +63,23 @@ export default function AiSettingsScreen() {
             }
             setProvider(active);
             setConfigs(drafts);
+            setShowChatOnLog(await loadShowChatOnLog());
             setLoaded(true);
         }
         init();
     }, []);
+
+    // Takes effect on its own, unlike the provider fields that wait for Save.
+    function handleShowChatChange(show: boolean) {
+        setShowChatOnLog(show);
+        saveShowChatOnLog(show);
+    }
 
     function updateField(field: keyof ProviderSettings, value: string) {
         setConfigs((prev) => ({
             ...prev,
             [provider]: { ...prev[provider]!, [field]: value },
         }));
-    }
-
-    function handleProviderChange(id: AiProviderId) {
-        setProvider(id);
     }
 
     async function handleSave() {
@@ -147,77 +149,66 @@ export default function AiSettingsScreen() {
     if (!loaded) return null;
 
     return (
-        <ScrollView
-            style={styles.screen}
-            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
-            keyboardShouldPersistTaps="handled"
-        >
-            <View style={styles.headerRow}>
-                <Pressable onPress={() => router.navigate("/(tabs)/more" as any)} style={styles.backBtn} hitSlop={8}>
-                    <Ionicons name="chevron-back" size={24} color={colors.primary} />
-                </Pressable>
-                <Text style={styles.heading}>{t("ai.settings")}</Text>
-            </View>
+        <View style={styles.screen}>
+            <ScreenHeader title={t("more.aiSettings")} />
+            <ScrollView
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <Notice tone="danger">{t("ai.securityWarning")}</Notice>
 
-            {/* Security warning */}
-            <View style={styles.warningCard}>
-                <Ionicons name="warning-outline" size={18} color={colors.danger} />
-                <Text style={styles.warningText}>{t("ai.securityWarning")}</Text>
-            </View>
+                <FieldLabel>{t("ai.provider")}</FieldLabel>
+                <SegmentedControl options={PROVIDER_OPTIONS} value={provider} onChange={setProvider} />
 
-            {/* Provider selector */}
-            <Text style={styles.sectionLabel}>{t("ai.provider")}</Text>
-            <View style={styles.chipRow}>
-                {PROVIDER_OPTIONS.map((opt) => (
-                    <Pressable
-                        key={opt.key}
-                        style={[styles.chip, provider === opt.key && styles.chipActive]}
-                        onPress={() => handleProviderChange(opt.key)}
-                    >
-                        <Text style={[styles.chipText, provider === opt.key && styles.chipTextActive]}>
-                            {opt.label}
-                        </Text>
-                    </Pressable>
-                ))}
-            </View>
+                <Input
+                    label={t("ai.apiKey")}
+                    value={current.apiKey}
+                    onChangeText={(v) => updateField("apiKey", v)}
+                    placeholder={API_KEY_PLACEHOLDERS[provider]}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    containerStyle={styles.field}
+                />
+                <Input
+                    label={t("ai.baseUrl")}
+                    value={current.baseUrl}
+                    onChangeText={(v) => updateField("baseUrl", v)}
+                    placeholder={getProviderDefaults(provider).baseUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                    containerStyle={styles.field}
+                />
+                <Input
+                    label={t("ai.model")}
+                    value={current.model}
+                    onChangeText={(v) => updateField("model", v)}
+                    placeholder={getProviderDefaults(provider).model}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    containerStyle={styles.field}
+                />
 
-            {/* API Key */}
-            <Input
-                label={t("ai.apiKey")}
-                value={current.apiKey}
-                onChangeText={(v) => updateField("apiKey", v)}
-                placeholder={API_KEY_PLACEHOLDERS[provider]}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                containerStyle={styles.field}
-            />
+                <ListGroup style={styles.field}>
+                    <ListRow
+                        title={t("ai.showChatOnLog")}
+                        subtitle={t("ai.showChatOnLogDescription")}
+                        right={<Toggle value={showChatOnLog} onValueChange={handleShowChatChange} label={t("ai.showChatOnLog")} />}
+                    />
+                </ListGroup>
 
-            {/* Base URL */}
-            <Input
-                label={t("ai.baseUrl")}
-                value={current.baseUrl}
-                onChangeText={(v) => updateField("baseUrl", v)}
-                placeholder={getProviderDefaults(provider).baseUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                containerStyle={styles.field}
-            />
-
-            {/* Model */}
-            <Input
-                label={t("ai.model")}
-                value={current.model}
-                onChangeText={(v) => updateField("model", v)}
-                placeholder={getProviderDefaults(provider).model}
-                autoCapitalize="none"
-                autoCorrect={false}
-                containerStyle={styles.field}
-            />
-
-            {/* Action buttons */}
-            <View style={styles.buttonRow}>
+                {current.apiKey.trim().length > 0 && (
+                    <Button
+                        title={t("ai.deleteConfig")}
+                        variant="danger"
+                        onPress={handleDelete}
+                        style={styles.deleteBtn}
+                    />
+                )}
+            </ScrollView>
+            <FooterBar horizontal>
                 <Button
                     title={t("ai.testConnection")}
                     variant="outline"
@@ -225,104 +216,18 @@ export default function AiSettingsScreen() {
                     loading={testing}
                     style={styles.flexButton}
                 />
-                <Button
-                    title={t("common.save")}
-                    onPress={handleSave}
-                    loading={saving}
-                    style={styles.flexButton}
-                />
-            </View>
-
-            {current.apiKey.trim().length > 0 && (
-                <Button
-                    title={t("ai.deleteConfig")}
-                    variant="ghost"
-                    onPress={handleDelete}
-                    textStyle={{ color: colors.danger }}
-                    style={styles.deleteBtn}
-                />
-            )}
-        </ScrollView>
+                <Button title={t("common.save")} onPress={handleSave} loading={saving} style={styles.flexButton} />
+            </FooterBar>
+        </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 100 },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.lg,
-        },
-        backBtn: { padding: 4 },
-        heading: {
-            fontSize: fontSize.xl,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        warningCard: {
-            flexDirection: "row",
-            alignItems: "flex-start",
-            gap: spacing.sm,
-            backgroundColor: colors.danger + "15",
-            borderRadius: borderRadius.md,
-            padding: spacing.md,
-            marginBottom: spacing.lg,
-            borderWidth: 1,
-            borderColor: colors.danger + "30",
-        },
-        warningText: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            color: colors.text,
-            lineHeight: 20,
-        },
-        sectionLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            letterSpacing: 0.5,
-            marginBottom: spacing.sm,
-            marginTop: spacing.md,
-        },
-        chipRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-        },
-        chip: {
-            flex: 1,
-            paddingVertical: spacing.sm + 2,
-            borderRadius: borderRadius.md,
-            backgroundColor: colors.surface,
-            borderWidth: 1,
-            borderColor: colors.border,
-            alignItems: "center",
-        },
-        chipActive: {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary,
-        },
-        chipText: {
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        chipTextActive: {
-            color: colors.primary,
-            fontWeight: "600",
-        },
-        field: { marginBottom: spacing.md },
-        buttonRow: {
-            flexDirection: "row",
-            gap: spacing.sm,
-            marginTop: spacing.md,
-        },
+        content: { paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        field: { marginTop: spacing.md },
         flexButton: { flex: 1 },
-        deleteBtn: {
-            marginTop: spacing.md,
-            alignSelf: "center",
-        },
+        deleteBtn: { marginTop: spacing.lg },
     });
 }

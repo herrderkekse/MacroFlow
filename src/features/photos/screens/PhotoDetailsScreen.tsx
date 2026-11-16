@@ -1,15 +1,19 @@
 import { getWorkoutsByDate, type Workout } from "@/src/features/exercise/services/workoutDb";
-import WorkoutPickerModal from "@/src/features/photos/components/WorkoutPickerModal";
+import WorkoutPickerSheet from "@/src/features/photos/components/WorkoutPickerSheet";
 import { createPhoto, createPhotoForDate } from "@/src/features/photos/services/photoDb";
 import Button from "@/src/shared/atoms/Button";
+import EmptyState from "@/src/shared/atoms/EmptyState";
 import Input from "@/src/shared/atoms/Input";
+import SelectField from "@/src/shared/atoms/SelectField";
+import FooterBar from "@/src/shared/components/FooterBar";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { borderRadius, fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function PhotoDetailsScreen() {
     const colors = useThemeColors();
@@ -107,65 +111,66 @@ export default function PhotoDetailsScreen() {
 
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.card}>
-                    <Text style={styles.title}>{t("log.photoDetailsTitle")}</Text>
-                    <Text style={styles.body}>{t("log.photoDetailsSummary", { count: imageUris.length || count })}</Text>
-                    <Text style={styles.hint}>{t("log.photoDetailsHint")}</Text>
-                </View>
-
+            <ScreenHeader
+                title={t("log.photoDetailsTitle")}
+                subtitle={t("log.photoDetailsSummary", { count: imageUris.length || count })}
+            />
+            <ScrollView
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
                 {imageUris.length === 0 ? (
-                    <Text style={styles.emptyText}>{t("log.photoDetailsMissingImages")}</Text>
+                    <EmptyState icon="image-outline" title={t("log.photoDetailsMissingImages")} fill />
                 ) : (
                     <>
-                        <View style={styles.previews}>
-                            <FlatList
-                                data={imageUris}
-                                keyExtractor={(uri, idx) => `${uri}-${idx}`}
-                                numColumns={3}
-                                columnWrapperStyle={styles.gridRow}
-                                scrollEnabled={false}
-                                renderItem={({ item }) => (
-                                    <Image source={{ uri: item }} style={styles.thumbnail} contentFit="cover" />
-                                )}
-                            />
-                        </View>
+                        <FlatList
+                            data={imageUris}
+                            keyExtractor={(uri, idx) => `${uri}-${idx}`}
+                            numColumns={3}
+                            columnWrapperStyle={styles.gridRow}
+                            contentContainerStyle={styles.grid}
+                            scrollEnabled={false}
+                            renderItem={({ item }) => (
+                                <Image source={{ uri: item }} style={styles.thumbnail} contentFit="cover" />
+                            )}
+                        />
 
-                        <View style={styles.formCard}>
-                            <Text style={styles.label}>{t("log.photoDetailsWorkoutLabel")}</Text>
-                            <Pressable style={styles.workoutPicker} onPress={() => setPickerVisible(true)}>
-                                <Text style={styles.workoutPickerText}>{getWorkoutLabel(selectedWorkoutId)}</Text>
-                            </Pressable>
+                        <Text style={styles.hint}>{t("log.photoDetailsHint")}</Text>
 
-                            <Input
-                                label={t("log.photoDetailsMinutesLabel")}
-                                value={minutesAfterWorkout}
-                                onChangeText={setMinutesAfterWorkout}
-                                keyboardType="number-pad"
-                                placeholder={t("log.photoDetailsMinutesPlaceholder")}
-                            />
+                        <SelectField
+                            label={t("log.photoDetailsWorkoutLabel")}
+                            value={getWorkoutLabel(selectedWorkoutId)}
+                            onPress={() => setPickerVisible(true)}
+                            containerStyle={styles.field}
+                        />
 
-                            <Input
-                                label={t("log.photoDetailsNotesLabel")}
-                                value={notes}
-                                onChangeText={setNotes}
-                                placeholder={t("log.photoDetailsNotesPlaceholder")}
-                                multiline
-                                numberOfLines={3}
-                                textAlignVertical="top"
-                                style={styles.notesInput}
-                            />
-                        </View>
+                        <Input
+                            label={t("log.photoDetailsMinutesLabel")}
+                            value={minutesAfterWorkout}
+                            onChangeText={setMinutesAfterWorkout}
+                            keyboardType="number-pad"
+                            placeholder={t("log.photoDetailsMinutesPlaceholder")}
+                            containerStyle={styles.field}
+                        />
+
+                        <Input
+                            label={t("log.photoDetailsNotesLabel")}
+                            value={notes}
+                            onChangeText={setNotes}
+                            placeholder={t("log.photoDetailsNotesPlaceholder")}
+                            multiline
+                            style={styles.notesInput}
+                        />
                     </>
                 )}
             </ScrollView>
 
-            <View style={styles.footer}>
-                <Button title={t("common.cancel")} onPress={() => router.back()} variant="outline" />
+            <FooterBar>
                 <Button title={t("log.photoDetailsSaveButton")} onPress={handleSave} disabled={isSaving || imageUris.length === 0} />
-            </View>
+            </FooterBar>
 
-            <WorkoutPickerModal
+            <WorkoutPickerSheet
                 visible={pickerVisible}
                 workouts={workouts}
                 selectedWorkoutId={selectedWorkoutId}
@@ -181,87 +186,19 @@ export default function PhotoDetailsScreen() {
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: colors.background,
-        },
-        content: {
-            padding: spacing.md,
-            gap: spacing.md,
-        },
-        card: {
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.lg,
-            backgroundColor: colors.surface,
-            padding: spacing.md,
-            gap: spacing.sm,
-        },
-        title: {
-            fontSize: fontSize.lg,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        body: {
-            fontSize: fontSize.md,
-            color: colors.text,
-        },
+        container: { flex: 1, backgroundColor: colors.background },
+        content: { flexGrow: 1, paddingHorizontal: screenPadding, paddingTop: spacing.sm, paddingBottom: spacing.xl },
+        grid: { gap: spacing.sm },
+        gridRow: { gap: spacing.sm },
+        thumbnail: { flex: 1, aspectRatio: 1, borderRadius: borderRadius.md },
         hint: {
             fontSize: fontSize.sm,
+            lineHeight: 20,
             color: colors.textSecondary,
+            marginTop: spacing.md,
+            marginBottom: spacing.md,
         },
-        emptyText: {
-            fontSize: fontSize.md,
-            color: colors.textSecondary,
-        },
-        previews: {
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.md,
-            backgroundColor: colors.surface,
-            padding: spacing.sm,
-        },
-        gridRow: {
-            gap: spacing.sm,
-        },
-        thumbnail: {
-            flex: 1,
-            aspectRatio: 1,
-            borderRadius: borderRadius.md,
-        },
-        formCard: {
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.md,
-            backgroundColor: colors.surface,
-            padding: spacing.md,
-            gap: spacing.sm,
-        },
-        label: {
-            color: colors.textSecondary,
-            fontSize: fontSize.sm,
-            fontWeight: "500",
-        },
-        workoutPicker: {
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: borderRadius.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            backgroundColor: colors.background,
-        },
-        workoutPickerText: {
-            color: colors.text,
-            fontSize: fontSize.md,
-        },
-        notesInput: {
-            minHeight: 84,
-            paddingTop: spacing.sm,
-        },
-        footer: {
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.md,
-            gap: spacing.sm,
-        },
+        field: { marginBottom: spacing.md },
+        notesInput: { minHeight: 84 },
     });
 }

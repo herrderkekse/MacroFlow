@@ -3,23 +3,17 @@ import { getGoals } from "@/src/features/settings/services/settingsDb";
 import { formatRecipeName } from "@/src/features/templates/services/recipeVariantsDb";
 import { getAllFoods, getAllRecipes, getRecipeItems } from "@/src/features/templates/services/templateDb";
 import Button from "@/src/shared/atoms/Button";
+import Card from "@/src/shared/atoms/Card";
+import IconButton from "@/src/shared/atoms/IconButton";
 import Input from "@/src/shared/atoms/Input";
+import SectionLabel from "@/src/shared/atoms/SectionLabel";
+import FooterBar from "@/src/shared/components/FooterBar";
+import ScreenHeader from "@/src/shared/components/ScreenHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { fontSize, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { loadAiConfig } from "../services/aiConfig";
 import { generateMealPlan } from "../services/mealPlanService";
 import type { AiFoodPayload, AiGoalsPayload, AiMealPlanEntry, AiRecipePayload, StreamStatus } from "../types/types";
@@ -28,8 +22,6 @@ export default function MealPlanScreen() {
     const { t } = useTranslation();
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const insets = useSafeAreaInsets();
-    const router = useRouter();
 
     const [likedFoods, setLikedFoods] = useState("");
     const [dislikedFoods, setDislikedFoods] = useState("");
@@ -189,178 +181,109 @@ export default function MealPlanScreen() {
         return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
     }, [result, t]);
 
+    const hasPlan = !!grouped && grouped.length > 0;
+
     return (
-        <ScrollView
-            style={styles.screen}
-            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
-            keyboardShouldPersistTaps="handled"
-        >
-            <View style={styles.headerRow}>
-                <Pressable onPress={() => router.navigate("/(tabs)/more" as any)} style={styles.backBtn} hitSlop={8}>
-                    <Ionicons name="chevron-back" size={24} color={colors.primary} />
-                </Pressable>
-                <Text style={styles.heading}>{t("ai.mealPlan")}</Text>
-            </View>
+        <View style={styles.screen}>
+            <ScreenHeader title={t("more.mealPlan")} />
+            <ScrollView
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <SectionLabel style={styles.firstLabel}>{t("ai.preferences")}</SectionLabel>
 
-            <Text style={styles.sectionLabel}>{t("ai.preferences")}</Text>
+                <Input
+                    label={t("ai.likedFoods")}
+                    value={likedFoods}
+                    onChangeText={setLikedFoods}
+                    placeholder={t("ai.likedFoodsPlaceholder")}
+                    containerStyle={styles.field}
+                />
+                <Input
+                    label={t("ai.dislikedFoods")}
+                    value={dislikedFoods}
+                    onChangeText={setDislikedFoods}
+                    placeholder={t("ai.dislikedFoodsPlaceholder")}
+                    containerStyle={styles.field}
+                />
+                <Input
+                    label={t("ai.planDays")}
+                    value={days}
+                    onChangeText={setDays}
+                    keyboardType="number-pad"
+                    containerStyle={styles.field}
+                    suffix={t("ai.days")}
+                />
 
-            <Input
-                label={t("ai.likedFoods")}
-                value={likedFoods}
-                onChangeText={setLikedFoods}
-                placeholder={t("ai.likedFoodsPlaceholder")}
-                containerStyle={styles.field}
-            />
+                {generating && (
+                    <Card style={styles.statusRow}>
+                        <ActivityIndicator size="small" color={colors.textSecondary} />
+                        <Text style={styles.statusText}>{streamStatus ? statusLabel : t("ai.noStreamingHint")}</Text>
+                        {streamStatus && (
+                            <IconButton icon="close" size="sm" variant="tonal" label={t("common.cancel")} onPress={handleCancel} />
+                        )}
+                    </Card>
+                )}
 
-            <Input
-                label={t("ai.dislikedFoods")}
-                value={dislikedFoods}
-                onChangeText={setDislikedFoods}
-                placeholder={t("ai.dislikedFoodsPlaceholder")}
-                containerStyle={styles.field}
-            />
-
-            <Input
-                label={t("ai.planDays")}
-                value={days}
-                onChangeText={setDays}
-                keyboardType="number-pad"
-                containerStyle={styles.field}
-                suffix={t("ai.days")}
-            />
-
-            <Button
-                title={generating ? t("ai.generating") : t("ai.generatePlan")}
-                onPress={handleGenerate}
-                loading={generating}
-                disabled={generating}
-                style={styles.generateBtn}
-            />
-
-            {/* Streaming status indicator */}
-            {generating && streamStatus && (
-                <View style={styles.statusRow}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.statusText}>{statusLabel}</Text>
-                    <Pressable onPress={handleCancel} hitSlop={8}>
-                        <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-                    </Pressable>
-                </View>
-            )}
-
-            {/* Non-streaming hint */}
-            {generating && !streamStatus && (
-                <View style={styles.statusRow}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.statusText}>{t("ai.noStreamingHint")}</Text>
-                </View>
-            )}
-
-            {/* Results preview */}
-            {grouped && grouped.length > 0 && (
-                <>
-                    <Text style={styles.sectionLabel}>{t("ai.planPreview")}</Text>
-                    {grouped.map(([date, entries]) => (
-                        <View key={date} style={styles.dayCard}>
-                            <Text style={styles.dayHeading}>{date}</Text>
-                            {entries.map((entry, i) => (
-                                <View key={`${entry.food_id}-${i}`} style={styles.entryRow}>
-                                    <Text style={styles.mealBadge}>{t(`meal.${entry.meal_type}`)}</Text>
-                                    <Text style={styles.entryFood} numberOfLines={1}>{entry.foodName}</Text>
-                                    <Text style={styles.entryDetail}>
-                                        {Math.round(entry.quantity_grams)}g · {entry.calories} {t("common.kcal")}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
-                    ))}
-
-                    <Button
-                        title={t("ai.importPlan")}
-                        onPress={handleImport}
-                        loading={importing}
-                        disabled={generating}
-                        style={styles.importBtn}
-                    />
-                </>
-            )}
-        </ScrollView>
+                {hasPlan && (
+                    <>
+                        <SectionLabel>{t("ai.planPreview")}</SectionLabel>
+                        {grouped.map(([date, entries]) => (
+                            <Card key={date} style={styles.dayCard}>
+                                <Text style={styles.dayHeading}>{date}</Text>
+                                {entries.map((entry, i) => (
+                                    <View key={`${entry.food_id}-${i}`} style={styles.entryRow}>
+                                        <View style={styles.entryMain}>
+                                            <Text style={styles.entryFood} numberOfLines={1}>{entry.foodName}</Text>
+                                            <Text style={styles.entryMeal}>{t(`meal.${entry.meal_type}`)}</Text>
+                                        </View>
+                                        <Text style={styles.entryDetail}>
+                                            {Math.round(entry.quantity_grams)} g · {entry.calories} {t("common.kcal")}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </Card>
+                        ))}
+                    </>
+                )}
+            </ScrollView>
+            <FooterBar>
+                {hasPlan && !generating && (
+                    <Button title={t("ai.importPlan")} onPress={handleImport} loading={importing} />
+                )}
+                <Button
+                    title={generating ? t("ai.generating") : t("ai.generatePlan")}
+                    variant={hasPlan && !generating ? "outline" : "primary"}
+                    onPress={handleGenerate}
+                    loading={generating}
+                />
+            </FooterBar>
+        </View>
     );
 }
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         screen: { flex: 1, backgroundColor: colors.background },
-        content: { padding: spacing.lg, paddingBottom: 100 },
-        headerRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginBottom: spacing.lg,
-        },
-        backBtn: { padding: 4 },
-        heading: {
-            fontSize: fontSize.xl,
-            fontWeight: "700",
-            color: colors.text,
-        },
-        sectionLabel: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.textSecondary,
-            letterSpacing: 0.5,
-            marginBottom: spacing.sm,
-            marginTop: spacing.md,
-        },
+        content: { paddingHorizontal: screenPadding, paddingBottom: spacing.xl },
+        firstLabel: { marginTop: spacing.sm },
         field: { marginBottom: spacing.md },
-        generateBtn: { marginTop: spacing.sm },
-        statusRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginTop: spacing.md,
-            paddingHorizontal: spacing.sm,
-        },
-        statusText: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            color: colors.textSecondary,
-        },
-        dayCard: {
-            backgroundColor: colors.surface,
-            borderRadius: borderRadius.lg,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: spacing.md,
-            marginBottom: spacing.sm,
-        },
-        dayHeading: {
-            fontSize: fontSize.md,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: spacing.sm,
-        },
+        statusRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4 },
+        statusText: { flex: 1, fontSize: fontSize.sm, color: colors.textSecondary },
+        dayCard: { marginBottom: spacing.sm },
+        dayHeading: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text, marginBottom: spacing.xs },
         entryRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.sm,
-            paddingVertical: spacing.xs,
+            paddingVertical: spacing.sm,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: colors.border,
         },
-        mealBadge: {
-            fontSize: fontSize.xs,
-            fontWeight: "600",
-            color: colors.primary,
-            width: 70,
-        },
-        entryFood: {
-            flex: 1,
-            fontSize: fontSize.sm,
-            color: colors.text,
-        },
-        entryDetail: {
-            fontSize: fontSize.xs,
-            color: colors.textSecondary,
-        },
-        importBtn: { marginTop: spacing.md },
+        entryMain: { flex: 1 },
+        entryFood: { fontSize: fontSize.sm, fontWeight: "500", color: colors.text },
+        entryMeal: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 1 },
+        entryDetail: { fontSize: fontSize.xs, color: colors.textSecondary, fontVariant: ["tabular-nums"] },
     });
 }
