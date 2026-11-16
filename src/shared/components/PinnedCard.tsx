@@ -20,6 +20,11 @@ interface PinnedCardProps {
     details?: React.ReactNode;
     /** Label for screen readers on the toggle (what the details are). */
     detailsLabel?: string;
+    /**
+     * A button in the chevron's place while there are no details, so a card
+     * whose details come and go keeps its buttons where they were.
+     */
+    accessory?: React.ReactNode;
 }
 
 /**
@@ -28,7 +33,7 @@ interface PinnedCardProps {
  * the same card as a tab root's `CollapsibleHeader`, but it stays put: its
  * details open and close with a tap rather than with the scroll.
  */
-export default function PinnedCard({ summaryHeader, summary, summaryFooter, details, detailsLabel }: PinnedCardProps) {
+export default function PinnedCard({ summaryHeader, summary, summaryFooter, details, detailsLabel, accessory }: PinnedCardProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
@@ -53,11 +58,13 @@ export default function PinnedCard({ summaryHeader, summary, summaryFooter, deta
                     accessibilityState={hasDetails ? { expanded: open } : undefined}
                 >
                     <View style={styles.summaryBody}>{summary}</View>
-                    {hasDetails && (
+                    {hasDetails ? (
                         <View style={styles.chevron}>
                             <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textTertiary} />
                         </View>
-                    )}
+                    ) : accessory ? (
+                        <View style={styles.chevron}>{accessory}</View>
+                    ) : null}
                 </Pressable>
                 {summaryFooter}
                 {hasDetails && open && (

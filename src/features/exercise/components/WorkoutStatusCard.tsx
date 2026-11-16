@@ -7,7 +7,7 @@ import { formatDuration } from "../helpers/durationFormat";
 import { useDurationClock, type DurationClock } from "../hooks/useDurationClock";
 import type { StatusPage } from "../hooks/useStatusPage";
 import StatusCardPager, { PageIndicator } from "./StatusCardPager";
-import { CardAction, ClockDetails, Reading, RestDetails, Track } from "./StatusCardPages";
+import { ClockDetails, Reading, RestDetails, Track } from "./StatusCardPages";
 
 interface RestState {
     running: boolean;
@@ -43,6 +43,7 @@ interface WorkoutStatusCardProps {
 export default function WorkoutStatusCard({
     isLive, page, pages, onPageChange, setsDone, setsTotal, rest, clockExercise, onClockStart,
 }: WorkoutStatusCardProps) {
+    const colors = useThemeColors();
     const { t } = useTranslation();
     // Ticks only while the timing page shows.
     const clock = useDurationClock(clockExercise?.id ?? -1, page === "clock");
@@ -81,6 +82,10 @@ export default function WorkoutStatusCard({
             summaryFooter={summaryFooter}
             details={details}
             detailsLabel={t(page === "clock" ? "exercise.durationClock.settings" : "exercise.restTimer.duration")}
+            // Once the clock has started its settings are locked; reset takes the chevron's place.
+            accessory={page === "clock" && clock.isOwn ? (
+                <IconButton icon="refresh" size="sm" color={colors.text} label={t("exercise.durationClock.reset")} onPress={clock.reset} />
+            ) : undefined}
         />
     );
 
@@ -108,7 +113,7 @@ function RestSummary({ rest, isLive }: { rest: RestState; isLive: boolean }) {
         return (
             <Reading icon="timer-outline" value={formatDuration(rest.targetSeconds)} label={t("exercise.restTimer.ready")}>
                 {isLive && (
-                    <CardAction icon="play" text={t("exercise.restTimer.startShort")} label={t("exercise.restTimer.start")} onPress={rest.onStart} />
+                    <IconButton icon="play" size="sm" color={colors.text} label={t("exercise.restTimer.start")} onPress={rest.onStart} />
                 )}
             </Reading>
         );
@@ -121,7 +126,7 @@ function RestSummary({ rest, isLive }: { rest: RestState; isLive: boolean }) {
             label={t(over ? "exercise.restTimer.over" : "exercise.restTimer.left", { target: formatDuration(rest.targetSeconds) })}
             tint={over ? colors.warning : undefined}
         >
-            <CardAction icon="play-skip-forward" label={t("exercise.restTimer.skipRest")} onPress={rest.onSkip} />
+            <IconButton icon="play-skip-forward" size="sm" color={colors.text} label={t("exercise.restTimer.skipRest")} onPress={rest.onSkip} />
         </Reading>
     );
 }
@@ -144,10 +149,7 @@ function ClockSummary({ clock, name, onStart }: { clock: DurationClock; name: st
             label={status ? `${name} · ${status}` : name}
             tint={clock.isDone ? colors.success : undefined}
         >
-            {/* Plain icons; play and pause take turns in the same spot, reset sits before them. */}
-            {clock.isOwn && (
-                <IconButton icon="refresh" size="sm" color={colors.text} label={t("exercise.durationClock.reset")} onPress={clock.reset} />
-            )}
+            {/* Where play was before the clock started; reset takes the chevron's place (see the card). */}
             <IconButton
                 icon={clock.isRunning ? "pause" : "play"}
                 size="sm"

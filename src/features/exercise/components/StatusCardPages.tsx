@@ -3,11 +3,11 @@ import SectionLabel from "@/src/shared/atoms/SectionLabel";
 import ChipRow from "@/src/shared/components/ChipRow";
 import SegmentedControl from "@/src/shared/components/SegmentedControl";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
+import { fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { TIMER_MAX_SECONDS, TIMER_MIN_SECONDS, type ClockMode, type DurationClock } from "../hooks/useDurationClock";
 import RestDurationStepper from "./RestDurationStepper";
 
@@ -49,23 +49,6 @@ export function Reading({ icon, value, label, tint, children }: {
             </View>
             {children}
         </View>
-    );
-}
-
-/** The small outlined button of a reading row: an icon, with or without text. */
-export function CardAction({ icon, text, label, onPress }: { icon: IconName; text?: string; label: string; onPress: () => void }) {
-    const { colors, styles } = useStyles();
-    return (
-        <Pressable
-            onPress={onPress}
-            hitSlop={6}
-            style={({ pressed }) => [styles.action, !text && styles.actionIconOnly, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-        >
-            <Ionicons name={icon} size={text ? 11 : 14} color={colors.text} />
-            {text ? <Text style={styles.actionText}>{text}</Text> : null}
-        </Pressable>
     );
 }
 
@@ -140,21 +123,6 @@ function createStyles(colors: ThemeColors) {
         figure: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: spacing.xs + 2 },
         value: { fontSize: fontSize.xl - 1, fontWeight: "600", letterSpacing: -0.5, color: colors.text, fontVariant: ["tabular-nums"] },
         label: { flexShrink: 1, fontSize: fontSize.xs, color: colors.textTertiary },
-        action: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: spacing.xs + 1,
-            height: 30,
-            paddingHorizontal: spacing.sm + 3,
-            borderRadius: borderRadius.sm,
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            backgroundColor: colors.surfaceMuted,
-        },
-        actionIconOnly: { width: 30, paddingHorizontal: 0 },
-        actionText: { fontSize: fontSize.xs, fontWeight: "600", color: colors.text },
-        pressed: { opacity: 0.6 },
         track: { height: 5, backgroundColor: colors.primaryLight },
         fill: { height: 5 },
         details: { gap: spacing.sm + 2 },
