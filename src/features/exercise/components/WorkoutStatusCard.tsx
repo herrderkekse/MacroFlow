@@ -1,3 +1,4 @@
+import IconButton from "@/src/shared/atoms/IconButton";
 import PinnedCard from "@/src/shared/components/PinnedCard";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import React from "react";
@@ -143,16 +144,19 @@ function ClockSummary({ clock, name, onStart }: { clock: DurationClock; name: st
             label={status ? `${name} · ${status}` : name}
             tint={clock.isDone ? colors.success : undefined}
         >
+            {/* Plain icons; play and pause take turns in the same spot, reset sits before them. */}
             {clock.isOwn && (
-                <CardAction icon="refresh" label={t("exercise.durationClock.reset")} onPress={clock.reset} />
+                <IconButton icon="refresh" size="sm" color={colors.text} label={t("exercise.durationClock.reset")} onPress={clock.reset} />
             )}
-            {clock.isRunning ? (
-                <CardAction icon="pause" label={t("exercise.durationClock.pause")} onPress={clock.pause} />
-            ) : clock.isOwn && !clock.isDone ? (
-                <CardAction icon="play" label={t("exercise.durationClock.resume")} onPress={onStart} />
-            ) : (
-                <CardAction icon="play" text={t("exercise.durationClock.start")} label={t("exercise.durationClock.start")} onPress={onStart} />
-            )}
+            <IconButton
+                icon={clock.isRunning ? "pause" : "play"}
+                size="sm"
+                color={colors.text}
+                label={t(clock.isRunning
+                    ? "exercise.durationClock.pause"
+                    : clock.isOwn && !clock.isDone ? "exercise.durationClock.resume" : "exercise.durationClock.start")}
+                onPress={clock.isRunning ? clock.pause : onStart}
+            />
         </Reading>
     );
 }
