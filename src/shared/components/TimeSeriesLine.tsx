@@ -1,6 +1,6 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import React from "react";
-import { Circle, Defs, Line, LinearGradient, Path, Stop } from "react-native-svg";
+import { Circle, Line, Path } from "react-native-svg";
 import { smoothPath } from "@/src/utils/plotPaths";
 import type { PlotPoint } from "./TimeSeriesPlot";
 
@@ -35,14 +35,9 @@ export default function TimeSeriesLine({ points, showDots, picked, color, xAt, y
 
     return (
         <>
-            <Defs>
-                <LinearGradient id="wash" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor={color} stopOpacity={0.14} />
-                    <Stop offset="1" stopColor={color} stopOpacity={0} />
-                </LinearGradient>
-            </Defs>
             {picked && <Line x1={pickedX} x2={pickedX} y1={top} y2={bottom} stroke={colors.borderStrong} strokeWidth={1} />}
-            {line.length > 1 && <Path d={`${path}L${last.x} ${bottom}L${first.x} ${bottom}Z`} fill="url(#wash)" />}
+            {/* One flat shade: a faint gradient bands visibly on Android. */}
+            {line.length > 1 && <Path d={`${path}L${last.x} ${bottom}L${first.x} ${bottom}Z`} fill={color} fillOpacity={0.08} />}
             {showDots &&
                 smoothed &&
                 points.map((p) => (
