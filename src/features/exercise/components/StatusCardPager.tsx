@@ -1,5 +1,5 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, spacing, type ThemeColors } from "@/src/utils/theme";
+import type { ThemeColors } from "@/src/utils/theme";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -25,7 +25,7 @@ interface StatusCardPagerProps<K extends string> {
 
 /**
  * The pinned card's summaries side by side, one per page: swiped through by
- * hand, or moved to a page from outside (`page`). Dots under them say which
+ * hand, or moved to a page from outside (`page`). `PageIndicator` says which
  * page is showing.
  *
  * `page` is the only state: the strip is always placed from it, and a swipe
@@ -101,21 +101,29 @@ export default function StatusCardPager<K extends string>({ pages, page, onChang
     }));
 
     return (
-        <View>
-            <GestureDetector gesture={pan}>
-                <View style={styles.viewport} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-                    <Animated.View style={[styles.strip, stripStyle]}>
-                        {pages.map((key) => (
-                            <View key={key} style={{ width }}>{width > 0 && renderPage(key)}</View>
-                        ))}
-                    </Animated.View>
-                </View>
-            </GestureDetector>
-            {pages.length > 1 && (
-                <View style={styles.dots} accessible={false}>
-                    {pages.map((key) => <View key={key} style={[styles.dot, key === page && styles.dotOn]} />)}
-                </View>
-            )}
+        <GestureDetector gesture={pan}>
+            <View style={styles.viewport} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+                <Animated.View style={[styles.strip, stripStyle]}>
+                    {pages.map((key) => (
+                        <View key={key} style={{ width }}>{width > 0 && renderPage(key)}</View>
+                    ))}
+                </Animated.View>
+            </View>
+        </GestureDetector>
+    );
+}
+
+/**
+ * Which page the card shows: a bar along its top edge, mirroring the
+ * progress bar along its bottom, in one chunk per page.
+ */
+export function PageIndicator<K extends string>({ pages, page }: { pages: K[]; page: K }) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+    if (pages.length < 2) return null;
+    return (
+        <View style={styles.chunks} accessible={false}>
+            {pages.map((key) => <View key={key} style={[styles.chunk, key === page && styles.chunkOn]} />)}
         </View>
     );
 }
@@ -124,8 +132,9 @@ function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         viewport: { overflow: "hidden" },
         strip: { flexDirection: "row" },
-        dots: { flexDirection: "row", justifyContent: "center", gap: 5, marginTop: spacing.xs + 2 },
-        dot: { width: 5, height: 5, borderRadius: borderRadius.full, backgroundColor: colors.border },
-        dotOn: { width: 12, backgroundColor: colors.textTertiary },
+        chunks: { flexDirection: "row", gap: 3 },
+        // As tall as the progress bar along the bottom edge.
+        chunk: { flex: 1, height: 5, backgroundColor: colors.border },
+        chunkOn: { backgroundColor: colors.textTertiary },
     });
 }

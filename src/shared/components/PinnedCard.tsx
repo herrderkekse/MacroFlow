@@ -10,6 +10,8 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 interface PinnedCardProps {
+    /** Edge to edge along the top, above the summary (e.g. which of several pages shows). */
+    summaryHeader?: React.ReactNode;
     /** The always-visible row: the one figure the screen is about. */
     summary: React.ReactNode;
     /** Edge to edge under the summary (a progress or macro bar); doubles as the divider. */
@@ -26,7 +28,7 @@ interface PinnedCardProps {
  * the same card as a tab root's `CollapsibleHeader`, but it stays put: its
  * details open and close with a tap rather than with the scroll.
  */
-export default function PinnedCard({ summary, summaryFooter, details, detailsLabel }: PinnedCardProps) {
+export default function PinnedCard({ summaryHeader, summary, summaryFooter, details, detailsLabel }: PinnedCardProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
@@ -41,6 +43,7 @@ export default function PinnedCard({ summary, summaryFooter, details, detailsLab
     return (
         <View style={styles.wrap}>
             <View style={styles.card}>
+                {summaryHeader}
                 <Pressable
                     onPress={hasDetails ? toggle : undefined}
                     disabled={!hasDetails}

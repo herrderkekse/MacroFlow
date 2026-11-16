@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { formatDuration } from "../helpers/durationFormat";
 import { useDurationClock, type DurationClock } from "../hooks/useDurationClock";
 import type { StatusPage } from "../hooks/useStatusPage";
-import StatusCardPager from "./StatusCardPager";
+import StatusCardPager, { PageIndicator } from "./StatusCardPager";
 import { CardAction, ClockDetails, Reading, RestDetails, Track } from "./StatusCardPages";
 
 interface RestState {
@@ -75,6 +75,7 @@ export default function WorkoutStatusCard({
 
     return (
         <PinnedCard
+            summaryHeader={<PageIndicator pages={pages} page={page} />}
             summary={<StatusCardPager pages={pages} page={page} onChange={onPageChange} renderPage={renderSummary} />}
             summaryFooter={summaryFooter}
             details={details}
