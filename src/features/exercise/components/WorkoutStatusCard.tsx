@@ -135,11 +135,13 @@ function ClockSummary({ clock, name, onStart }: { clock: DurationClock; name: st
     const colors = useThemeColors();
     const { t } = useTranslation();
     const isTimer = clock.mode === "timer";
-    const value = formatDuration(isTimer ? clock.timerSeconds - clock.elapsedSeconds : clock.elapsedSeconds);
+    // A timer that is up keeps counting, as overtime — like a rest that has run over.
+    const value = !isTimer ? formatDuration(clock.elapsedSeconds)
+        : clock.isDone ? `+${formatDuration(clock.elapsedSeconds - clock.timerSeconds)}`
+            : formatDuration(clock.timerSeconds - clock.elapsedSeconds);
     // The icon already says stopwatch or timer; only a state worth noticing gets words.
-    const status = clock.isDone
-        ? t("exercise.durationClock.done")
-        : clock.isOwn && !clock.isRunning ? t("exercise.durationClock.paused")
+    const status = clock.isOwn && !clock.isRunning ? t("exercise.durationClock.paused")
+        : clock.isDone ? t("exercise.durationClock.done")
             : null;
 
     return (
@@ -156,7 +158,7 @@ function ClockSummary({ clock, name, onStart }: { clock: DurationClock; name: st
                 color={colors.text}
                 label={t(clock.isRunning
                     ? "exercise.durationClock.pause"
-                    : clock.isOwn && !clock.isDone ? "exercise.durationClock.resume" : "exercise.durationClock.start")}
+                    : clock.isOwn ? "exercise.durationClock.resume" : "exercise.durationClock.start")}
                 onPress={clock.isRunning ? clock.pause : onStart}
             />
         </Reading>

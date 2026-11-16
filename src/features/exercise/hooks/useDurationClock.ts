@@ -40,8 +40,6 @@ interface ClockStore extends ClockState {
     start: (workoutExerciseId: number) => void;
     pause: () => void;
     reset: () => void;
-    /** Stops a timer that has run out. True only for the caller that stopped it. */
-    finishTimer: () => boolean;
 }
 
 const IDLE = { workoutExerciseId: null, startedAtEpoch: null, bankedMs: 0 } as const;
@@ -69,10 +67,9 @@ const useClockStore = create<ClockStore>()(persist((set, get) => ({
         const state = get();
         if (state.startedAtEpoch != null && state.workoutExerciseId === workoutExerciseId) return;
         const now = Date.now();
-        let bankedMs = state.workoutExerciseId === workoutExerciseId ? state.bankedMs : 0;
-        // A timer that has run out starts over.
-        if (state.mode === "timer" && bankedMs >= state.timerSeconds * 1000) bankedMs = 0;
+        const bankedMs = state.workoutExerciseId === workoutExerciseId ? state.bankedMs : 0;
         set({ workoutExerciseId, startedAtEpoch: now, bankedMs });
+        // A timer resumed in overtime has nothing left to announce (scheduling skips past times).
         if (state.mode === "timer") {
             scheduleDurationTimerNotification(now + state.timerSeconds * 1000 - bankedMs);
         } else {
@@ -88,13 +85,6 @@ const useClockStore = create<ClockStore>()(persist((set, get) => ({
     reset: () => {
         set(IDLE);
         cancelDurationTimerNotification();
-    },
-    finishTimer: () => {
-        const state = get();
-        if (state.mode !== "timer" || state.startedAtEpoch == null) return false;
-        if (elapsedMs(state) < state.timerSeconds * 1000) return false;
-        set({ startedAtEpoch: null, bankedMs: state.timerSeconds * 1000 });
-        return true;
     },
 }), {
     name: "exercise.durationClock",
@@ -116,9 +106,9 @@ export interface DurationClock {
     /** Whether the clock belongs to this exercise (running or paused). */
     isOwn: boolean;
     isRunning: boolean;
-    /** Seconds counted so far; for a timer, of its countdown. */
+    /** Seconds counted so far; a timer keeps counting past its end (overtime). */
     elapsedSeconds: number;
-    /** A timer that has counted all the way down. */
+    /** A timer that has counted all the way down; it may still be running, in overtime. */
     isDone: boolean;
     setMode: (mode: ClockMode) => void;
     setTimerSeconds: (seconds: number) => void;
@@ -155,7 +145,7 @@ export function useDurationClock(workoutExerciseId: number, live = true): Durati
         timerSeconds: store.timerSeconds,
         isOwn,
         isRunning,
-        elapsedSeconds: isTimer ? Math.min(elapsed, store.timerSeconds) : elapsed,
+        elapsedSeconds: elapsed,
         isDone: isOwn && isTimer && elapsed >= store.timerSeconds,
         setMode: store.setMode,
         setTimerSeconds: store.setTimerSeconds,
@@ -175,13 +165,10 @@ export function resetDurationClock() {
     useClockStore.getState().reset();
 }
 
-/** A timer that ran out this long ago is stopped quietly: its notification already told the user. */
-const LATE_ALARM_MS = 3000;
-
 /**
- * Mounted once by the workout screen: when a timer runs out it stops it, with
- * a haptic and (setting permitting) the chime — whether or not the timer's
- * card or sheet is on screen.
+ * Mounted once by the workout screen: when a timer runs out it rings once,
+ * with a haptic and (setting permitting) the chime, whether or not the
+ * timer's page is showing. The timer itself keeps counting, into overtime.
  */
 export function useDurationTimerAlarm() {
     const { mode, startedAtEpoch, bankedMs, timerSeconds } = useClockStore();
@@ -189,13 +176,14 @@ export function useDurationTimerAlarm() {
     useEffect(() => {
         if (mode !== "timer" || startedAtEpoch == null) return;
         const endsAt = startedAtEpoch + timerSeconds * 1000 - bankedMs;
+        // Already past (resumed in overtime, or the app was away when it ended and the
+        // notification told the user): nothing left to ring for in this run.
+        if (endsAt <= Date.now()) return;
         const ring = () => {
-            const late = Date.now() - endsAt > LATE_ALARM_MS;
-            if (!useClockStore.getState().finishTimer() || late) return;
             triggerHaptic();
             if (isWorkoutScreenVisible() && AppState.currentState === "active") playTimerChimeIfEnabled();
         };
-        const timeout = setTimeout(ring, Math.max(0, endsAt - Date.now()));
+        const timeout = setTimeout(ring, endsAt - Date.now());
         return () => clearTimeout(timeout);
     }, [mode, startedAtEpoch, bankedMs, timerSeconds]);
 }
