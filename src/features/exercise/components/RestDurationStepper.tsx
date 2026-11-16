@@ -1,5 +1,6 @@
 import Stepper from "@/src/shared/components/Stepper";
 import React, { useState } from "react";
+import { digitsToClockText } from "../helpers/durationFormat";
 import { REST_MAX_SECONDS, REST_MIN_SECONDS } from "../hooks/useRestTimer";
 
 const STEP = 15;
@@ -15,19 +16,6 @@ interface RestDurationStepperProps {
 
 function formatClock(seconds: number): string {
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-/**
- * Typed digits fill the clock from the right, like a kitchen timer:
- * "1" → 0:01, "13" → 0:13, "130" → 1:30. The stepper's own "m:ss" text
- * comes back through here too and keeps its value.
- */
-function toClockText(text: string): string | null {
-    const digits = text.replace(/\D/g, "").replace(/^0+/, "");
-    if (digits.length > MAX_DIGITS) return null;
-    if (digits === "") return "";
-    const padded = digits.padStart(3, "0");
-    return `${Number(padded.slice(0, -2))}:${padded.slice(-2)}`;
 }
 
 /** The seconds an "m:ss" text stands for, or null when it is not a duration in range. */
@@ -52,7 +40,8 @@ export default function RestDurationStepper({
     }
 
     const handleChange = (value: string) => {
-        const next = toClockText(value);
+        // Typed digits fill the clock from the right: "130" → 1:30.
+        const next = digitsToClockText(value, MAX_DIGITS);
         if (next === null) return;
         setText(next);
         const parsed = parseClock(next, min, max);

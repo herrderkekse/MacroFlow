@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, Text, View } from "react-native";
+import { formatDuration } from "../helpers/durationFormat";
 import { TIMER_MAX_SECONDS, TIMER_MIN_SECONDS, type ClockMode, type DurationClock } from "../hooks/useDurationClock";
 import RestDurationStepper from "./RestDurationStepper";
 
@@ -20,14 +21,6 @@ interface DurationClockSheetProps {
     /** The exercise's name. */
     title: string;
     clock: DurationClock;
-}
-
-function formatClock(seconds: number): string {
-    const s = Math.max(0, Math.round(seconds));
-    const h = Math.floor(s / 3600);
-    const mm = String(Math.floor((s % 3600) / 60)).padStart(h > 0 ? 2 : 1, "0");
-    const ss = String(s % 60).padStart(2, "0");
-    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function formatPreset(seconds: number): string {
@@ -93,7 +86,7 @@ export default function DurationClockSheet({ visible, onClose, title, clock }: D
                 )}
 
                 <View style={styles.readout}>
-                    <Text style={[styles.reading, clock.isDone && { color: colors.success }]}>{formatClock(reading)}</Text>
+                    <Text style={[styles.reading, clock.isDone && { color: colors.success }]}>{formatDuration(reading)}</Text>
                     <Text style={styles.status}>{status}</Text>
                 </View>
 

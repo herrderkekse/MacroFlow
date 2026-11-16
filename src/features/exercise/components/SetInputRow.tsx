@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { parseCustomValues, type CustomField, type CustomValues } from "../helpers/customFields";
 import type { DurationTarget } from "../helpers/durationClock";
+import { digitsToClockText, formatDuration, parseDuration } from "../helpers/durationFormat";
 import { useClockFill } from "../hooks/useDurationClock";
 import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType, SetValues } from "../types";
@@ -61,7 +62,7 @@ export default function SetInputRow({
     const [weight, setWeight] = useState(set.weight != null ? String(set.weight) : "");
     const [reps, setReps] = useState(set.reps != null ? String(set.reps) : "");
     const [rir, setRir] = useState(set.rir != null ? String(set.rir) : "");
-    const [duration, setDuration] = useState(set.duration_seconds != null ? String(set.duration_seconds) : "");
+    const [duration, setDuration] = useState(set.duration_seconds != null ? formatDuration(set.duration_seconds) : "");
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
     const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
     const [customInputs, setCustomInputs] = useState<Record<string, string>>(() => customValuesToInputs(set.custom_values));
@@ -76,7 +77,7 @@ export default function SetInputRow({
             setWeight(set.weight != null ? String(set.weight) : "");
             setReps(set.reps != null ? String(set.reps) : "");
             setRir(set.rir != null ? String(set.rir) : "");
-            setDuration(set.duration_seconds != null ? String(set.duration_seconds) : "");
+            setDuration(set.duration_seconds != null ? formatDuration(set.duration_seconds) : "");
             setDistance(set.distance_meters != null ? String(set.distance_meters) : "");
             setCustomInputs(customValuesToInputs(set.custom_values));
             setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
@@ -92,7 +93,7 @@ export default function SetInputRow({
     const clockFill = useClockFill(durationTarget, clockExerciseId, isActiveSet);
     const clockDuration = durationTarget?.kind === "duration" ? clockFill.value : null;
     const clockCustomId = durationTarget?.kind === "custom" && clockFill.value != null ? durationTarget.fieldId : null;
-    const displayDuration = duration || (clockDuration != null ? String(clockDuration) : "");
+    const displayDuration = duration || (clockDuration != null ? formatDuration(clockDuration) : "");
     const displayCustomInputs = clockCustomId && !customInputs[clockCustomId]
         ? { ...customInputs, [clockCustomId]: String(clockFill.value) }
         : customInputs;
@@ -115,7 +116,7 @@ export default function SetInputRow({
             reps: reps ? parseInt(reps, 10) : (clearedFields.reps ? null : prefillReps),
             rir: rir ? parseInt(rir, 10) : (clearedFields.rir ? null : prefillRir),
             duration_seconds: duration
-                ? parseInt(duration, 10)
+                ? parseDuration(duration)
                 : fromClock(clockDuration != null) ?? (clearedFields.duration ? null : prefillDuration),
             distance_meters: distance ? parseFloat(distance) : (clearedFields.distance ? null : prefillDistance),
             custom_values,
@@ -249,10 +250,13 @@ export default function SetInputRow({
                         style={[fieldStyle("duration"), styles.valueCol, { color: textColor }]}
                         value={displayDuration}
                         onChangeText={(text) => {
-                            setDuration(text);
-                            setClearedFields(prev => ({ ...prev, duration: text === "" }));
+                            // Typed digits fill the clock from the right: "130" → 1:30.
+                            const next = digitsToClockText(text);
+                            if (next === null) return;
+                            setDuration(next);
+                            setClearedFields(prev => ({ ...prev, duration: next === "" }));
                         }}
-                        placeholder={!clearedFields.duration && prefillDuration != null ? String(prefillDuration) : "—"}
+                        placeholder={!clearedFields.duration && prefillDuration != null ? formatDuration(prefillDuration) : "—"}
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="number-pad"
                         selectTextOnFocus
