@@ -22,9 +22,16 @@ export default function StatusCardPager<K extends string>({ pages, page, onChang
     const [width, setWidth] = useState(0);
     const index = Math.max(0, pages.indexOf(page));
 
-    // Follow a page change from outside (and a width change, which would leave it between pages).
+    // Follow a page change from outside, and a width change (which would leave it between pages).
+    // Placed by hand rather than with `contentOffset`: Android scrolls to that prop on every
+    // render, and a ticking rest re-renders the card every second, snapping a swipe back.
+    const placedWidth = useRef(0);
     useEffect(() => {
-        if (width > 0) scrollRef.current?.scrollTo({ x: index * width, animated: true });
+        if (width === 0) return;
+        // The first placement (and a resize) jumps; a page change slides.
+        const animated = placedWidth.current === width;
+        placedWidth.current = width;
+        scrollRef.current?.scrollTo({ x: index * width, animated });
     }, [index, width]);
 
     function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -43,8 +50,8 @@ export default function StatusCardPager<K extends string>({ pages, page, onChang
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 onScroll={handleScroll}
+                onMomentumScrollEnd={handleScroll}
                 scrollEventThrottle={32}
-                contentOffset={{ x: index * width, y: 0 }}
             >
                 {pages.map((key) => (
                     <View key={key} style={{ width }}>{width > 0 && renderPage(key)}</View>
