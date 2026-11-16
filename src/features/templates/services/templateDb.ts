@@ -235,6 +235,18 @@ export function getRecipeItems(recipeId: number) {
         .all();
 }
 
+/** Every recipe's items with their foods, grouped by recipe id — one query for a whole list. */
+export function getRecipeItemsByRecipe() {
+    const rows = db.select().from(recipeItems).leftJoin(foods, eq(recipeItems.food_id, foods.id)).all();
+    const byRecipe = new Map<number, typeof rows>();
+    for (const row of rows) {
+        const list = byRecipe.get(row.recipe_items.recipe_id);
+        if (list) list.push(row);
+        else byRecipe.set(row.recipe_items.recipe_id, [row]);
+    }
+    return byRecipe;
+}
+
 export function addRecipeItem(item: NewRecipeItem): RecipeItem {
     return db.insert(recipeItems).values(item).returning().get();
 }

@@ -10,12 +10,20 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
+import {
+    exerciseSummary,
+    foodMacros,
+    recipeMacros,
+    recipeSummary,
+    type TemplateMacros,
+    type TemplateVariant,
+} from "../helpers/templateRows";
 import { forkRecipe, getRecipeGroups } from "../services/recipeVariantsDb";
 import {
     deleteFood,
     deleteRecipe,
     getAllFoods,
-    getRecipeItems,
+    getRecipeItemsByRecipe,
     searchFoodsByName,
     softDeleteFood,
     softDeleteRecipe,
@@ -25,17 +33,14 @@ import {
 
 type FilterType = "all" | "recipes" | "foods" | "exercises";
 
+/**
+ * One row of the library, with its subtitle and macros worked out when the
+ * list loads — never during render, which would query the DB per row.
+ */
 export type TemplateItem =
-    | { kind: "food"; data: Food }
-    | { kind: "recipe"; data: Recipe; variants: Recipe[] }
-    | { kind: "exercise"; data: ExerciseTemplate };
-
-export interface TemplateMacros {
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-}
+    | { kind: "food"; data: Food; subtitle: string; macros: TemplateMacros }
+    | { kind: "recipe"; data: Recipe; subtitle: string; macros: TemplateMacros | null; variants: TemplateVariant[] }
+    | { kind: "exercise"; data: ExerciseTemplate; subtitle: string; macros?: undefined };
 
 export interface ForkTarget {
     recipe: Recipe;
@@ -55,33 +60,54 @@ export function useTemplateList() {
         const result: TemplateItem[] = [];
 
         if (filter === "all" || filter === "recipes") {
+            const itemsByRecipe = getRecipeItemsByRecipe();
+            const describe = (recipe: Recipe) => {
+                const rows = itemsByRecipe.get(recipe.id) ?? [];
+                return { summary: recipeSummary(recipe, rows, t), macros: recipeMacros(recipe, rows) };
+            };
             for (const group of getRecipeGroups(hasQuery ? q : undefined)) {
-                result.push({ kind: "recipe", data: group.recipe, variants: group.variants });
+                const base = describe(group.recipe);
+                const variants = group.variants.map((variant) => {
+                    const info = describe(variant);
+                    return { recipe: variant, subtitle: info.summary, calories: info.macros?.calories ?? null };
+                });
+                result.push({
+                    kind: "recipe",
+                    data: group.recipe,
+                    subtitle: [
+                        base.summary,
+                        variants.length > 0 ? t("templates.variantCount", { count: variants.length }) : null,
+                    ].filter(Boolean).join(" · "),
+                    macros: base.macros,
+                    variants,
+                });
             }
         }
         if (filter === "all" || filter === "foods") {
             const foodList = hasQuery ? searchFoodsByName(q) : getAllFoods();
-            for (const f of foodList) result.push({ kind: "food", data: f });
+            const subtitle = t("templates.foodPer100g");
+            for (const f of foodList) result.push({ kind: "food", data: f, subtitle, macros: foodMacros(f) });
         }
         if (filter === "all" || filter === "exercises") {
             const exerciseList = hasQuery ? searchExerciseTemplates(q) : getAllExerciseTemplates();
-            for (const e of exerciseList) result.push({ kind: "exercise", data: e });
+            for (const e of exerciseList) result.push({ kind: "exercise", data: e, subtitle: exerciseSummary(e, t) });
         }
 
         result.sort((a, b) => a.data.name.localeCompare(b.data.name));
         setItems(result);
-    }, [filter, query]);
+    }, [filter, query, t]);
 
     useFocusEffect(load);
 
-    function toggleExpanded(recipeId: number) {
+    // Stable, so memoized rows are not re-rendered by a new callback.
+    const toggleExpanded = useCallback((recipeId: number) => {
         setExpandedIds((prev) => {
             const next = new Set(prev);
             if (next.has(recipeId)) next.delete(recipeId);
             else next.add(recipeId);
             return next;
         });
-    }
+    }, []);
 
     function handleForkSubmit(variantName: string) {
         if (!forkTarget) return;
@@ -172,53 +198,6 @@ export function useTemplateList() {
         );
     }
 
-    function exerciseSummary(exercise: ExerciseTemplate) {
-        const parts: string[] = [];
-        if (exercise.type) parts.push(t(`exercise.types.${exercise.type}`));
-        if (exercise.muscle_group) {
-            const key = exercise.muscle_group === "full_body" ? "fullBody" : exercise.muscle_group;
-            parts.push(t(`exercise.muscles.${key}`));
-        }
-        return parts.join(" · ") || t("templates.exercise");
-    }
-
-    /** Per-serving calories and macros of a recipe, or null while it has no ingredients. */
-    function recipeMacros(recipe: Recipe): TemplateMacros | null {
-        const rows = getRecipeItems(recipe.id);
-        if (rows.length === 0) return null;
-        const servings = Math.max(1, recipe.servings);
-        const sum = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-        for (const row of rows) {
-            const food = row.foods;
-            if (!food) continue;
-            const factor = row.recipe_items.quantity_grams / 100 / servings;
-            sum.calories += food.calories_per_100g * factor;
-            sum.protein += food.protein_per_100g * factor;
-            sum.carbs += food.carbs_per_100g * factor;
-            sum.fat += food.fat_per_100g * factor;
-        }
-        return sum;
-    }
-
-    /** "2 servings · 3 ingredients" */
-    function recipeSummary(recipe: Recipe) {
-        const count = getRecipeItems(recipe.id).length;
-        if (count === 0) return t("templates.noItems");
-        return [
-            t("templates.servingCount", { count: Math.max(1, recipe.servings) }),
-            t("templates.ingredientCount", { count }),
-        ].join(" · ");
-    }
-
-    function foodMacros(food: Food): TemplateMacros {
-        return {
-            calories: food.calories_per_100g,
-            protein: food.protein_per_100g,
-            carbs: food.carbs_per_100g,
-            fat: food.fat_per_100g,
-        };
-    }
-
     function toggleFilter(type: "recipes" | "foods" | "exercises") {
         setFilter((prev) => (prev === type ? "all" : type));
     }
@@ -236,10 +215,6 @@ export function useTemplateList() {
         handleDeleteRecipe,
         handleDeleteFood,
         handleDeleteExercise,
-        recipeSummary,
-        recipeMacros,
-        foodMacros,
-        exerciseSummary,
         toggleFilter,
         reload: load,
     };

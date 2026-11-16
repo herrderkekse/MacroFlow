@@ -11,7 +11,7 @@ import { useCollapsibleHeader } from "@/src/shared/hooks/useCollapsibleHeader";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { screenPadding, type ThemeColors } from "@/src/utils/theme";
 import { router, type Href } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -44,10 +44,14 @@ export default function TemplatesScreen() {
     const list = useTemplateList();
     const header = useCollapsibleHeader();
 
-    function openMenu(target: MenuTarget) {
+    // Stable, so the memoized rows are not re-rendered by a new callback.
+    const openMenu = useCallback((kind: MenuTarget["kind"], data: Recipe | Food | ExerciseTemplate) => {
+        const target = (
+            kind === "recipe" ? { kind, recipe: data } : kind === "food" ? { kind, food: data } : { kind, exercise: data }
+        ) as MenuTarget;
         setLastMenuTarget(target);
         setMenuTarget(target);
-    }
+    }, []);
 
     const createActions: ActionSheetItem[] = [
         {
@@ -113,53 +117,18 @@ export default function TemplatesScreen() {
     }
 
     function renderItem({ item, index }: { item: TemplateItem; index: number }) {
-        const position = { isFirst: index === 0, isLast: index === list.items.length - 1 };
-
-        if (item.kind === "recipe") {
-            const recipe = item.data as Recipe;
-            return (
-                <TemplateCard
-                    kind="recipe"
-                    data={recipe}
-                    {...position}
-                    subtitle={[
-                        list.recipeSummary(recipe),
-                        item.variants.length > 0 ? t("templates.variantCount", { count: item.variants.length }) : null,
-                    ].filter(Boolean).join(" · ")}
-                    macros={list.recipeMacros(recipe)}
-                    onMenu={() => openMenu({ kind: "recipe", recipe })}
-                    variants={item.variants}
-                    variantSubtitle={list.recipeSummary}
-                    variantMacros={list.recipeMacros}
-                    expanded={list.expandedIds.has(recipe.id)}
-                    onToggleExpand={() => list.toggleExpanded(recipe.id)}
-                    onMenuVariant={(variant) => openMenu({ kind: "recipe", recipe: variant })}
-                />
-            );
-        }
-
-        if (item.kind === "exercise") {
-            const exercise = item.data as ExerciseTemplate;
-            return (
-                <TemplateCard
-                    kind="exercise"
-                    data={exercise}
-                    {...position}
-                    subtitle={list.exerciseSummary(exercise)}
-                    onMenu={() => openMenu({ kind: "exercise", exercise })}
-                />
-            );
-        }
-
-        const food = item.data as Food;
         return (
             <TemplateCard
-                kind="food"
-                data={food}
-                {...position}
-                subtitle={t("templates.foodPer100g")}
-                macros={list.foodMacros(food)}
-                onMenu={() => openMenu({ kind: "food", food })}
+                kind={item.kind}
+                data={item.data}
+                isFirst={index === 0}
+                isLast={index === list.items.length - 1}
+                subtitle={item.subtitle}
+                macros={item.macros}
+                onMenu={openMenu}
+                variants={item.kind === "recipe" ? item.variants : undefined}
+                expanded={item.kind === "recipe" && list.expandedIds.has(item.data.id)}
+                onToggleExpand={item.kind === "recipe" ? list.toggleExpanded : undefined}
             />
         );
     }

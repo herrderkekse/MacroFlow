@@ -5,10 +5,10 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
-import React, { useMemo } from "react";
+import React, { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { TemplateMacros } from "../hooks/useTemplateList";
+import type { TemplateMacros, TemplateVariant } from "../helpers/templateRows";
 import type { Food, Recipe } from "../services/templateDb";
 
 interface TemplateCardProps {
@@ -21,16 +21,20 @@ interface TemplateCardProps {
     /** Where the row sits in the list's single card, for its rounded ends. */
     isFirst: boolean;
     isLast: boolean;
-    /** Opens the item's menu of secondary actions (variant, delete); bound to a long press. */
-    onMenu: () => void;
+    /**
+     * Opens an item's menu of secondary actions (variant, delete); bound to a
+     * long press. Called with the row's own item, or with one of its variants.
+     * Keep it stable — the row is memoized.
+     */
+    onMenu: (kind: TemplateCardProps["kind"], data: TemplateCardProps["data"]) => void;
     // Recipe-only: variant group support
-    variants?: Recipe[];
-    variantSubtitle?: (variant: Recipe) => string;
-    variantMacros?: (variant: Recipe) => TemplateMacros | null;
+    variants?: TemplateVariant[];
     expanded?: boolean;
-    onToggleExpand?: () => void;
-    onMenuVariant?: (variant: Recipe) => void;
+    /** Called with the recipe's id; keep it stable. */
+    onToggleExpand?: (recipeId: number) => void;
 }
+
+const NO_VARIANTS: TemplateVariant[] = [];
 
 const ROW_PAD_V = spacing.md - 2;
 const ROW_PAD_H = spacing.md - 1;
@@ -54,7 +58,7 @@ function openTemplate(kind: TemplateCardProps["kind"], id: number) {
  * recipe's chevron opens its variants, hanging off a tree line. Tapping opens the
  * editor; a long press opens the menu (create a variant, delete).
  */
-export default function TemplateCard({
+function TemplateCard({
     kind,
     data,
     subtitle,
@@ -62,28 +66,26 @@ export default function TemplateCard({
     isFirst,
     isLast,
     onMenu,
-    variants = [],
-    variantSubtitle,
-    variantMacros,
+    variants = NO_VARIANTS,
     expanded = false,
     onToggleExpand,
-    onMenuVariant,
 }: TemplateCardProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const menuAction = [{ name: "longpress", label: t("common.moreActions") }];
     const hasVariants = variants.length > 0 && !!onToggleExpand;
+    const openMenu = () => onMenu(kind, data);
 
     return (
         <View style={[styles.card, isFirst && styles.first, isLast && styles.last, !isFirst && styles.divider]}>
             <Pressable
                 style={({ pressed }) => [styles.row, pressed && styles.pressed]}
                 onPress={() => openTemplate(kind, data.id)}
-                onLongPress={onMenu}
+                onLongPress={openMenu}
                 accessibilityRole="button"
                 accessibilityActions={menuAction}
-                onAccessibilityAction={onMenu}
+                onAccessibilityAction={openMenu}
             >
                 <View style={styles.badge}>
                     <Ionicons name={KIND_ICON[kind]} size={16} color={colors.textSecondary} />
@@ -97,7 +99,7 @@ export default function TemplateCard({
                     // to its bottom and out to the card's edge — the chevron
                     // alone is too small to hit.
                     <Pressable
-                        onPress={onToggleExpand}
+                        onPress={() => onToggleExpand(data.id)}
                         style={({ pressed }) => [styles.side, styles.sideTarget, pressed && styles.pressed]}
                         accessibilityRole="button"
                         accessibilityLabel={t("templates.showVariants")}
@@ -114,31 +116,34 @@ export default function TemplateCard({
             </Pressable>
 
             {expanded && variants.map((variant, index) => {
-                const vm = variantMacros?.(variant);
+                const openVariantMenu = () => onMenu("recipe", variant.recipe);
                 return (
                     <Pressable
-                        key={variant.id}
+                        key={variant.recipe.id}
                         style={({ pressed }) => [styles.variantRow, pressed && styles.pressed]}
-                        onPress={() => openTemplate("recipe", variant.id)}
-                        onLongPress={onMenuVariant ? () => onMenuVariant(variant) : undefined}
+                        onPress={() => openTemplate("recipe", variant.recipe.id)}
+                        onLongPress={openVariantMenu}
                         accessibilityRole="button"
-                        accessibilityActions={onMenuVariant ? menuAction : undefined}
-                        onAccessibilityAction={onMenuVariant ? () => onMenuVariant(variant) : undefined}
+                        accessibilityActions={menuAction}
+                        onAccessibilityAction={openVariantMenu}
                     >
                         <TreeBranch isLast={index === variants.length - 1} />
                         <View style={styles.variantInfo}>
-                            <Text style={styles.variantName} numberOfLines={1}>{variant.name}</Text>
-                            {variantSubtitle && (
-                                <Text style={styles.variantSubtitle} numberOfLines={1}>{variantSubtitle(variant)}</Text>
-                            )}
+                            <Text style={styles.variantName} numberOfLines={1}>{variant.recipe.name}</Text>
+                            <Text style={styles.variantSubtitle} numberOfLines={1}>{variant.subtitle}</Text>
                         </View>
-                        {vm && <Text style={styles.variantCal}>{Math.round(vm.calories)}</Text>}
+                        {variant.calories != null && (
+                            <Text style={styles.variantCal}>{Math.round(variant.calories)}</Text>
+                        )}
                     </Pressable>
                 );
             })}
         </View>
     );
 }
+
+// Memoized: the library re-renders on every keystroke in its search field.
+export default memo(TemplateCard);
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
