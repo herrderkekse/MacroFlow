@@ -130,11 +130,11 @@ function ClockSummary({ clock, name, onStart }: { clock: DurationClock; name: st
     const { t } = useTranslation();
     const isTimer = clock.mode === "timer";
     const value = formatDuration(isTimer ? clock.timerSeconds - clock.elapsedSeconds : clock.elapsedSeconds);
+    // The icon already says stopwatch or timer; only a state worth noticing gets words.
     const status = clock.isDone
         ? t("exercise.durationClock.done")
-        : clock.isRunning ? null
-            : clock.isOwn ? t("exercise.durationClock.paused")
-                : t(isTimer ? "exercise.durationClock.timer" : "exercise.durationClock.stopwatch");
+        : clock.isOwn && !clock.isRunning ? t("exercise.durationClock.paused")
+            : null;
 
     return (
         <Reading
