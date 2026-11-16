@@ -26,6 +26,7 @@ interface ExerciseCardProps {
     onCopyFromLast: (workoutExerciseId: number, templateId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
     onSuperset: (baseWorkoutExerciseId: number) => void;
+    onShowClock: () => void;
 }
 
 /** One exercise of a workout: a one-line card until it is opened to log its sets. */
@@ -33,7 +34,7 @@ export default function ExerciseCard({
     item, index, isFinished, isExpanded, onExpand, onDragStart, lastWorkoutSets,
     onRemove, onNoteChange,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onCopyFromLast, onReorderSets,
-    onSuperset,
+    onSuperset, onShowClock,
 }: ExerciseCardProps) {
     const { t } = useTranslation();
     const template = item.exerciseTemplate;
@@ -82,6 +83,7 @@ export default function ExerciseCard({
                     onSetTypeChange={onSetTypeChange}
                     onAddSet={onAddSet}
                     onReorderSets={onReorderSets}
+                    onShowClock={onShowClock}
                 />
             ) : (
                 <CollapsedCard

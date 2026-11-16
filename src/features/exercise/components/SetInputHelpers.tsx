@@ -2,6 +2,7 @@ import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/t
 import React from "react";
 import { StyleSheet, Text, TextInput } from "react-native";
 import { parseCustomValues, type CustomField, type CustomValues } from "../helpers/customFields";
+import { formatDuration } from "../helpers/durationFormat";
 import type { ExerciseSet } from "../services/exerciseDb";
 
 type ExerciseType = "weight" | "bodyweight" | "cardio" | "other";
@@ -29,7 +30,7 @@ export function ScheduledCells({ set, exerciseType, customFields, textColor, sty
             {exerciseType === "cardio" && (
                 <>
                     <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
-                        {set.duration_seconds ? `${set.duration_seconds}s` : "—"}
+                        {set.duration_seconds ? formatDuration(set.duration_seconds) : "—"}
                     </Text>
                     <Text style={[styles.setCell, styles.valueCol, { color: textColor }]}>
                         {set.distance_meters ? `${set.distance_meters}m` : "—"}

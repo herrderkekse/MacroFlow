@@ -1,6 +1,7 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import React, { useMemo } from "react";
 import { Text, View } from "react-native";
+import { formatDuration } from "../helpers/durationFormat";
 import { parseCustomFields, parseCustomValues, type CustomField } from "../helpers/customFields";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
@@ -64,7 +65,7 @@ function ReadOnlySetRow({ set, index, exerciseType, customFields }: {
 
             {exerciseType === "cardio" && (
                 <>
-                    <Text style={[value, styles.valueCol]}>{set.duration_seconds ?? "—"}</Text>
+                    <Text style={[value, styles.valueCol]}>{set.duration_seconds != null ? formatDuration(set.duration_seconds) : "—"}</Text>
                     <Text style={[value, styles.valueCol]}>{set.distance_meters ?? "—"}</Text>
                 </>
             )}

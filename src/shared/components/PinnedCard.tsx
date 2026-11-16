@@ -10,6 +10,8 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 interface PinnedCardProps {
+    /** Edge to edge along the top, above the summary (e.g. which of several pages shows). */
+    summaryHeader?: React.ReactNode;
     /** The always-visible row: the one figure the screen is about. */
     summary: React.ReactNode;
     /** Edge to edge under the summary (a progress or macro bar); doubles as the divider. */
@@ -18,6 +20,11 @@ interface PinnedCardProps {
     details?: React.ReactNode;
     /** Label for screen readers on the toggle (what the details are). */
     detailsLabel?: string;
+    /**
+     * A button in the chevron's place while there are no details, so a card
+     * whose details come and go keeps its buttons where they were.
+     */
+    accessory?: React.ReactNode;
 }
 
 /**
@@ -26,7 +33,7 @@ interface PinnedCardProps {
  * the same card as a tab root's `CollapsibleHeader`, but it stays put: its
  * details open and close with a tap rather than with the scroll.
  */
-export default function PinnedCard({ summary, summaryFooter, details, detailsLabel }: PinnedCardProps) {
+export default function PinnedCard({ summaryHeader, summary, summaryFooter, details, detailsLabel, accessory }: PinnedCardProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
@@ -41,6 +48,7 @@ export default function PinnedCard({ summary, summaryFooter, details, detailsLab
     return (
         <View style={styles.wrap}>
             <View style={styles.card}>
+                {summaryHeader}
                 <Pressable
                     onPress={hasDetails ? toggle : undefined}
                     disabled={!hasDetails}
@@ -50,11 +58,13 @@ export default function PinnedCard({ summary, summaryFooter, details, detailsLab
                     accessibilityState={hasDetails ? { expanded: open } : undefined}
                 >
                     <View style={styles.summaryBody}>{summary}</View>
-                    {hasDetails && (
+                    {hasDetails ? (
                         <View style={styles.chevron}>
                             <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textTertiary} />
                         </View>
-                    )}
+                    ) : accessory ? (
+                        <View style={styles.chevron}>{accessory}</View>
+                    ) : null}
                 </Pressable>
                 {summaryFooter}
                 {hasDetails && open && (

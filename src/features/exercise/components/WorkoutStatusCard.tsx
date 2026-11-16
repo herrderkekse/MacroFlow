@@ -1,158 +1,166 @@
-import Button from "@/src/shared/atoms/Button";
-import Chip from "@/src/shared/atoms/Chip";
-import SectionLabel from "@/src/shared/atoms/SectionLabel";
-import ChipRow from "@/src/shared/components/ChipRow";
+import IconButton from "@/src/shared/atoms/IconButton";
 import PinnedCard from "@/src/shared/components/PinnedCard";
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
-import { borderRadius, fontSize, spacing, type ThemeColors } from "@/src/utils/theme";
-import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import RestDurationStepper from "./RestDurationStepper";
+import { formatDuration } from "../helpers/durationFormat";
+import { useDurationClock, type DurationClock } from "../hooks/useDurationClock";
+import type { StatusPage } from "../hooks/useStatusPage";
+import StatusCardPager, { PageIndicator } from "./StatusCardPager";
+import { ClockDetails, Reading, RestDetails, Track } from "./StatusCardPages";
 
-const PRESETS = [30, 60, 120, 180, 240, 300];
+interface RestState {
+    running: boolean;
+    elapsedSeconds: number;
+    /** The running rest's target, or the one a rest started now would get. */
+    targetSeconds: number;
+    onStart: () => void;
+    onSkip: () => void;
+    onChangeDuration: (seconds: number) => void;
+}
 
 interface WorkoutStatusCardProps {
     /** False for a finished workout: the card only reports the sets then. */
     isLive: boolean;
-    resting: boolean;
-    elapsedSeconds: number;
-    /** The running rest's target, or the one a rest started now would get. */
-    targetSeconds: number;
+    page: StatusPage;
+    pages: StatusPage[];
+    onPageChange: (page: StatusPage) => void;
     setsDone: number;
     setsTotal: number;
-    onStartRest: () => void;
-    onSkipRest: () => void;
-    onChangeDuration: (seconds: number) => void;
-}
-
-export function formatClock(seconds: number): string {
-    const s = Math.max(0, Math.round(seconds));
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-function formatPreset(seconds: number): string {
-    if (seconds < 60) return `${seconds}s`;
-    return seconds % 60 === 0 ? `${seconds / 60}m` : formatClock(seconds);
+    rest: RestState;
+    /** The exercise the timing page is for; null when there is none (no timing page). */
+    clockExercise: { id: number; name: string } | null;
+    /** Starting the clock starts a set, so it ends the rest. */
+    onClockStart: () => void;
 }
 
 /**
- * The workout's pinned card: while resting it counts the rest down, otherwise
- * it counts the sets done. Tapping it opens the rest settings underneath.
- * Built on `PinnedCard`, like the recipe editor's macro card.
+ * The workout's pinned card. Its pages are swiped through: the sets done,
+ * the rest timer, and — for a timed exercise — its stopwatch or timer.
+ * Tapping it opens the showing page's settings underneath. Built on
+ * `PinnedCard`, like the recipe editor's macro card.
  */
 export default function WorkoutStatusCard({
-    isLive, resting, elapsedSeconds, targetSeconds, setsDone, setsTotal,
-    onStartRest, onSkipRest, onChangeDuration,
+    isLive, page, pages, onPageChange, setsDone, setsTotal, rest, clockExercise, onClockStart,
 }: WorkoutStatusCardProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
-    const styles = useMemo(() => createStyles(colors), [colors]);
+    // Ticks only while the timing page shows.
+    const clock = useDurationClock(clockExercise?.id ?? -1, page === "clock");
 
-    const over = resting && elapsedSeconds >= targetSeconds;
-    const value = !resting
-        ? `${setsDone} / ${setsTotal}`
-        : over ? `+${formatClock(elapsedSeconds - targetSeconds)}` : formatClock(targetSeconds - elapsedSeconds);
-    const unit = !resting
-        ? t("exercise.restTimer.setsDone")
-        : t(over ? "exercise.restTimer.over" : "exercise.restTimer.left", { target: formatClock(targetSeconds) });
-    const fill = !resting
-        ? (setsTotal > 0 ? setsDone / setsTotal : 0)
-        : over ? 1 : Math.max(0, 1 - elapsedSeconds / targetSeconds);
+    const startClock = () => {
+        onClockStart();
+        clock.start();
+    };
 
-    const summary = (
-        <View style={styles.summary}>
-            <Ionicons
-                name={resting ? "timer-outline" : "checkmark-circle-outline"}
-                size={18}
-                color={over ? colors.warning : colors.text}
-            />
-            <View style={styles.reading}>
-                <Text style={[styles.value, over && { color: colors.warning }]}>{value}</Text>
-                <Text style={styles.unit} numberOfLines={1}>{unit}</Text>
-            </View>
-            {isLive && !resting && (
-                <Pressable
-                    onPress={onStartRest}
-                    hitSlop={6}
-                    style={({ pressed }) => [styles.startRest, pressed && styles.pressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("exercise.restTimer.start")}
-                >
-                    <Ionicons name="play" size={11} color={colors.text} />
-                    <Text style={styles.startRestText}>{formatClock(targetSeconds)}</Text>
-                </Pressable>
-            )}
-        </View>
-    );
+    function renderSummary(key: StatusPage) {
+        if (key === "sets") {
+            return (
+                <Reading icon="checkmark-circle-outline" value={`${setsDone} / ${setsTotal}`} label={t("exercise.restTimer.setsDone")} />
+            );
+        }
+        if (key === "rest") return <RestSummary rest={rest} isLive={isLive} />;
+        return <ClockSummary clock={clock} name={clockExercise?.name ?? ""} onStart={startClock} />;
+    }
 
-    const track = (
-        <View style={styles.track}>
-            <View
-                style={[styles.fill, { width: `${fill * 100}%`, backgroundColor: over ? colors.warning : colors.primary }]}
-            />
-        </View>
-    );
+    const summaryFooter = page === "sets"
+        ? <Track fill={setsTotal > 0 ? setsDone / setsTotal : 0} />
+        : page === "rest"
+            ? <RestTrack rest={rest} />
+            : <ClockTrack clock={clock} />;
 
-    const details = (
-        <View style={styles.details}>
-            <SectionLabel style={styles.label}>{t("exercise.restTimer.duration")}</SectionLabel>
-            {/* Chips, not segments: after a ±15 s step no preset is selected. */}
-            <ChipRow scroll bleed={spacing.md}>
-                {PRESETS.map((p) => (
-                    <Chip
-                        key={p}
-                        label={formatPreset(p)}
-                        selected={targetSeconds === p}
-                        onPress={() => onChangeDuration(p)}
-                    />
-                ))}
-            </ChipRow>
-            <RestDurationStepper seconds={targetSeconds} onChange={onChangeDuration} />
-            {resting && (
-                <Button
-                    title={t("exercise.restTimer.skipRest")}
-                    icon={<Ionicons name="play-skip-forward" size={14} color={colors.onPrimary} />}
-                    onPress={onSkipRest}
-                />
-            )}
-        </View>
-    );
+    const details = !isLive ? undefined
+        : page === "rest" ? <RestDetails seconds={rest.targetSeconds} onChange={rest.onChangeDuration} />
+            // Mode and length are set before the clock starts, and stay put until it is reset.
+            : page === "clock" && !clock.isOwn ? <ClockDetails clock={clock} />
+                : undefined;
 
     return (
         <PinnedCard
-            summary={summary}
-            summaryFooter={track}
-            // A finished workout has no rest left to set.
-            details={isLive ? details : undefined}
-            detailsLabel={t("exercise.restTimer.duration")}
+            summaryHeader={<PageIndicator pages={pages} page={page} />}
+            summary={<StatusCardPager pages={pages} page={page} onChange={onPageChange} renderPage={renderSummary} />}
+            summaryFooter={summaryFooter}
+            details={details}
+            detailsLabel={t(page === "clock" ? "exercise.durationClock.settings" : "exercise.restTimer.duration")}
+            // Once the clock has started its settings are locked; reset takes the chevron's place.
+            accessory={page === "clock" && clock.isOwn ? (
+                <IconButton icon="refresh" size="sm" color={colors.text} label={t("exercise.durationClock.reset")} onPress={clock.reset} />
+            ) : undefined}
         />
+    );
+
+}
+
+function RestTrack({ rest }: { rest: RestState }) {
+    const colors = useThemeColors();
+    const over = rest.running && rest.elapsedSeconds >= rest.targetSeconds;
+    const fill = !rest.running ? 0 : over ? 1 : 1 - rest.elapsedSeconds / rest.targetSeconds;
+    return <Track fill={fill} color={over ? colors.warning : undefined} />;
+}
+
+/** A timer's bar runs down like the rest's; a stopwatch has no end to fill towards. */
+function ClockTrack({ clock }: { clock: DurationClock }) {
+    const colors = useThemeColors();
+    if (clock.mode !== "timer" || !clock.isOwn) return <Track fill={0} />;
+    if (clock.isDone) return <Track fill={1} color={colors.success} />;
+    return <Track fill={1 - clock.elapsedSeconds / clock.timerSeconds} />;
+}
+
+function RestSummary({ rest, isLive }: { rest: RestState; isLive: boolean }) {
+    const colors = useThemeColors();
+    const { t } = useTranslation();
+    if (!rest.running) {
+        return (
+            <Reading icon="timer-outline" value={formatDuration(rest.targetSeconds)} label={t("exercise.restTimer.ready")}>
+                {isLive && (
+                    <IconButton icon="play" size="sm" color={colors.text} label={t("exercise.restTimer.start")} onPress={rest.onStart} />
+                )}
+            </Reading>
+        );
+    }
+    const over = rest.elapsedSeconds >= rest.targetSeconds;
+    return (
+        <Reading
+            icon="timer-outline"
+            value={over ? `+${formatDuration(rest.elapsedSeconds - rest.targetSeconds)}` : formatDuration(rest.targetSeconds - rest.elapsedSeconds)}
+            label={t(over ? "exercise.restTimer.over" : "exercise.restTimer.left", { target: formatDuration(rest.targetSeconds) })}
+            tint={over ? colors.warning : undefined}
+        >
+            <IconButton icon="play-skip-forward" size="sm" color={colors.text} label={t("exercise.restTimer.skipRest")} onPress={rest.onSkip} />
+        </Reading>
     );
 }
 
-function createStyles(colors: ThemeColors) {
-    return StyleSheet.create({
-        summary: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
-        reading: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: spacing.xs + 2 },
-        value: { fontSize: fontSize.xl - 1, fontWeight: "600", letterSpacing: -0.5, color: colors.text, fontVariant: ["tabular-nums"] },
-        unit: { flexShrink: 1, fontSize: fontSize.xs, color: colors.textTertiary },
-        startRest: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.xs + 1,
-            height: 30,
-            paddingHorizontal: spacing.sm + 3,
-            borderRadius: borderRadius.sm,
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            backgroundColor: colors.surfaceMuted,
-        },
-        startRestText: { fontSize: fontSize.xs, fontWeight: "600", color: colors.text },
-        pressed: { opacity: 0.6 },
-        track: { height: 5, backgroundColor: colors.primaryLight },
-        fill: { height: 5 },
-        details: { gap: spacing.sm + 2 },
-        label: { marginTop: 0, marginBottom: 0 },
-    });
+function ClockSummary({ clock, name, onStart }: { clock: DurationClock; name: string; onStart: () => void }) {
+    const colors = useThemeColors();
+    const { t } = useTranslation();
+    const isTimer = clock.mode === "timer";
+    // A timer that is up keeps counting, as overtime — like a rest that has run over.
+    const value = !isTimer ? formatDuration(clock.elapsedSeconds)
+        : clock.isDone ? `+${formatDuration(clock.elapsedSeconds - clock.timerSeconds)}`
+            : formatDuration(clock.timerSeconds - clock.elapsedSeconds);
+    // The icon already says stopwatch or timer; only a state worth noticing gets words.
+    const status = clock.isOwn && !clock.isRunning ? t("exercise.durationClock.paused")
+        : clock.isDone ? t("exercise.durationClock.done")
+            : null;
+
+    return (
+        <Reading
+            icon={isTimer ? "hourglass-outline" : "stopwatch-outline"}
+            value={value}
+            label={status ? `${name} · ${status}` : name}
+            tint={clock.isDone ? colors.success : undefined}
+        >
+            {/* Where play was before the clock started; reset takes the chevron's place (see the card). */}
+            <IconButton
+                icon={clock.isRunning ? "pause" : "play"}
+                size="sm"
+                color={colors.text}
+                label={t(clock.isRunning
+                    ? "exercise.durationClock.pause"
+                    : clock.isOwn ? "exercise.durationClock.resume" : "exercise.durationClock.start")}
+                onPress={clock.isRunning ? clock.pause : onStart}
+            />
+        </Reading>
+    );
 }

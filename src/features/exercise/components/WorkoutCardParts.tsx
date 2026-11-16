@@ -67,10 +67,13 @@ interface CardTitleProps {
     note?: string | null;
     onHistory: () => void;
     onMenu: () => void;
+    /** A duration exercise's stopwatch/timer; the watch is ink while its clock is going. */
+    onClock?: () => void;
+    clockActive?: boolean;
 }
 
-/** The head of an open card: number, exercise name(s) with last session, note, history and menu. */
-export function CardTitle({ index, members, note, onHistory, onMenu }: CardTitleProps) {
+/** The head of an open card: number, exercise name(s) with last session, note, clock, history and menu. */
+export function CardTitle({ index, members, note, onHistory, onMenu, onClock, clockActive }: CardTitleProps) {
     const colors = useThemeColors();
     const { t } = useTranslation();
     const styles = useMemo(() => createCardStyles(colors), [colors]);
@@ -94,6 +97,15 @@ export function CardTitle({ index, members, note, onHistory, onMenu }: CardTitle
                 ))}
                 {note ? <Text style={styles.note} numberOfLines={3}>{note}</Text> : null}
             </View>
+            {onClock && (
+                <IconButton
+                    icon={clockActive ? "stopwatch" : "stopwatch-outline"}
+                    size="sm"
+                    color={clockActive ? colors.text : colors.textTertiary}
+                    label={t("exercise.durationClock.open")}
+                    onPress={onClock}
+                />
+            )}
             <IconButton
                 icon="stats-chart-outline"
                 size="sm"

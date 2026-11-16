@@ -3,6 +3,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { parseCustomFields } from "../helpers/customFields";
+import { durationTargetFor } from "../helpers/durationClock";
+import { useDurationClock } from "../hooks/useDurationClock";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { getPrefillForSet, isActiveSet, lastSessionLine } from "./ExerciseCardHelpers";
@@ -25,6 +27,8 @@ interface ExpandedExerciseCardProps {
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
+    /** Shows the clock of a timed exercise on the workout's pinned card. */
+    onShowClock: () => void;
 }
 
 /** The exercise being worked on: its sets as rows, the next one highlighted. */
@@ -32,10 +36,14 @@ export function ExpandedExerciseCard({
     item, index, isFinished, name, exerciseType, template, lastWorkoutSets,
     onOpenMenu, onDragStart,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onReorderSets,
+    onShowClock,
 }: ExpandedExerciseCardProps) {
     const { t } = useTranslation();
     const router = useRouter();
     const customFields = parseCustomFields(template?.custom_fields);
+    const durationTarget = isFinished ? null : durationTargetFor(exerciseType, customFields);
+    // The watch only shows whether the clock is going for this exercise; it needs no ticking.
+    const clock = useDurationClock(item.workoutExercise.id, false);
 
     function handleHistory() {
         if (!template) return;
@@ -57,6 +65,8 @@ export function ExpandedExerciseCard({
                 note={item.workoutExercise.notes}
                 onHistory={handleHistory}
                 onMenu={onOpenMenu}
+                onClock={durationTarget ? onShowClock : undefined}
+                clockActive={clock.isOwn}
             />
 
             <SetColumns exerciseType={exerciseType} customFields={customFields} />
@@ -85,6 +95,8 @@ export function ExpandedExerciseCard({
                             prefillDuration={prefill.duration}
                             prefillDistance={prefill.distance}
                             prefillCustom={prefill.custom}
+                            durationTarget={durationTarget}
+                            clockExerciseId={item.workoutExercise.id}
                             onConfirm={onConfirmSet}
                             onUpdate={onUpdateSet}
                             onDelete={onDeleteSet}

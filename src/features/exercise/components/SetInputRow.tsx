@@ -4,6 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { parseCustomValues, type CustomField, type CustomValues } from "../helpers/customFields";
+import type { DurationTarget } from "../helpers/durationClock";
+import { digitsToClockText, formatDuration, parseDuration } from "../helpers/durationFormat";
+import { useClockFill } from "../hooks/useDurationClock";
 import type { ExerciseSet } from "../services/exerciseDb";
 import type { ExerciseType, SetValues } from "../types";
 import { SET_TYPES, SET_TYPE_LABELS, type SetType } from "./ExerciseCardHelpers";
@@ -20,6 +23,9 @@ interface SetInputRowProps {
     prefillWeight: number | null; prefillReps: number | null; prefillRir: number | null;
     prefillDuration: number | null; prefillDistance: number | null;
     prefillCustom: CustomValues;
+    /** What a stopwatch/timer of this exercise fills in, if it tracks a duration. */
+    durationTarget?: DurationTarget | null;
+    clockExerciseId?: number;
     onConfirm: (id: number, values: SetValues) => void;
     onUpdate: (id: number, values: SetValues) => void;
     onDelete: (id: number) => void;
@@ -41,6 +47,7 @@ function customValuesToInputs(json: string | null | undefined): Record<string, s
 export default function SetInputRow({
     set, index, exerciseType, letter = "", isFirst = false, customFields, isActive, isFinished,
     prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance, prefillCustom,
+    durationTarget = null, clockExerciseId = -1,
     onConfirm, onUpdate, onDelete, onTypeChange, onDragStart,
 }: SetInputRowProps) {
     const colors = useThemeColors();
@@ -55,7 +62,7 @@ export default function SetInputRow({
     const [weight, setWeight] = useState(set.weight != null ? String(set.weight) : "");
     const [reps, setReps] = useState(set.reps != null ? String(set.reps) : "");
     const [rir, setRir] = useState(set.rir != null ? String(set.rir) : "");
-    const [duration, setDuration] = useState(set.duration_seconds != null ? String(set.duration_seconds) : "");
+    const [duration, setDuration] = useState(set.duration_seconds != null ? formatDuration(set.duration_seconds) : "");
     const [distance, setDistance] = useState(set.distance_meters != null ? String(set.distance_meters) : "");
     const [unit, setUnit] = useState<"kg" | "lb">((set.weight_unit as "kg" | "lb") ?? "kg");
     const [customInputs, setCustomInputs] = useState<Record<string, string>>(() => customValuesToInputs(set.custom_values));
@@ -70,7 +77,7 @@ export default function SetInputRow({
             setWeight(set.weight != null ? String(set.weight) : "");
             setReps(set.reps != null ? String(set.reps) : "");
             setRir(set.rir != null ? String(set.rir) : "");
-            setDuration(set.duration_seconds != null ? String(set.duration_seconds) : "");
+            setDuration(set.duration_seconds != null ? formatDuration(set.duration_seconds) : "");
             setDistance(set.distance_meters != null ? String(set.distance_meters) : "");
             setCustomInputs(customValuesToInputs(set.custom_values));
             setUnit((set.weight_unit as "kg" | "lb") ?? "kg");
@@ -82,26 +89,41 @@ export default function SetInputRow({
         queueMicrotask(() => setClearedFields({}));
     }, [set.id]);
 
+    // While the exercise's clock is going, it fills the duration — unless the user typed one.
+    const clockFill = useClockFill(durationTarget, clockExerciseId, isActiveSet);
+    const clockDuration = durationTarget?.kind === "duration" ? clockFill.value : null;
+    const clockCustomId = durationTarget?.kind === "custom" && clockFill.value != null ? durationTarget.fieldId : null;
+    const displayDuration = duration || (clockDuration != null ? formatDuration(clockDuration) : "");
+    const displayCustomInputs = clockCustomId && !customInputs[clockCustomId]
+        ? { ...customInputs, [clockCustomId]: String(clockFill.value) }
+        : customInputs;
+
     const typeLabel = SET_TYPE_LABELS[set.type as SetType] ?? "";
 
-    const buildValues = useCallback((): SetValues => {
+    // `withClock` only when the set is done: a mid-run save would freeze the clock's value as typed.
+    const buildValues = useCallback((withClock = false): SetValues => {
+        const fromClock = (applies: boolean) => (withClock && applies ? clockFill.value : null);
         const custom_values: CustomValues = {};
         for (const f of customFields) {
             const raw = customInputs[f.id];
-            custom_values[f.id] = raw ? parseFloat(raw) : (clearedFields[f.id] ? null : (prefillCustom[f.id] ?? null));
+            custom_values[f.id] = raw
+                ? parseFloat(raw)
+                : fromClock(clockCustomId === f.id) ?? (clearedFields[f.id] ? null : (prefillCustom[f.id] ?? null));
         }
         return {
             weight: weight ? parseFloat(weight) : (clearedFields.weight ? null : prefillWeight),
             weight_unit: unit,
             reps: reps ? parseInt(reps, 10) : (clearedFields.reps ? null : prefillReps),
             rir: rir ? parseInt(rir, 10) : (clearedFields.rir ? null : prefillRir),
-            duration_seconds: duration ? parseInt(duration, 10) : (clearedFields.duration ? null : prefillDuration),
+            duration_seconds: duration
+                ? parseDuration(duration)
+                : fromClock(clockDuration != null) ?? (clearedFields.duration ? null : prefillDuration),
             distance_meters: distance ? parseFloat(distance) : (clearedFields.distance ? null : prefillDistance),
             custom_values,
             type: set.type,
         };
     }, [weight, reps, rir, duration, distance, unit, set.type, clearedFields, customFields, customInputs,
-        prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance, prefillCustom]);
+        clockFill.value, clockDuration, clockCustomId, prefillWeight, prefillReps, prefillRir, prefillDuration, prefillDistance, prefillCustom]);
 
     const handleChangeCustom = useCallback((id: string, text: string) => {
         setCustomInputs((prev) => ({ ...prev, [id]: text }));
@@ -115,8 +137,10 @@ export default function SetInputRow({
     }, [unit, set.id, buildValues, onUpdate]);
 
     const handleConfirm = useCallback(() => {
-        onConfirm(set.id, buildValues());
-    }, [set.id, buildValues, onConfirm]);
+        onConfirm(set.id, buildValues(true));
+        // The set is done; the next one starts its own run.
+        if (clockFill.isOwn) clockFill.reset();
+    }, [set.id, buildValues, onConfirm, clockFill]);
 
     const handleBlurSave = useCallback((field: string) => {
         setFocusedField((prev) => (prev === field ? null : prev));
@@ -224,12 +248,15 @@ export default function SetInputRow({
                 <>
                     <TextInput
                         style={[fieldStyle("duration"), styles.valueCol, { color: textColor }]}
-                        value={duration}
+                        value={displayDuration}
                         onChangeText={(text) => {
-                            setDuration(text);
-                            setClearedFields(prev => ({ ...prev, duration: text === "" }));
+                            // Typed digits fill the clock from the right: "130" → 1:30.
+                            const next = digitsToClockText(text);
+                            if (next === null) return;
+                            setDuration(next);
+                            setClearedFields(prev => ({ ...prev, duration: next === "" }));
                         }}
-                        placeholder={!clearedFields.duration && prefillDuration != null ? String(prefillDuration) : "—"}
+                        placeholder={!clearedFields.duration && prefillDuration != null ? formatDuration(prefillDuration) : "—"}
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="number-pad"
                         selectTextOnFocus
@@ -256,7 +283,7 @@ export default function SetInputRow({
             {useCustom && (
                 <CustomEditableCells
                     fields={customFields}
-                    inputs={customInputs}
+                    inputs={displayCustomInputs}
                     cleared={clearedFields}
                     prefill={prefillCustom}
                     focusedField={focusedField}

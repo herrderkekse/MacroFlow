@@ -21,7 +21,9 @@ import WorkoutMenu from "../components/WorkoutMenu";
 import WorkoutStatusCard from "../components/WorkoutStatusCard";
 import { groupIntoCards, type WorkoutCard } from "../helpers/supersets";
 import { countSets, workoutSubtitle } from "../helpers/workoutStatus";
+import { resetDurationClock, useDurationTimerAlarm } from "../hooks/useDurationClock";
 import { useRestTimer } from "../hooks/useRestTimer";
+import { useStatusPage } from "../hooks/useStatusPage";
 import { useWorkout } from "../hooks/useWorkout";
 import { useWorkoutActions } from "../hooks/useWorkoutActions";
 import { copySetsFromLastSession, deleteWorkout, type ExerciseTemplate } from "../services/exerciseDb";
@@ -45,13 +47,17 @@ export default function WorkoutScreen() {
 
     const workout = useWorkout({ workoutId, date: workoutDate });
     const restTimer = useRestTimer();
+    useDurationTimerAlarm();
     const actions = useWorkoutActions(workout, restTimer);
     const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
     const workoutData = workout.data;
     const reloadWorkout = workout.reload;
-    // The rest timer is persisted across app restarts, so a finished workout must end it.
+    // The rest timer and duration clock are persisted across app restarts, so a finished workout must end them.
     const finishCurrentWorkout = () => {
-        if (workout.finishCurrentWorkout()) restTimer.skip();
+        if (workout.finishCurrentWorkout()) {
+            restTimer.skip();
+            resetDurationClock();
+        }
     };
     const [showAddExercise, setShowAddExercise] = useState(false);
     // Set while the add-exercise sheet is picking the second exercise for a superset (base's id).
@@ -136,7 +142,10 @@ export default function WorkoutScreen() {
 
     function handleDiscard() {
         if (!workoutData) return;
-        if (!isFinished) restTimer.skip();
+        if (!isFinished) {
+            restTimer.skip();
+            resetDurationClock();
+        }
         deleteWorkout(workoutData.workout.id);
         router.back();
     }
@@ -170,6 +179,11 @@ export default function WorkoutScreen() {
     );
 
     const cards = useMemo(() => groupIntoCards(exercises), [exercises]);
+    const status = useStatusPage({
+        exercises, expandedId, isLive: !isFinished,
+        restStartedAt: restTimer.startedAtEpoch, restRunning: restTimer.isRunning, restOver: restTimer.isTargetReached,
+    });
+    const showClock = status.setPage;
     const sets = useMemo(() => countSets(exercises), [exercises]);
 
     const getLastSets = useCallback(
@@ -231,6 +245,7 @@ export default function WorkoutScreen() {
                     lastWorkoutSets={getLastSets(member.workoutExercise.exercise_template_id)}
                     onReorderSets={actions.handleReorderSets}
                     onSuperset={handleSuperset}
+                    onShowClock={() => showClock("clock")}
                 />
             </View>
         );
@@ -262,14 +277,24 @@ export default function WorkoutScreen() {
 
             <WorkoutStatusCard
                 isLive={!isFinished}
-                resting={restTimer.isRunning}
-                elapsedSeconds={restTimer.elapsedSeconds}
-                targetSeconds={restTimer.isRunning ? restTimer.targetSeconds : restTimer.nextTargetSeconds}
+                page={status.page}
+                pages={status.pages}
+                onPageChange={status.setPage}
                 setsDone={sets.done}
                 setsTotal={sets.total}
-                onStartRest={() => restTimer.start(null, "working")}
-                onSkipRest={restTimer.skip}
-                onChangeDuration={restTimer.setDuration}
+                rest={{
+                    running: restTimer.isRunning,
+                    elapsedSeconds: restTimer.elapsedSeconds,
+                    targetSeconds: restTimer.isRunning ? restTimer.targetSeconds : restTimer.nextTargetSeconds,
+                    onStart: () => restTimer.start(null, "working"),
+                    onSkip: restTimer.skip,
+                    onChangeDuration: restTimer.setDuration,
+                }}
+                clockExercise={status.clockExercise && {
+                    id: status.clockExercise.workoutExercise.id,
+                    name: status.clockExercise.exerciseTemplate?.name ?? "",
+                }}
+                onClockStart={() => { if (restTimer.isRunning) restTimer.skip(); }}
             />
 
             <DraggableFlatList
