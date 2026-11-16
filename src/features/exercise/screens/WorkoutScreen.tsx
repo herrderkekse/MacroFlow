@@ -14,6 +14,7 @@ import DraggableFlatList, { type RenderItemParams } from "react-native-draggable
 import AddExerciseSheet from "../components/AddExerciseSheet";
 import ExerciseCard from "../components/ExerciseCard";
 import HistoricalWorkoutList from "../components/HistoricalWorkoutList";
+import SetVideoProvider from "../components/SetVideoProvider";
 import SupersetCard from "../components/SupersetCard";
 import WorkoutFooter from "../components/WorkoutFooter";
 import WorkoutKeepAwake from "../components/WorkoutKeepAwake";
@@ -297,39 +298,41 @@ export default function WorkoutScreen() {
                 onClockStart={() => { if (restTimer.isRunning) restTimer.skip(); }}
             />
 
-            <DraggableFlatList
-                data={cards}
-                keyExtractor={(item) => item.key}
-                renderItem={renderCard}
-                contentContainerStyle={styles.list}
-                // Fill the screen, so the footer below sits at the bottom edge.
-                containerStyle={styles.listContainer}
-                activationDistance={0}
-                autoscrollThreshold={80}
-                autoscrollSpeed={180}
-                onDragBegin={() => setIsDragging(true)}
-                onDragEnd={handleDragEnd}
-                // "+ EXERCISES", like the recipe editor's "+ INGREDIENTS".
-                ListHeaderComponent={
-                    <SectionHeader
-                        title={t("exercise.workout.exercisesHeader")}
-                        hint={exercises.length > 0 ? t("common.itemCount", { count: exercises.length }) : undefined}
-                        onAdd={() => setShowAddExercise(true)}
-                        addLabel={t("exercise.workout.addExercise")}
-                        first
-                    />
-                }
-                ListEmptyComponent={
-                    <HistoricalWorkoutList
-                        excludeWorkoutId={workout.data?.workout.id}
-                        onCopied={workout.reload}
-                        style={styles.emptyWrap}
-                        emptyState={
-                            <EmptyState icon="barbell-outline" title={t("exercise.workout.emptyState")} style={styles.empty} />
-                        }
-                    />
-                }
-            />
+            <SetVideoProvider>
+                <DraggableFlatList
+                    data={cards}
+                    keyExtractor={(item) => item.key}
+                    renderItem={renderCard}
+                    contentContainerStyle={styles.list}
+                    // Fill the screen, so the footer below sits at the bottom edge.
+                    containerStyle={styles.listContainer}
+                    activationDistance={0}
+                    autoscrollThreshold={80}
+                    autoscrollSpeed={180}
+                    onDragBegin={() => setIsDragging(true)}
+                    onDragEnd={handleDragEnd}
+                    // "+ EXERCISES", like the recipe editor's "+ INGREDIENTS".
+                    ListHeaderComponent={
+                        <SectionHeader
+                            title={t("exercise.workout.exercisesHeader")}
+                            hint={exercises.length > 0 ? t("common.itemCount", { count: exercises.length }) : undefined}
+                            onAdd={() => setShowAddExercise(true)}
+                            addLabel={t("exercise.workout.addExercise")}
+                            first
+                        />
+                    }
+                    ListEmptyComponent={
+                        <HistoricalWorkoutList
+                            excludeWorkoutId={workout.data?.workout.id}
+                            onCopied={workout.reload}
+                            style={styles.emptyWrap}
+                            emptyState={
+                                <EmptyState icon="barbell-outline" title={t("exercise.workout.emptyState")} style={styles.empty} />
+                            }
+                        />
+                    }
+                />
+            </SetVideoProvider>
 
             {/* Hidden while typing, so the keyboard leaves room for the sets. */}
             {!keyboardVisible && (

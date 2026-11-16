@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from "react-native";
 import ExerciseHistoryChart from "../components/ExerciseHistoryChart";
 import ReadOnlyExerciseCard from "../components/ReadOnlyExerciseCard";
+import SetVideoProvider from "../components/SetVideoProvider";
 import { HISTORY_SPANS, type HistorySpan } from "../helpers/e1rmChart";
 
 export default function ExerciseHistoryScreen() {
@@ -98,60 +99,62 @@ export default function ExerciseHistoryScreen() {
                 subtitle={t("exercise.history.title", { name: "" }).trim()}
             />
 
-            <FlatList
-                data={history}
-                keyExtractor={(item) => String(item.workoutExercise.id)}
-                contentContainerStyle={styles.listContent}
-                ListHeaderComponent={
-                    <>
-                        {options.length > 1 && (
-                            <SegmentedControl
-                                options={options.map((_, i) => ({ key: i, label: optionTemplates[i]?.name ?? "?" }))}
-                                value={selectedIndex}
-                                onChange={setSelectedIndex}
-                                style={styles.control}
-                            />
-                        )}
-                        {e1rmSeries.length > 0 && (
-                            <>
+            <SetVideoProvider editable={false}>
+                <FlatList
+                    data={history}
+                    keyExtractor={(item) => String(item.workoutExercise.id)}
+                    contentContainerStyle={styles.listContent}
+                    ListHeaderComponent={
+                        <>
+                            {options.length > 1 && (
                                 <SegmentedControl
-                                    size="sm"
-                                    options={HISTORY_SPANS.map((option) => ({ key: option.key, label: t(option.labelKey) }))}
-                                    value={span}
-                                    onChange={setSpan}
+                                    options={options.map((_, i) => ({ key: i, label: optionTemplates[i]?.name ?? "?" }))}
+                                    value={selectedIndex}
+                                    onChange={setSelectedIndex}
                                     style={styles.control}
                                 />
-                                <ExerciseHistoryChart
-                                    series={e1rmSeries}
-                                    personalBestKg={personalBest?.e1rm ?? null}
-                                    span={span}
-                                    unit={displayUnit}
-                                    isLowerBetter={template?.resistance_mode === "assistance"}
-                                />
-                            </>
-                        )}
-                    </>
-                }
-                renderItem={({ item }) => (
-                    <>
-                        <SectionLabel
-                            right={parsedWeId ? (
-                                <Pressable
-                                    onPress={() => handleCopySets(item.workoutExercise.id)}
-                                    hitSlop={8}
-                                    accessibilityLabel={t("exercise.history.copyToCurrent")}
-                                >
-                                    <Ionicons name="copy-outline" size={16} color={colors.primary} />
-                                </Pressable>
-                            ) : undefined}
-                        >
-                            {`${formatSessionDate(item.workout.date)} · ${item.workout.title || t("exercise.workout.defaultTitle")}`}
-                        </SectionLabel>
-                        <ReadOnlyExerciseCard item={item} />
-                    </>
-                )}
-                ListEmptyComponent={<EmptyState icon="bar-chart-outline" title={t("exercise.history.noHistory")} fill />}
-            />
+                            )}
+                            {e1rmSeries.length > 0 && (
+                                <>
+                                    <SegmentedControl
+                                        size="sm"
+                                        options={HISTORY_SPANS.map((option) => ({ key: option.key, label: t(option.labelKey) }))}
+                                        value={span}
+                                        onChange={setSpan}
+                                        style={styles.control}
+                                    />
+                                    <ExerciseHistoryChart
+                                        series={e1rmSeries}
+                                        personalBestKg={personalBest?.e1rm ?? null}
+                                        span={span}
+                                        unit={displayUnit}
+                                        isLowerBetter={template?.resistance_mode === "assistance"}
+                                    />
+                                </>
+                            )}
+                        </>
+                    }
+                    renderItem={({ item }) => (
+                        <>
+                            <SectionLabel
+                                right={parsedWeId ? (
+                                    <Pressable
+                                        onPress={() => handleCopySets(item.workoutExercise.id)}
+                                        hitSlop={8}
+                                        accessibilityLabel={t("exercise.history.copyToCurrent")}
+                                    >
+                                        <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                                    </Pressable>
+                                ) : undefined}
+                            >
+                                {`${formatSessionDate(item.workout.date)} · ${item.workout.title || t("exercise.workout.defaultTitle")}`}
+                            </SectionLabel>
+                            <ReadOnlyExerciseCard item={item} />
+                        </>
+                    )}
+                    ListEmptyComponent={<EmptyState icon="bar-chart-outline" title={t("exercise.history.noHistory")} fill />}
+                />
+            </SetVideoProvider>
         </View>
     );
 }

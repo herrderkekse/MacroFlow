@@ -55,7 +55,16 @@
       "expo-web-browser",
       "expo-status-bar",
       "./plugins/withDebugApplicationIdSuffix",
-      "expo-audio"
+      "expo-audio",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "MacroFlow uses the camera for progress photos and to film your sets.",
+          "microphonePermission": "MacroFlow records sound with the videos of your sets.",
+          "photosPermission": "MacroFlow attaches photos and videos from your library to your log and workouts."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

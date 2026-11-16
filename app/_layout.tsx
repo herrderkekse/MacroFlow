@@ -1,5 +1,6 @@
 import "@/polyfills";
 import { isWorkoutScreenVisible, isWorkoutTimerNotification, shouldPlayTimerSound } from "@/src/features/exercise/services/restTimerNotifications";
+import { sweepSetVideos } from "@/src/features/exercise/services/setVideoFiles";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
 import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
 import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
@@ -48,6 +49,9 @@ if (lastSeenVersion !== currentVersion) {
 }
 
 initDB();
+try {
+  sweepSetVideos();
+} catch { /* best-effort: leftovers are swept on the next start */ }
 
 function InnerLayout() {
   const colors = useThemeColors();

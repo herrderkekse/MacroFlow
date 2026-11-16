@@ -234,6 +234,19 @@ export const progressPhotos = sqliteTable("progress_photos", {
     uuid: text("uuid"),
 });
 
+// A video attached to one exercise set (#425). Device-local: not in
+// SYNC_TABLES, because the file it names only exists on this device. Keyed
+// by the set's uuid rather than its id so it survives a backup restore, which
+// re-inserts the sets with their uuids. `file_name` is relative to the
+// set-videos directory (the app container's absolute path changes on iOS).
+export const setVideos = sqliteTable("set_videos", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    set_uuid: text("set_uuid").notNull().unique(),
+    file_name: text("file_name").notNull(),
+    duration_ms: integer("duration_ms"),
+    created_at: integer("created_at").notNull(),
+});
+
 // ── Sync infrastructure (never synced themselves) ──────────
 
 // Oplog of local changes waiting to be pushed to the sync server. Populated
