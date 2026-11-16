@@ -49,7 +49,10 @@ export default function WorkoutScreen() {
     const keepAwakeInWorkout = useAppStore((s) => s.keepAwakeInWorkout);
     const workoutData = workout.data;
     const reloadWorkout = workout.reload;
-    const finishCurrentWorkout = workout.finishCurrentWorkout;
+    // The rest timer is persisted across app restarts, so a finished workout must end it.
+    const finishCurrentWorkout = () => {
+        if (workout.finishCurrentWorkout()) restTimer.skip();
+    };
     const [showAddExercise, setShowAddExercise] = useState(false);
     // Set while the add-exercise sheet is picking the second exercise for a superset (base's id).
     const [supersetBaseId, setSupersetBaseId] = useState<number | null>(null);

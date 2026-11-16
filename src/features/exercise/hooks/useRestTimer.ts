@@ -1,7 +1,9 @@
-import { create } from "zustand";
 import { useIsFocused } from "expo-router";
+import Storage from "expo-sqlite/kv-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
     cancelRestTimerNotification,
     scheduleRestTimerNotification,
@@ -34,7 +36,18 @@ interface TimerStore extends TimerState {
     setDuration: (seconds: number) => void;
 }
 
-const useTimerStore = create<TimerStore>((set, get) => ({
+const TIMER_STORAGE_KEY = "exercise.restTimer";
+
+/**
+ * A timer restored after this long past its target is dropped rather than
+ * resumed: the rest (and most likely the workout) is long over.
+ */
+const STALE_AFTER_TARGET_MS = REST_MAX_SECONDS * 1000;
+
+// Persisted so a running rest survives the OS killing the app mid-workout
+// (issue #419). The "rest over" notification is scheduled with the OS and
+// outlives the process on its own; only the in-app countdown needs restoring.
+const useTimerStore = create<TimerStore>()(persist((set, get) => ({
     isRunning: false,
     startedAtEpoch: 0,
     targetDurationSeconds: 120,
@@ -64,6 +77,19 @@ const useTimerStore = create<TimerStore>((set, get) => ({
                 cancelRestTimerNotification();
             }
         }
+    },
+}), {
+    name: TIMER_STORAGE_KEY,
+    storage: createJSONStorage(() => Storage),
+    partialize: ({ isRunning, startedAtEpoch, targetDurationSeconds, workoutExerciseId, lastUsedDuration }): TimerState =>
+        ({ isRunning, startedAtEpoch, targetDurationSeconds, workoutExerciseId, lastUsedDuration }),
+    merge: (persisted, current) => {
+        const restored = { ...current, ...(persisted as Partial<TimerState>) };
+        const overdueMs = Date.now() - (restored.startedAtEpoch + restored.targetDurationSeconds * 1000);
+        if (restored.isRunning && overdueMs > STALE_AFTER_TARGET_MS) {
+            return { ...restored, isRunning: false, startedAtEpoch: 0, workoutExerciseId: null };
+        }
+        return restored;
     },
 }));
 
