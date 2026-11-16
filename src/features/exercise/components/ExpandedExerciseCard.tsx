@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { parseCustomFields } from "../helpers/customFields";
@@ -8,7 +8,6 @@ import { useDurationClock } from "../hooks/useDurationClock";
 import type { ExerciseSet, WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
 import { getPrefillForSet, isActiveSet, lastSessionLine } from "./ExerciseCardHelpers";
-import DurationClockSheet from "./DurationClockSheet";
 import SetInputRow, { type SetValues } from "./SetInputRow";
 import { AddSetButton, CardTitle, ExpandedCardFrame, NoSetsLine, SetColumns } from "./WorkoutCardParts";
 
@@ -28,6 +27,8 @@ interface ExpandedExerciseCardProps {
     onSetTypeChange: (setId: number, type: string) => void;
     onAddSet: (workoutExerciseId: number) => void;
     onReorderSets: (workoutExerciseId: number, from: number, to: number) => void;
+    /** Shows the clock of a timed exercise on the workout's pinned card. */
+    onShowClock: () => void;
 }
 
 /** The exercise being worked on: its sets as rows, the next one highlighted. */
@@ -35,14 +36,14 @@ export function ExpandedExerciseCard({
     item, index, isFinished, name, exerciseType, template, lastWorkoutSets,
     onOpenMenu, onDragStart,
     onConfirmSet, onUpdateSet, onDeleteSet, onSetTypeChange, onAddSet, onReorderSets,
+    onShowClock,
 }: ExpandedExerciseCardProps) {
     const { t } = useTranslation();
     const router = useRouter();
     const customFields = parseCustomFields(template?.custom_fields);
     const durationTarget = isFinished ? null : durationTargetFor(exerciseType, customFields);
-    const [clockOpen, setClockOpen] = useState(false);
-    // Only the open sheet needs the reading every second; the watch icon does not.
-    const clock = useDurationClock(item.workoutExercise.id, clockOpen);
+    // The watch only shows whether the clock is going for this exercise; it needs no ticking.
+    const clock = useDurationClock(item.workoutExercise.id, false);
 
     function handleHistory() {
         if (!template) return;
@@ -64,7 +65,7 @@ export function ExpandedExerciseCard({
                 note={item.workoutExercise.notes}
                 onHistory={handleHistory}
                 onMenu={onOpenMenu}
-                onClock={durationTarget ? () => setClockOpen(true) : undefined}
+                onClock={durationTarget ? onShowClock : undefined}
                 clockActive={clock.isOwn}
             />
 
@@ -109,10 +110,6 @@ export function ExpandedExerciseCard({
             {item.sets.length === 0 && <NoSetsLine />}
 
             <AddSetButton label={t("exercise.exerciseCard.addSet")} onPress={() => onAddSet(item.workoutExercise.id)} />
-
-            {durationTarget && (
-                <DurationClockSheet visible={clockOpen} onClose={() => setClockOpen(false)} title={name} clock={clock} />
-            )}
         </ExpandedCardFrame>
     );
 }

@@ -1,8 +1,9 @@
 // Which value of a set a stopwatch or timer fills in (issue #421), and how a
 // clock reading is written into it.
 
+import type { WorkoutExerciseWithSets } from "../services/exerciseDb";
 import type { ExerciseType } from "../types";
-import type { CustomField } from "./customFields";
+import { parseCustomFields, type CustomField } from "./customFields";
 
 /** A cardio set's own duration column, or one of an "other" exercise's custom fields. */
 export type DurationTarget =
@@ -40,4 +41,10 @@ export function durationTargetFor(exerciseType: ExerciseType, customFields: Cust
 export function clockToFieldValue(seconds: number, target: DurationTarget): number {
     if (target.kind === "duration") return Math.max(0, Math.floor(seconds));
     return Math.max(0, Math.round((seconds / target.secondsPerUnit) * 10) / 10);
+}
+
+/** The duration target of an exercise in a workout, from its template. */
+export function durationTargetOfExercise(exercise: WorkoutExerciseWithSets): DurationTarget | null {
+    const template = exercise.exerciseTemplate;
+    return durationTargetFor((template?.type as ExerciseType) ?? "weight", parseCustomFields(template?.custom_fields));
 }

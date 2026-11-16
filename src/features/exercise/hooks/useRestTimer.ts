@@ -95,6 +95,8 @@ const useTimerStore = create<TimerStore>()(persist((set, get) => ({
 
 export interface UseRestTimerReturn {
     isRunning: boolean;
+    /** When the running rest began; a new rest (even one replacing a running one) changes it. */
+    startedAtEpoch: number;
     elapsedSeconds: number;
     targetSeconds: number;
     /** What a rest started now would count down from (a working set's rest). */
@@ -165,6 +167,7 @@ export function useRestTimer(): UseRestTimerReturn {
 
     return {
         isRunning: store.isRunning,
+        startedAtEpoch: store.startedAtEpoch,
         elapsedSeconds,
         targetSeconds: store.targetDurationSeconds,
         nextTargetSeconds: store.lastUsedDuration ?? REST_DEFAULTS.working,

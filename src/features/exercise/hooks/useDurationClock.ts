@@ -165,6 +165,11 @@ export function useDurationClock(workoutExerciseId: number, live = true): Durati
     };
 }
 
+/** The exercise the clock is running or paused for, without ticking. */
+export function useClockOwnerId(): number | null {
+    return useClockStore((s) => s.workoutExerciseId);
+}
+
 /** Ends the clock, e.g. when its workout is finished or discarded. */
 export function resetDurationClock() {
     useClockStore.getState().reset();
