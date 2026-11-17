@@ -9,6 +9,10 @@ function seek(player: VideoPlayer, ms: number) {
     player.currentTime = ms / 1000;
 }
 
+function setScrubbing(player: VideoPlayer, enabled: boolean) {
+    player.scrubbingModeOptions = { scrubbingModeEnabled: enabled };
+}
+
 /**
  * Plays a video on the trim screen, looping inside the kept range, and holds
  * that range. While a handle is dragged, playback pauses and shows the frame
@@ -57,6 +61,8 @@ export function useTrimPlayer(source: string) {
     const onScrubStart = useCallback(() => {
         scrub.current = { active: true, wasPlaying: player.playing };
         player.pause();
+        // Many seeks in a row: let the player skip decoding work so each one shows a frame.
+        setScrubbing(player, true);
     }, [player]);
 
     const onScrub = useCallback((ms: number) => seek(player, ms), [player]);
@@ -64,9 +70,20 @@ export function useTrimPlayer(source: string) {
     const onScrubEnd = useCallback(() => {
         const { wasPlaying } = scrub.current;
         scrub.current = { active: false, wasPlaying: false };
-        seek(player, startMs);
-        if (wasPlaying) player.play();
+        setScrubbing(player, false);
+        // Paused, the frame under the handle stays; playing, the clip plays from its start again.
+        if (wasPlaying) {
+            seek(player, startMs);
+            player.play();
+        }
     }, [player, startMs]);
+
+    /** Moves the playhead to `ms`, inside the kept range. */
+    const seekTo = useCallback((ms: number) => {
+        const clamped = Math.min(Math.max(ms, startMs), endMs);
+        seek(player, clamped);
+        setPositionMs(clamped);
+    }, [player, startMs, endMs]);
 
     const togglePlaying = useCallback(() => {
         if (player.playing) player.pause();
@@ -75,6 +92,6 @@ export function useTrimPlayer(source: string) {
 
     return {
         player, durationMs, isPlaying, positionMs, thumbnails,
-        startMs, endMs, setTrim, onScrubStart, onScrub, onScrubEnd, togglePlaying,
+        startMs, endMs, setTrim, onScrubStart, onScrub, onScrubEnd, seekTo, togglePlaying,
     };
 }
