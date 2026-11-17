@@ -57,6 +57,10 @@ export default function SetVideoProvider({ editable = true, children }: SetVideo
         router.push({ pathname: "/workout/set-video", params: { setUuid, label, source, mode } });
     }, [router]);
 
+    const openBarPath = useCallback((setUuid: string, label: string) => {
+        router.push({ pathname: "/workout/bar-path", params: { setUuid, label } });
+    }, [router]);
+
     const capture = useCallback(async (setUuid: string, label: string, from: "camera" | "library") => {
         let result: ImagePicker.ImagePickerResult;
         if (from === "camera") {
@@ -108,6 +112,8 @@ export default function SetVideoProvider({ editable = true, children }: SetVideo
         const items: ActionSheetItem[] = [
             { key: "play", icon: "play-outline", label: t("exercise.setVideo.play"), onPress: () => setPlayingUri(setVideoUri(video)) },
         ];
+        // The bar path can be looked at everywhere; tracking it doesn't change the set.
+        items.push({ key: "barPath", icon: "analytics-outline", label: t("exercise.setVideo.barPath"), onPress: () => openBarPath(setUuid, label) });
         if (editable && isVideoTrimAvailable()) {
             items.push({ key: "trim", icon: "cut-outline", label: t("exercise.setVideo.trim"), onPress: () => openTrim(setUuid, label, setVideoUri(video), "edit") });
         }
@@ -116,7 +122,7 @@ export default function SetVideoProvider({ editable = true, children }: SetVideo
             items.push({ key: "remove", icon: "trash-outline", label: t("exercise.setVideo.remove"), destructive: true, onPress: () => confirmRemove(setUuid) });
         }
         return items;
-    }, [menu, videos, editable, capture, openTrim, share, confirmRemove, t]);
+    }, [menu, videos, editable, capture, openTrim, openBarPath, share, confirmRemove, t]);
 
     return (
         <SetVideoContext.Provider value={context}>
