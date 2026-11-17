@@ -625,6 +625,9 @@ const de = {
             discard: "Verwerfen",
             discardTitle: "Video verwerfen?",
             discardConfirm: "Das Video ist noch nicht an den Satz angehängt.",
+            preparing: "Video wird vorbereitet…",
+            openFailedTitle: "Video konnte nicht geöffnet werden",
+            openFailed: "Das Video konnte nicht geladen werden: {{reason}}",
         },
         exerciseCard: {
             warmup: "Aufwärmen",

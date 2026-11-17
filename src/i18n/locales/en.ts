@@ -626,6 +626,9 @@ const en = {
             discard: "Discard",
             discardTitle: "Discard video?",
             discardConfirm: "The video isn't attached to the set yet.",
+            preparing: "Preparing the video…",
+            openFailedTitle: "Couldn't open the video",
+            openFailed: "The video couldn't be loaded: {{reason}}",
         },
         exerciseCard: {
             warmup: "Warm-up",
