@@ -16,6 +16,8 @@ import expo.modules.kotlin.records.Record
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 private const val TIMEOUT_US = 10_000L
 
@@ -32,9 +34,13 @@ private class FramesFailedException(message: String, cause: Throwable? = null) :
 /**
  * Decodes a video into small grayscale frames for image analysis: the
  * brightness (Y) plane of each decoded frame, shrunk so its longer side is at
- * most maxSide and turned upright as the video is shown. The frames are
- * written one after the other, row by row, one byte per pixel, to destUri.
- * At most maxFps frames per second and maxFrames frames in all are kept.
+ * most maxSide and turned upright as the video is shown. At most maxFps
+ * frames per second and maxFrames frames in all are kept.
+ *
+ * They are written to destUri as they are decoded, so the file can be read
+ * while it grows (see modules/video-frames/index.ts for the layout): a header
+ * with the frame size, then per frame its time and its pixels, row by row,
+ * one byte per pixel. Each frame is flushed whole before the next begins.
  */
 class VideoFramesModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -80,7 +86,19 @@ class VideoFramesModule : Module() {
       // Ask for YUV in memory rather than drawing to a surface, so the Y plane can be read.
       format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
       codec = MediaCodec.createDecoderByType(mime)
-      codec.configure(format, null, null, 0)
+      // As fast as it can, not at playback speed. Some decoders refuse an
+      // operating rate; they get the plain format instead.
+      try {
+        format.setInteger(MediaFormat.KEY_PRIORITY, 1)
+        format.setInteger(MediaFormat.KEY_OPERATING_RATE, Short.MAX_VALUE.toInt())
+        codec.configure(format, null, null, 0)
+      } catch (_: Exception) {
+        codec.release()
+        codec = MediaCodec.createDecoderByType(mime)
+        format.removeKey(MediaFormat.KEY_PRIORITY)
+        format.removeKey(MediaFormat.KEY_OPERATING_RATE)
+        codec.configure(format, null, null, 0)
+      }
       codec.start()
 
       val stepUs = (1_000_000.0 / maxFps).toLong()
@@ -93,18 +111,18 @@ class VideoFramesModule : Module() {
       var inputDone = false
 
       while (times.size < maxFrames) {
-        if (!inputDone) {
-          val inIndex = codec.dequeueInputBuffer(TIMEOUT_US)
-          if (inIndex >= 0) {
-            val buffer = codec.getInputBuffer(inIndex)!!
-            val size = extractor.readSampleData(buffer, 0)
-            if (size < 0) {
-              codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-              inputDone = true
-            } else {
-              codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
-              extractor.advance()
-            }
+        // Hand the decoder every sample it has room for, so its pipeline never runs dry.
+        while (!inputDone) {
+          val inIndex = codec.dequeueInputBuffer(0)
+          if (inIndex < 0) break
+          val buffer = codec.getInputBuffer(inIndex)!!
+          val size = extractor.readSampleData(buffer, 0)
+          if (size < 0) {
+            codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+            inputDone = true
+          } else {
+            codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
+            extractor.advance()
           }
         }
 
@@ -118,8 +136,14 @@ class VideoFramesModule : Module() {
           val image = codec.getOutputImage(outIndex)
           if (image != null) {
             try {
-              val s = shrinker ?: Shrinker(image.cropRect.width(), image.cropRect.height(), rotation, maxSide).also { shrinker = it }
-              out.write(s.shrink(image))
+              val s = shrinker ?: Shrinker(image.cropRect.width(), image.cropRect.height(), rotation, maxSide).also {
+                shrinker = it
+                out.write(littleEndian(8) { putInt(it.outWidth); putInt(it.outHeight) })
+              }
+              val pixels = s.shrink(image)
+              out.write(littleEndian(8) { putDouble(timeUs / 1000.0) })
+              out.write(pixels)
+              out.flush()
               times.add(timeUs / 1000.0)
               nextUs = timeUs + stepUs
               first = false
@@ -161,6 +185,9 @@ class VideoFramesModule : Module() {
   }
 }
 
+private fun littleEndian(size: Int, fill: ByteBuffer.() -> Unit): ByteArray =
+  ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN).apply(fill).array()
+
 /**
  * Shrinks the Y plane of decoded frames of one size by averaging blocks of
  * pixels, then turns the result upright by the video's rotation.
@@ -176,36 +203,35 @@ private class Shrinker(val srcWidth: Int, val srcHeight: Int, rotation: Int, max
   private val small = ByteArray(width * height)
   private val upright = ByteArray(width * height)
 
+  // The plane, copied out of the decoder's buffer in one go: reading a direct
+  // ByteBuffer byte by byte is what made shrinking slow.
+  private var plane = ByteArray(0)
+  // Where each output pixel's samples lie: two columns and two rows per block,
+  // at a quarter and three quarters of it, which is enough to average away
+  // aliasing. Worked out on the first frame; every frame of a video is laid out alike.
+  private var columns = IntArray(0)
+  private var rows = IntArray(0)
+
   fun shrink(image: Image): ByteArray {
     if (image.format != ImageFormat.YUV_420_888) throw IllegalStateException("Unexpected frame format ${image.format}")
-    val plane = image.planes[0]
-    val data = plane.buffer
-    val rowStride = plane.rowStride
-    val pixelStride = plane.pixelStride
-    val crop = image.cropRect
-    // Up to 4×4 samples per block are enough to average away aliasing.
-    for (y in 0 until height) {
-      val sy0 = crop.top + (y * srcHeight) / height
-      val sy1 = maxOf(sy0 + 1, crop.top + ((y + 1) * srcHeight) / height)
-      val stepY = maxOf(1, (sy1 - sy0) / 4)
-      for (x in 0 until width) {
-        val sx0 = crop.left + (x * srcWidth) / width
-        val sx1 = maxOf(sx0 + 1, crop.left + ((x + 1) * srcWidth) / width)
-        val stepX = maxOf(1, (sx1 - sx0) / 4)
-        var sum = 0
-        var count = 0
-        var sy = sy0
-        while (sy < sy1) {
-          val row = sy * rowStride
-          var sx = sx0
-          while (sx < sx1) {
-            sum += data.get(row + sx * pixelStride).toInt() and 0xFF
-            count++
-            sx += stepX
-          }
-          sy += stepY
-        }
-        small[y * width + x] = (sum / count).toByte()
+    val y = image.planes[0]
+    val buffer = y.buffer
+    buffer.rewind()
+    val size = buffer.remaining()
+    if (plane.size < size) plane = ByteArray(size)
+    buffer.get(plane, 0, size)
+    if (columns.isEmpty()) layOut(image.cropRect.left, image.cropRect.top, y.rowStride, y.pixelStride)
+
+    val data = plane
+    for (oy in 0 until height) {
+      val row0 = rows[oy * 2]
+      val row1 = rows[oy * 2 + 1]
+      for (ox in 0 until width) {
+        val c0 = columns[ox * 2]
+        val c1 = columns[ox * 2 + 1]
+        val sum = (data[row0 + c0].toInt() and 0xFF) + (data[row0 + c1].toInt() and 0xFF) +
+          (data[row1 + c0].toInt() and 0xFF) + (data[row1 + c1].toInt() and 0xFF)
+        small[oy * width + ox] = ((sum + 2) shr 2).toByte()
       }
     }
     if (turns == 0) return small
@@ -220,5 +246,17 @@ private class Shrinker(val srcWidth: Int, val srcHeight: Int, rotation: Int, max
       }
     }
     return upright
+  }
+
+  private fun layOut(left: Int, top: Int, rowStride: Int, pixelStride: Int) {
+    columns = IntArray(width * 2) { i ->
+      val x = i / 2
+      val at = left + (((x * 4 + 1 + (i % 2) * 2) * srcWidth) / (width * 4)).coerceAtMost(srcWidth - 1)
+      at * pixelStride
+    }
+    rows = IntArray(height * 2) { i ->
+      val y = i / 2
+      (top + (((y * 4 + 1 + (i % 2) * 2) * srcHeight) / (height * 4)).coerceAtMost(srcHeight - 1)) * rowStride
+    }
   }
 }

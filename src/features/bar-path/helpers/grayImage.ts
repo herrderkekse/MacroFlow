@@ -3,15 +3,28 @@ import type { GrayFrame } from "../types";
 /** Shrinks a frame by a whole factor, averaging each block of pixels. */
 export function downscale(frame: GrayFrame, factor: number): GrayFrame {
     if (factor <= 1) return frame;
-    const width = Math.floor(frame.width / factor);
-    const height = Math.floor(frame.height / factor);
+    return downscaleRegion(frame, factor, 0, 0, Math.floor(frame.width / factor), Math.floor(frame.height / factor));
+}
+
+/**
+ * Part of a frame shrunk by a whole factor: the `width × height` pixels from
+ * (`left`, `top`) of the shrunk frame, which must lie inside it.
+ */
+export function downscaleRegion(frame: GrayFrame, factor: number, left: number, top: number, width: number, height: number): GrayFrame {
     const data = new Uint8Array(width * height);
+    if (factor <= 1) {
+        for (let y = 0; y < height; y++) {
+            const from = (top + y) * frame.width + left;
+            data.set(frame.data.subarray(from, from + width), y * width);
+        }
+        return { width, height, data };
+    }
     const area = factor * factor;
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             let sum = 0;
             for (let dy = 0; dy < factor; dy++) {
-                const row = (y * factor + dy) * frame.width + x * factor;
+                const row = ((top + y) * factor + dy) * frame.width + (left + x) * factor;
                 for (let dx = 0; dx < factor; dx++) sum += frame.data[row + dx];
             }
             data[y * width + x] = (sum + (area >> 1)) / area;

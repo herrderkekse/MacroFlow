@@ -1,5 +1,5 @@
 import type { GrayFrame, Marker, TrackPoint } from "../types";
-import { downscale, gradient, quantile } from "./grayImage";
+import { downscale, downscaleRegion, gradient, quantile } from "./grayImage";
 import { correlate, cut, normalize } from "./patchMatch";
 import { outlineSupport } from "./plateDetector";
 
@@ -8,6 +8,10 @@ import { outlineSupport } from "./plateDetector";
 const TRACK_RADIUS = 16;
 // How far the plate may stray from where its motion predicts it, per frame, in plate radii.
 const REACH_RADII = 0.6;
+// Most frames the prediction is close: a small search around it is tried
+// first and kept when it finds a peak inside it nearly as good as the last fit.
+const NEAR_REACH = 3;
+const NEAR_KEEP = 0.9;
 // The patch matched for the plate's look: the plate and a rim of what is around it, in plate radii.
 const PATCH_RADII = 1.15;
 // How much of each confident match flows into the patch, so it follows slow
@@ -40,6 +44,8 @@ export class PlateTracker {
     /** Radius in shrunk pixels. */
     private readonly r: number;
     private readonly baseSupport: number;
+    /** What counts as an edge, set from the first frame (the light of one video hardly changes). */
+    private readonly threshold: number;
     private x: number;
     private y: number;
     private vx = 0;
@@ -47,6 +53,8 @@ export class PlateTracker {
     private lastT: number | null = null;
     /** Frames in a row the plate has not been found in. */
     private missed = 0;
+    /** The last frame's fit, before scaling by the first frame's. */
+    private lastFit = 0;
 
     /** `first` is the frame the marker was placed on. */
     constructor(first: GrayFrame, marker: Marker) {
@@ -59,36 +67,58 @@ export class PlateTracker {
         this.patch = cut(small, this.x / this.factor - 0.5, this.y / this.factor - 0.5, this.patchSize);
         this.patchAnchor = this.patch.slice();
         const { g, threshold } = edges(small);
+        this.threshold = threshold;
         this.baseSupport = Math.max(0.2, outlineSupport(g, threshold, this.x / this.factor - 0.5, this.y / this.factor - 0.5, this.r));
     }
 
-    /** Where the plate is in `frame`, taken at `t` ms. */
+    /**
+     * Where the plate is in `frame`, taken at `t` ms. Only the part of the
+     * frame the plate can have reached is shrunk and looked at.
+     */
     track(frame: GrayFrame, t: number): TrackPoint {
-        const small = downscale(frame, this.factor);
-        const { g, threshold } = edges(small);
-        const look: Look = { frame: small, patch: this.patch, size: this.patchSize };
         const dt = this.lastT == null ? 0 : t - this.lastT;
         // Positions in shrunk pixel-grid coordinates (pixel i's centre is i).
         const lastX = this.x / this.factor - 0.5;
         const lastY = this.y / this.factor - 0.5;
         const reach = Math.max(2, Math.ceil(REACH_RADII * this.r));
 
-        let best: Fit;
+        // Where to look: around the prediction, and around the last position
+        // in case of a sudden stop or start; or, while the plate is hidden,
+        // around where it would be had it kept going, at most a few frames' worth.
+        let searches: { x: number; y: number; reach: number }[];
         let needed: number;
         if (this.missed === 0) {
-            best = search(g, threshold, look, this.r, lastX + (this.vx * dt) / this.factor, lastY + (this.vy * dt) / this.factor, reach);
-            // A sudden stop or start leaves the prediction behind: look around the last position as well.
-            if (best.score < KEEP_SCORE * this.baseSupport) {
-                const around = search(g, threshold, look, this.r, lastX, lastY, 2 * reach);
-                if (around.score > best.score) best = around;
-            }
+            searches = [
+                { x: lastX + (this.vx * dt) / this.factor, y: lastY + (this.vy * dt) / this.factor, reach },
+                { x: lastX, y: lastY, reach: 2 * reach },
+            ];
             needed = KEEP_SCORE;
         } else {
-            // Where the plate would be had it kept going, at most a few frames' worth.
             const coast = Math.min(this.missed, 5) * dt / this.factor;
             const wider = Math.min(REGAIN_MAX_RADII, REACH_RADII * 2 + REGAIN_GROWTH_RADII * this.missed);
-            best = search(g, threshold, look, this.r, lastX + this.vx * coast, lastY + this.vy * coast, Math.ceil(wider * this.r));
+            searches = [{ x: lastX + this.vx * coast, y: lastY + this.vy * coast, reach: Math.ceil(wider * this.r) }];
             needed = REGAIN_SCORE;
+        }
+
+        const region = this.region(frame, searches);
+        const { left, top } = region;
+        const g = gradient(region.frame);
+        const look: Look = { frame: region.frame, patch: this.patch, size: this.patchSize };
+        const find = (at: { x: number; y: number; reach: number }) => {
+            const fit = search(g, this.threshold, look, this.r, at.x - left, at.y - top, at.reach);
+            return { x: fit.x + left, y: fit.y + top, score: fit.score };
+        };
+
+        let best: Fit | null = null;
+        if (this.missed === 0 && this.lastFit > 0) {
+            const near = find({ ...searches[0], reach: NEAR_REACH });
+            const inside = Math.abs(near.x - searches[0].x) < NEAR_REACH - 0.5 && Math.abs(near.y - searches[0].y) < NEAR_REACH - 0.5;
+            if (inside && near.score >= NEAR_KEEP * this.lastFit) best = near;
+        }
+        best ??= find(searches[0]);
+        if (searches.length > 1 && best.score < KEEP_SCORE * this.baseSupport) {
+            const around = find(searches[1]);
+            if (around.score > best.score) best = around;
         }
 
         const score = Math.min(1, best.score / this.baseSupport);
@@ -106,13 +136,39 @@ export class PlateTracker {
             this.x = x;
             this.y = y;
             this.missed = 0;
-            if (score > 0.8) this.learn(small, best.x, best.y);
+            this.lastFit = best.score;
+            if (score > 0.8) this.learn(region.frame, best.x - left, best.y - top);
         } else {
             this.missed++;
         }
         this.lastT = t;
         // A frame the plate was not found in reports a score of 0: its position is only the last one known.
         return { t, x: this.x, y: this.y, score: this.missed > 0 ? 0 : score };
+    }
+
+    /**
+     * The shrunk part of the frame the searches can reach: every centre they
+     * try, with the plate's outline and its look around it, cut to the frame.
+     */
+    private region(frame: GrayFrame, searches: { x: number; y: number; reach: number }[]) {
+        const margin = Math.ceil(Math.max(this.r + 2, this.patchSize / 2 + 1));
+        const width = Math.floor(frame.width / this.factor);
+        const height = Math.floor(frame.height / this.factor);
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const s of searches) {
+            x0 = Math.min(x0, Math.round(s.x) - s.reach - margin);
+            y0 = Math.min(y0, Math.round(s.y) - s.reach - margin);
+            x1 = Math.max(x1, Math.round(s.x) + s.reach + margin);
+            y1 = Math.max(y1, Math.round(s.y) + s.reach + margin);
+        }
+        const left = Math.min(width - 1, Math.max(0, x0));
+        const top = Math.min(height - 1, Math.max(0, y0));
+        const right = Math.max(left, Math.min(width - 1, x1));
+        const bottom = Math.max(top, Math.min(height - 1, y1));
+        return {
+            left, top,
+            frame: downscaleRegion(frame, this.factor, left, top, right - left + 1, bottom - top + 1),
+        };
     }
 
     private learn(frame: GrayFrame, x: number, y: number) {

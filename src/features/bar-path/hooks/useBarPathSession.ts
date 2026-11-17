@@ -9,9 +9,10 @@ import { isVideoFramesAvailable, openFrames, trackBarPath, type FrameSource } fr
 import type { BarPathData, GrayFrame, Marker } from "../types";
 
 /**
- * - `reading`: the video is being decoded for analysis
- * - `place`: waiting for the plate to be marked on the first frame
- * - `tracking`: following the plate through the video
+ * - `reading`: decoding of the video has started; its first frame is not there yet
+ * - `place`: waiting for the plate to be marked on the first frame (the rest of
+ *   the video is decoded meanwhile)
+ * - `tracking`: following the plate through the video, as far as it is decoded
  * - `result`: a path has been tracked
  * - `missing`: the set has no video (anymore)
  * - `unavailable`: this build can't read video frames
@@ -47,10 +48,16 @@ export function useBarPathSession(setUuid: string) {
         reading.current = true;
         setPhase("reading");
         try {
+            const startedAt = Date.now();
             const source = await openFrames(videoUri, video.duration_ms);
+            logger.debug("[BarPath] First frame read", { ms: Date.now() - startedAt });
+            source.finished.then(
+                () => logger.debug("[BarPath] Read the video", { frames: source.count(), ms: Date.now() - startedAt }),
+                () => { /* reported by tracking, which waits for it */ },
+            );
             if (!alive.current) { source.dispose(); return; }
             frames.current = source;
-            setFirstFrame(source.read(0));
+            setFirstFrame(source.read(0).frame);
             setPhase("place");
         } catch (e) {
             logger.warn("[BarPath] Failed to read the video", e instanceof Error ? e.message : e);
@@ -86,12 +93,22 @@ export function useBarPathSession(setUuid: string) {
         if (!video || !source || !marker) return;
         setPhase("tracking");
         setProgress(0);
-        const tracked = await trackBarPath({
-            source, marker, plateDiameterM,
-            onProgress: (share) => { if (alive.current) setProgress(share); },
-            isCancelled: () => !alive.current,
-        });
+        const startedAt = Date.now();
+        let tracked: BarPathData | null;
+        try {
+            tracked = await trackBarPath({
+                source, marker, plateDiameterM, durationMs: video.duration_ms,
+                onProgress: (share) => { if (alive.current) setProgress(share); },
+                isCancelled: () => !alive.current,
+            });
+        } catch (e) {
+            logger.warn("[BarPath] Failed to read the video", e instanceof Error ? e.message : e);
+            releaseFrames();
+            if (alive.current) setPhase("failed");
+            return;
+        }
         if (!tracked || !alive.current) return;
+        logger.debug("[BarPath] Tracked the plate", { frames: tracked.t.length, ms: Date.now() - startedAt });
         putBarPath(setUuid, video.file_name, tracked);
         releaseFrames();
         setPath(tracked);

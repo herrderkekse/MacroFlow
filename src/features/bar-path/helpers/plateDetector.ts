@@ -73,24 +73,102 @@ export function snapPlate(frame: GrayFrame, tapX: number, tapY: number): Marker 
  * edge of the picture is not widened past it.
  */
 export function outlineSupport(g: Gradient, threshold: number, cx: number, cy: number, r: number): number {
-    const steps = Math.max(16, Math.round(2 * Math.PI * r));
+    if (Number.isInteger(cx) && Number.isInteger(cy)) return outlineSupportAtPixel(g, threshold, cx, cy, r);
+    const { steps, cos, sin } = circleDirections(r);
     let hits = 0;
     for (let s = 0; s < steps; s++) {
-        const angle = (2 * Math.PI * s) / steps;
-        const ca = Math.cos(angle);
-        const sa = Math.sin(angle);
+        const ca = cos[s];
+        const sa = sin[s];
         for (let dr = -1; dr <= 1; dr++) {
             const x = Math.round(cx + (r + dr) * ca);
             const y = Math.round(cy + (r + dr) * sa);
-            if (x < 1 || x >= g.width - 1 || y < 1 || y >= g.height - 1) continue;
-            const i = y * g.width + x;
-            const m = g.mag[i];
-            // The edge has to cross the radius, as an outline does (within about 35°).
-            if (m >= threshold && Math.abs(g.gx[i] * ca + g.gy[i] * sa) >= 0.82 * m) {
+            if (hitsOutline(g, threshold, x, y, ca, sa)) {
                 hits++;
                 break;
             }
         }
     }
     return hits / steps;
+}
+
+/**
+ * The same for a centre on a pixel, which is what the searches try: the
+ * pixels to check are then fixed offsets from it, worked out once per radius.
+ */
+function outlineSupportAtPixel(g: Gradient, threshold: number, cx: number, cy: number, r: number): number {
+    const { steps, cos, sin, dx, dy } = outlineOffsets(r);
+    const { width, height, mag, gx, gy } = g;
+    let hits = 0;
+    // The hottest loop of tracking: hitsOutline is written out here, as Hermes doesn't inline calls.
+    for (let s = 0; s < steps; s++) {
+        const ca = cos[s];
+        const sa = sin[s];
+        for (let k = s * 3; k < s * 3 + 3; k++) {
+            const x = cx + dx[k];
+            const y = cy + dy[k];
+            if (x < 1 || x >= width - 1 || y < 1 || y >= height - 1) continue;
+            const i = y * width + x;
+            const m = mag[i];
+            if (m >= threshold && Math.abs(gx[i] * ca + gy[i] * sa) >= 0.82 * m) {
+                hits++;
+                break;
+            }
+        }
+    }
+    return hits / steps;
+}
+
+/** Whether pixel (x, y) is on an edge that crosses direction (ca, sa) from the centre, as an outline does (within about 35°). */
+function hitsOutline(g: Gradient, threshold: number, x: number, y: number, ca: number, sa: number): boolean {
+    if (x < 1 || x >= g.width - 1 || y < 1 || y >= g.height - 1) return false;
+    const i = y * g.width + x;
+    const m = g.mag[i];
+    return m >= threshold && Math.abs(g.gx[i] * ca + g.gy[i] * sa) >= 0.82 * m;
+}
+
+interface Directions { steps: number; cos: Float64Array; sin: Float64Array }
+interface Offsets extends Directions {
+    /** Per direction, the pixel offsets at radius r - 1, r and r + 1. */
+    dx: Int32Array;
+    dy: Int32Array;
+}
+
+// Outlines are checked for a handful of sizes thousands of times each: their geometry is worked out once.
+const directionsBySteps = new Map<number, Directions>();
+const offsetsByRadius = new Map<number, Offsets>();
+
+/** The directions an outline of radius `r` is checked in, one per pixel of its length. */
+function circleDirections(r: number): Directions {
+    const steps = Math.max(16, Math.round(2 * Math.PI * r));
+    let directions = directionsBySteps.get(steps);
+    if (!directions) {
+        const cos = new Float64Array(steps);
+        const sin = new Float64Array(steps);
+        for (let s = 0; s < steps; s++) {
+            const angle = (2 * Math.PI * s) / steps;
+            cos[s] = Math.cos(angle);
+            sin[s] = Math.sin(angle);
+        }
+        directions = { steps, cos, sin };
+        directionsBySteps.set(steps, directions);
+    }
+    return directions;
+}
+
+function outlineOffsets(r: number): Offsets {
+    let offsets = offsetsByRadius.get(r);
+    if (!offsets) {
+        const { steps, cos, sin } = circleDirections(r);
+        const dx = new Int32Array(steps * 3);
+        const dy = new Int32Array(steps * 3);
+        for (let s = 0; s < steps; s++) {
+            for (let k = 0; k < 3; k++) {
+                dx[s * 3 + k] = Math.round((r + k - 1) * cos[s]);
+                dy[s * 3 + k] = Math.round((r + k - 1) * sin[s]);
+            }
+        }
+        offsets = { steps, cos, sin, dx, dy };
+        offsetsByRadius.set(r, offsets);
+    }
+    return offsets;
 }

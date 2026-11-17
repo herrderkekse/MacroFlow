@@ -11,9 +11,13 @@ struct FramesResult: Record {
 
 /// Decodes a video into small grayscale frames for image analysis: the
 /// brightness (Y) plane of each frame, shrunk so its longer side is at most
-/// maxSide and turned upright as the video is shown. The frames are written one
-/// after the other, row by row, one byte per pixel, to destUri. At most maxFps
-/// frames per second and maxFrames frames in all are kept.
+/// maxSide and turned upright as the video is shown. At most maxFps frames per
+/// second and maxFrames frames in all are kept.
+///
+/// They are written to destUri as they are decoded, so the file can be read
+/// while it grows (see modules/video-frames/index.ts for the layout): a header
+/// with the frame size, then per frame its time and its pixels, row by row,
+/// one byte per pixel.
 public class VideoFramesModule: Module {
   public func definition() -> ModuleDefinition {
     Name("VideoFrames")
@@ -63,11 +67,18 @@ private func extract(source: URL, dest: URL, maxSide: Int, maxFps: Double, maxFr
     let timeMs = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample)) * 1000
     // Keep a frame once a step has passed since the last one kept (a quarter step early is fine).
     guard timeMs >= nextMs - stepMs / 4, let pixels = CMSampleBufferGetImageBuffer(sample) else { continue }
-    let s = shrinker ?? Shrinker(
-      srcWidth: CVPixelBufferGetWidthOfPlane(pixels, 0), srcHeight: CVPixelBufferGetHeightOfPlane(pixels, 0),
-      turns: turns, maxSide: maxSide)
-    shrinker = s
-    handle.write(s.shrink(pixels))
+    let s: Shrinker
+    if let existing = shrinker {
+      s = existing
+    } else {
+      s = Shrinker(
+        srcWidth: CVPixelBufferGetWidthOfPlane(pixels, 0), srcHeight: CVPixelBufferGetHeightOfPlane(pixels, 0),
+        turns: turns, maxSide: maxSide)
+      shrinker = s
+      handle.write(littleEndian(Int32(s.outWidth)) + littleEndian(Int32(s.outHeight)))
+    }
+    let frame = s.shrink(pixels)
+    handle.write(littleEndian(timeMs) + frame)
     times.append(timeMs)
     nextMs = timeMs + stepMs
   }
@@ -80,6 +91,14 @@ private func extract(source: URL, dest: URL, maxSide: Int, maxFps: Double, maxFr
   result.height = s.outHeight
   result.timesMs = times
   return result
+}
+
+private func littleEndian(_ value: Int32) -> Data {
+  withUnsafeBytes(of: value.littleEndian) { Data($0) }
+}
+
+private func littleEndian(_ value: Double) -> Data {
+  withUnsafeBytes(of: value.bitPattern.littleEndian) { Data($0) }
 }
 
 /// How many quarter turns clockwise the video is shown turned by.
