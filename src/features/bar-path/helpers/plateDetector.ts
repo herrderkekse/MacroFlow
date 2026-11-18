@@ -13,8 +13,11 @@ const MAX_EDGE = 12;
 // A circle needs this much of its outline on an edge to count.
 const MIN_SUPPORT = 0.4;
 // A plate shows several circles around one centre (rim, lettering, hub); the
-// widest one that is nearly as clear as the clearest is its rim.
+// widest one that is nearly as clear as the clearest is its rim. They share a
+// centre: a wider circle beside it is something else, such as the outline of
+// the whole stack of plates seen from below or above.
 const RIM_RATIO = 0.85;
+const RIM_CENTRE_SHARE = 0.1;
 
 /** Plate sizes, as a share of the frame's shorter side. */
 const MIN_RADIUS_SHARE = 0.04;
@@ -62,7 +65,7 @@ export function snapPlate(frame: GrayFrame, tapX: number, tapY: number): Marker 
     // The rim: the widest clear circle around about the same centre.
     const rim = byRadius
         .filter((c) => c.support >= RIM_RATIO * clearest.support
-            && Math.hypot(c.x - clearest.x, c.y - clearest.y) <= Math.max(2, 0.2 * c.r))
+            && Math.hypot(c.x - clearest.x, c.y - clearest.y) <= Math.max(2, RIM_CENTRE_SHARE * c.r))
         .reduce((a, b) => (b.r > a.r ? b : a), clearest);
     return { x: (rim.x + 0.5) * factor, y: (rim.y + 0.5) * factor, r: rim.r * factor };
 }
@@ -71,11 +74,15 @@ export function snapPlate(frame: GrayFrame, tapX: number, tapY: number): Marker 
  * Share of a circle's outline that lies on an edge running along it. Parts of
  * the outline outside the frame count as missing, so a plate cut off by the
  * edge of the picture is not widened past it.
+ *
+ * With `ignoredSectors`, the outline is taken in SECTORS equal arcs and that
+ * many of the weakest are left out: a plate partly hidden, or passing in
+ * front of something as dark as itself, then still fits by the rest.
  */
-export function outlineSupport(g: Gradient, threshold: number, cx: number, cy: number, r: number): number {
-    if (Number.isInteger(cx) && Number.isInteger(cy)) return outlineSupportAtPixel(g, threshold, cx, cy, r);
+export function outlineSupport(g: Gradient, threshold: number, cx: number, cy: number, r: number, ignoredSectors = 0): number {
+    if (Number.isInteger(cx) && Number.isInteger(cy)) return outlineSupportAtPixel(g, threshold, cx, cy, r, ignoredSectors);
     const { steps, cos, sin } = circleDirections(r);
-    let hits = 0;
+    const hits = sectorHits.fill(0);
     for (let s = 0; s < steps; s++) {
         const ca = cos[s];
         const sa = sin[s];
@@ -83,22 +90,22 @@ export function outlineSupport(g: Gradient, threshold: number, cx: number, cy: n
             const x = Math.round(cx + (r + dr) * ca);
             const y = Math.round(cy + (r + dr) * sa);
             if (hitsOutline(g, threshold, x, y, ca, sa)) {
-                hits++;
+                hits[sectorOf(s, steps)]++;
                 break;
             }
         }
     }
-    return hits / steps;
+    return combineSectors(hits, steps, ignoredSectors);
 }
 
 /**
  * The same for a centre on a pixel, which is what the searches try: the
  * pixels to check are then fixed offsets from it, worked out once per radius.
  */
-function outlineSupportAtPixel(g: Gradient, threshold: number, cx: number, cy: number, r: number): number {
-    const { steps, cos, sin, dx, dy } = outlineOffsets(r);
+function outlineSupportAtPixel(g: Gradient, threshold: number, cx: number, cy: number, r: number, ignoredSectors: number): number {
+    const { steps, cos, sin, dx, dy, sector } = outlineOffsets(r);
     const { width, height, mag, gx, gy } = g;
-    let hits = 0;
+    const hits = sectorHits.fill(0);
     // The hottest loop of tracking: hitsOutline is written out here, as Hermes doesn't inline calls.
     for (let s = 0; s < steps; s++) {
         const ca = cos[s];
@@ -110,12 +117,39 @@ function outlineSupportAtPixel(g: Gradient, threshold: number, cx: number, cy: n
             const i = y * width + x;
             const m = mag[i];
             if (m >= threshold && Math.abs(gx[i] * ca + gy[i] * sa) >= 0.82 * m) {
-                hits++;
+                hits[sector[s]]++;
                 break;
             }
         }
     }
-    return hits / steps;
+    return combineSectors(hits, steps, ignoredSectors);
+}
+
+const SECTORS = 8;
+// Reused for every outline: they are checked one at a time.
+const sectorHits = new Int32Array(SECTORS);
+const sectorShares = new Float64Array(SECTORS);
+
+function sectorOf(step: number, steps: number): number {
+    return Math.floor((step * SECTORS) / steps);
+}
+
+/** The share of hits over all sectors but the `ignored` weakest (by their share, as sectors differ by a step in length). */
+function combineSectors(hits: Int32Array, steps: number, ignored: number): number {
+    if (ignored <= 0) {
+        let all = 0;
+        for (let k = 0; k < SECTORS; k++) all += hits[k];
+        return all / steps;
+    }
+    const share = sectorShares;
+    for (let k = 0; k < SECTORS; k++) {
+        const length = Math.floor(((k + 1) * steps + SECTORS - 1) / SECTORS) - Math.floor((k * steps + SECTORS - 1) / SECTORS);
+        share[k] = length > 0 ? hits[k] / length : 0;
+    }
+    share.sort();
+    let sum = 0;
+    for (let k = ignored; k < SECTORS; k++) sum += share[k];
+    return sum / (SECTORS - ignored);
 }
 
 /** Whether pixel (x, y) is on an edge that crosses direction (ca, sa) from the centre, as an outline does (within about 35°). */
@@ -131,6 +165,8 @@ interface Offsets extends Directions {
     /** Per direction, the pixel offsets at radius r - 1, r and r + 1. */
     dx: Int32Array;
     dy: Int32Array;
+    /** Per direction, the sector of the outline it is in. */
+    sector: Uint8Array;
 }
 
 // Outlines are checked for a handful of sizes thousands of times each: their geometry is worked out once.
@@ -161,13 +197,15 @@ function outlineOffsets(r: number): Offsets {
         const { steps, cos, sin } = circleDirections(r);
         const dx = new Int32Array(steps * 3);
         const dy = new Int32Array(steps * 3);
+        const sector = new Uint8Array(steps);
         for (let s = 0; s < steps; s++) {
+            sector[s] = sectorOf(s, steps);
             for (let k = 0; k < 3; k++) {
                 dx[s * 3 + k] = Math.round((r + k - 1) * cos[s]);
                 dy[s * 3 + k] = Math.round((r + k - 1) * sin[s]);
             }
         }
-        offsets = { steps, cos, sin, dx, dy };
+        offsets = { steps, cos, sin, dx, dy, sector };
         offsetsByRadius.set(r, offsets);
     }
     return offsets;

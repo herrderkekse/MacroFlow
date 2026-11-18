@@ -12,11 +12,14 @@ const REACH_RADII = 0.6;
 // first and kept when it finds a peak inside it nearly as good as the last fit.
 const NEAR_REACH = 3;
 const NEAR_KEEP = 0.9;
-// The patch matched for the plate's look: the plate and a rim of what is around it, in plate radii.
-const PATCH_RADII = 1.15;
+// The patch matched for the plate's look, in plate radii: the square inside it. What is around
+// the plate changes as it moves (sky above the rack, the lifter lower down) and is left out.
+const PATCH_RADII = 0.7;
 // How much of each confident match flows into the patch, so it follows slow
 // changes (light, the plate turning) without drifting off the plate.
 const PATCH_BLEND = 0.08;
+// The plate fits by its outline less its weakest quarter, so it is followed while partly hidden.
+const IGNORED_SECTORS = 2;
 // Edge threshold limits, as for snapping (see plateDetector).
 const EDGE_QUANTILE = 0.6;
 const MIN_EDGE = 6;
@@ -68,7 +71,7 @@ export class PlateTracker {
         this.patchAnchor = this.patch.slice();
         const { g, threshold } = edges(small);
         this.threshold = threshold;
-        this.baseSupport = Math.max(0.2, outlineSupport(g, threshold, this.x / this.factor - 0.5, this.y / this.factor - 0.5, this.r));
+        this.baseSupport = Math.max(0.2, outlineSupport(g, threshold, this.x / this.factor - 0.5, this.y / this.factor - 0.5, this.r, IGNORED_SECTORS));
     }
 
     /**
@@ -210,7 +213,7 @@ function search(g: ReturnType<typeof gradient>, threshold: number, look: Look, r
         if (i < 0 || j < 0 || i >= side || j >= side) return;
         const k = j * side + i;
         if (!Number.isNaN(scores[k])) return;
-        const outline = outlineSupport(g, threshold, x0 + i, y0 + j, r);
+        const outline = outlineSupport(g, threshold, x0 + i, y0 + j, r, IGNORED_SECTORS);
         // The look only matters where an outline could win.
         const likeness = outline > best * 0.5 ? Math.max(0, correlate(look.frame, look.patch, look.size, x0 + i, y0 + j)) : 0;
         const s = outline * (0.25 + 0.75 * likeness);
