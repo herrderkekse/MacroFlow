@@ -9,6 +9,10 @@ struct TrimResult: Record {
 /// Cuts a video to [startMs, endMs] with a passthrough export: the compressed
 /// samples are copied, never re-encoded. Like the Android side, the cut starts
 /// at a keyframe, so the clip may begin a fraction of a second early.
+///
+/// TODO: `cropVideo` (trim and crop, see index.ts) exists on Android only. Until
+/// it is added here, `isVideoCropAvailable()` is false on iOS and the crop
+/// controls stay hidden.
 public class VideoTrimModule: Module {
   public func definition() -> ModuleDefinition {
     Name("VideoTrim")

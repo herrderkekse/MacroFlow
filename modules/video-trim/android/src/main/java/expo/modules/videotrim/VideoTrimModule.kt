@@ -7,6 +7,7 @@ import android.media.MediaMetadataRetriever
 import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -49,6 +50,18 @@ class VideoTrimModule : Module() {
         destFile.delete()
         throw TrimFailedException(e.message ?: "Trimming failed", e)
       }
+    }
+
+    AsyncFunction("cropVideo") { sourceUri: String, destUri: String, startMs: Double, endMs: Double, rect: CropRect, promise: Promise ->
+      val context = appContext.reactContext ?: throw TrimFailedException("No React context")
+      if (endMs <= startMs) throw TrimFailedException("The end of the range must come after its start")
+      if (rect.width <= 0 || rect.height <= 0) throw TrimFailedException("The crop is empty")
+      val destFile = File(Uri.parse(destUri).path ?: throw TrimFailedException("Invalid destination: $destUri"))
+      VideoCropper.crop(
+        context, Uri.parse(sourceUri), destFile, startMs.toLong(), endMs.toLong(), rect,
+        onDone = { promise.resolve(it) },
+        onError = { promise.reject(TrimFailedException(it.message ?: "Cropping failed", it)) },
+      )
     }
   }
 

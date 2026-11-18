@@ -13,14 +13,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { analyzeReps } from "../helpers/repAnalysis";
 import { isWholeVideo } from "../helpers/trimRange";
 import { useBarPathSession } from "../hooks/useBarPathSession";
+import { useCrop } from "../hooks/useCrop";
 import { useFirstFrame } from "../hooks/useFirstFrame";
 import { useTrimRange } from "../hooks/useTrimRange";
 import { useTrimSave } from "../hooks/useTrimSave";
 import { useVideoActions } from "../hooks/useVideoActions";
 import { useVideoPlayback } from "../hooks/useVideoPlayback";
-import { isVideoTrimAvailable } from "../services/setVideoFiles";
+import { isVideoCropAvailable, isVideoTrimAvailable } from "../services/setVideoFiles";
 import BarPathControls from "./BarPathControls";
 import BarPathLayer from "./BarPathLayer";
+import CropAspectButton from "./CropAspectButton";
+import CropAspectSheet from "./CropAspectSheet";
 import RepSheet, { REP_SHEET_PEEK } from "./RepSheet";
 import TrimControls from "./TrimControls";
 import VideoStage from "./VideoStage";
@@ -57,6 +60,10 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
     const canTrim = isVideoTrimAvailable();
     const [mode, setMode] = useState<Mode>(isNew ? "trim" : "watch");
     const trim = useTrimRange(playback, mode === "trim");
+    const crop = useCrop(playback.aspect);
+    // Cropping comes with trimming, where the crop's shape takes the header's corner.
+    const cropping = mode === "trim" && canTrim && isVideoCropAvailable();
+    const [aspectSheetVisible, setAspectSheetVisible] = useState(false);
     const session = useBarPathSession(setUuid, !isNew && mode === "barPath");
     const { phase } = session;
     const marking = mode === "barPath" && phase !== "result";
@@ -64,7 +71,7 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
     const analysis = useMemo(() => (session.path ? analyzeReps(session.path) : null), [session.path]);
     const actions = useVideoActions(setUuid, uri);
     const [menuVisible, setMenuVisible] = useState(false);
-    const save = useTrimSave({ setUuid, uri, isNew, trim, playback, hasBarPath: session.path != null, onTrimmed });
+    const save = useTrimSave({ setUuid, uri, isNew, trim, crop: crop.share, playback, hasBarPath: session.path != null, onTrimmed });
     const { pause, play, seekTo } = playback;
 
     // The plate is marked on the first frame.
@@ -114,12 +121,14 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
                 title={title}
                 subtitle={t("exercise.setVideo.sheetTitle", { set: label })}
                 onBack={save.back}
-                right={isNew ? undefined : (
+                right={(
                     <>
-                        {modes.length > 1 && (
+                        {!isNew && modes.length > 1 && (
                             <SegmentedControl options={modes} value={mode} onChange={setMode} size="sm" iconOnly />
                         )}
-                        {editable ? (
+                        {cropping ? (
+                            <CropAspectButton aspect={crop.aspect} onPress={() => setAspectSheetVisible(true)} />
+                        ) : isNew ? null : editable ? (
                             <IconButton icon="ellipsis-horizontal" label={t("exercise.setVideo.more")} onPress={() => setMenuVisible(true)} />
                         ) : (
                             <IconButton icon="share-outline" label={t("common.share")} onPress={() => void actions.share()} />
@@ -140,6 +149,7 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
                 pressLabel={t(playback.isPlaying ? "exercise.setVideo.pause" : "exercise.setVideo.play")}
                 paused={!marking && !playback.isPlaying}
                 bottomInset={bottomInset}
+                crop={cropping ? crop : null}
             />
 
             {mode === "trim" && (
@@ -148,7 +158,7 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
                         title={t("common.save")}
                         onPress={() => void save.save()}
                         loading={save.saving}
-                        disabled={save.saving || playback.durationMs <= 0 || (!isNew && isWholeVideo(trim.startMs, trim.endMs, playback.durationMs))}
+                        disabled={save.saving || playback.durationMs <= 0 || (!isNew && isWholeVideo(trim.startMs, trim.endMs, playback.durationMs) && !crop.share)}
                     />
                 </FooterBar>
             )}
@@ -177,6 +187,15 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
                         play();
                     }}
                     onRedo={session.canRedo ? session.redo : null}
+                />
+            )}
+
+            {cropping && (
+                <CropAspectSheet
+                    visible={aspectSheetVisible}
+                    onClose={() => setAspectSheetVisible(false)}
+                    aspect={crop.aspect}
+                    onChange={crop.setAspect}
                 />
             )}
 

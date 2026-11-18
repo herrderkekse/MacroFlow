@@ -2,6 +2,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, BackHandler } from "react-native";
+import logger from "@/src/utils/logger";
+import type { CropShare } from "../helpers/cropGeometry";
 import { discardCapturedVideo, saveSetVideo } from "../services/setVideoFiles";
 import type { useTrimRange } from "./useTrimRange";
 import type { VideoPlayback } from "./useVideoPlayback";
@@ -11,6 +13,8 @@ interface TrimSaveInput {
     uri: string;
     isNew: boolean;
     trim: ReturnType<typeof useTrimRange>;
+    /** The part of the picture to keep; null keeps all of it. */
+    crop: CropShare | null;
     playback: VideoPlayback;
     /** A tracked path belongs to the file it was tracked in, and doesn't survive a trim. */
     hasBarPath: boolean;
@@ -22,7 +26,7 @@ interface TrimSaveInput {
  * on saving and discarded (after asking) on leaving; a stored one is replaced
  * by its trimmed version.
  */
-export function useTrimSave({ setUuid, uri, isNew, trim, playback, hasBarPath, onTrimmed }: TrimSaveInput) {
+export function useTrimSave({ setUuid, uri, isNew, trim, crop, playback, hasBarPath, onTrimmed }: TrimSaveInput) {
     const { t } = useTranslation();
     const router = useRouter();
     const [saving, setSaving] = useState(false);
@@ -55,16 +59,17 @@ export function useTrimSave({ setUuid, uri, isNew, trim, playback, hasBarPath, o
         playback.pause();
         try {
             await saveSetVideo({
-                setUuid, sourceUri: uri, startMs: trim.startMs, endMs: trim.endMs, sourceDurationMs: playback.durationMs,
+                setUuid, sourceUri: uri, startMs: trim.startMs, endMs: trim.endMs, sourceDurationMs: playback.durationMs, crop,
             });
-        } catch {
+        } catch (e) {
+            logger.warn("[SetVideo] Couldn't save the video", e instanceof Error ? e.message : e);
             setFailed(true);
             setSaving(false);
             return;
         }
         if (isNew) router.back();
         else onTrimmed();
-    }, [setUuid, uri, trim.startMs, trim.endMs, playback, isNew, router, onTrimmed]);
+    }, [setUuid, uri, trim.startMs, trim.endMs, crop, playback, isNew, router, onTrimmed]);
 
     const save = useCallback(async () => {
         if (!hasBarPath) { await store(); return; }

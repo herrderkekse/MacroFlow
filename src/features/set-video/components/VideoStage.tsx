@@ -2,10 +2,12 @@ import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, screenPadding, spacing, type ThemeColors } from "@/src/utils/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { VideoView, type VideoPlayer } from "expo-video";
+import type { VideoPlayer } from "expo-video";
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { fitVideoStage } from "../helpers/videoStage";
+import type { CropState } from "../hooks/useCrop";
+import CroppableVideo from "./CroppableVideo";
 
 interface VideoStageProps {
     player: VideoPlayer;
@@ -27,6 +29,8 @@ interface VideoStageProps {
     paused?: boolean;
     /** Room kept free below the controls (the system bar, a sheet's peek). */
     bottomInset?: number;
+    /** The crop being set (trimming): its frame over the video, which pinches and drags under it. */
+    crop?: CropState | null;
 }
 
 /**
@@ -34,7 +38,7 @@ interface VideoStageProps {
  * below, with the controls over its bottom edge when it reaches under them.
  * One stage for every mode, so the picture stays put while they switch.
  */
-export default function VideoStage({ player, aspect, shapeKnown, overlay, controls, onPress, pressLabel, paused, bottomInset = 0 }: VideoStageProps) {
+export default function VideoStage({ player, aspect, shapeKnown, overlay, controls, onPress, pressLabel, paused, bottomInset = 0, crop = null }: VideoStageProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const [stage, setStage] = useState({ width: 0, height: 0 });
@@ -52,21 +56,22 @@ export default function VideoStage({ player, aspect, shapeKnown, overlay, contro
             {/* Not animated when the controls change size: a layout animation blanks the video's surface on Android. */}
             {shapeKnown && (
                 <View style={[styles.videoBox, { top: box.top, height: box.height }]}>
-                    <Pressable
-                        style={styles.press}
-                        onPress={onPress}
-                        disabled={!onPress}
-                        accessibilityRole={onPress ? "button" : undefined}
-                        accessibilityLabel={onPress ? pressLabel : undefined}
-                    >
-                        <VideoView player={player} style={styles.fill} contentFit="contain" nativeControls={false} />
-                        {overlay}
-                        {paused && (
-                            <View style={styles.playBadge} pointerEvents="none">
-                                <Ionicons name="play" size={28} color={colors.onPrimary} />
-                            </View>
-                        )}
-                    </Pressable>
+                    <CroppableVideo player={player} box={{ width: stage.width - 2 * screenPadding, height: box.height }} aspect={aspect} crop={crop}>
+                        <Pressable
+                            style={styles.press}
+                            onPress={onPress}
+                            disabled={!onPress}
+                            accessibilityRole={onPress ? "button" : undefined}
+                            accessibilityLabel={onPress ? pressLabel : undefined}
+                        >
+                            {overlay}
+                            {paused && (
+                                <View style={styles.playBadge} pointerEvents="none">
+                                    <Ionicons name="play" size={28} color={colors.onPrimary} />
+                                </View>
+                            )}
+                        </Pressable>
+                    </CroppableVideo>
                 </View>
             )}
 
@@ -99,8 +104,7 @@ function createStyles(colors: ThemeColors) {
             overflow: "hidden",
             backgroundColor: colors.surfaceMuted,
         },
-        press: { flex: 1, alignItems: "center", justifyContent: "center" },
-        fill: { ...StyleSheet.absoluteFill },
+        press: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
         playBadge: {
             width: 56,
             height: 56,
