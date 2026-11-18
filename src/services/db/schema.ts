@@ -247,6 +247,18 @@ export const setVideos = sqliteTable("set_videos", {
     created_at: integer("created_at").notNull(),
 });
 
+// The bar path tracked in a set's video (set-video feature). Device-local like
+// set_videos. `video_file` is the set video's file_name it was measured on: a
+// video trimmed or replaced since gets a new file name, and the path no
+// longer applies. `data` is a BarPathData as JSON.
+export const barPaths = sqliteTable("bar_paths", {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    set_uuid: text("set_uuid").notNull().unique(),
+    video_file: text("video_file").notNull(),
+    data: text("data").notNull(),
+    created_at: integer("created_at").notNull(),
+});
+
 // ── Sync infrastructure (never synced themselves) ──────────
 
 // Oplog of local changes waiting to be pushed to the sync server. Populated

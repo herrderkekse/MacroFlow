@@ -1,6 +1,8 @@
 import "@/polyfills";
+import { sweepBarPaths } from "@/src/features/set-video/services/barPathDb";
+import { sweepFrameFiles } from "@/src/features/set-video/services/barPathTracking";
 import { isWorkoutScreenVisible, isWorkoutTimerNotification, shouldPlayTimerSound } from "@/src/features/exercise/services/restTimerNotifications";
-import { sweepSetVideos } from "@/src/features/exercise/services/setVideoFiles";
+import { sweepSetVideos } from "@/src/features/set-video/services/setVideoFiles";
 import { getEntriesByDate, getWeightLogsForDate } from "@/src/features/log/services/logDb";
 import { createAutoBackup } from "@/src/features/settings/services/autoBackup";
 import { getGoals, getNotificationSettings } from "@/src/features/settings/services/settingsDb";
@@ -51,6 +53,8 @@ if (lastSeenVersion !== currentVersion) {
 initDB();
 try {
   sweepSetVideos();
+  sweepBarPaths();
+  sweepFrameFiles();
 } catch { /* best-effort: leftovers are swept on the next start */ }
 
 function InnerLayout() {

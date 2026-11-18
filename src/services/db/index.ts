@@ -192,6 +192,14 @@ export function initDB() {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS bar_paths (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      set_uuid TEXT NOT NULL UNIQUE,
+      video_file TEXT NOT NULL,
+      data TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     INSERT OR IGNORE INTO goals (id) VALUES (1);
     INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
   `);

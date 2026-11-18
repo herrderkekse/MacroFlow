@@ -16,3 +16,12 @@ android {
     abortOnError false
   }
 }
+
+dependencies {
+  // Re-encodes a video when it is cropped. Kept at expo-video's Media3 version,
+  // so the app carries one Media3.
+  def media3Version = "1.9.0"
+  implementation "androidx.media3:media3-transformer:${media3Version}"
+  implementation "androidx.media3:media3-effect:${media3Version}"
+  implementation "androidx.media3:media3-common:${media3Version}"
+}

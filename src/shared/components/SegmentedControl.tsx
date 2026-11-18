@@ -16,6 +16,11 @@ interface SegmentedControlProps<T extends string | number> {
     value: T | null;
     onChange: (key: T) => void;
     size?: "sm" | "md";
+    /**
+     * Shows only the options' icons, each in a square, with the label read out
+     * by screen readers (a mode switch in a header). Every option needs an icon.
+     */
+    iconOnly?: boolean;
     style?: StyleProp<ViewStyle>;
 }
 
@@ -34,6 +39,7 @@ export default function SegmentedControl<T extends string | number>({
     value,
     onChange,
     size = "md",
+    iconOnly = false,
     style,
 }: SegmentedControlProps<T>) {
     const colors = useThemeColors();
@@ -68,25 +74,36 @@ export default function SegmentedControl<T extends string | number>({
                 onPress={() => onChange(option.key)}
                 onLayout={natural ? (e) => segmentX.current.set(String(option.key), e.nativeEvent.layout) : undefined}
                 accessibilityRole="tab"
+                accessibilityLabel={iconOnly ? option.label : undefined}
                 accessibilityState={{ selected: isSelected }}
                 style={({ pressed }) => [
                     styles.segment,
-                    natural ? styles.segmentNatural : styles.segmentShared,
+                    iconOnly ? styles.segmentIcon : natural ? styles.segmentNatural : styles.segmentShared,
                     size === "sm" && styles.segmentSmall,
+                    iconOnly && size === "sm" && styles.segmentIconSmall,
                     isSelected && styles.segmentSelected,
                     pressed && !isSelected && styles.pressed,
                 ]}
             >
-                {option.icon && <Ionicons name={option.icon} size={16} color={tint} />}
-                <Text
+                {option.icon && <Ionicons name={option.icon} size={iconOnly && size === "md" ? 18 : 16} color={tint} />}
+                {!iconOnly && <Text
                     numberOfLines={1}
                     adjustsFontSizeToFit={!natural}
                     minimumFontScale={0.8}
                     style={[styles.label, { color: tint }, isSelected && styles.labelSelected]}
                 >
                     {option.label}
-                </Text>
+                </Text>}
             </Pressable>
+        );
+    }
+
+    // Squares of a fixed size: nothing to measure, nothing to scroll.
+    if (iconOnly) {
+        return (
+            <View style={[styles.track, style]} accessibilityRole="tablist">
+                {options.map((option) => renderSegment(option, false))}
+            </View>
         );
     }
 
@@ -188,6 +205,8 @@ function createStyles(colors: ThemeColors) {
         segmentShared: { flex: 1, paddingHorizontal: 6 },
         segmentNatural: { paddingHorizontal: 14 },
         segmentSmall: { minHeight: controlHeight.sm - 8 },
+        segmentIcon: { width: controlHeight.md - 8 },
+        segmentIconSmall: { width: controlHeight.sm - 8 },
         segmentSelected: { backgroundColor: colors.primary },
         pressed: { backgroundColor: colors.surfaceMuted },
         label: { fontSize: fontSize.sm, fontWeight: "500", flexShrink: 1 },

@@ -374,7 +374,7 @@ A self-contained task that can be opened cold (the share import) uses a pushed s
 | Titled group of rows on a page (meals, weight, training, photos): a "+ LABEL" that adds, then a card — or a dashed placeholder while empty | `components/SectionCard` |
 | That "+ LABEL" alone (e.g. pinned apart from its rows) · the dashed "Nothing logged — add food" slot | `components/SectionHeader` · `components/AddPlaceholder` |
 | Settings / menu rows, and a card of them | `components/ListRow`, `components/ListGroup` |
-| A choice that always has exactly one answer, however many options (it scrolls sideways on its own when they do not fit) | `components/SegmentedControl` |
+| A choice that always has exactly one answer, however many options (it scrolls sideways on its own when they do not fit) · the same as icons only, for switching a screen's mode in its header (the set video screen) | `components/SegmentedControl` · with `iconOnly` |
 | A choice that may be empty or tapped off again (filters, an optional pick — tapping the selected chip clears it; never a "None" chip), or one where several can be on at once | `atoms/Chip`, laid out by `components/ChipRow` (centred while they fit; wraps, or scrolls with `scroll`) |
 | Text field · field opened elsewhere · number with −/+ · date · search | `atoms/Input` · `atoms/SelectField` · `components/Stepper` · `components/DateField` · `components/SearchBar` |
 | Label above a non-`Input` control · heading of a group | `atoms/FieldLabel` · `atoms/SectionLabel` |

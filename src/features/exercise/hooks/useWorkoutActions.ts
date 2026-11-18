@@ -10,7 +10,7 @@ import {
     getLastCompletedSetsForTemplate, updateSet, reorderSet,
     updateWorkoutExercise, type ExerciseSet,
 } from "../services/exerciseDb";
-import { removeVideoOfSet } from "../services/setVideoFiles";
+import { removeVideoOfSet } from "@/src/features/set-video/services/setVideoFiles";
 
 export function useWorkoutActions(workout: UseWorkoutReturn, restTimer: UseRestTimerReturn) {
     const { t } = useTranslation();

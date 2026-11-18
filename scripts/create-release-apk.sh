@@ -163,9 +163,12 @@ if [[ $FORCE_RESIGN -eq 0 ]]; then
 fi
 
 if [[ $FORCE_RESIGN -ne 0 ]]; then
-  # Remove META-INF signature files so we can resign
+  # Remove the old signature files so we can resign. Only those: the rest of
+  # META-INF is needed at runtime (META-INF/services/* is how Kotlin reflection
+  # and coroutines find their parts; without it, picking a photo or video fails
+  # with an ExceptionInInitializerError).
   if command -v zip >/dev/null 2>&1; then
-    zip -q -d "$WORK_APK" 'META-INF/*' || true
+    zip -q -d "$WORK_APK" 'META-INF/MANIFEST.MF' 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' || true
   else
     echo "Warning: zip command not found; proceeding without removing META-INF entries." >&2
   fi

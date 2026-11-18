@@ -1,4 +1,4 @@
-import { isVideoTrimAvailable, trimVideo } from "@/modules/video-trim";
+import { cropVideo, isVideoCropAvailable, isVideoTrimAvailable, trimVideo, type CropRect } from "@/modules/video-trim";
 import { Directory, File, Paths } from "expo-file-system";
 import { isWholeVideo } from "../helpers/trimRange";
 import {
@@ -18,7 +18,7 @@ export function setVideoUri(video: SetVideo): string {
     return new File(videoDir(), video.file_name).uri;
 }
 
-export { isVideoTrimAvailable };
+export { isVideoCropAvailable, isVideoTrimAvailable };
 
 interface SaveSetVideoInput {
     setUuid: string;
@@ -27,14 +27,17 @@ interface SaveSetVideoInput {
     startMs: number;
     endMs: number;
     sourceDurationMs: number;
+    /** The part of the picture to keep; null keeps all of it. */
+    crop?: CropRect | null;
 }
 
 /**
- * Stores a video for a set: cuts it to the range (or copies it whole), points
+ * Stores a video for a set: cuts it to the range and crops it (re-encoding
+ * it), cuts it without re-encoding, or copies it whole, as needed; points
  * the set at the new file and removes the file it replaces. A source the camera
  * or the picker left in the cache is deleted once it has been stored.
  */
-export async function saveSetVideo({ setUuid, sourceUri, startMs, endMs, sourceDurationMs }: SaveSetVideoInput): Promise<void> {
+export async function saveSetVideo({ setUuid, sourceUri, startMs, endMs, sourceDurationMs, crop }: SaveSetVideoInput): Promise<void> {
     const dir = videoDir();
     if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
 
@@ -42,7 +45,11 @@ export async function saveSetVideo({ setUuid, sourceUri, startMs, endMs, sourceD
     let fileName: string;
     let durationMs: number;
 
-    if (!isWholeVideo(startMs, endMs, sourceDurationMs) && isVideoTrimAvailable()) {
+    if (crop && isVideoCropAvailable()) {
+        const result = await cropVideo(sourceUri, new File(dir, `${setUuid}-${stamp}.mp4`).uri, startMs, endMs, crop);
+        fileName = result.uri.split("/").pop() ?? `${setUuid}-${stamp}.mp4`;
+        durationMs = Math.round(result.durationMs);
+    } else if (!isWholeVideo(startMs, endMs, sourceDurationMs) && isVideoTrimAvailable()) {
         const result = await trimVideo(sourceUri, new File(dir, `${setUuid}-${stamp}.mp4`).uri, startMs, endMs);
         fileName = result.uri.split("/").pop() ?? `${setUuid}-${stamp}.mp4`;
         durationMs = Math.round(result.durationMs);
