@@ -22,7 +22,14 @@ export function useTrimRange(playback: VideoPlayback, active: boolean) {
     useEffect(() => {
         if (!active) return;
         setReportInterval(player, TRIM_INTERVAL_S);
-        return () => setReportInterval(player, REPORT_INTERVAL_S);
+        return () => {
+            // On leaving the screen (or reloading it after a save), the player
+            // is released before this runs, and a released one can't be set;
+            // it doesn't need its interval back either.
+            try {
+                setReportInterval(player, REPORT_INTERVAL_S);
+            } catch { /* released */ }
+        };
     }, [player, active]);
 
     useEventListener(player, "timeUpdate", ({ currentTime }) => {
