@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { SetVideo } from "../services/setVideoDb";
+import type { SetVideo } from "@/src/features/set-video/services/setVideoDb";
 
 /** What a set row needs to show and open its video. Provided by `SetVideoProvider`. */
 export interface SetVideoContextValue {

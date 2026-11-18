@@ -247,7 +247,7 @@ export const setVideos = sqliteTable("set_videos", {
     created_at: integer("created_at").notNull(),
 });
 
-// The bar path tracked in a set's video (bar-path feature). Device-local like
+// The bar path tracked in a set's video (set-video feature). Device-local like
 // set_videos. `video_file` is the set video's file_name it was measured on: a
 // video trimmed or replaced since gets a new file name, and the path no
 // longer applies. `data` is a BarPathData as JSON.

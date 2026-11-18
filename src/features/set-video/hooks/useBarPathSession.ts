@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSetVideo } from "@/src/features/exercise/services/setVideoDb";
-import { setVideoUri } from "@/src/features/exercise/services/setVideoFiles";
+import { getSetVideo } from "../services/setVideoDb";
+import { setVideoUri } from "../services/setVideoFiles";
 import logger from "@/src/utils/logger";
 import { STANDARD_PLATE_M } from "../constants";
 import { snapPlate } from "../helpers/plateDetector";

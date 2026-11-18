@@ -9,8 +9,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
 import { SetVideoContext, type SetVideoContextValue } from "../hooks/useSetVideo";
-import { listSetVideos, type SetVideo } from "../services/setVideoDb";
-import { isVideoTrimAvailable, removeSetVideo, setVideoUri } from "../services/setVideoFiles";
+import { listSetVideos, type SetVideo } from "@/src/features/set-video/services/setVideoDb";
+import { isVideoTrimAvailable, removeSetVideo, setVideoUri } from "@/src/features/set-video/services/setVideoFiles";
 import SetVideoPlayer from "./SetVideoPlayer";
 
 // Long enough for any set; keeps an accidentally running camera from filling the phone.

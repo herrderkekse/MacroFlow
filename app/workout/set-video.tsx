@@ -1,1 +1,1 @@
-export { default } from "@/src/features/exercise/screens/SetVideoTrimScreen";
+export { default } from "@/src/features/set-video/screens/SetVideoTrimScreen";

@@ -1,1 +1,1 @@
-export { default } from "@/src/features/bar-path/screens/BarPathScreen";
+export { default } from "@/src/features/set-video/screens/BarPathScreen";
