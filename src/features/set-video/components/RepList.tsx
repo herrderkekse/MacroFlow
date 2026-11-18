@@ -20,14 +20,13 @@ interface RepListProps {
     onRepPress: (startMs: number) => void;
 }
 
-/** The set's reps as measured from the bar path: speed, travel, way down and drift of each. */
+/** The set's reps as measured from the bar path: speed, travel, way down and drift of each. The figures over all of them are `RepSummary`. */
 export default function RepList({ analysis, onRepPress }: RepListProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const unitSystem = useAppStore((s) => s.unitSystem);
-    const { reps, confidence, velocityLoss } = analysis;
-    const fastest = Math.max(0, ...reps.map((r) => r.meanVelocity));
+    const { reps, confidence } = analysis;
 
     return (
         <View style={styles.list}>
@@ -38,13 +37,6 @@ export default function RepList({ analysis, onRepPress }: RepListProps) {
                 <Notice>{t("barPath.noReps")}</Notice>
             ) : (
                 <>
-                    <View style={styles.summary}>
-                        <Figure value={String(reps.length)} label={t("barPath.repCount", { count: reps.length })} styles={styles} />
-                        <Figure value={formatVelocity(fastest)} label={t("barPath.bestVelocity")} styles={styles} />
-                        {velocityLoss != null && (
-                            <Figure value={`${Math.round(velocityLoss * 100)} %`} label={t("barPath.velocityLoss")} styles={styles} />
-                        )}
-                    </View>
                     <SectionLabel>{t("barPath.reps")}</SectionLabel>
                     <ListGroup>
                         {reps.map((rep, i) => {
@@ -72,22 +64,9 @@ export default function RepList({ analysis, onRepPress }: RepListProps) {
     );
 }
 
-function Figure({ value, label, styles }: { value: string; label: string; styles: ReturnType<typeof createStyles> }) {
-    return (
-        <View style={styles.figure}>
-            <Text style={styles.figureValue}>{value}</Text>
-            <Text style={styles.figureLabel}>{label}</Text>
-        </View>
-    );
-}
-
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
         list: { gap: spacing.sm },
-        summary: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.xs },
-        figure: { flex: 1 },
-        figureValue: { color: colors.text, fontSize: fontSize.lg, fontWeight: "600", fontVariant: ["tabular-nums"] },
-        figureLabel: { color: colors.textSecondary, fontSize: fontSize.xs },
         footnote: { color: colors.textTertiary, fontSize: fontSize.xs },
     });
 }

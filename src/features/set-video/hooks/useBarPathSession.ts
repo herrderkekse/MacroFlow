@@ -23,8 +23,12 @@ export type BarPathPhase = "reading" | "place" | "tracking" | "result" | "missin
 // How much one tap on "smaller"/"larger" resizes the marker.
 const RESIZE_STEP = 1.08;
 
-/** Everything the bar path screen does with one set's video. */
-export function useBarPathSession(setUuid: string) {
+/**
+ * Everything the bar path mode does with one set's video. Reading the video
+ * starts once the mode is first `active`, and goes on (as does tracking) while
+ * another mode is shown.
+ */
+export function useBarPathSession(setUuid: string, active: boolean) {
     const [video] = useState(() => getSetVideo(setUuid));
     const [path, setPath] = useState<BarPathData | null>(() => (video ? getBarPath(setUuid, video.file_name) : null));
     const [phase, setPhase] = useState<BarPathPhase>(() => initialPhase(!!video, path != null));
@@ -75,10 +79,10 @@ export function useBarPathSession(setUuid: string) {
         };
     }, [releaseFrames]);
 
-    // The screen opens on reading the video when there is no path yet.
+    // The mode opens on reading the video when there is no path yet.
     useEffect(() => {
-        if (phase === "reading" && !frames.current) queueMicrotask(() => void startPlacing());
-    }, [phase, startPlacing]);
+        if (active && phase === "reading" && !frames.current) queueMicrotask(() => void startPlacing());
+    }, [active, phase, startPlacing]);
 
     const place = useCallback((x: number, y: number) => {
         if (firstFrame) setMarker(snapPlate(firstFrame, x, y));
@@ -133,7 +137,7 @@ export function useBarPathSession(setUuid: string) {
     }, [path, video, setUuid]);
 
     return {
-        phase, videoUri, path, firstFrame, marker, plateDiameterM, progress,
+        phase, path, firstFrame, marker, plateDiameterM, progress,
         canRedo: isVideoFramesAvailable() && !!video,
         place, resize, track, redo, changePlateDiameter,
         /** Leave placing without tracking, back to the stored path. */

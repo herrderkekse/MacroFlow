@@ -1,9 +1,9 @@
-import type { VideoPlayer } from "expo-video";
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { fitContain, type Fit } from "../helpers/videoFit";
 import { usePlayerPosition } from "../hooks/usePlayerPosition";
+import type { VideoPlayback } from "../hooks/useVideoPlayback";
 import type { Rep } from "../types";
 
 // Drawn over the video, so it must not follow the theme (like text over a
@@ -22,14 +22,13 @@ interface BarPathOverlayProps {
     y: number[];
     reps: Rep[];
     /** The video; the path is drawn up to its position, and the plate there. */
-    player: VideoPlayer;
-    isPlaying: boolean;
+    playback: VideoPlayback;
     plateRadius: number;
 }
 
 /** The bar's path over its video, fitted as the video is (`contentFit="contain"`). */
-export default function BarPathOverlay({ frameWidth, frameHeight, t, x, y, reps, player, isPlaying, plateRadius }: BarPathOverlayProps) {
-    const currentMs = usePlayerPosition(player, isPlaying);
+export default function BarPathOverlay({ frameWidth, frameHeight, t, x, y, reps, playback, plateRadius }: BarPathOverlayProps) {
+    const currentMs = usePlayerPosition(playback);
     const [box, setBox] = useState({ width: 0, height: 0 });
     const fit = fitContain(box.width, box.height, frameWidth, frameHeight);
     const whole = pathData(fit, x, y, 0, x.length - 1);

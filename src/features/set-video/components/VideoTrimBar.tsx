@@ -1,16 +1,16 @@
 import { useThemeColors } from "@/src/shared/providers/ThemeProvider";
 import { borderRadius, type ThemeColors } from "@/src/utils/theme";
-import { Image } from "expo-image";
 import type { VideoThumbnail } from "expo-video";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View, type AccessibilityActionEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { FILMSTRIP } from "../constants";
 import { moveTrimEnd, moveTrimStart } from "../helpers/trimRange";
+import Filmstrip from "./Filmstrip";
 
-const HANDLE_WIDTH = 16;
-const BAR_HEIGHT = 56;
-const FRAME_BORDER = 3;
+const HANDLE_WIDTH = FILMSTRIP.endInset;
+const FRAME_BORDER = FILMSTRIP.border;
 // What one accessibility increment/decrement moves a handle by.
 const A11Y_STEP_MS = 500;
 
@@ -89,11 +89,7 @@ export default function VideoTrimBar(props: VideoTrimBarProps) {
     return (
         <GestureDetector gesture={tapGesture}>
             <View style={styles.bar} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-                <View style={styles.filmstrip}>
-                    {thumbnails.map((thumb, i) => (
-                        <Image key={i} source={thumb} style={styles.thumb} contentFit="cover" />
-                    ))}
-                </View>
+                <Filmstrip thumbnails={thumbnails} />
 
                 <View style={[styles.dim, { left: HANDLE_WIDTH, width: startX }]} />
                 <View style={[styles.dim, { left: HANDLE_WIDTH + endX, right: HANDLE_WIDTH }]} />
@@ -137,18 +133,7 @@ export default function VideoTrimBar(props: VideoTrimBarProps) {
 
 function createStyles(colors: ThemeColors) {
     return StyleSheet.create({
-        bar: { height: BAR_HEIGHT, justifyContent: "center" },
-        filmstrip: {
-            position: "absolute",
-            left: HANDLE_WIDTH,
-            right: HANDLE_WIDTH,
-            top: FRAME_BORDER,
-            bottom: FRAME_BORDER,
-            flexDirection: "row",
-            overflow: "hidden",
-            backgroundColor: colors.surfaceMuted,
-        },
-        thumb: { flex: 1, height: "100%" },
+        bar: { height: FILMSTRIP.height, justifyContent: "center" },
         dim: { position: "absolute", top: FRAME_BORDER, bottom: FRAME_BORDER, backgroundColor: colors.overlay },
         frame: {
             position: "absolute",
