@@ -131,6 +131,7 @@ export default function SetVideoEditor({ setUuid, label, uri, isNew, editable, o
             <VideoStage
                 player={playback.player}
                 aspect={playback.aspect}
+                shapeKnown={playback.shapeKnown}
                 overlay={mode === "barPath"
                     ? <BarPathLayer session={session} analysis={analysis} playback={playback} firstFrame={firstFrame} />
                     : undefined}

@@ -11,6 +11,11 @@ interface VideoStageProps {
     player: VideoPlayer;
     /** Width over height of the video as shown; null while not known yet. */
     aspect: number | null;
+    /**
+     * False while the shape is still being found out: the video stays hidden
+     * meanwhile, so it doesn't show in a box of the wrong shape and then jump.
+     */
+    shapeKnown: boolean;
     /** Drawn over the video, inside its box (a path, a marker). */
     overlay?: React.ReactNode;
     /** Along the stage's bottom edge, over the bottom of a tall video. */
@@ -29,7 +34,7 @@ interface VideoStageProps {
  * below, with the controls over its bottom edge when it reaches under them.
  * One stage for every mode, so the picture stays put while they switch.
  */
-export default function VideoStage({ player, aspect, overlay, controls, onPress, pressLabel, paused, bottomInset = 0 }: VideoStageProps) {
+export default function VideoStage({ player, aspect, shapeKnown, overlay, controls, onPress, pressLabel, paused, bottomInset = 0 }: VideoStageProps) {
     const colors = useThemeColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const [stage, setStage] = useState({ width: 0, height: 0 });
@@ -45,23 +50,25 @@ export default function VideoStage({ player, aspect, overlay, controls, onPress,
     return (
         <View style={[styles.stage, { marginBottom: bottomInset }]} onLayout={(e) => setStage(e.nativeEvent.layout)}>
             {/* Not animated when the controls change size: a layout animation blanks the video's surface on Android. */}
-            <View style={[styles.videoBox, { top: box.top, height: box.height }]}>
-                <Pressable
-                    style={styles.press}
-                    onPress={onPress}
-                    disabled={!onPress}
-                    accessibilityRole={onPress ? "button" : undefined}
-                    accessibilityLabel={onPress ? pressLabel : undefined}
-                >
-                    <VideoView player={player} style={styles.fill} contentFit="contain" nativeControls={false} />
-                    {overlay}
-                    {paused && (
-                        <View style={styles.playBadge} pointerEvents="none">
-                            <Ionicons name="play" size={28} color={colors.onPrimary} />
-                        </View>
-                    )}
-                </Pressable>
-            </View>
+            {shapeKnown && (
+                <View style={[styles.videoBox, { top: box.top, height: box.height }]}>
+                    <Pressable
+                        style={styles.press}
+                        onPress={onPress}
+                        disabled={!onPress}
+                        accessibilityRole={onPress ? "button" : undefined}
+                        accessibilityLabel={onPress ? pressLabel : undefined}
+                    >
+                        <VideoView player={player} style={styles.fill} contentFit="contain" nativeControls={false} />
+                        {overlay}
+                        {paused && (
+                            <View style={styles.playBadge} pointerEvents="none">
+                                <Ionicons name="play" size={28} color={colors.onPrimary} />
+                            </View>
+                        )}
+                    </Pressable>
+                </View>
+            )}
 
             {controls && (
                 // Empty parts let taps through to the video.

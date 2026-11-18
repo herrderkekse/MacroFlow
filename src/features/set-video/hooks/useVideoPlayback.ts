@@ -59,6 +59,20 @@ export function useVideoPlayback(uri: string) {
     const seekListeners = useRef(new Set<(ms: number) => void>());
     const scrub = useRef({ active: false, wasPlaying: false, lastMs: 0 });
 
+    // The video's shape as shown, so its box has its final size from the
+    // first picture on. The tracks' sizes ignore a phone video's rotation, so
+    // it is read from one small frame instead, which is upright: undefined
+    // while that is under way, null if it couldn't be read.
+    const [firstAspect, setFirstAspect] = useState<number | null | undefined>(undefined);
+    useEffect(() => {
+        if (durationMs <= 0) return;
+        let cancelled = false;
+        player.generateThumbnailsAsync([0], { maxWidth: 64 })
+            .then(([thumb]) => { if (!cancelled) setFirstAspect(thumb && thumb.height > 0 ? thumb.width / thumb.height : null); })
+            .catch(() => { if (!cancelled) setFirstAspect(null); });
+        return () => { cancelled = true; };
+    }, [player, durationMs]);
+
     useEffect(() => {
         if (durationMs <= 0) return;
         const times = Array.from({ length: THUMBNAIL_COUNT }, (_, i) => ((i + 0.5) / THUMBNAIL_COUNT) * (durationMs / 1000));
@@ -69,9 +83,11 @@ export function useVideoPlayback(uri: string) {
         return () => { cancelled = true; };
     }, [player, durationMs]);
 
-    // The filmstrip's frames are upright, so their shape is the video's as shown.
     const first = thumbnails[0];
-    const aspect = first && first.height > 0 ? first.width / first.height : null;
+    // The filmstrip's frames stand in if the first one couldn't be read.
+    const aspect = firstAspect ?? (first && first.height > 0 ? first.width / first.height : null);
+    /** False until the video's shape is known, or known not to be knowable (web). */
+    const shapeKnown = firstAspect !== undefined;
 
     const seekTo = useCallback((ms: number) => {
         const clamped = Math.min(Math.max(ms, 0), durationMs > 0 ? durationMs : ms);
@@ -141,11 +157,11 @@ export function useVideoPlayback(uri: string) {
     const isScrubbing = useCallback(() => scrub.current.active, []);
 
     return useMemo(() => ({
-        player, durationMs, isPlaying, muted, rate, thumbnails, aspect,
+        player, durationMs, isPlaying, muted, rate, thumbnails, aspect, shapeKnown,
         seekTo, subscribeSeek, togglePlaying, play, pause, stepFrame, cycleRate, toggleMuted,
         scrubStart, scrubTo, scrubEnd, isScrubbing,
     }), [
-        player, durationMs, isPlaying, muted, rate, thumbnails, aspect,
+        player, durationMs, isPlaying, muted, rate, thumbnails, aspect, shapeKnown,
         seekTo, subscribeSeek, togglePlaying, play, pause, stepFrame, cycleRate, toggleMuted,
         scrubStart, scrubTo, scrubEnd, isScrubbing,
     ]);
